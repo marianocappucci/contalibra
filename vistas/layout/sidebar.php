@@ -132,6 +132,11 @@
             </div>
         </li>
         <?php endif; ?>
+<li class="nav-item">
+    <a class="nav-link" href="index.php?controller=Backup&action=index">
+        <i class="bi bi-hdd-stack"></i> Backup y Restauración
+    </a>
+</li>
 
     </ul>
 </div>
