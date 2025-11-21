@@ -1,7 +1,7 @@
 <?php
 // Configuración general
 define('DB_HOST', 'localhost');
-define('DB_NAME', 'pos_mvc');
+define('DB_NAME', 'contadb');
 define('DB_USER', 'root');
 define('DB_PASS', '');
 

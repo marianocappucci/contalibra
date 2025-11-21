@@ -7,3 +7,37 @@ left: 0;
 width: 100%;
 z-index: 1000; /* por encima de todo */
 } 
+i {
+    color:#f38064;
+}
+i.menu-icon {
+    color:#f38064;
+}
+.icono-menu {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+.icono-login {
+    width: 60px;
+    height: 60px;
+    object-fit: contain;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+* {
+    font-family: "Noto Sans", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: <weight>;
+  font-style: normal;
+  font-variation-settings:
+    "wdth" 100;
+}
+.textologin {
+    font-family: "Noto Sans", sans-serif;
+    font-size: 40px;
+    letter-spacing: -1px;
+    color:black;
+}

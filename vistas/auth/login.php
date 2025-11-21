@@ -36,8 +36,10 @@
 
     <!-- LOGO CONTALIBRA EN LOGIN -->
     <div class="login-logo">
-        <i class="bi bi-layers-half"></i>
-        Contalibra
+        <img src="public/favicon.png" class="icono-login">
+        <span class="textologin">
+           Conta<strong>libra</strong>
+        </span>
     </div>
 
     <h4 class="text-center mb-4">Iniciar Sesión</h4>

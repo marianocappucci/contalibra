@@ -2,11 +2,12 @@
      style="height: 60px; position: fixed; top: 0; left: 0; width: 100%; z-index: 1000;">
 
     <div class="d-flex align-items-center">
-        <i class="bi bi-layers-half text-white fs-3 me-2"></i>
+        <img src="public/favicon.png" class="icono-menu">
+
        
 
         <span class="navbar-brand mb-0 h1 fw-bold fs-4">
-            Contalibra
+           Conta<strong>libra</strong>
         </span>
     </div>
 

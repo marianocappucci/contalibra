@@ -14,7 +14,7 @@ spl_autoload_register(function($class){
         }
     }
 });
-// este es un comentario que agregue para el github
+
 $controllerName = isset($_GET['controller']) ? $_GET['controller'] . 'Controller' : 'AuthController';
 $action = isset($_GET['action']) ? $_GET['action'] : 'login';
 
