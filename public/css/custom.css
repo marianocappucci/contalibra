@@ -7,3 +7,6 @@ left: 0;
 width: 100%;
 z-index: 1000; /* por encima de todo */
 } 
+.cuadrado{
+    top: 0;
+}
