@@ -1,3 +1,3 @@
 # contalibra
-Sistema Contable
-Version de prueba aun no en producción
+Sistema Contable</br>
+- Version de prueba aun no en producción -
