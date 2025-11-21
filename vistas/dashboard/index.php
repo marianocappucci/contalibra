@@ -1,0 +1,101 @@
+<?php include __DIR__ . '/../layout/header.php'; ?>
+<?php include __DIR__ . '/../layout/topbar.php'; ?>
+<?php include __DIR__ . '/../layout/sidebar.php'; ?>
+
+<div id="content">
+
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
+<style>
+  .menu-card {
+    transition: 0.2s;
+    cursor: pointer;
+    border-radius: 12px;
+  }
+  .menu-card:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0,0,0,.15);
+  }
+  .menu-icon {
+    font-size: 50px;
+    margin-bottom: 10px;
+    color: #0d6efd;
+  }
+</style>
+
+<div class="container mt-4 mt-4">
+  <h3 class="mb-4">Panel Principal</h3>
+
+  <div class="row g-4">
+
+    <div class="col-md-3">
+      <a href="index.php?controller=Venta&action=nueva" class="text-decoration-none text-dark">
+        <div class="card text-center p-3 menu-card">
+          <i class="bi bi-cart-plus-fill menu-icon"></i>
+          <h5>Nueva Venta</h5>
+        </div>
+      </a>
+    </div>
+
+    <div class="col-md-3">
+      <a href="index.php?controller=Venta&action=index" class="text-decoration-none text-dark">
+        <div class="card text-center p-3 menu-card">
+          <i class="bi bi-receipt-cutoff menu-icon"></i>
+          <h5>Listado de Ventas</h5>
+        </div>
+      </a>
+    </div>
+
+    <div class="col-md-3">
+      <a href="index.php?controller=Producto&action=index" class="text-decoration-none text-dark">
+        <div class="card text-center p-3 menu-card">
+          <i class="bi bi-box-seam-fill menu-icon"></i>
+          <h5>Productos</h5>
+        </div>
+      </a>
+    </div>
+
+    <div class="col-md-3">
+      <a href="index.php?controller=Caja&action=index" class="text-decoration-none text-dark">
+        <div class="card text-center p-3 menu-card">
+          <i class="bi bi-cash-coin menu-icon"></i>
+          <h5>Cajas</h5>
+        </div>
+      </a>
+    </div>
+
+    <div class="col-md-3">
+      <a href="index.php?controller=Usuario&action=index" class="text-decoration-none text-dark">
+        <div class="card text-center p-3 menu-card">
+          <i class="bi bi-people-fill menu-icon"></i>
+          <h5>Usuarios</h5>
+        </div>
+      </a>
+    </div>
+
+    <div class="col-md-3">
+      <a href="index.php?controller=Reporte&action=ventas" class="text-decoration-none text-dark">
+        <div class="card text-center p-3 menu-card">
+          <i class="bi bi-bar-chart-line-fill menu-icon"></i>
+          <h5>Reportes</h5>
+        </div>
+      </a>
+    </div>
+
+    <?php if (isset($_SESSION['user']) && $_SESSION['user']['rol_nombre'] === 'Administrador'): ?>
+    <div class="col-md-3">
+      <a href="index.php?controller=Configuracion&action=index" class="text-decoration-none text-dark">
+        <div class="card text-center p-3 menu-card">
+          <i class="bi bi-gear-fill menu-icon"></i>
+          <h5>Configuración</h5>
+        </div>
+      </a>
+    </div>
+    <?php endif; ?>
+
+  </div>
+</div>
+</div> <!-- cierre de content -->
+
+<?php include __DIR__ . '/../layout/footer.php'; ?>
