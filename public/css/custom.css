@@ -7,9 +7,7 @@ left: 0;
 width: 100%;
 z-index: 1000; /* por encima de todo */
 } 
-i {
-    color:#f38064;
-}
+
 i.menu-icon {
     color:#f38064;
 }
@@ -39,4 +37,20 @@ i.menu-icon {
     font-size: 40px;
     letter-spacing: -1px;
     color:black;
+}
+@media print {
+    .sidebar, .topbar, .btn, .no-print, footer {
+        display: none !important;
+    }
+
+    #content {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+    }
+
+    table {
+        width: 100%;
+        font-size: 12px;
+    }
 }
