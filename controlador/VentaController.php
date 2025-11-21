@@ -1,4 +1,5 @@
 <?php
+require_once "libs/log_helper.php";
 class VentaController {
 
     private $ventaModel;
@@ -6,19 +7,22 @@ class VentaController {
     private $cajaModel;
     private $feModel;
 
-    public function __construct() {
+    public function __construct(){
+    registrarLog("Acceso a __construct","Venta");
         $this->ventaModel = new Venta();
         $this->productoModel = new Producto();
         $this->cajaModel = new Caja();
         $this->feModel = new FacturacionElectronica();
     }
 
-    public function index() {
+    public function index(){
+    registrarLog("Acceso a index","Venta");
         $ventas = $this->ventaModel->listarVentas();
         include __DIR__ . '/../vistas/ventas/lista.php';
     }
 
-    public function nueva() {
+    public function nueva(){
+    registrarLog("Acceso a nueva","Venta");
         $productos = $this->productoModel->getAll();
         $caja = $this->cajaModel->getCajaAbiertaPorUsuario($_SESSION['user']['id']);
         if (!$caja) {
@@ -58,7 +62,8 @@ class VentaController {
         include __DIR__ . '/../vistas/ventas/nueva.php';
     }
 
-    public function ver() {
+    public function ver(){
+    registrarLog("Acceso a ver","Venta");
         $id = $_GET['id'] ?? null;
         if (!$id) { die('ID inválido'); }
         $venta = $this->ventaModel->getById($id);

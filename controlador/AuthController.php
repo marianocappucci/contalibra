@@ -1,7 +1,9 @@
 <?php
+require_once "libs/log_helper.php";
 class AuthController {
 
-    public function login() {
+    public function login(){
+    registrarLog("Acceso a login","Auth");
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $username = $_POST['username'] ?? '';
             $password = $_POST['password'] ?? '';
@@ -25,7 +27,8 @@ class AuthController {
         include __DIR__ . '/../vistas/auth/login.php';
     }
 
-    public function logout() {
+    public function logout(){
+    registrarLog("Acceso a logout","Auth");
         session_destroy();
         header('Location: index.php');
         exit;

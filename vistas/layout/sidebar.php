@@ -138,5 +138,5 @@
     </a>
 </li>
 
-    </ul>
+    <li class='nav-item'><a class='nav-link' href='index.php?controller=Log&action=index'><i class='bi bi-clipboard-data'></i> Logs</a></li></ul>
 </div>

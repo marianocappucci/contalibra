@@ -1,14 +1,15 @@
 <?php
+require_once "libs/log_helper.php";
 
 class BackupController
 {
-    public function index()
-    {
+    public function index(){
+    registrarLog("Acceso a index","Backup");
         include 'vistas/config/backup.php';
     }
 
-    public function generar()
-    {
+    public function generar(){
+    registrarLog("Acceso a generar","Backup");
         include 'modelo/Backup.php';
         $backup = new Backup();
         $file = $backup->generarBackup();
@@ -19,8 +20,8 @@ class BackupController
         exit;
     }
 
-    public function restaurar()
-    {
+    public function restaurar(){
+    registrarLog("Acceso a restaurar","Backup");
         if (!isset($_FILES['archivo'])) {
             $msg = "No se seleccionó ningún archivo.";
             include 'vistas/config/backup.php';

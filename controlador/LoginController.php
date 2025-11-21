@@ -1,0 +1,1 @@
+registrarLog("Inicio de sesión", "Login");

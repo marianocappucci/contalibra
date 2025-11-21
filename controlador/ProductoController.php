@@ -1,20 +1,24 @@
 <?php
+require_once "libs/log_helper.php";
 class ProductoController {
 
     private $model;
     private $listaModel;
 
-    public function __construct() {
+    public function __construct(){
+    registrarLog("Acceso a __construct","Producto");
         $this->model = new Producto();
         $this->listaModel = new ListaPrecio();
     }
 
-    public function index() {
+    public function index(){
+    registrarLog("Acceso a index","Producto");
         $productos = $this->model->getAll();
         include __DIR__ . '/../vistas/productos/index.php';
     }
 
-public function buscarAjax() {
+public function buscarAjax(){
+    registrarLog("Acceso a buscarAjax","Producto");
     $term = $_GET['term'] ?? '';
     $model = new Producto();
     $productos = $model->buscarPorNombre($term);
@@ -24,7 +28,8 @@ public function buscarAjax() {
 }
 
 
-    public function crear() {
+    public function crear(){
+    registrarLog("Acceso a crear","Producto");
         $listas = $this->listaModel->getAll();
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $this->model->create($_POST);
@@ -35,7 +40,8 @@ public function buscarAjax() {
         include __DIR__ . '/../vistas/productos/form.php';
     }
 
-    public function editar() {
+    public function editar(){
+    registrarLog("Acceso a editar","Producto");
         $id = $_GET['id'] ?? null;
         if (!$id) { die('ID inválido'); }
         $listas = $this->listaModel->getAll();
@@ -48,7 +54,8 @@ public function buscarAjax() {
         include __DIR__ . '/../vistas/productos/form.php';
     }
 
-    public function eliminar() {
+    public function eliminar(){
+    registrarLog("Acceso a eliminar","Producto");
         $id = $_GET['id'] ?? null;
         if ($id) {
             $this->model->delete($id);
