@@ -37,66 +37,87 @@ class VentaController {
         if (!$caja) {
             $error = 'Debe abrir una caja antes de vender.';
         }
-        if ($_SERVER['REQUEST_METHOD'] === 'POST' && $caja) {
-            $clienteId = $_POST['cliente_id'] ?? null;
-            // Evitamos violar la FK cuando se factura a Consumidor Final
-            if ($clienteId === '') {
-                $clienteId = null;
-            }
+        include __DIR__ . '/../vistas/ventas/nueva.php';
+    }
 
-            if (!$clienteId && !empty($_POST['nuevo_cliente_nombre'])) {
-                $clienteId = $this->clienteModel->create([
-                    'nombre' => $_POST['nuevo_cliente_nombre'],
-                    'tipo' => $_POST['nuevo_cliente_tipo'] ?? 'Consumidor Final',
-                    'documento' => $_POST['nuevo_cliente_documento'] ?? '',
-                    'saldo' => 0
-                ]);
-            }
-            $items = [];
-            $subtotal = 0;
-            foreach ($_POST['items'] as $row) {
-                if (empty($row['producto_id']) || $row['cantidad'] <= 0) continue;
-                $totalLinea = $row['cantidad'] * $row['precio_unitario'];
-                $items[] = [
-                    'producto_id' => $row['producto_id'],
-                    'cantidad' => $row['cantidad'],
-                    'precio_unitario' => $row['precio_unitario'],
-                    'total' => $totalLinea
-                ];
-                $subtotal += $totalLinea;
-            }
-            $iva = $subtotal * 0.21;
-            $total = $subtotal + $iva;
-            $metodoPagoId = $_POST['metodo_pago_id'] ?? null;
-            $sucursalId = $_POST['sucursal_id'] ?? null;
-
-            if ($metodoPagoId === '') {
-                $metodoPagoId = null;
-            }
-
-            if ($sucursalId === '') {
-                $sucursalId = null;
-            }
-
-            $dataVenta = [
-                'caja_id' => $caja['id'],
-                'usuario_id' => $_SESSION['user']['id'],
-                'cliente_id' => $clienteId,
-                'cliente' => $_POST['cliente'] ?? 'Consumidor Final',
-                'subtotal' => $subtotal,
-                'iva' => $iva,
-                'total' => $total,
-                'tipo_comprobante' => $_POST['tipo_comprobante'] ?? 'FA',
-                'metodo_pago_id' => $metodoPagoId,
-                'sucursal_id' => $sucursalId
-            ];
-            $ventaId = $this->ventaModel->crearVenta($dataVenta, $items);
-            $venta = $this->ventaModel->getById($ventaId);
-            $respFE = $this->feModel->enviarAFiscal($venta);
-            header('Location: index.php?controller=Venta&action=ver&id=' . $ventaId);
+    public function registrar(){
+    registrarLog("Acceso a registrar","Venta");
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header('Location: index.php?controller=Venta&action=nueva');
             exit;
         }
-        include __DIR__ . '/../vistas/ventas/nueva.php';
+
+        $caja = $this->cajaModel->getCajaAbiertaPorUsuario($_SESSION['user']['id']);
+        if (!$caja) {
+            die('Debe abrir una caja antes de registrar una venta.');
+        }
+
+        $clienteId = $_POST['cliente_id'] ?? null;
+        // Evitamos violar la FK cuando se factura a Consumidor Final
+        if ($clienteId === '') {
+            $clienteId = null;
+        }
+
+        if (!$clienteId && !empty($_POST['nuevo_cliente_nombre'])) {
+            $clienteId = $this->clienteModel->create([
+                'nombre' => $_POST['nuevo_cliente_nombre'],
+                'tipo' => $_POST['nuevo_cliente_tipo'] ?? 'Consumidor Final',
+                'documento' => $_POST['nuevo_cliente_documento'] ?? '',
+                'saldo' => 0
+            ]);
+        }
+
+        $items = [];
+        $subtotal = 0;
+        $itemsPost = $_POST['items'] ?? [];
+
+        foreach ($itemsPost as $row) {
+            if (empty($row['producto_id']) || $row['cantidad'] <= 0) continue;
+            $totalLinea = $row['cantidad'] * $row['precio_unitario'];
+            $items[] = [
+                'producto_id' => $row['producto_id'],
+                'cantidad' => $row['cantidad'],
+                'precio_unitario' => $row['precio_unitario'],
+                'total' => $totalLinea
+            ];
+            $subtotal += $totalLinea;
+        }
+
+        if (!$items) {
+            die('Debe agregar al menos un producto para guardar la venta.');
+        }
+
+        $iva = $subtotal * 0.21;
+        $total = $subtotal + $iva;
+        $metodoPagoId = $_POST['metodo_pago_id'] ?? null;
+        $sucursalId = $_POST['sucursal_id'] ?? null;
+
+        if ($metodoPagoId === '') {
+            $metodoPagoId = null;
+        }
+
+        if ($sucursalId === '') {
+            $sucursalId = null;
+        }
+
+        $dataVenta = [
+            'caja_id' => $caja['id'],
+            'usuario_id' => $_SESSION['user']['id'],
+            'cliente_id' => $clienteId,
+            'cliente' => $_POST['cliente'] ?? 'Consumidor Final',
+            'subtotal' => $subtotal,
+            'iva' => $iva,
+            'total' => $total,
+            'tipo_comprobante' => $_POST['tipo_comprobante'] ?? 'FA',
+            'metodo_pago_id' => $metodoPagoId,
+            'sucursal_id' => $sucursalId
+        ];
+
+        $ventaId = $this->ventaModel->save($dataVenta, $items);
+        $venta = $this->ventaModel->getById($ventaId);
+        $respFE = $this->feModel->enviarAFiscal($venta);
+        header('Location: index.php?controller=Venta&action=ver&id=' . $ventaId);
+        exit;
     }
 
     public function ver(){

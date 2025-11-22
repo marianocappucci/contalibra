@@ -255,7 +255,7 @@
             </div>
         </div>
 
-        <form method="post" action="index.php?controller=Venta&action=nueva" id="formVenta">
+        <form method="post" action="index.php?controller=Venta&action=registrar" id="formVenta">
 
             <div class="row">
                 <!-- COLUMNA IZQUIERDA: LISTA DE PRODUCTOS -->

@@ -2,11 +2,15 @@
 class Venta extends BaseModel {
 
     public function crearVenta($data, $items) {
+        return $this->save($data, $items);
+    }
+
+    public function save($data, $items) {
         try {
             $this->db->beginTransaction();
 
-            $stmt = $this->db->prepare("INSERT INTO ventas (caja_id, usuario_id, cliente_id, cliente, subtotal, iva, total, fecha, estado, tipo_comprobante, metodo_pago_id, sucursal_id)
-                                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)");
+            $stmt = $this->db->prepare("INSERT INTO ventas (caja_id, usuario_id, cliente_id, cliente, subtotal, iva, total, fecha, estado, tipo_comprobante, metodo_pago_id, sucursal_id)"
+                                    . " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)");
             $stmt->execute([
                 $data['caja_id'],
                 $data['usuario_id'],
@@ -23,8 +27,8 @@ class Venta extends BaseModel {
             ]);
             $ventaId = $this->db->lastInsertId();
 
-            $stmtItem = $this->db->prepare("INSERT INTO ventas_detalle (venta_id, producto_id, cantidad, precio_unitario, total) 
-                                            VALUES (?,?,?,?,?)");
+            $stmtItem = $this->db->prepare("INSERT INTO ventas_detalle (venta_id, producto_id, cantidad, precio_unitario, total)"
+                                        . " VALUES (?,?,?,?,?)");
             $stmtStock = $this->db->prepare("UPDATE productos SET stock = stock - ? WHERE id = ?");
 
             foreach ($items as $it) {
@@ -57,7 +61,7 @@ class Venta extends BaseModel {
         $venta = $stmt->fetch();
 
         if ($venta) {
-            $stmtDet = $this->db->prepare("SELECT vd.*, p.nombre as producto_nombre 
+            $stmtDet = $this->db->prepare("SELECT vd.*, p.nombre as producto_nombre
                                            FROM ventas_detalle vd
                                            LEFT JOIN productos p ON p.id = vd.producto_id
                                            WHERE vd.venta_id = ?");
