@@ -30,6 +30,9 @@ public function buscarPorNombre($term) {
 
 
     public function create($data) {
+        $proveedorId = ($data['proveedor_id'] ?? '') !== '' ? $data['proveedor_id'] : null;
+        $depositoId = ($data['deposito_id'] ?? '') !== '' ? $data['deposito_id'] : null;
+
         $stmt = $this->db->prepare("INSERT INTO productos (nombre, sku, codigo_barras, precio, lista_precio_id, stock, proveedor_id, deposito_id, activo) VALUES (?,?,?,?,?,?,?,?,?)");
         return $stmt->execute([
             $data['nombre'],
@@ -38,13 +41,16 @@ public function buscarPorNombre($term) {
             $data['precio'],
             $data['lista_precio_id'],
             $data['stock'],
-            $data['proveedor_id'] ?? null,
-            $data['deposito_id'] ?? null,
+            $proveedorId,
+            $depositoId,
             isset($data['activo']) ? 1 : 0
         ]);
     }
 
     public function update($id, $data) {
+        $proveedorId = ($data['proveedor_id'] ?? '') !== '' ? $data['proveedor_id'] : null;
+        $depositoId = ($data['deposito_id'] ?? '') !== '' ? $data['deposito_id'] : null;
+
         $stmt = $this->db->prepare("UPDATE productos SET nombre=?, sku=?, codigo_barras=?, precio=?, lista_precio_id=?, stock=?, proveedor_id=?, deposito_id=?, activo=? WHERE id=?");
         return $stmt->execute([
             $data['nombre'],
@@ -53,8 +59,8 @@ public function buscarPorNombre($term) {
             $data['precio'],
             $data['lista_precio_id'],
             $data['stock'],
-            $data['proveedor_id'] ?? null,
-            $data['deposito_id'] ?? null,
+            $proveedorId,
+            $depositoId,
             isset($data['activo']) ? 1 : 0,
             $id
         ]);
