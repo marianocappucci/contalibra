@@ -17,10 +17,33 @@ class SuperusuarioController {
                 try {
                     $dsn = 'mysql:host=' . DB_HOST;
                     $pdo = new PDO($dsn, DB_USER, DB_PASS, [
-                        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
+                        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                        PDO::MYSQL_ATTR_MULTI_STATEMENTS => true,
                     ]);
                     $pdo->exec("CREATE DATABASE IF NOT EXISTS `$dbName` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci");
-                    $mensaje = "Base de datos '$dbName' creada/lista para usar.";
+
+                    $pdoDb = new PDO($dsn . ';dbname=' . $dbName . ';charset=utf8mb4', DB_USER, DB_PASS, [
+                        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    ]);
+
+                    $sqlFile = __DIR__ . '/../backup_temp.sql';
+                    if (!file_exists($sqlFile)) {
+                        throw new RuntimeException('No se encontró el archivo SQL: ' . $sqlFile);
+                    }
+
+                    $sql = file_get_contents($sqlFile);
+                    $statements = array_filter(array_map('trim', explode(";\n", $sql)));
+
+                    foreach ($statements as $statement) {
+                        if (preg_match('/^\s*INSERT\s+/i', $statement)) {
+                            continue; // Evitamos cargar datos demo en la base vacía
+                        }
+                        $pdoDb->exec($statement);
+                    }
+
+                    $mensaje = "Base de datos '$dbName' creada y estructura importada (sin datos).";
                 } catch (Exception $e) {
                     $error = 'No se pudo crear la base: ' . $e->getMessage();
                 }
