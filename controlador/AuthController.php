@@ -12,8 +12,11 @@ class AuthController {
             $user = $usuarioModel->getByUsername($username);
 
             if ($user && $this->passwordMatches($password, $user)) {
-                $dbName = $user['base_datos'] ?? DB_NAME;
-                Database::setActiveDatabase($dbName);
+                $dbName = $user['base_datos'] ?? '';
+                if ($dbName === '') {
+                    $error = 'El usuario no tiene una base de datos asignada. Contacte al administrador.';
+                } else {
+                    Database::setActiveDatabase($dbName);
                 $_SESSION['user'] = [
                     'id' => $user['id'],
                     'nombre' => $user['nombre'],
@@ -21,8 +24,9 @@ class AuthController {
                     'rol_nombre' => $user['rol_nombre'],
                     'base_datos' => $dbName,
                 ];
-                header('Location: index.php?controller=Dashboard&action=index');
-                exit;
+                    header('Location: index.php?controller=Dashboard&action=index');
+                    exit;
+                }
             } else {
                 $error = 'Usuario o contraseña incorrectos';
             }

@@ -19,9 +19,13 @@ class UsuarioController {
     registrarLog("Acceso a crear","Usuario");
         $roles = $this->model->getRoles();
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $this->model->create($this->prepareUserData($_POST));
-            header('Location: index.php?controller=Usuario&action=index');
-            exit;
+            try {
+                $this->model->create($this->prepareUserData($_POST));
+                header('Location: index.php?controller=Usuario&action=index');
+                exit;
+            } catch (InvalidArgumentException $e) {
+                $error = $e->getMessage();
+            }
         }
         $usuario = null;
         include __DIR__ . '/../vistas/usuarios/form.php';
@@ -34,9 +38,13 @@ class UsuarioController {
         $roles = $this->model->getRoles();
         $usuario = $this->model->getById($id);
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $this->model->update($id, $this->prepareUserData($_POST, $usuario));
-            header('Location: index.php?controller=Usuario&action=index');
-            exit;
+            try {
+                $this->model->update($id, $this->prepareUserData($_POST, $usuario));
+                header('Location: index.php?controller=Usuario&action=index');
+                exit;
+            } catch (InvalidArgumentException $e) {
+                $error = $e->getMessage();
+            }
         }
         include __DIR__ . '/../vistas/usuarios/form.php';
     }
@@ -53,18 +61,27 @@ class UsuarioController {
 
     private function prepareUserData(array $data, ?array $originalUser = null): array
     {
+        $dbName = '';
         if (isset($_SESSION['user']) && ($_SESSION['user']['rol_nombre'] ?? '') === 'Superusuario') {
-            $data['base_datos'] = $this->sanitizeDbName($data['base_datos'] ?? DB_NAME);
+            $dbName = $this->sanitizeDbName($data['base_datos'] ?? '');
+            if ($dbName === '') {
+                throw new InvalidArgumentException('Debes especificar una base de datos válida para el usuario.');
+            }
         } else {
-            $data['base_datos'] = $originalUser['base_datos'] ?? DB_NAME;
+            $dbName = $_SESSION['user']['base_datos'] ?? ($originalUser['base_datos'] ?? '');
+            if ($dbName === '') {
+                throw new InvalidArgumentException('No se pudo determinar la base de datos desde la sesión.');
+            }
         }
+
+        $data['base_datos'] = $dbName;
 
         return $data;
     }
 
     private function sanitizeDbName(string $dbName): string
     {
-        $clean = preg_replace('/[^a-zA-Z0-9_]/', '', $dbName);
-        return $clean ?: DB_NAME;
+        $clean = preg_replace('/[^a-zA-Z0-9_]/', '', trim($dbName));
+        return $clean;
     }
 }

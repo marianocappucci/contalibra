@@ -6,6 +6,9 @@
 
 <div class="container">
   <h3><?php echo $usuario ? 'Editar usuario' : 'Nuevo usuario'; ?></h3>
+  <?php if (!empty($error)): ?>
+    <div class="alert alert-danger" role="alert"><?php echo htmlspecialchars($error); ?></div>
+  <?php endif; ?>
   <form method="post">
     <div class="row">
       <div class="col-md-6 mb-3">
@@ -35,9 +38,9 @@
       <?php if(isset($_SESSION['user']) && $_SESSION['user']['rol_nombre'] === 'Superusuario'): ?>
       <div class="col-md-3 mb-3">
         <label class="form-label">Base de datos</label>
-        <input type="text" name="base_datos" class="form-control" placeholder="contadb_empresa"
-               value="<?php echo $usuario['base_datos'] ?? ($_SESSION['user']['base_datos'] ?? DB_NAME); ?>">
-        <div class="form-text">Solo letras, números y guiones bajos.</div>
+        <input type="text" name="base_datos" class="form-control" placeholder="contadb_empresa" required
+               value="<?php echo $usuario['base_datos'] ?? ($_SESSION['user']['base_datos'] ?? ''); ?>">
+        <div class="form-text">Solo letras, números y guiones bajos. Este campo es obligatorio.</div>
       </div>
       <?php endif; ?>
       <div class="col-md-3 mb-3 form-check">

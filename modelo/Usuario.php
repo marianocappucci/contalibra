@@ -29,6 +29,10 @@ class Usuario extends BaseModel {
     }
 
     public function create($data) {
+        if (empty($data['base_datos'])) {
+            throw new InvalidArgumentException('La base de datos del usuario es obligatoria.');
+        }
+
         $stmt = $this->db->prepare("INSERT INTO usuarios (nombre, username, password, rol_id, activo, base_datos) VALUES (?,?,?,?,?,?)");
         return $stmt->execute([
             $data['nombre'],
@@ -36,18 +40,22 @@ class Usuario extends BaseModel {
             password_hash($data['password'], PASSWORD_BCRYPT),
             $data['rol_id'],
             isset($data['activo']) ? 1 : 0,
-            $data['base_datos'] ?? DB_NAME,
+            $data['base_datos'],
         ]);
     }
 
     public function update($id, $data) {
+        if (empty($data['base_datos'])) {
+            throw new InvalidArgumentException('La base de datos del usuario es obligatoria.');
+        }
+
         $stmt = $this->db->prepare("UPDATE usuarios SET nombre=?, username=?, rol_id=?, activo=?, base_datos=? WHERE id=?");
         return $stmt->execute([
             $data['nombre'],
             $data['username'],
             $data['rol_id'],
             isset($data['activo']) ? 1 : 0,
-            $data['base_datos'] ?? DB_NAME,
+            $data['base_datos'],
             $id
         ]);
     }
