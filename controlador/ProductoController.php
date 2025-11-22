@@ -4,11 +4,15 @@ class ProductoController {
 
     private $model;
     private $listaModel;
+    private $proveedorModel;
+    private $depositoModel;
 
     public function __construct(){
     registrarLog("Acceso a __construct","Producto");
         $this->model = new Producto();
         $this->listaModel = new ListaPrecio();
+        $this->proveedorModel = new Proveedor();
+        $this->depositoModel = new Deposito();
     }
 
     public function index(){
@@ -31,6 +35,8 @@ public function buscarAjax(){
     public function crear(){
     registrarLog("Acceso a crear","Producto");
         $listas = $this->listaModel->getAll();
+        $proveedores = $this->proveedorModel->getAll();
+        $depositos = $this->depositoModel->getAll();
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $this->model->create($_POST);
             header('Location: index.php?controller=Producto&action=index');
@@ -45,6 +51,8 @@ public function buscarAjax(){
         $id = $_GET['id'] ?? null;
         if (!$id) { die('ID inválido'); }
         $listas = $this->listaModel->getAll();
+        $proveedores = $this->proveedorModel->getAll();
+        $depositos = $this->depositoModel->getAll();
         $producto = $this->model->getById($id);
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $this->model->update($id, $_POST);

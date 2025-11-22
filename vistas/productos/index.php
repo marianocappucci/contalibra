@@ -15,7 +15,10 @@
         <th>ID</th>
         <th>Nombre</th>
         <th>SKU</th>
+        <th>Código de barras</th>
         <th>Lista</th>
+        <th>Proveedor</th>
+        <th>Depósito</th>
         <th>Precio</th>
         <th>Stock</th>
         <th>Activo</th>
@@ -28,7 +31,10 @@
         <td><?php echo $p['id']; ?></td>
         <td><?php echo htmlspecialchars($p['nombre']); ?></td>
         <td><?php echo htmlspecialchars($p['sku']); ?></td>
+        <td><?php echo htmlspecialchars($p['codigo_barras']); ?></td>
         <td><?php echo htmlspecialchars($p['lista_nombre']); ?></td>
+        <td><?php echo htmlspecialchars($p['proveedor_nombre']); ?></td>
+        <td><?php echo htmlspecialchars($p['deposito_nombre']); ?></td>
         <td>$<?php echo number_format($p['precio'], 2); ?></td>
         <td><?php echo $p['stock']; ?></td>
         <td><?php echo $p['activo'] ? 'Sí' : 'No'; ?></td>

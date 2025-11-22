@@ -17,6 +17,10 @@
         <input type="text" name="sku" class="form-control" required value="<?php echo $producto['sku'] ?? ''; ?>">
       </div>
       <div class="col-md-3 mb-3">
+        <label class="form-label">Código de barras</label>
+        <input type="text" name="codigo_barras" class="form-control" value="<?php echo $producto['codigo_barras'] ?? ''; ?>">
+      </div>
+      <div class="col-md-3 mb-3">
         <label class="form-label">Lista de precios</label>
         <select name="lista_precio_id" class="form-select" required>
           <?php foreach ($listas as $l): ?>
@@ -29,6 +33,24 @@
       <div class="col-md-3 mb-3">
         <label class="form-label">Precio</label>
         <input type="number" step="0.01" name="precio" class="form-control" required value="<?php echo $producto['precio'] ?? '0'; ?>">
+      </div>
+      <div class="col-md-4 mb-3">
+        <label class="form-label">Proveedor</label>
+        <select name="proveedor_id" class="form-select">
+          <option value="">Sin asignar</option>
+          <?php foreach ($proveedores as $prov): ?>
+            <option value="<?php echo $prov['id']; ?>" <?php echo (($producto['proveedor_id'] ?? '')==$prov['id'])?'selected':''; ?>><?php echo htmlspecialchars($prov['nombre']); ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-4 mb-3">
+        <label class="form-label">Depósito</label>
+        <select name="deposito_id" class="form-select">
+          <option value="">Sin asignar</option>
+          <?php foreach ($depositos as $dep): ?>
+            <option value="<?php echo $dep['id']; ?>" <?php echo (($producto['deposito_id'] ?? '')==$dep['id'])?'selected':''; ?>><?php echo htmlspecialchars($dep['nombre']); ?></option>
+          <?php endforeach; ?>
+        </select>
       </div>
       <div class="col-md-3 mb-3">
         <label class="form-label">Stock inicial</label>

@@ -5,18 +5,21 @@ class Venta extends BaseModel {
         try {
             $this->db->beginTransaction();
 
-            $stmt = $this->db->prepare("INSERT INTO ventas (caja_id, usuario_id, cliente, subtotal, iva, total, fecha, estado, tipo_comprobante) 
-                                        VALUES (?,?,?,?,?,?,?,?,?)");
+            $stmt = $this->db->prepare("INSERT INTO ventas (caja_id, usuario_id, cliente_id, cliente, subtotal, iva, total, fecha, estado, tipo_comprobante, metodo_pago_id, sucursal_id)
+                                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)");
             $stmt->execute([
                 $data['caja_id'],
                 $data['usuario_id'],
+                $data['cliente_id'],
                 $data['cliente'],
                 $data['subtotal'],
                 $data['iva'],
                 $data['total'],
                 date('Y-m-d H:i:s'),
                 'PENDIENTE',
-                $data['tipo_comprobante']
+                $data['tipo_comprobante'],
+                $data['metodo_pago_id'],
+                $data['sucursal_id']
             ]);
             $ventaId = $this->db->lastInsertId();
 
@@ -44,7 +47,12 @@ class Venta extends BaseModel {
     }
 
     public function getById($id) {
-        $stmt = $this->db->prepare("SELECT * FROM ventas WHERE id = ?");
+        $stmt = $this->db->prepare("SELECT v.*, c.nombre as cliente_nombre, mp.nombre as metodo_pago_nombre, s.nombre as sucursal_nombre
+                                     FROM ventas v
+                                     LEFT JOIN clientes c ON c.id = v.cliente_id
+                                     LEFT JOIN metodos_pago mp ON mp.id = v.metodo_pago_id
+                                     LEFT JOIN sucursales s ON s.id = v.sucursal_id
+                                     WHERE v.id = ?");
         $stmt->execute([$id]);
         $venta = $stmt->fetch();
 
@@ -60,9 +68,12 @@ class Venta extends BaseModel {
     }
 
     public function listarVentas($desde = null, $hasta = null) {
-        $sql = "SELECT v.*, u.nombre as usuario_nombre 
+        $sql = "SELECT v.*, u.nombre as usuario_nombre, mp.nombre as metodo_pago_nombre, c.nombre as cliente_nombre, s.nombre as sucursal_nombre
                 FROM ventas v
                 LEFT JOIN usuarios u ON u.id = v.usuario_id
+                LEFT JOIN metodos_pago mp ON mp.id = v.metodo_pago_id
+                LEFT JOIN clientes c ON c.id = v.cliente_id
+                LEFT JOIN sucursales s ON s.id = v.sucursal_id
                 WHERE 1=1";
         $params = [];
         if ($desde) {

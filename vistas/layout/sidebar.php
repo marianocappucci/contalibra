@@ -89,6 +89,46 @@
             </div>
         </li>
 
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="collapse" href="#menuProveedores">
+                <i class="bi bi-truck"></i> Proveedores
+            </a>
+            <div class="collapse" id="menuProveedores">
+                <a class="nav-link ms-4" href="index.php?controller=Proveedor&action=index">Listado</a>
+                <a class="nav-link ms-4" href="index.php?controller=Proveedor&action=crear">Crear proveedor</a>
+            </div>
+        </li>
+
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="collapse" href="#menuClientes">
+                <i class="bi bi-person-badge"></i> Clientes
+            </a>
+            <div class="collapse" id="menuClientes">
+                <a class="nav-link ms-4" href="index.php?controller=Cliente&action=index">Listado</a>
+                <a class="nav-link ms-4" href="index.php?controller=Cliente&action=crear">Crear cliente</a>
+            </div>
+        </li>
+
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="collapse" href="#menuPagos">
+                <i class="bi bi-credit-card"></i> Métodos de pago
+            </a>
+            <div class="collapse" id="menuPagos">
+                <a class="nav-link ms-4" href="index.php?controller=MetodoPago&action=index">Listado</a>
+                <a class="nav-link ms-4" href="index.php?controller=MetodoPago&action=crear">Crear método</a>
+            </div>
+        </li>
+
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="collapse" href="#menuSucursales">
+                <i class="bi bi-building"></i> Sucursales y depósitos
+            </a>
+            <div class="collapse" id="menuSucursales">
+                <a class="nav-link ms-4" href="index.php?controller=Sucursal&action=index">Sucursales</a>
+                <a class="nav-link ms-4" href="index.php?controller=Deposito&action=index">Depósitos</a>
+            </div>
+        </li>
+
         <!-- Cajas -->
         <li class="nav-item">
             <a class="nav-link" data-bs-toggle="collapse" href="#menuCajas">
@@ -130,6 +170,13 @@
             <div class="collapse" id="menuConfig">
                 <a class="nav-link ms-4" href="index.php?controller=Configuracion&action=index">Datos del negocio</a>
             </div>
+        </li>
+        <?php endif; ?>
+        <?php if ($_SESSION['user']['rol_nombre'] === 'Superusuario'): ?>
+        <li class="nav-item">
+            <a class="nav-link" href="index.php?controller=Superusuario&action=crearBase">
+                <i class="bi bi-shield-lock"></i> Bases para empresas
+            </a>
         </li>
         <?php endif; ?>
 <li class="nav-item">

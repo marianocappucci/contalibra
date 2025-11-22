@@ -23,7 +23,8 @@ $conf = $configModel->get();
 
   <h3>Comprobante de venta #<?php echo $venta['id']; ?></h3>
   <p><strong>Fecha:</strong> <?php echo $venta['fecha']; ?></p>
-  <p><strong>Cliente:</strong> <?php echo htmlspecialchars($venta['cliente']); ?></p>
+  <p><strong>Cliente:</strong> <?php echo htmlspecialchars($venta['cliente_nombre'] ?: $venta['cliente']); ?></p>
+  <p><strong>Método de pago:</strong> <?php echo htmlspecialchars($venta['metodo_pago_nombre']); ?> | <strong>Sucursal:</strong> <?php echo htmlspecialchars($venta['sucursal_nombre']); ?></p>
   <p><strong>Estado:</strong> <?php echo $venta['estado']; ?></p>
   <p><strong>CAE:</strong> <?php echo $venta['cae']; ?> (vto: <?php echo $venta['cae_vencimiento']; ?>)</p>
 
