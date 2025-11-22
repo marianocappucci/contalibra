@@ -3,12 +3,6 @@
     $empresaActiva = null;
     $baseActiva = $_SESSION['db_name'] ?? ($_SESSION['user']['base_datos'] ?? null);
 
-    $currentController = $_GET['controller'] ?? 'Dashboard';
-    $currentAction = $_GET['action'] ?? 'index';
-
-    $isActiveRoute = fn(string $controller, array $actions = []): bool => strcasecmp($currentController, $controller) === 0
-        && (empty($actions) || in_array($currentAction, $actions, true));
-
     try {
         $configuracionModel = new Configuracion();
         $configuracion = $configuracionModel->get();
@@ -97,22 +91,6 @@
         gap: 10px;
         text-decoration: none;
         transition: background 0.2s ease, color 0.2s ease;
-    }
-
-    #sidebar .nav-pills .nav-link.active {
-        background: #ffc107;
-        color: #1f1f1f;
-        font-weight: 700;
-    }
-
-    #sidebar .nav-pills .nav-link.active i {
-        color: #1f1f1f;
-    }
-
-    #sidebar .btn-toggle.active,
-    #sidebar .btn-toggle.active:focus {
-        background: #2f2f2f;
-        color: #fff;
     }
 
     #sidebar .nav-link:hover,
@@ -224,165 +202,155 @@
     </div>
 
 
-    <nav class="nav nav-pills flex-column">
-        <a class="nav-link<?php echo $isActiveRoute('Dashboard', ['index']) ? ' active' : ''; ?>" href="index.php?controller=Dashboard&action=index">
+    <nav class="nav flex-column">
+        <a class="nav-link" href="index.php?controller=Dashboard&action=index">
             <i class="bi bi-house-door-fill"></i>
             <span>Principal</span>
         </a>
 
         <div class="nav-item">
-            <?php $ventasOpen = $isActiveRoute('Venta'); ?>
-            <button class="btn-toggle align-items-center rounded<?php echo $ventasOpen ? ' active' : ' collapsed'; ?>" data-bs-toggle="collapse" data-bs-target="#menuVentas" aria-expanded="<?php echo $ventasOpen ? 'true' : 'false'; ?>">
+            <button class="btn-toggle align-items-center rounded collapsed" data-bs-toggle="collapse" data-bs-target="#menuVentas" aria-expanded="false">
                 <i class="bi bi-receipt-cutoff"></i>
                 <span>Ventas</span>
             </button>
-            <div class="collapse<?php echo $ventasOpen ? ' show' : ''; ?>" id="menuVentas">
+            <div class="collapse" id="menuVentas">
                 <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
-                    <li><a class="nav-link<?php echo $isActiveRoute('Venta', ['nueva']) ? ' active' : ''; ?>" href="index.php?controller=Venta&action=nueva">Nueva venta</a></li>
-                    <li><a class="nav-link<?php echo $isActiveRoute('Venta', ['index']) ? ' active' : ''; ?>" href="index.php?controller=Venta&action=index">Listado de ventas</a></li>
+                    <li><a class="nav-link" href="index.php?controller=Venta&action=nueva">Nueva venta</a></li>
+                    <li><a class="nav-link" href="index.php?controller=Venta&action=index">Listado de ventas</a></li>
                 </ul>
             </div>
         </div>
 
         <div class="nav-item">
-            <?php $productosOpen = $isActiveRoute('Producto'); ?>
-            <button class="btn-toggle align-items-center rounded<?php echo $productosOpen ? ' active' : ' collapsed'; ?>" data-bs-toggle="collapse" data-bs-target="#menuProductos" aria-expanded="<?php echo $productosOpen ? 'true' : 'false'; ?>">
+            <button class="btn-toggle align-items-center rounded collapsed" data-bs-toggle="collapse" data-bs-target="#menuProductos" aria-expanded="false">
                 <i class="bi bi-box-seam"></i>
                 <span>Productos</span>
             </button>
-            <div class="collapse<?php echo $productosOpen ? ' show' : ''; ?>" id="menuProductos">
+            <div class="collapse" id="menuProductos">
                 <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
-                    <li><a class="nav-link<?php echo $isActiveRoute('Producto', ['index']) ? ' active' : ''; ?>" href="index.php?controller=Producto&action=index">Listado</a></li>
-                    <li><a class="nav-link<?php echo $isActiveRoute('Producto', ['crear']) ? ' active' : ''; ?>" href="index.php?controller=Producto&action=crear">Crear producto</a></li>
+                    <li><a class="nav-link" href="index.php?controller=Producto&action=index">Listado</a></li>
+                    <li><a class="nav-link" href="index.php?controller=Producto&action=crear">Crear producto</a></li>
                 </ul>
             </div>
         </div>
 
         <div class="nav-item">
-            <?php $proveedoresOpen = $isActiveRoute('Proveedor'); ?>
-            <button class="btn-toggle align-items-center rounded<?php echo $proveedoresOpen ? ' active' : ' collapsed'; ?>" data-bs-toggle="collapse" data-bs-target="#menuProveedores" aria-expanded="<?php echo $proveedoresOpen ? 'true' : 'false'; ?>">
+            <button class="btn-toggle align-items-center rounded collapsed" data-bs-toggle="collapse" data-bs-target="#menuProveedores" aria-expanded="false">
                 <i class="bi bi-truck"></i>
                 <span>Proveedores</span>
             </button>
-            <div class="collapse<?php echo $proveedoresOpen ? ' show' : ''; ?>" id="menuProveedores">
+            <div class="collapse" id="menuProveedores">
                 <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
-                    <li><a class="nav-link<?php echo $isActiveRoute('Proveedor', ['index']) ? ' active' : ''; ?>" href="index.php?controller=Proveedor&action=index">Listado</a></li>
-                    <li><a class="nav-link<?php echo $isActiveRoute('Proveedor', ['crear']) ? ' active' : ''; ?>" href="index.php?controller=Proveedor&action=crear">Crear proveedor</a></li>
+                    <li><a class="nav-link" href="index.php?controller=Proveedor&action=index">Listado</a></li>
+                    <li><a class="nav-link" href="index.php?controller=Proveedor&action=crear">Crear proveedor</a></li>
                 </ul>
             </div>
         </div>
 
         <div class="nav-item">
-            <?php $clientesOpen = $isActiveRoute('Cliente'); ?>
-            <button class="btn-toggle align-items-center rounded<?php echo $clientesOpen ? ' active' : ' collapsed'; ?>" data-bs-toggle="collapse" data-bs-target="#menuClientes" aria-expanded="<?php echo $clientesOpen ? 'true' : 'false'; ?>">
+            <button class="btn-toggle align-items-center rounded collapsed" data-bs-toggle="collapse" data-bs-target="#menuClientes" aria-expanded="false">
                 <i class="bi bi-person-badge"></i>
                 <span>Clientes</span>
             </button>
-            <div class="collapse<?php echo $clientesOpen ? ' show' : ''; ?>" id="menuClientes">
+            <div class="collapse" id="menuClientes">
                 <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
-                    <li><a class="nav-link<?php echo $isActiveRoute('Cliente', ['index']) ? ' active' : ''; ?>" href="index.php?controller=Cliente&action=index">Listado</a></li>
-                    <li><a class="nav-link<?php echo $isActiveRoute('Cliente', ['crear']) ? ' active' : ''; ?>" href="index.php?controller=Cliente&action=crear">Crear cliente</a></li>
+                    <li><a class="nav-link" href="index.php?controller=Cliente&action=index">Listado</a></li>
+                    <li><a class="nav-link" href="index.php?controller=Cliente&action=crear">Crear cliente</a></li>
                 </ul>
             </div>
         </div>
 
         <div class="nav-item">
-            <?php $pagosOpen = $isActiveRoute('MetodoPago'); ?>
-            <button class="btn-toggle align-items-center rounded<?php echo $pagosOpen ? ' active' : ' collapsed'; ?>" data-bs-toggle="collapse" data-bs-target="#menuPagos" aria-expanded="<?php echo $pagosOpen ? 'true' : 'false'; ?>">
+            <button class="btn-toggle align-items-center rounded collapsed" data-bs-toggle="collapse" data-bs-target="#menuPagos" aria-expanded="false">
                 <i class="bi bi-credit-card"></i>
                 <span>Métodos de pago</span>
             </button>
-            <div class="collapse<?php echo $pagosOpen ? ' show' : ''; ?>" id="menuPagos">
+            <div class="collapse" id="menuPagos">
                 <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
-                    <li><a class="nav-link<?php echo $isActiveRoute('MetodoPago', ['index']) ? ' active' : ''; ?>" href="index.php?controller=MetodoPago&action=index">Listado</a></li>
-                    <li><a class="nav-link<?php echo $isActiveRoute('MetodoPago', ['crear']) ? ' active' : ''; ?>" href="index.php?controller=MetodoPago&action=crear">Crear método</a></li>
+                    <li><a class="nav-link" href="index.php?controller=MetodoPago&action=index">Listado</a></li>
+                    <li><a class="nav-link" href="index.php?controller=MetodoPago&action=crear">Crear método</a></li>
                 </ul>
             </div>
         </div>
 
         <div class="nav-item">
-            <?php $sucursalesOpen = in_array($currentController, ['Sucursal', 'Deposito'], true); ?>
-            <button class="btn-toggle align-items-center rounded<?php echo $sucursalesOpen ? ' active' : ' collapsed'; ?>" data-bs-toggle="collapse" data-bs-target="#menuSucursales" aria-expanded="<?php echo $sucursalesOpen ? 'true' : 'false'; ?>">
+            <button class="btn-toggle align-items-center rounded collapsed" data-bs-toggle="collapse" data-bs-target="#menuSucursales" aria-expanded="false">
                 <i class="bi bi-building"></i>
                 <span>Sucursales y depósitos</span>
             </button>
-            <div class="collapse<?php echo $sucursalesOpen ? ' show' : ''; ?>" id="menuSucursales">
+            <div class="collapse" id="menuSucursales">
                 <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
-                    <li><a class="nav-link<?php echo $isActiveRoute('Sucursal') ? ' active' : ''; ?>" href="index.php?controller=Sucursal&action=index">Sucursales</a></li>
-                    <li><a class="nav-link<?php echo $isActiveRoute('Deposito') ? ' active' : ''; ?>" href="index.php?controller=Deposito&action=index">Depósitos</a></li>
+                    <li><a class="nav-link" href="index.php?controller=Sucursal&action=index">Sucursales</a></li>
+                    <li><a class="nav-link" href="index.php?controller=Deposito&action=index">Depósitos</a></li>
                 </ul>
             </div>
         </div>
 
         <div class="nav-item">
-            <?php $cajasOpen = $isActiveRoute('Caja'); ?>
-            <button class="btn-toggle align-items-center rounded<?php echo $cajasOpen ? ' active' : ' collapsed'; ?>" data-bs-toggle="collapse" data-bs-target="#menuCajas" aria-expanded="<?php echo $cajasOpen ? 'true' : 'false'; ?>">
+            <button class="btn-toggle align-items-center rounded collapsed" data-bs-toggle="collapse" data-bs-target="#menuCajas" aria-expanded="false">
                 <i class="bi bi-cash-coin"></i>
                 <span>Cajas</span>
             </button>
-            <div class="collapse<?php echo $cajasOpen ? ' show' : ''; ?>" id="menuCajas">
+            <div class="collapse" id="menuCajas">
                 <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
-                    <li><a class="nav-link<?php echo $isActiveRoute('Caja', ['index']) ? ' active' : ''; ?>" href="index.php?controller=Caja&action=index">Listado</a></li>
-                    <li><a class="nav-link<?php echo $isActiveRoute('Caja', ['abrir']) ? ' active' : ''; ?>" href="index.php?controller=Caja&action=abrir">Abrir caja</a></li>
+                    <li><a class="nav-link" href="index.php?controller=Caja&action=index">Listado</a></li>
+                    <li><a class="nav-link" href="index.php?controller=Caja&action=abrir">Abrir caja</a></li>
                 </ul>
             </div>
         </div>
 
         <div class="nav-item">
-            <?php $usuariosOpen = $isActiveRoute('Usuario'); ?>
-            <button class="btn-toggle align-items-center rounded<?php echo $usuariosOpen ? ' active' : ' collapsed'; ?>" data-bs-toggle="collapse" data-bs-target="#menuUsuarios" aria-expanded="<?php echo $usuariosOpen ? 'true' : 'false'; ?>">
+            <button class="btn-toggle align-items-center rounded collapsed" data-bs-toggle="collapse" data-bs-target="#menuUsuarios" aria-expanded="false">
                 <i class="bi bi-people-fill"></i>
                 <span>Usuarios</span>
             </button>
-            <div class="collapse<?php echo $usuariosOpen ? ' show' : ''; ?>" id="menuUsuarios">
+            <div class="collapse" id="menuUsuarios">
                 <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
-                    <li><a class="nav-link<?php echo $isActiveRoute('Usuario', ['index']) ? ' active' : ''; ?>" href="index.php?controller=Usuario&action=index">Listado</a></li>
-                    <li><a class="nav-link<?php echo $isActiveRoute('Usuario', ['crear']) ? ' active' : ''; ?>" href="index.php?controller=Usuario&action=crear">Crear usuario</a></li>
+                    <li><a class="nav-link" href="index.php?controller=Usuario&action=index">Listado</a></li>
+                    <li><a class="nav-link" href="index.php?controller=Usuario&action=crear">Crear usuario</a></li>
                 </ul>
             </div>
         </div>
 
         <div class="nav-item">
-            <?php $reportesOpen = $isActiveRoute('Reporte'); ?>
-            <button class="btn-toggle align-items-center rounded<?php echo $reportesOpen ? ' active' : ' collapsed'; ?>" data-bs-toggle="collapse" data-bs-target="#menuReportes" aria-expanded="<?php echo $reportesOpen ? 'true' : 'false'; ?>">
+            <button class="btn-toggle align-items-center rounded collapsed" data-bs-toggle="collapse" data-bs-target="#menuReportes" aria-expanded="false">
                 <i class="bi bi-bar-chart-line-fill"></i>
                 <span>Reportes</span>
             </button>
-            <div class="collapse<?php echo $reportesOpen ? ' show' : ''; ?>" id="menuReportes">
+            <div class="collapse" id="menuReportes">
                 <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
-                    <li><a class="nav-link<?php echo $isActiveRoute('Reporte', ['ventas']) ? ' active' : ''; ?>" href="index.php?controller=Reporte&action=ventas">Ventas</a></li>
+                    <li><a class="nav-link" href="index.php?controller=Reporte&action=ventas">Ventas</a></li>
                 </ul>
             </div>
         </div>
 
         <?php if ($_SESSION['user']['rol_nombre'] === 'Administrador'): ?>
         <div class="nav-item">
-            <?php $configOpen = $isActiveRoute('Configuracion'); ?>
-            <button class="btn-toggle align-items-center rounded<?php echo $configOpen ? ' active' : ' collapsed'; ?>" data-bs-toggle="collapse" data-bs-target="#menuConfig" aria-expanded="<?php echo $configOpen ? 'true' : 'false'; ?>">
+            <button class="btn-toggle align-items-center rounded collapsed" data-bs-toggle="collapse" data-bs-target="#menuConfig" aria-expanded="false">
                 <i class="bi bi-gear-fill"></i>
                 <span>Configuración</span>
             </button>
-            <div class="collapse<?php echo $configOpen ? ' show' : ''; ?>" id="menuConfig">
+            <div class="collapse" id="menuConfig">
                 <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
-                    <li><a class="nav-link<?php echo $isActiveRoute('Configuracion', ['index']) ? ' active' : ''; ?>" href="index.php?controller=Configuracion&action=index">Datos del negocio</a></li>
+                    <li><a class="nav-link" href="index.php?controller=Configuracion&action=index">Datos del negocio</a></li>
                 </ul>
             </div>
         </div>
         <?php endif; ?>
 
         <?php if ($_SESSION['user']['rol_nombre'] === 'Superusuario'): ?>
-        <a class="nav-link<?php echo $isActiveRoute('Superusuario', ['crearBase']) ? ' active' : ''; ?>" href="index.php?controller=Superusuario&action=crearBase">
+        <a class="nav-link" href="index.php?controller=Superusuario&action=crearBase">
             <i class="bi bi-shield-lock"></i>
             <span>Bases para empresas</span>
         </a>
         <?php endif; ?>
 
-        <a class="nav-link<?php echo $isActiveRoute('Backup', ['index']) ? ' active' : ''; ?>" href="index.php?controller=Backup&action=index">
+        <a class="nav-link" href="index.php?controller=Backup&action=index">
             <i class="bi bi-hdd-stack"></i>
             <span>Backup y Restauración</span>
         </a>
 
-        <a class="nav-link<?php echo $isActiveRoute('Log', ['index']) ? ' active' : ''; ?>" href="index.php?controller=Log&action=index">
+        <a class="nav-link" href="index.php?controller=Log&action=index">
             <i class="bi bi-clipboard-data"></i>
             <span>Logs</span>
         </a>
