@@ -26,16 +26,12 @@ CREATE TABLE `usuarios` (
   `password` varchar(255) NOT NULL,
   `rol_id` int(11) NOT NULL,
   `activo` tinyint(1) NOT NULL DEFAULT 1,
-  `base_datos` varchar(100) NOT NULL DEFAULT 'contadb',
+  `base_datos` varchar(100) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `username` (`username`),
   KEY `rol_id` (`rol_id`),
   CONSTRAINT `usuarios_ibfk_1` FOREIGN KEY (`rol_id`) REFERENCES `roles` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-INSERT INTO `usuarios` (`id`,`nombre`,`username`,`password`,`rol_id`,`activo`,`base_datos`) VALUES
- (1,'Administrador','admin','admin123',1,1,'contadb'),
- (2,'Vendedor','vendedor','vendedor123',2,1,'contadb'),
- (3,'Root','root','root123',3,1,'contadb');
 
 CREATE TABLE `configuracion` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
@@ -146,8 +142,6 @@ CREATE TABLE `cajas` (
   CONSTRAINT `cajas_ibfk_1` FOREIGN KEY (`abierta_por`) REFERENCES `usuarios` (`id`),
   CONSTRAINT `cajas_ibfk_2` FOREIGN KEY (`cerrada_por`) REFERENCES `usuarios` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-INSERT INTO `cajas` (`id`,`nombre`,`saldo_inicial`,`saldo_final`,`abierta_por`,`cerrada_por`,`fecha_apertura`,`fecha_cierre`,`estado`) VALUES
- (1,'Caja principal',0.00,0.00,1,NULL,NOW(),NULL,'ABIERTA');
 
 CREATE TABLE `ventas` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
