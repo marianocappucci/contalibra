@@ -21,36 +21,18 @@
         $empresaActivaNombre = $empresaActiva ?? 'No configurada';
     ?>
 
-    <div class="ms-auto d-flex align-items-center">
-
-        <!-- Dropdown de usuario -->
-        <div class="dropdown">
-            <a class="text-white dropdown-toggle text-decoration-none"
-               href="#"
-               id="userMenu"
-               data-bs-toggle="dropdown"
-               aria-expanded="false"
-               style="cursor: pointer;">
-                <div class="d-flex flex-column align-items-start">
-                    <div class="fw-semibold">
-                        <?php echo htmlspecialchars($_SESSION['user']['nombre']); ?>
-                        (<?php echo htmlspecialchars($_SESSION['user']['rol_nombre']); ?>)
-                    </div>
-                    <small class="text-secondary">Empresa: <?php echo htmlspecialchars($empresaActivaNombre); ?></small>
-                </div>
-            </a>
-
-            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
-
-                <li>
-                    <a class="dropdown-item" href="index.php?controller=Auth&action=logout">
-                        <i class="bi bi-box-arrow-right me-2"></i> Cerrar sesión
-                    </a>
-                </li>
-
-            </ul>
+    <div class="ms-auto d-flex align-items-center gap-3">
+        <div class="text-white">
+            <div class="fw-semibold">
+                <?php echo htmlspecialchars($_SESSION['user']['nombre']); ?>
+                (<?php echo htmlspecialchars($_SESSION['user']['rol_nombre']); ?>)
+            </div>
+            <small class="text-secondary">Empresa: <?php echo htmlspecialchars($empresaActivaNombre); ?></small>
         </div>
 
+        <a class="btn btn-outline-light btn-sm" href="index.php?controller=Auth&action=logout">
+            <i class="bi bi-box-arrow-right me-2"></i> Cerrar sesión
+        </a>
     </div>
 
 </nav>
