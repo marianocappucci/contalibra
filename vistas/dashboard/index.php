@@ -27,6 +27,22 @@
 <div class="container mt-4 mt-4">
   <h3 class="mb-4">Panel Principal</h3>
 
+  <?php
+    $usuarioActivo = $_SESSION['user']['nombre'] ?? 'Usuario no identificado';
+    $empresaActivaNombre = $empresaActiva ?? $baseActiva ?? 'No configurada';
+  ?>
+
+  <div class="alert alert-primary d-flex align-items-center" role="alert">
+    <i class="bi bi-building me-3 fs-3 text-primary"></i>
+    <div>
+      <div class="fw-semibold">Usuario activo: <?php echo htmlspecialchars($usuarioActivo); ?></div>
+      <div class="small text-muted">Empresa activa: <?php echo htmlspecialchars($empresaActivaNombre); ?></div>
+      <?php if (!empty($baseActiva) && $empresaActivaNombre !== $baseActiva): ?>
+        <div class="small text-muted">Base de datos: <?php echo htmlspecialchars($baseActiva); ?></div>
+      <?php endif; ?>
+    </div>
+  </div>
+
   <div class="row g-4">
 
     <div class="col-md-3">
