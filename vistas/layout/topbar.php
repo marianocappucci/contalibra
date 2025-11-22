@@ -22,13 +22,7 @@
     ?>
 
     <div class="ms-auto d-flex align-items-center gap-3">
-        <div class="text-white">
-            <div class="fw-semibold">
-                <?php echo htmlspecialchars($_SESSION['user']['nombre']); ?>
-                (<?php echo htmlspecialchars($_SESSION['user']['rol_nombre']); ?>)
-            </div>
-            
-        </div>
+       
 
         <a class="btn btn-outline-light btn-sm" href="index.php?controller=Auth&action=logout">
             <i class="bi bi-box-arrow-right me-2"></i> Cerrar sesión
