@@ -2,7 +2,7 @@
 class Usuario extends BaseModel {
 
     public function getByUsername($username) {
-        $stmt = $this->db->prepare("SELECT u.*, r.nombre as rol_nombre 
+        $stmt = $this->db->prepare("SELECT u.*, r.nombre as rol_nombre
                                     FROM usuarios u
                                     LEFT JOIN roles r ON r.id = u.rol_id
                                     WHERE username = ? AND activo = 1 LIMIT 1");
@@ -11,7 +11,7 @@ class Usuario extends BaseModel {
     }
 
     public function getAll() {
-        $sql = "SELECT u.*, r.nombre as rol_nombre 
+        $sql = "SELECT u.*, r.nombre as rol_nombre
                 FROM usuarios u
                 LEFT JOIN roles r ON r.id = u.rol_id
                 ORDER BY u.id DESC";
@@ -33,7 +33,7 @@ class Usuario extends BaseModel {
         return $stmt->execute([
             $data['nombre'],
             $data['username'],
-            $data['password'], // demo: se guarda plano, mejorar con password_hash
+            password_hash($data['password'], PASSWORD_BCRYPT),
             $data['rol_id'],
             isset($data['activo']) ? 1 : 0
         ]);
@@ -48,6 +48,12 @@ class Usuario extends BaseModel {
             isset($data['activo']) ? 1 : 0,
             $id
         ]);
+    }
+
+    public function updatePassword(int $id, string $hashedPassword): bool
+    {
+        $stmt = $this->db->prepare("UPDATE usuarios SET password=? WHERE id=?");
+        return $stmt->execute([$hashedPassword, $id]);
     }
 
     public function delete($id) {
