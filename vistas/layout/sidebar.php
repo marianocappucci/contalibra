@@ -3,13 +3,14 @@
 <style>
     #sidebar {
         width: 250px;
-        min-height: 100vh;
+        height: calc(100vh - 60px);
         background: #1f1f1f;
         color: white;
         position: fixed;
         left: 0;
         top: 60px;
-        padding-top: 60px; /* deja espacio para la topbar */
+        overflow-y: auto;
+        padding-top: 12px; /* deja espacio mínimo tras el logo del topbar */
     }
 
     /* Contalibra dentro del sidebar */
