@@ -1,3 +1,23 @@
+<?php
+    $configuracion = null;
+    $empresaActiva = null;
+    $baseActiva = $_SESSION['db_name'] ?? ($_SESSION['user']['base_datos'] ?? null);
+
+    try {
+        $configuracionModel = new Configuracion();
+        $configuracion = $configuracionModel->get();
+        $empresaActiva = $configuracion['nombre_fantasia'] ?? null;
+    } catch (Exception $e) {
+        $empresaActiva = $baseActiva;
+    }
+
+    if ($empresaActiva === null) {
+        $empresaActiva = $baseActiva;
+    }
+
+    $empresaActivaNombre = $empresaActiva ?? 'No configurada';
+?>
+
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 
 <style>
@@ -23,7 +43,7 @@
         padding: 10px 12px;
         border-bottom: 1px solid #343434;
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         gap: 10px;
         background: #252525;
         border-radius: 10px;
@@ -36,6 +56,21 @@
     #sidebar .sidebar-title i {
         font-size: 1.5rem;
         color: #ffc107;
+    }
+
+    #sidebar .sidebar-heading {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    #sidebar .sidebar-heading .sidebar-brand {
+        line-height: 1.2;
+    }
+
+    #sidebar .sidebar-heading .sidebar-company {
+        font-size: 0.85rem;
+        color: #bdbdbd;
     }
 
     #sidebar .nav {
@@ -157,9 +192,13 @@
 
 <div id="sidebar">
     <div class="sidebar-title">
-      
-        <span>Contalibra</span>
-           
+
+        <i class="bi bi-lightning-charge-fill"></i>
+        <div class="sidebar-heading">
+            <span class="sidebar-brand">Contalibra</span>
+            <small class="sidebar-company">Empresa activa: <?php echo htmlspecialchars($empresaActivaNombre); ?></small>
+        </div>
+
     </div>
 
 
