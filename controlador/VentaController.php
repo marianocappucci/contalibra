@@ -39,6 +39,11 @@ class VentaController {
         }
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && $caja) {
             $clienteId = $_POST['cliente_id'] ?? null;
+            // Evitamos violar la FK cuando se factura a Consumidor Final
+            if ($clienteId === '') {
+                $clienteId = null;
+            }
+
             if (!$clienteId && !empty($_POST['nuevo_cliente_nombre'])) {
                 $clienteId = $this->clienteModel->create([
                     'nombre' => $_POST['nuevo_cliente_nombre'],
@@ -62,6 +67,17 @@ class VentaController {
             }
             $iva = $subtotal * 0.21;
             $total = $subtotal + $iva;
+            $metodoPagoId = $_POST['metodo_pago_id'] ?? null;
+            $sucursalId = $_POST['sucursal_id'] ?? null;
+
+            if ($metodoPagoId === '') {
+                $metodoPagoId = null;
+            }
+
+            if ($sucursalId === '') {
+                $sucursalId = null;
+            }
+
             $dataVenta = [
                 'caja_id' => $caja['id'],
                 'usuario_id' => $_SESSION['user']['id'],
@@ -71,8 +87,8 @@ class VentaController {
                 'iva' => $iva,
                 'total' => $total,
                 'tipo_comprobante' => $_POST['tipo_comprobante'] ?? 'FA',
-                'metodo_pago_id' => $_POST['metodo_pago_id'] ?? null,
-                'sucursal_id' => $_POST['sucursal_id'] ?? null
+                'metodo_pago_id' => $metodoPagoId,
+                'sucursal_id' => $sucursalId
             ];
             $ventaId = $this->ventaModel->crearVenta($dataVenta, $items);
             $venta = $this->ventaModel->getById($ventaId);
