@@ -70,7 +70,7 @@
 
     #sidebar .sidebar-heading .sidebar-company {
         font-size: 0.85rem;
-        color: #bdbdbd;
+        color: #8f8f8fff;
     }
 
     #sidebar .nav {
@@ -149,6 +149,7 @@
         border-radius: 10px;
         background: #252525;
         border: 1px solid #2f2f2f;
+        
     }
 
     #sidebar .user-menu .user-toggle {
@@ -193,10 +194,10 @@
 <div id="sidebar">
     <div class="sidebar-title">
 
-        <i class="bi bi-lightning-charge-fill"></i>
+        
         <div class="sidebar-heading">
             <span class="sidebar-brand">Contalibra</span>
-            <small class="sidebar-company">Empresa activa: <?php echo htmlspecialchars($empresaActivaNombre); ?></small>
+            <small class="sidebar-company"><?php echo htmlspecialchars($empresaActivaNombre); ?></small>
         </div>
 
     </div>
@@ -359,9 +360,7 @@
     <div class="user-menu mt-3">
         <div class="dropdown dropup">
             <a href="#" class="user-toggle dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                <div class="user-avatar">
-                    <i class="bi bi-person-fill"></i>
-                </div>
+                
                 <div class="flex-grow-1">
                     <div class="fw-semibold">
                         <?php echo htmlspecialchars($_SESSION['user']['nombre']); ?>
