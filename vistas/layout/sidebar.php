@@ -157,9 +157,11 @@
 
 <div id="sidebar">
     <div class="sidebar-title">
-        <i class="bi bi-lightning-charge-fill"></i>
+      
         <span>Contalibra</span>
+           
     </div>
+
 
     <nav class="nav flex-column">
         <a class="nav-link" href="index.php?controller=Dashboard&action=index">

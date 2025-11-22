@@ -27,7 +27,7 @@
                 <?php echo htmlspecialchars($_SESSION['user']['nombre']); ?>
                 (<?php echo htmlspecialchars($_SESSION['user']['rol_nombre']); ?>)
             </div>
-            <small class="text-secondary">Empresa: <?php echo htmlspecialchars($empresaActivaNombre); ?></small>
+            
         </div>
 
         <a class="btn btn-outline-light btn-sm" href="index.php?controller=Auth&action=logout">
