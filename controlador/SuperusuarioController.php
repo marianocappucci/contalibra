@@ -37,13 +37,19 @@ class SuperusuarioController {
                     $statements = array_filter(array_map('trim', explode(";\n", $sql)));
 
                     foreach ($statements as $statement) {
-                        if (preg_match('/^\s*INSERT\s+/i', $statement)) {
-                            continue; // Evitamos cargar datos demo en la base vacía
+                        if ($statement === '') {
+                            continue;
                         }
+
+                        // Evitamos clonar usuarios de demo pero mantenemos datos base (roles, configuraciones mínimas, etc.).
+                        if (preg_match('/^\s*INSERT\s+INTO\s+`?usuarios`?/i', $statement)) {
+                            continue;
+                        }
+
                         $pdoDb->exec($statement);
                     }
 
-                    $mensaje = "Base de datos '$dbName' creada y estructura importada (sin datos).";
+                    $mensaje = "Base de datos '$dbName' creada y estructura importada (sin usuarios de demo).";
                 } catch (Exception $e) {
                     $error = 'No se pudo crear la base: ' . $e->getMessage();
                 }
