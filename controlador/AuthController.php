@@ -12,11 +12,14 @@ class AuthController {
             $user = $usuarioModel->getByUsername($username);
 
             if ($user && $this->passwordMatches($password, $user)) {
+                $dbName = $user['base_datos'] ?? DB_NAME;
+                Database::setActiveDatabase($dbName);
                 $_SESSION['user'] = [
                     'id' => $user['id'],
                     'nombre' => $user['nombre'],
                     'rol_id' => $user['rol_id'],
-                    'rol_nombre' => $user['rol_nombre']
+                    'rol_nombre' => $user['rol_nombre'],
+                    'base_datos' => $dbName,
                 ];
                 header('Location: index.php?controller=Dashboard&action=index');
                 exit;

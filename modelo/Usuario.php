@@ -29,23 +29,25 @@ class Usuario extends BaseModel {
     }
 
     public function create($data) {
-        $stmt = $this->db->prepare("INSERT INTO usuarios (nombre, username, password, rol_id, activo) VALUES (?,?,?,?,?)");
+        $stmt = $this->db->prepare("INSERT INTO usuarios (nombre, username, password, rol_id, activo, base_datos) VALUES (?,?,?,?,?,?)");
         return $stmt->execute([
             $data['nombre'],
             $data['username'],
             password_hash($data['password'], PASSWORD_BCRYPT),
             $data['rol_id'],
-            isset($data['activo']) ? 1 : 0
+            isset($data['activo']) ? 1 : 0,
+            $data['base_datos'] ?? DB_NAME,
         ]);
     }
 
     public function update($id, $data) {
-        $stmt = $this->db->prepare("UPDATE usuarios SET nombre=?, username=?, rol_id=?, activo=? WHERE id=?");
+        $stmt = $this->db->prepare("UPDATE usuarios SET nombre=?, username=?, rol_id=?, activo=?, base_datos=? WHERE id=?");
         return $stmt->execute([
             $data['nombre'],
             $data['username'],
             $data['rol_id'],
             isset($data['activo']) ? 1 : 0,
+            $data['base_datos'] ?? DB_NAME,
             $id
         ]);
     }
