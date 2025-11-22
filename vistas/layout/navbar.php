@@ -12,7 +12,7 @@
         <li class="nav-item"><a class="nav-link" href="index.php?controller=Caja&action=index">Cajas</a></li>
         <li class="nav-item"><a class="nav-link" href="index.php?controller=Usuario&action=index">Usuarios</a></li>
         <li class="nav-item"><a class="nav-link" href="index.php?controller=Reporte&action=ventas">Reportes</a></li>
-        <?php if (isset($_SESSION['user']) && $_SESSION['user']['rol_nombre'] === 'Administrador'): ?>
+        <?php if (isset($_SESSION['user']['rol_nombre']) && in_array($_SESSION['user']['rol_nombre'], ['Administrador', 'Superusuario'])): ?>
         <li class="nav-item"><a class="nav-link" href="index.php?controller=Configuracion&action=index">Configuración</a></li>
         <?php endif; ?>
       </ul>
