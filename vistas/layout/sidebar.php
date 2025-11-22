@@ -280,7 +280,7 @@
             </div>
         </div>
 
-        <?php if ($_SESSION['user']['rol_nombre'] === 'Administrador'): ?>
+        <?php if (isset($_SESSION['user']['rol_nombre']) && in_array($_SESSION['user']['rol_nombre'], ['Administrador', 'Superusuario'])): ?>
         <div class="nav-item">
             <button class="btn-toggle align-items-center rounded collapsed" data-bs-toggle="collapse" data-bs-target="#menuConfig" aria-expanded="false">
                 <i class="bi bi-gear-fill"></i>
