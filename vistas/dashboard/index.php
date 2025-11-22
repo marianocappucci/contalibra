@@ -24,7 +24,7 @@
   }
 </style>
 
-<div class="container mt-4 mt-4">
+<div class="container">
   <h3 class="mb-4">Panel Principal</h3>
 
   <?php

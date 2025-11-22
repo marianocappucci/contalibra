@@ -20,7 +20,7 @@
 
         $empresaActivaNombre = $empresaActiva ?? 'No configurada';
     ?>
-
+    
     <div class="ms-auto d-flex align-items-center gap-3">
         <div class="dropdown">
             <a class="btn btn-outline-light btn-sm dropdown-toggle d-flex align-items-center gap-2" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -33,7 +33,7 @@
                 </div>
             </a>
             <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark shadow">
-                <li class="dropdown-header text-secondary small">Sesión</li>
+               
                 <li>
                     <a class="dropdown-item" href="index.php?controller=Auth&action=logout">
                         <i class="bi bi-box-arrow-right me-2"></i>
