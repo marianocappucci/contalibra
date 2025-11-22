@@ -6,6 +6,9 @@ class VentaController {
     private $productoModel;
     private $cajaModel;
     private $feModel;
+    private $clienteModel;
+    private $metodoPagoModel;
+    private $sucursalModel;
 
     public function __construct(){
     registrarLog("Acceso a __construct","Venta");
@@ -13,6 +16,9 @@ class VentaController {
         $this->productoModel = new Producto();
         $this->cajaModel = new Caja();
         $this->feModel = new FacturacionElectronica();
+        $this->clienteModel = new Cliente();
+        $this->metodoPagoModel = new MetodoPago();
+        $this->sucursalModel = new Sucursal();
     }
 
     public function index(){
@@ -24,11 +30,23 @@ class VentaController {
     public function nueva(){
     registrarLog("Acceso a nueva","Venta");
         $productos = $this->productoModel->getAll();
+        $clientes = $this->clienteModel->getAll();
+        $metodosPago = $this->metodoPagoModel->getAll();
+        $sucursales = $this->sucursalModel->getAll();
         $caja = $this->cajaModel->getCajaAbiertaPorUsuario($_SESSION['user']['id']);
         if (!$caja) {
             $error = 'Debe abrir una caja antes de vender.';
         }
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && $caja) {
+            $clienteId = $_POST['cliente_id'] ?? null;
+            if (!$clienteId && !empty($_POST['nuevo_cliente_nombre'])) {
+                $clienteId = $this->clienteModel->create([
+                    'nombre' => $_POST['nuevo_cliente_nombre'],
+                    'tipo' => $_POST['nuevo_cliente_tipo'] ?? 'Consumidor Final',
+                    'documento' => $_POST['nuevo_cliente_documento'] ?? '',
+                    'saldo' => 0
+                ]);
+            }
             $items = [];
             $subtotal = 0;
             foreach ($_POST['items'] as $row) {
@@ -47,11 +65,14 @@ class VentaController {
             $dataVenta = [
                 'caja_id' => $caja['id'],
                 'usuario_id' => $_SESSION['user']['id'],
+                'cliente_id' => $clienteId,
                 'cliente' => $_POST['cliente'] ?? 'Consumidor Final',
                 'subtotal' => $subtotal,
                 'iva' => $iva,
                 'total' => $total,
-                'tipo_comprobante' => $_POST['tipo_comprobante'] ?? 'FA'
+                'tipo_comprobante' => $_POST['tipo_comprobante'] ?? 'FA',
+                'metodo_pago_id' => $_POST['metodo_pago_id'] ?? null,
+                'sucursal_id' => $_POST['sucursal_id'] ?? null
             ];
             $ventaId = $this->ventaModel->crearVenta($dataVenta, $items);
             $venta = $this->ventaModel->getById($ventaId);

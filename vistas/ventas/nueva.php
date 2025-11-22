@@ -284,10 +284,17 @@
 
                     <!-- CABECERA CLIENTE -->
                     <div class="nv-client-header">
-                        <div class="nv-client-title">Consumidor final</div>
-                        <div class="d-flex align-items-center">
-                            <input type="text" name="cliente" value="Consumidor Final" class="nv-client-name-input">
-                            <span class="ms-3 small text-muted">Minorista</span>
+                        <div class="nv-client-title">Cliente</div>
+                        <div class="d-flex align-items-center flex-wrap gap-2">
+                            <select name="cliente_id" class="form-select form-select-sm" style="width:220px">
+                                <option value="">Consumidor Final</option>
+                                <?php foreach ($clientes as $c): ?>
+                                    <option value="<?php echo $c['id']; ?>"><?php echo htmlspecialchars($c['nombre']); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <input type="text" name="cliente" value="Consumidor Final" class="nv-client-name-input" placeholder="Nombre a facturar">
+                            <input type="text" name="nuevo_cliente_nombre" class="form-control form-control-sm" style="width:200px" placeholder="Crear cliente nuevo">
+                            <input type="text" name="nuevo_cliente_documento" class="form-control form-control-sm" style="width:150px" placeholder="Doc/CUIT">
                         </div>
                     </div>
 
@@ -346,6 +353,25 @@
                         <input type="hidden" id="subtotal" name="subtotal" value="0">
                         <input type="hidden" id="iva" name="iva" value="0">
                         <input type="hidden" id="total" name="total" value="0">
+
+                        <div class="row mb-2">
+                            <div class="col-md-6">
+                                <label class="form-label small">Método de pago</label>
+                                <select name="metodo_pago_id" class="form-select form-select-sm">
+                                    <?php foreach ($metodosPago as $mp): ?>
+                                        <option value="<?php echo $mp['id']; ?>"><?php echo htmlspecialchars($mp['nombre']); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">Sucursal</label>
+                                <select name="sucursal_id" class="form-select form-select-sm">
+                                    <?php foreach ($sucursales as $suc): ?>
+                                        <option value="<?php echo $suc['id']; ?>"><?php echo htmlspecialchars($suc['nombre']); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
 
                         <div class="nv-pay-buttons">
                             <button type="button" class="nv-pay-btn">

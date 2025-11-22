@@ -12,6 +12,8 @@
         <th>ID</th>
         <th>Fecha</th>
         <th>Cliente</th>
+        <th>Método de pago</th>
+        <th>Sucursal</th>
         <th>Total</th>
         <th>Estado</th>
         <th>CAE</th>
@@ -23,7 +25,9 @@
       <tr>
         <td><?php echo $v['id']; ?></td>
         <td><?php echo $v['fecha']; ?></td>
-        <td><?php echo htmlspecialchars($v['cliente']); ?></td>
+        <td><?php echo htmlspecialchars($v['cliente_nombre'] ?: $v['cliente']); ?></td>
+        <td><?php echo htmlspecialchars($v['metodo_pago_nombre']); ?></td>
+        <td><?php echo htmlspecialchars($v['sucursal_nombre']); ?></td>
         <td>$<?php echo number_format($v['total'], 2); ?></td>
         <td><?php echo $v['estado']; ?></td>
         <td><?php echo $v['cae']; ?></td>
