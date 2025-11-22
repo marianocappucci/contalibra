@@ -144,51 +144,6 @@
         transition: margin-left 0.3s ease;
     }
 
-    #sidebar .user-menu {
-        padding: 12px;
-        border-radius: 10px;
-        background: #252525;
-        border: 1px solid #2f2f2f;
-        
-    }
-
-    #sidebar .user-menu .user-toggle {
-        color: #f1f1f1;
-        text-decoration: none;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-
-    #sidebar .user-menu .user-toggle:hover {
-        color: #fff;
-    }
-
-    #sidebar .user-avatar {
-        width: 40px;
-        height: 40px;
-        background: #343434;
-        color: #ffc107;
-        border-radius: 50%;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.2rem;
-    }
-
-    #sidebar .dropdown-menu {
-        background-color: #1f1f1f;
-        border-color: #2b2b2b;
-    }
-
-    #sidebar .dropdown-item {
-        color: #f1f1f1;
-    }
-
-    #sidebar .dropdown-item:hover {
-        background: #2f2f2f;
-        color: #fff;
-    }
 </style>
 
 <div id="sidebar">
@@ -357,26 +312,4 @@
         </a>
     </nav>
 
-    <div class="user-menu mt-3">
-        <div class="dropdown dropup">
-            <a href="#" class="user-toggle dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                
-                <div class="flex-grow-1">
-                    <div class="fw-semibold">
-                        <?php echo htmlspecialchars($_SESSION['user']['nombre']); ?>
-                    </div>
-                    <small class="text-secondary"><?php echo htmlspecialchars($_SESSION['user']['rol_nombre']); ?></small>
-                </div>
-            </a>
-            <ul class="dropdown-menu dropdown-menu-dark shadow">
-                <li class="dropdown-header text-secondary small">Sesión</li>
-                <li>
-                    <a class="dropdown-item" href="index.php?controller=Auth&action=logout">
-                        <i class="bi bi-box-arrow-right me-2"></i>
-                        Cerrar sesión
-                    </a>
-                </li>
-            </ul>
-        </div>
-    </div>
 </div>
