@@ -13,9 +13,17 @@
 
     <div class="ms-auto d-flex align-items-center">
 
+        <form class="d-flex align-items-center me-3" method="post" action="index.php?controller=Auth&action=cambiarEmpresa">
+            <label class="text-white me-2 mb-0">Empresa</label>
+            <input type="text" name="db_name" class="form-control form-control-sm"
+                   value="<?php echo htmlspecialchars($_SESSION['user']['base_datos'] ?? ($_SESSION['db_name'] ?? DB_NAME)); ?>"
+                   style="max-width: 180px;">
+            <button class="btn btn-outline-light btn-sm ms-2" type="submit">Cambiar</button>
+        </form>
+
         <!-- Dropdown de usuario -->
         <div class="dropdown">
-            <a class="text-white fw-semibold dropdown-toggle text-decoration-none" 
+            <a class="text-white fw-semibold dropdown-toggle text-decoration-none"
                href="#" 
                id="userMenu" 
                data-bs-toggle="dropdown" 

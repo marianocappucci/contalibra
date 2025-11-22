@@ -50,6 +50,13 @@
 
     <form method="post" action="index.php?controller=Auth&action=login">
         <div class="mb-3">
+            <label class="form-label">Empresa / Base de datos</label>
+            <input type="text" name="db_name" class="form-control" placeholder="contadb_empresa"
+                   value="<?php echo htmlspecialchars($_SESSION['db_name'] ?? DB_NAME); ?>" required>
+            <small class="text-muted">Usaremos esta base para validar tus datos.</small>
+        </div>
+
+        <div class="mb-3">
             <label class="form-label">Usuario</label>
             <input type="text" name="username" class="form-control" required autofocus>
         </div>

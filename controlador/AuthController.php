@@ -7,12 +7,15 @@ class AuthController {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $username = $_POST['username'] ?? '';
             $password = $_POST['password'] ?? '';
+            $dbName = $this->sanitizeDbName($_POST['db_name'] ?? ($_SESSION['db_name'] ?? DB_NAME));
+
+            Database::setActiveDatabase($dbName);
 
             $usuarioModel = new Usuario();
             $user = $usuarioModel->getByUsername($username);
 
             if ($user && $this->passwordMatches($password, $user)) {
-                $dbName = $user['base_datos'] ?? DB_NAME;
+                $dbName = $this->sanitizeDbName($user['base_datos'] ?? $dbName);
                 Database::setActiveDatabase($dbName);
                 $_SESSION['user'] = [
                     'id' => $user['id'],
@@ -51,5 +54,30 @@ class AuthController {
         session_destroy();
         header('Location: index.php');
         exit;
+    }
+
+    public function cambiarEmpresa()
+    {
+        registrarLog("Acceso a cambiarEmpresa","Auth");
+
+        if (!isset($_SESSION['user'])) {
+            header('Location: index.php?controller=Auth&action=login');
+            exit;
+        }
+
+        $dbName = $this->sanitizeDbName($_POST['db_name'] ?? ($_SESSION['db_name'] ?? DB_NAME));
+
+        Database::setActiveDatabase($dbName);
+        $_SESSION['user']['base_datos'] = $dbName;
+
+        $redirect = $_SERVER['HTTP_REFERER'] ?? 'index.php?controller=Dashboard&action=index';
+        header('Location: ' . $redirect);
+        exit;
+    }
+
+    private function sanitizeDbName(string $dbName): string
+    {
+        $clean = preg_replace('/[^a-zA-Z0-9_]/', '', $dbName);
+        return $clean ?: DB_NAME;
     }
 }
