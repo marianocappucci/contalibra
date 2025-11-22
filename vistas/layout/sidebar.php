@@ -288,7 +288,9 @@
             </button>
             <div class="collapse" id="menuConfig">
                 <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
+                    <li><a class="nav-link" href="index.php?controller=Configuracion&action=index">Configuración</a></li>
                     <li><a class="nav-link" href="index.php?controller=Configuracion&action=index">Datos del negocio</a></li>
+                    <li><a class="nav-link" href="index.php?controller=Configuracion&action=index">Datos de la empresa</a></li>
                 </ul>
             </div>
         </div>
