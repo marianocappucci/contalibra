@@ -51,6 +51,7 @@
         margin-left: 250px;
         padding: 20px;
         padding-top: 80px;
+        padding-bottom: 80px;
         transition: margin-left 0.3s ease;
     }
 </style>
