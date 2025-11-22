@@ -32,6 +32,14 @@
           <?php endforeach; ?>
         </select>
       </div>
+      <?php if(isset($_SESSION['user']) && $_SESSION['user']['rol_nombre'] === 'Superusuario'): ?>
+      <div class="col-md-3 mb-3">
+        <label class="form-label">Base de datos</label>
+        <input type="text" name="base_datos" class="form-control" placeholder="contadb_empresa"
+               value="<?php echo $usuario['base_datos'] ?? ($_SESSION['user']['base_datos'] ?? DB_NAME); ?>">
+        <div class="form-text">Solo letras, números y guiones bajos.</div>
+      </div>
+      <?php endif; ?>
       <div class="col-md-3 mb-3 form-check">
         <input class="form-check-input" type="checkbox" name="activo" id="activo" <?php echo (!$usuario || $usuario['activo'])?'checked':''; ?>>
         <label class="form-check-label" for="activo">Activo</label>
