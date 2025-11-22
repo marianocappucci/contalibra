@@ -3,15 +3,16 @@
 <style>
     #sidebar {
         width: 260px;
-        height: calc(100vh - 60px);
+        height: 100vh;
         background: #1f1f1f;
         color: #f1f1f1;
         position: fixed;
         left: 0;
-        top: 60px;
+        top: 0;
         overflow-y: auto;
         padding: 16px 18px;
         border-right: 1px solid #2b2b2b;
+        z-index: 1100;
     }
 
     #sidebar .sidebar-title {
