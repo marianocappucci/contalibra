@@ -1,9 +1,29 @@
+<?php
+    $configuracion = null;
+    $empresaActiva = null;
+    $baseActiva = $_SESSION['db_name'] ?? ($_SESSION['user']['base_datos'] ?? null);
+
+    try {
+        $configuracionModel = new Configuracion();
+        $configuracion = $configuracionModel->get();
+        $empresaActiva = $configuracion['nombre_fantasia'] ?? null;
+    } catch (Exception $e) {
+        $empresaActiva = $baseActiva;
+    }
+
+    if ($empresaActiva === null) {
+        $empresaActiva = $baseActiva;
+    }
+
+    $empresaActivaNombre = $empresaActiva ?? 'No configurada';
+?>
+
 <footer class="status-footer">
   <div class="container d-flex justify-content-between align-items-center">
     <span class="status-label">Estado</span>
     <div class="d-flex align-items-center">
       <span class="status-indicator" aria-hidden="true"></span>
-      <span class="status-message">Sistema operativo en línea</span>
+      <span class="status-message"><?php echo htmlspecialchars($empresaActivaNombre); ?></span>
     </div>
   </div>
 </footer>
