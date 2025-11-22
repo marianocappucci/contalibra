@@ -1,15 +1,7 @@
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark px-4" 
      style="height: 60px; position: fixed; top: 0; left: 0; width: 100%; z-index: 1000;">
 
-    <div class="d-flex align-items-center">
-        <img src="public/favicon.png" class="icono-menu">
 
-       
-
-        <span class="navbar-brand mb-0 h1 fw-bold fs-4">
-           Conta<strong>libra</strong>
-        </span>
-    </div>
 
     <div class="ms-auto d-flex align-items-center">
 
