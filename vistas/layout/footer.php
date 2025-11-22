@@ -1,7 +1,7 @@
 <footer class="status-footer">
   <div class="container d-flex justify-content-between align-items-center">
     <span class="status-label">Estado</span>
-    <div class="d-flex align-items-center gap-2">
+    <div class="d-flex align-items-center">
       <span class="status-indicator" aria-hidden="true"></span>
       <span class="status-message">Sistema operativo en línea</span>
     </div>
