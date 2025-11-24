@@ -2,7 +2,7 @@
 class Usuario extends BaseModel {
 
     public function getByUsername($username) {
-        $stmt = $this->db->prepare("SELECT u.*, r.nombre AS rol_nombre
+        $stmt = $this->db->prepare("SELECT u.*, r.rol_nombre as rol_nombre
                                     FROM usuarios u
                                     LEFT JOIN roles r ON r.id = u.rol_id
                                     WHERE u.username = ? AND u.activo = 1 LIMIT 1");
@@ -18,7 +18,7 @@ class Usuario extends BaseModel {
     }
 
     public function create(array $data) {
-        $stmt = $this->db->prepare("INSERT INTO usuarios(nombre, username, password, rol_id, activo, base_datos)
+       $stmt = $this->db->prepare("INSERT INTO usuarios(nombre, username, password, rol_id, activo, base_datos)
                                     VALUES(?,?,?,?,?,?)");
         return $stmt->execute([
             $data['nombre'],
