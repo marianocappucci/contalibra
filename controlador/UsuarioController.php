@@ -76,6 +76,19 @@ class UsuarioController {
 
         $data['base_datos'] = $dbName;
 
+        $password = $data['password'] ?? '';
+        if ($password === '' && $originalUser) {
+            $password = $originalUser['password'] ?? '';
+        } else if ($password !== '') {
+            $info = password_get_info($password);
+            if (($info['algo'] ?? 0) === 0) {
+                $password = password_hash($password, PASSWORD_BCRYPT);
+            }
+        }
+
+        $data['password'] = $password;
+        $data['activo'] = isset($data['activo']) ? 1 : 0;
+
         return $data;
     }
 
