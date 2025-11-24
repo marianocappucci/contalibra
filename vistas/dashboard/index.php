@@ -49,6 +49,7 @@
       <?php if (!empty($baseActiva) && $empresaActivaNombre !== $baseActiva): ?>
         <div class="small text-muted">Base de datos: <?php echo htmlspecialchars($baseActiva); ?></div>
       <?php endif; ?>
+      
     </div>
   </div>
 
