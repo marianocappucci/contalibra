@@ -10,10 +10,18 @@
         <li class="nav-item"><a class="nav-link" href="index.php?controller=Venta&action=index">Ventas</a></li>
         <li class="nav-item"><a class="nav-link" href="index.php?controller=Producto&action=index">Productos</a></li>
         <li class="nav-item"><a class="nav-link" href="index.php?controller=Caja&action=index">Cajas</a></li>
-        <li class="nav-item"><a class="nav-link" href="index.php?controller=Usuario&action=index">Usuarios</a></li>
         <li class="nav-item"><a class="nav-link" href="index.php?controller=Reporte&action=ventas">Reportes</a></li>
         <?php if (isset($_SESSION['user']['rol_nombre']) && in_array($_SESSION['user']['rol_nombre'], ['Administrador', 'Superusuario'])): ?>
-        <li class="nav-item"><a class="nav-link" href="index.php?controller=Configuracion&action=index">Configuración</a></li>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" id="configDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            Configuración
+          </a>
+          <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="configDropdown">
+            <li><a class="dropdown-item" href="index.php?controller=Usuario&action=index">Usuarios</a></li>
+            <li><a class="dropdown-item" href="index.php?controller=Configuracion&action=index">Datos de la empresa</a></li>
+            <li><a class="dropdown-item" href="index.php?controller=Configuracion&action=manejoBd">Manejo de base de datos</a></li>
+          </ul>
+        </li>
         <?php endif; ?>
       </ul>
       <span class="navbar-text me-3">
