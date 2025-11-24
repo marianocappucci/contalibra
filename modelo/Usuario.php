@@ -42,6 +42,33 @@ class Usuario extends BaseModel {
         return $stmt->fetch();
     }
 
+    /**
+     * Recupera un usuario desde la base maestra (contadb) sin depender de la
+     * base de datos del tenant que esté activa en la sesión.
+     */
+    public function getByIdFromDefault(int $id)
+    {
+        $connection = Database::getDefaultStandaloneConnection();
+        $stmt = $connection->prepare(
+            "SELECT
+                    u.id,
+                    u.nombre,
+                    u.username,
+                    u.password,
+                    u.rol_id,
+                    u.activo,
+                    u.base_datos,
+                    roles.nombre AS rol_nombre
+                FROM usuarios u
+                LEFT JOIN roles ON roles.id = u.rol_id
+                WHERE u.id = ? AND u.activo = 1
+                LIMIT 1"
+        );
+
+        $stmt->execute([$id]);
+        return $stmt->fetch();
+    }
+
     public function getAll() {
         $sql = "SELECT
                     u.id,

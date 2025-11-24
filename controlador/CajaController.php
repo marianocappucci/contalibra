@@ -5,10 +5,10 @@ class CajaController {
     private $model;
     private $usuarioModel;
 
-    public function __construct(){
+    public function __construct($cajaModel = null, $usuarioModel = null){
     registrarLog("Acceso a __construct","Caja");
-        $this->model = new Caja();
-        $this->usuarioModel = new Usuario();
+        $this->model = $cajaModel ?? new Caja();
+        $this->usuarioModel = $usuarioModel ?? new Usuario();
     }
 
     public function index(){
@@ -19,24 +19,59 @@ class CajaController {
 
     public function abrir(){
     registrarLog("Acceso a abrir","Caja");
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $usuarioId = $_SESSION['user']['id'] ?? null;
-            $usuario = $usuarioId ? $this->usuarioModel->getById($usuarioId) : null;
+        $error = null;
 
-            if (!$usuario) {
-                $error = 'Usuario no autenticado o inexistente. No se pudo abrir la caja.';
-            } else {
-                $data = [
-                    'nombre' => $_POST['nombre'],
-                    'saldo_inicial' => $_POST['saldo_inicial'],
-                    'usuario_id' => $usuarioId
-                ];
-                $this->model->abrirCaja($data);
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $resultado = $this->procesarApertura($_POST);
+
+            if ($resultado['ok'] === true) {
                 header('Location: index.php?controller=Caja&action=index');
                 exit;
             }
+
+            $error = $resultado['error'] ?? 'No se pudo abrir la caja.';
         }
         include __DIR__ . '/../vistas/cajas/abrir.php';
+    }
+
+    public function procesarApertura(array $payload): array
+    {
+        $usuario = $this->obtenerUsuarioDesdeSesion();
+
+        if (!$usuario) {
+            return [
+                'ok' => false,
+                'error' => 'Usuario no autenticado o inexistente en la base maestra. No se pudo abrir la caja.'
+            ];
+        }
+
+        try {
+            $data = [
+                'nombre' => $payload['nombre'] ?? '',
+                'saldo_inicial' => $payload['saldo_inicial'] ?? 0,
+                'usuario_id' => $usuario['id']
+            ];
+
+            $this->model->abrirCaja($data);
+
+            return ['ok' => true];
+        } catch (PDOException $e) {
+            return [
+                'ok' => false,
+                'error' => 'No se pudo abrir la caja en la base del cliente. Detalle: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    private function obtenerUsuarioDesdeSesion(): ?array
+    {
+        $usuarioId = $_SESSION['user']['id'] ?? null;
+
+        if (!$usuarioId) {
+            return null;
+        }
+
+        return $this->usuarioModel->getByIdFromDefault((int) $usuarioId) ?: null;
     }
 
     public function cerrar(){
