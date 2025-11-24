@@ -29,16 +29,20 @@ class AuthController {
 
                 // Iniciar sesión
                 session_start();
-                $_SESSION['id'] = $user['id'];
-                $_SESSION['nombre'] = $user['nombre'];
-                $_SESSION['username'] = $user['username'];
-                $_SESSION['rol'] = $user['rol_nombre'] ?? '';
-                $_SESSION['base_datos'] = $user['base_datos'];
+                $_SESSION['user'] = [
+                    'id' => $user['id'],
+                    'nombre' => $user['nombre'],
+                    'username' => $user['username'],
+                    'rol_id' => $user['rol_id'] ?? null,
+                    'rol_nombre' => $user['rol_nombre'] ?? '',
+                    'base_datos' => $user['base_datos'],
+                ];
+                $_SESSION['db_name'] = $user['base_datos'];
 
                 // Registrar log AHORA (ya hay usuario válido)
                 registrarLog("Acceso correcto", "Auth");
 
-                header("Location: index.php");
+                header("Location: index.php?controller=Dashboard&action=index");
                 exit;
             }
 
