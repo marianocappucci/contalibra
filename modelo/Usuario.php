@@ -57,6 +57,11 @@ class Usuario extends BaseModel {
         return $this->db->query($sql)->fetchAll();
     }
 
+    public function getRoles() {
+        $sql = "SELECT id, nombre FROM roles";
+        return $this->db->query($sql)->fetchAll();
+    }
+
     public function create(array $data) {
        $stmt = $this->db->prepare("INSERT INTO usuarios(nombre, username, password, rol_id, activo, base_datos)
                                     VALUES(?,?,?,?,?,?)");
