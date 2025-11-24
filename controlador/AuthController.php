@@ -4,7 +4,8 @@ require_once "libs/log_helper.php";
 class AuthController {
 
     public function login(){
-        
+        $dbFallbackMessage = $_SESSION['db_fallback_message'] ?? null;
+
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $username = $_POST['username'] ?? '';

@@ -4,35 +4,29 @@ class Database {
     private static $instance = null;
     private $pdo;
     private $dbName;
+    private $requestedDbName;
+    private $fallbackUsed = false;
 
     private function __construct(?string $dbName = null) {
-        $this->dbName = $dbName ?: $this->resolveDbName();
-
-        $dsn = 'mysql:host=' . DB_HOST . ';dbname=' . $this->dbName . ';charset=utf8mb4';
-        $options = [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        ];
-        try {
-            $this->pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
-        } catch (PDOException $e) {
-            die('Error de conexión: ' . $e->getMessage());
-        }
+        $this->requestedDbName = $dbName ?: $this->resolveDbName();
+        $this->connect($this->requestedDbName);
     }
 
     public static function getInstance(?string $dbName = null) {
         $activeDb = $dbName ?: self::currentDatabase();
 
-        if (self::$instance === null || self::$instance->dbName !== $activeDb) {
+        if (self::$instance === null || self::$instance->requestedDatabase() !== $activeDb) {
             self::$instance = new Database($activeDb);
+            self::syncSessionAfterConnection($activeDb, self::$instance);
         }
         return self::$instance;
     }
 
     public static function setActiveDatabase(string $dbName): void
     {
-        $_SESSION['db_name'] = $dbName;
-        self::$instance = new Database($dbName);
+        $instance = new Database($dbName);
+        self::$instance = $instance;
+        self::syncSessionAfterConnection($dbName, $instance);
     }
 
     private static function currentDatabase(): string
@@ -47,5 +41,85 @@ class Database {
 
     public function getConnection() {
         return $this->pdo;
+    }
+
+    public function usedFallback(): bool
+    {
+        return $this->fallbackUsed === true;
+    }
+
+    public function requestedDatabase(): string
+    {
+        return $this->requestedDbName;
+    }
+
+    private function connect(string $dbName): void
+    {
+        $dsn = $this->buildDsn($dbName);
+
+        try {
+            $this->pdo = new PDO($dsn, DB_USER, DB_PASS, $this->pdoOptions());
+            $this->dbName = $dbName;
+        } catch (PDOException $e) {
+            if ($this->isUnknownDatabaseError($e) && $dbName !== DB_NAME) {
+                $this->fallbackUsed = true;
+                $this->logUnknownDatabase($dbName, $e);
+                $this->connectToDefault();
+                return;
+            }
+
+            throw $e;
+        }
+    }
+
+    private function connectToDefault(): void
+    {
+        $dsn = $this->buildDsn(DB_NAME);
+
+        $this->pdo = new PDO($dsn, DB_USER, DB_PASS, $this->pdoOptions());
+        $this->dbName = DB_NAME;
+    }
+
+    private function pdoOptions(): array
+    {
+        return [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        ];
+    }
+
+    private function buildDsn(string $dbName): string
+    {
+        return 'mysql:host=' . DB_HOST . ';dbname=' . $dbName . ';charset=utf8mb4';
+    }
+
+    private function isUnknownDatabaseError(PDOException $e): bool
+    {
+        return $e->getCode() === '1049' || stripos($e->getMessage(), 'Unknown database') !== false;
+    }
+
+    private function logUnknownDatabase(string $dbName, PDOException $e): void
+    {
+        error_log(sprintf(
+            '[%s] Base de datos no encontrada "%s": %s',
+            date('c'),
+            $dbName,
+            $e->getMessage()
+        ));
+    }
+
+    private static function syncSessionAfterConnection(string $requestedDb, self $instance): void
+    {
+        if ($instance->usedFallback()) {
+            unset($_SESSION['db_name']);
+            $_SESSION['db_fallback_message'] = sprintf(
+                'La base de datos configurada (%s) no existe. Se usó la base por defecto.',
+                $requestedDb
+            );
+            return;
+        }
+
+        $_SESSION['db_name'] = $instance->dbName;
+        unset($_SESSION['db_fallback_message']);
     }
 }

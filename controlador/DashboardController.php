@@ -7,6 +7,7 @@ class DashboardController {
         $configuracion = null;
         $empresaActiva = null;
         $baseActiva = $_SESSION['db_name'] ?? ($_SESSION['user']['base_datos'] ?? null);
+        $dbFallbackMessage = $_SESSION['db_fallback_message'] ?? null;
 
         try {
             $configuracionModel = new Configuracion();
