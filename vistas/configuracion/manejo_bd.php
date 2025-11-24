@@ -38,7 +38,7 @@
             <option value="">No asignar por ahora</option>
             <?php foreach ($usuarios as $u): ?>
               <option value="<?php echo $u['id']; ?>" <?php echo (($_POST['usuario_id'] ?? '') == $u['id']) ? 'selected' : ''; ?>>
-                <?php echo htmlspecialchars($u['nombre'] . ' (' . ($u['rol_nombre'] ?? ''))); ?>
+                <?php echo htmlspecialchars($u['nombre'] . ' (' . ($u['rol_nombre'] ?? '') . ')'); ?>
               </option>
             <?php endforeach; ?>
           </select>
