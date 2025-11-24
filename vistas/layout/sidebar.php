@@ -256,19 +256,6 @@
         </div>
 
         <div class="nav-item">
-            <button class="btn-toggle align-items-center rounded collapsed" data-bs-toggle="collapse" data-bs-target="#menuUsuarios" aria-expanded="false">
-                <i class="bi bi-people-fill"></i>
-                <span>Usuarios</span>
-            </button>
-            <div class="collapse" id="menuUsuarios">
-                <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
-                    <li><a class="nav-link" href="index.php?controller=Usuario&action=index">Listado</a></li>
-                    <li><a class="nav-link" href="index.php?controller=Usuario&action=crear">Crear usuario</a></li>
-                </ul>
-            </div>
-        </div>
-
-        <div class="nav-item">
             <button class="btn-toggle align-items-center rounded collapsed" data-bs-toggle="collapse" data-bs-target="#menuReportes" aria-expanded="false">
                 <i class="bi bi-bar-chart-line-fill"></i>
                 <span>Reportes</span>
@@ -288,6 +275,7 @@
             </button>
             <div class="collapse" id="menuConfig">
                 <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
+                    <li><a class="nav-link" href="index.php?controller=Usuario&action=index">Usuarios</a></li>
                     <li><a class="nav-link" href="index.php?controller=Configuracion&action=index">Datos de la empresa</a></li>
                     <li><a class="nav-link" href="index.php?controller=Configuracion&action=manejoBd">Manejo de base de datos</a></li>
                 </ul>
