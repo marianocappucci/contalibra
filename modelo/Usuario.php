@@ -144,4 +144,22 @@ class Usuario extends BaseModel {
         $stmt = $this->db->prepare("UPDATE usuarios SET base_datos=? WHERE id=?");
         return $stmt->execute([$dbName, $usuarioId]);
     }
+
+    public function syncFromMaster(array $usuarioMaestro): bool
+    {
+        $stmt = $this->db->prepare(
+            "INSERT INTO usuarios (id, nombre, username, password, rol_id, activo, base_datos)
+             VALUES (?, ?, ?, ?, ?, ?, ?)"
+        );
+
+        return $stmt->execute([
+            $usuarioMaestro['id'],
+            $usuarioMaestro['nombre'] ?? '',
+            $usuarioMaestro['username'] ?? '',
+            $usuarioMaestro['password'] ?? '',
+            $usuarioMaestro['rol_id'] ?? 1,
+            $usuarioMaestro['activo'] ?? 1,
+            $usuarioMaestro['base_datos'] ?? ($_SESSION['db_name'] ?? DB_NAME),
+        ]);
+    }
 }
