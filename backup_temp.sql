@@ -33,6 +33,8 @@ CREATE TABLE `usuarios` (
   KEY `rol_id` (`rol_id`),
   CONSTRAINT `usuarios_ibfk_1` FOREIGN KEY (`rol_id`) REFERENCES `roles` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+INSERT INTO `usuarios` (`id`,`nombre`,`username`,`password`,`rol_id`,`activo`,`base_datos`) VALUES
+(1,'Superadmin','admin','$2y$12$ZVuR.sflsOMtMKRhdg6VUeGozhVGYEIaOgD7e11.df8xHuf5bcU9y',3,1,'contadb');
 
 CREATE TABLE `configuracion` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
