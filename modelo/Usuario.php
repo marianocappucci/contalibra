@@ -2,18 +2,37 @@
 class Usuario extends BaseModel {
 
     public function getByUsername($username) {
-        $stmt = $this->db->prepare("SELECT u.*, r.rol_nombre as rol_nombre
-                                    FROM usuarios u
-                                    LEFT JOIN roles r ON r.id = u.rol_id
-                                    WHERE u.username = ? AND u.activo = 1 LIMIT 1");
+        $sql = "SELECT
+                    u.id,
+                    u.nombre,
+                    u.username,
+                    u.password,
+                    u.rol_id,
+                    u.activo,
+                    u.base_datos,
+                    roles.nombre AS rol_nombre
+                FROM usuarios u
+                LEFT JOIN roles ON roles.id = u.rol_id
+                WHERE u.username = ? AND u.activo = 1
+                LIMIT 1";
+
+        $stmt = $this->db->prepare($sql);
         $stmt->execute([$username]);
         return $stmt->fetch();
     }
 
     public function getAll() {
-        $sql = "SELECT u.*, r.nombre AS rol_nombre
+        $sql = "SELECT
+                    u.id,
+                    u.nombre,
+                    u.username,
+                    u.password,
+                    u.rol_id,
+                    u.activo,
+                    u.base_datos,
+                    roles.nombre AS rol_nombre
                 FROM usuarios u
-                LEFT JOIN roles r ON r.id = u.rol_id";
+                LEFT JOIN roles ON roles.id = u.rol_id";
         return $this->db->query($sql)->fetchAll();
     }
 
