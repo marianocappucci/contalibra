@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS `logs`;
 DROP TABLE IF EXISTS `ventas_detalle`;
 DROP TABLE IF EXISTS `ventas`;
 DROP TABLE IF EXISTS `cajas`;
@@ -86,6 +87,20 @@ CREATE TABLE `clientes` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 INSERT INTO `clientes` (`id`,`nombre`,`tipo`,`documento`,`email`,`direccion`,`saldo`) VALUES (1,'Consumidor Final','Consumidor Final','','','',0.00);
+
+CREATE TABLE `logs` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `usuario_id` int(11) DEFAULT NULL,
+  `usuario_nombre` varchar(100) DEFAULT NULL,
+  `accion` varchar(255) NOT NULL,
+  `modulo` varchar(100) NOT NULL,
+  `registro_id` int(11) DEFAULT NULL,
+  `fecha` datetime NOT NULL,
+  `ip` varchar(45) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `usuario_id` (`usuario_id`),
+  CONSTRAINT `logs_ibfk_1` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE `metodos_pago` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
