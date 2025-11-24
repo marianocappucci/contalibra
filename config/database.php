@@ -22,6 +22,27 @@ class Database {
         return self::$instance;
     }
 
+    /**
+     * Obtiene una conexión directa a la base de datos indicada sin modificar
+     * la conexión activa ni las variables de sesión. Útil para consultar la
+     * base maestra (contadb) aunque la app esté apuntando a una base de
+     * datos de tenant.
+     */
+    public static function getStandaloneConnection(string $dbName): PDO
+    {
+        $isolated = new self($dbName);
+        return $isolated->getConnection();
+    }
+
+    /**
+     * Conexión directa a la base por defecto (contadb) sin cambiar la
+     * conexión en uso por la app.
+     */
+    public static function getDefaultStandaloneConnection(): PDO
+    {
+        return self::getStandaloneConnection(DB_NAME);
+    }
+
     public static function setActiveDatabase(string $dbName): void
     {
         $instance = new Database($dbName);

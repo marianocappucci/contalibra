@@ -12,4 +12,5 @@ php scripts/setup_database.php
 El script crea la base `contadb` (si no existe) y carga el esquema/demo desde `backup_temp.sql`.
 
 ## Notas sobre cajas
-- Para abrir una caja se valida que el usuario autenticado exista en la tabla `usuarios`. Asegúrate de que la tabla contenga al usuario que abrirá la caja para respetar la clave foránea `cajas.abierta_por`.
+- La validación del usuario al abrir una caja se hace siempre contra la base maestra `contadb`.
+- Si la base de datos del tenant no tiene el usuario replicado, se mostrará un error legible en lugar de fallar silenciosamente.
