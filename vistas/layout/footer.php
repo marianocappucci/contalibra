@@ -22,12 +22,8 @@
 ?>
 
 <footer class="status-footer">
-  <div class="container d-flex justify-content-between align-items-center">
-      <span class="status-label">Estado</span>
-      <div class="d-flex align-items-center">
-        <span class="status-indicator" aria-hidden="true"></span>
-      <span class="status-message"><?php echo htmlspecialchars($sucursalActivaNombre); ?></span>
-      </div>
+  <div class="container d-flex justify-content-end align-items-center">
+      <span class="status-message ms-auto"><?php echo htmlspecialchars($sucursalActivaNombre); ?></span>
   </div>
 </footer>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
