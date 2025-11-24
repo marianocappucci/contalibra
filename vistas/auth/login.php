@@ -48,6 +48,12 @@
         <div class="alert alert-danger text-center"><?php echo $error; ?></div>
     <?php endif; ?>
 
+    <?php if (!empty($dbFallbackMessage)): ?>
+        <div class="alert alert-warning text-center">
+            <?php echo htmlspecialchars($dbFallbackMessage, ENT_QUOTES, 'UTF-8'); ?>
+        </div>
+    <?php endif; ?>
+
     <form method="post" action="index.php?controller=Auth&action=login">
         <div class="mb-3">
             <label class="form-label">Usuario</label>

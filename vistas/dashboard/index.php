@@ -27,6 +27,15 @@
 <div class="container">
   <h3 class="mb-4">Panel Principal</h3>
 
+  <?php if (!empty($dbFallbackMessage)): ?>
+    <div class="alert alert-warning d-flex align-items-center" role="alert">
+      <i class="bi bi-exclamation-triangle-fill me-3 fs-4 text-warning"></i>
+      <div>
+        <?php echo htmlspecialchars($dbFallbackMessage, ENT_QUOTES, 'UTF-8'); ?>
+      </div>
+    </div>
+  <?php endif; ?>
+
   <?php
     $usuarioActivo = $_SESSION['user']['nombre'] ?? 'Usuario no identificado';
     $empresaActivaNombre = $empresaActiva ?? $baseActiva ?? 'No configurada';
