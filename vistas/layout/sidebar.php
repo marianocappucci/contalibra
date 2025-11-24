@@ -289,6 +289,7 @@
             <div class="collapse" id="menuConfig">
                 <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
                     <li><a class="nav-link" href="index.php?controller=Configuracion&action=index">Datos de la empresa</a></li>
+                    <li><a class="nav-link" href="index.php?controller=Configuracion&action=manejoBd">Manejo de base de datos</a></li>
                 </ul>
             </div>
         </div>
