@@ -15,12 +15,21 @@ spl_autoload_register(function($class){
     }
 });
 // comentario para ver cambios en github
-$controllerName = isset($_GET['controller']) ? $_GET['controller'] . 'Controller' : 'AuthController';
-$action = isset($_GET['action']) ? $_GET['action'] : 'login';
+$isAuthenticated = isset($_SESSION['user']);
+$defaultController = $isAuthenticated ? 'DashboardController' : 'AuthController';
+$defaultAction = $isAuthenticated ? 'index' : 'login';
+$controllerName = isset($_GET['controller']) ? $_GET['controller'] . 'Controller' : $defaultController;
+$action = isset($_GET['action']) ? $_GET['action'] : $defaultAction;
 
 // Si no está logueado y no está en Auth, redirige a login
-if (!isset($_SESSION['user']) && $controllerName !== 'AuthController') {
+if (!$isAuthenticated && $controllerName !== 'AuthController') {
     header('Location: index.php?controller=Auth&action=login');
+    exit;
+}
+
+// Si ya está autenticado y vuelve al login, enviarlo al dashboard
+if ($isAuthenticated && $controllerName === 'AuthController' && $action === 'login') {
+    header('Location: index.php?controller=Dashboard&action=index');
     exit;
 }
 
