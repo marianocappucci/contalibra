@@ -21,6 +21,27 @@ class Usuario extends BaseModel {
         return $stmt->fetch();
     }
 
+    public function getById($id)
+    {
+        $sql = "SELECT
+                    u.id,
+                    u.nombre,
+                    u.username,
+                    u.password,
+                    u.rol_id,
+                    u.activo,
+                    u.base_datos,
+                    roles.nombre AS rol_nombre
+                FROM usuarios u
+                LEFT JOIN roles ON roles.id = u.rol_id
+                WHERE u.id = ? AND u.activo = 1
+                LIMIT 1";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$id]);
+        return $stmt->fetch();
+    }
+
     public function getAll() {
         $sql = "SELECT
                     u.id,

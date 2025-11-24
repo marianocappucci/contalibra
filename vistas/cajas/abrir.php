@@ -6,6 +6,11 @@
 
 <div class="container">
   <h3>Abrir caja</h3>
+  <?php if (!empty($error)): ?>
+    <div class="alert alert-danger" role="alert">
+      <?php echo $error; ?>
+    </div>
+  <?php endif; ?>
   <form method="post">
     <div class="mb-3">
       <label class="form-label">Nombre de caja</label>
