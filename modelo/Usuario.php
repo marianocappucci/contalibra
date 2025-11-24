@@ -81,6 +81,32 @@ class Usuario extends BaseModel {
         return $stmt->execute([$hashedPassword, $id]);
     }
 
+    public function update($id, array $data)
+    {
+        $currentUser = $this->getById($id);
+        $password = $data['password'] ?? '';
+
+        if (empty($password)) {
+            $password = $currentUser['password'] ?? '';
+        } else {
+            $info = password_get_info($password);
+            if (($info['algo'] ?? 0) === 0) {
+                $password = password_hash($password, PASSWORD_BCRYPT);
+            }
+        }
+
+        $stmt = $this->db->prepare("UPDATE usuarios SET nombre=?, username=?, password=?, rol_id=?, activo=?, base_datos=? WHERE id=?");
+        return $stmt->execute([
+            $data['nombre'],
+            $data['username'],
+            $password,
+            $data['rol_id'],
+            $data['activo'],
+            $data['base_datos'],
+            $id
+        ]);
+    }
+
     public function delete($id) {
         $stmt = $this->db->prepare("DELETE FROM usuarios WHERE id=?");
         return $stmt->execute([$id]);
