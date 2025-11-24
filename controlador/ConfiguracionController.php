@@ -122,7 +122,10 @@ class ConfiguracionController {
     private function asignarBaseAUsuario(string $usuarioId, string $dbName): void
     {
         $usuarioModel = new Usuario();
-        $stmt = $usuarioModel->db->prepare('UPDATE usuarios SET base_datos=? WHERE id=?');
-        $stmt->execute([$dbName, $usuarioId]);
+        $resultado = $usuarioModel->asignarBaseDatos((int)$usuarioId, $dbName);
+
+        if (!$resultado) {
+            throw new RuntimeException('No se pudo asignar la base de datos al usuario.');
+        }
     }
 }

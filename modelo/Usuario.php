@@ -111,4 +111,10 @@ class Usuario extends BaseModel {
         $stmt = $this->db->prepare("DELETE FROM usuarios WHERE id=?");
         return $stmt->execute([$id]);
     }
+
+    public function asignarBaseDatos(int $usuarioId, string $dbName): bool
+    {
+        $stmt = $this->db->prepare("UPDATE usuarios SET base_datos=? WHERE id=?");
+        return $stmt->execute([$dbName, $usuarioId]);
+    }
 }
