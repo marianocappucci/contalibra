@@ -3,7 +3,7 @@ Sistema Contable</br>
 - Version de prueba aun no en producción -
 
 ## Restaurar base de datos
-Si ves errores como `Table 'contadb.proveedores' doesn't exist`, levanta la base de datos inicial ejecutando:
+Si ves errores como `Table 'contadb.proveedores' doesn't exist` o `Table 'contadb.logs' doesn't exist`, levanta la base de datos inicial ejecutando:
 
 ```bash
 php scripts/setup_database.php
