@@ -5,7 +5,7 @@ class AuthController {
     public function login(){
         registrarLog("Acceso a login","Auth");
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $username = $_POST['username'] ?? '';
+            $username = $_POST['usuario'] ?? '';
             $password = $_POST['password'] ?? '';
 
             $usuarioModel = new Usuario();

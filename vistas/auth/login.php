@@ -51,7 +51,7 @@
     <form method="post" action="index.php?controller=Auth&action=login">
         <div class="mb-3">
             <label class="form-label">Usuario</label>
-            <input type="text" name="username" class="form-control" required autofocus>
+            <input type="text" name="usuario" class="form-control" required autofocus>
         </div>
 
         <div class="mb-3">
