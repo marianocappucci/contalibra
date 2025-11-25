@@ -17,7 +17,12 @@ class SucursalController {
 
     public function index(){
         registrarLog("Acceso a index","Sucursal");
-        $sucursales = $this->model->getAll();
+        $empresaId = TenantContext::empresaId();
+        if ($empresaId === null && isset($_SESSION['empresa_id'])) {
+            $empresaId = (int) $_SESSION['empresa_id'];
+        }
+
+        $sucursales = $this->model->getAll($empresaId);
         include __DIR__ . '/../vistas/sucursales/index.php';
     }
 
