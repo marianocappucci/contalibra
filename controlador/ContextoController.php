@@ -36,6 +36,12 @@ class ContextoController
             return;
         }
 
+        // Asegurar que la conexión activa apunte a la base de datos de la empresa
+        // antes de consultar sus sucursales, evitando quedarse con una base previa
+        // de otro tenant almacenada en la sesión.
+        $dbName = $empresa['base_datos'] ?: TenantContext::databaseNameForEmpresa((int) $empresa['id']);
+        Database::setActiveDatabase($dbName);
+
         $sucursales = $empresaModel->sucursalesConPuntosVenta((int) $empresa['id']);
         $error = null;
 
