@@ -15,6 +15,19 @@ class Empresa extends BaseModel
         return $stmt->fetch();
     }
 
+    /**
+     * Obtiene una empresa usando siempre la base maestra, sin depender de la
+     * base de datos activa en el contexto del inquilino.
+     */
+    public function getByIdFromDefault(int $id)
+    {
+        $connection = Database::getDefaultStandaloneConnection();
+        $stmt = $connection->prepare("SELECT * FROM empresas WHERE id = ? LIMIT 1");
+        $stmt->execute([$id]);
+
+        return $stmt->fetch();
+    }
+
     public function getByBaseDatos(string $dbName)
     {
         $stmt = $this->db->prepare("SELECT * FROM empresas WHERE base_datos = ? LIMIT 1");
