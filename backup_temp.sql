@@ -45,7 +45,7 @@ CREATE TABLE `usuarios` (
   `activo` tinyint(1) NOT NULL DEFAULT 1,
   `base_datos` varchar(100) NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `username` (`username`),
+  UNIQUE KEY `username_base` (`username`,`base_datos`),
   KEY `rol_id` (`rol_id`),
   CONSTRAINT `usuarios_ibfk_1` FOREIGN KEY (`rol_id`) REFERENCES `roles` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

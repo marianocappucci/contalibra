@@ -21,6 +21,34 @@ class Usuario extends BaseModel {
         return $stmt->fetch();
     }
 
+    public function findActiveByUsername(string $username, ?string $baseDatos = null): array
+    {
+        $sql = "SELECT
+                    u.id,
+                    u.nombre,
+                    u.username,
+                    u.password,
+                    u.rol_id,
+                    u.activo,
+                    u.base_datos,
+                    roles.nombre AS rol_nombre
+                FROM usuarios u
+                LEFT JOIN roles ON roles.id = u.rol_id
+                WHERE u.username = ? AND u.activo = 1";
+
+        $params = [$username];
+
+        if (!empty($baseDatos)) {
+            $sql .= " AND u.base_datos = ?";
+            $params[] = $baseDatos;
+        }
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+
+        return $stmt->fetchAll();
+    }
+
     public function getById($id)
     {
         $sql = "SELECT
