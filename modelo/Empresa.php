@@ -241,6 +241,7 @@ class Empresa extends BaseModel
             $this->sincronizarEmpresaBase($pdoDb, $empresaId, $nombre, $dbName);
             $sucursalId = $this->asegurarSucursalPrincipal($pdoDb, $empresaId);
             $this->asegurarPuntoVentaPrincipal($pdoDb, $sucursalId);
+            $this->crearSuperusuarioInicial($pdoDb, $empresaId, $dbName);
             $this->actualizarNombreFantasia($pdoDb, $nombre);
 
             $pdoDb->exec('SET FOREIGN_KEY_CHECKS=1');
@@ -324,5 +325,18 @@ class Empresa extends BaseModel
     {
         $stmt = $pdoDb->prepare('UPDATE configuracion SET nombre_fantasia = ?, actualizado = NOW() WHERE id = 1');
         $stmt->execute([$nombre]);
+    }
+
+    private function crearSuperusuarioInicial(PDO $pdoDb, int $empresaId, string $dbName): void
+    {
+        $usuarioExistente = $pdoDb->prepare('SELECT id FROM usuarios WHERE username = ? AND base_datos = ? LIMIT 1');
+        $usuarioExistente->execute(['root', $dbName]);
+
+        if ($usuarioExistente->fetchColumn()) {
+            return;
+        }
+
+        $rolId = DatabaseProvisioner::resolveRoleId($pdoDb, 'Superusuario');
+        DatabaseProvisioner::createUser($pdoDb, 'root', 'root', $rolId, $dbName, $empresaId, true);
     }
 }

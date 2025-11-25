@@ -68,6 +68,7 @@ class AuthController {
                 $_SESSION['db_name'] = $baseDatos;
                 $_SESSION['empresa_id'] = (int) $empresa['id'];
                 $_SESSION['empresa_nombre'] = $empresa['nombre'];
+                $_SESSION['must_change_password'] = (bool) ($user['must_change_password'] ?? false);
                 unset($_SESSION['sucursal_id'], $_SESSION['sucursal_nombre'], $_SESSION['punto_venta_id'], $_SESSION['punto_venta_nombre']);
 
                 TenantContext::setContext((int) $empresa['id'], null);
@@ -75,6 +76,11 @@ class AuthController {
 
                 // Registrar log AHORA (ya hay usuario válido)
                 registrarLog("Acceso correcto", "Auth");
+
+                if (!empty($_SESSION['must_change_password'])) {
+                    header("Location: index.php?controller=Auth&action=forzarCambioPassword");
+                    exit;
+                }
 
                 header("Location: index.php?controller=Contexto&action=seleccionar");
                 exit;
@@ -113,6 +119,44 @@ class AuthController {
         session_destroy();
         header('Location: index.php');
         exit;
+    }
+
+    public function forzarCambioPassword()
+    {
+        session_start();
+        if (!isset($_SESSION['user'])) {
+            header('Location: index.php');
+            exit;
+        }
+
+        if (empty($_SESSION['must_change_password'])) {
+            header("Location: index.php?controller=Contexto&action=seleccionar");
+            exit;
+        }
+
+        $error = '';
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $nueva = trim($_POST['nueva'] ?? '');
+            $confirmacion = trim($_POST['confirmacion'] ?? '');
+
+            if ($nueva === '' || $confirmacion === '') {
+                $error = 'Debes indicar y confirmar la nueva contraseña.';
+            } elseif ($nueva !== $confirmacion) {
+                $error = 'Las contraseñas no coinciden.';
+            } else {
+                $hashed = password_hash($nueva, PASSWORD_BCRYPT);
+                $usuarioModel = new Usuario();
+                $usuarioModel->updatePasswordAndClearFlag((int) $_SESSION['user']['id'], $hashed);
+
+                $_SESSION['must_change_password'] = false;
+
+                header("Location: index.php?controller=Contexto&action=seleccionar");
+                exit;
+            }
+        }
+
+        require "vistas/auth/forzar_cambio.php";
     }
 }
 

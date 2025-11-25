@@ -45,6 +45,7 @@ CREATE TABLE `usuarios` (
   `empresa_id` int(11) DEFAULT NULL,
   `activo` tinyint(1) NOT NULL DEFAULT 1,
   `base_datos` varchar(100) NOT NULL,
+  `must_change_password` tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   UNIQUE KEY `username_base` (`username`,`base_datos`),
   KEY `rol_id` (`rol_id`),
@@ -54,8 +55,8 @@ CREATE TABLE `usuarios` (
   CONSTRAINT `usuarios_ibfk_empresas` FOREIGN KEY (`empresa_id`) REFERENCES `empresas` (`id`)
   ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-INSERT INTO `usuarios` (`id`,`nombre`,`username`,`password`,`rol_id`,`empresa_id`,`activo`,`base_datos`) VALUES
-(1,'Superadmin','admin','$2y$12$ZVuR.sflsOMtMKRhdg6VUeGozhVGYEIaOgD7e11.df8xHuf5bcU9y',3,1,1,'contadb');
+INSERT INTO `usuarios` (`id`,`nombre`,`username`,`password`,`rol_id`,`empresa_id`,`activo`,`base_datos`,`must_change_password`) VALUES
+(1,'Superadmin','admin','$2y$12$ZVuR.sflsOMtMKRhdg6VUeGozhVGYEIaOgD7e11.df8xHuf5bcU9y',3,1,1,'contadb',0);
 
 CREATE TABLE `configuracion` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
