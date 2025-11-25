@@ -1,5 +1,16 @@
 <?php
 class Usuario extends BaseModel {
+    /**
+     * Marca si ya se verificó/agregó la columna must_change_password en la tabla usuarios.
+     */
+    private static bool $mustChangePasswordEnsured = false;
+
+    public function __construct(?PDO $connection = null)
+    {
+        parent::__construct($connection);
+
+        $this->ensureMustChangePasswordColumn();
+    }
 
     public function getByUsername($username) {
         $sql = "SELECT
@@ -20,6 +31,26 @@ class Usuario extends BaseModel {
         $stmt = $this->db->prepare($sql);
         $stmt->execute([$username]);
         return $stmt->fetch();
+    }
+
+    private function ensureMustChangePasswordColumn(): void
+    {
+        if (self::$mustChangePasswordEnsured) {
+            return;
+        }
+
+        $columnExists = $this->db
+            ->query("SHOW COLUMNS FROM `usuarios` LIKE 'must_change_password'")
+            ->fetch();
+
+        if (!$columnExists) {
+            $this->db->exec(
+                "ALTER TABLE `usuarios` ADD COLUMN `must_change_password` TINYINT(1) NOT NULL DEFAULT 0 AFTER `base_datos`"
+            );
+            $this->db->exec('UPDATE `usuarios` SET `must_change_password` = 0 WHERE `must_change_password` IS NULL');
+        }
+
+        self::$mustChangePasswordEnsured = true;
     }
 
     public function findActiveByUsername(string $username, ?string $baseDatos = null): array
