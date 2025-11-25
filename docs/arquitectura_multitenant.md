@@ -5,9 +5,9 @@ La estructura contempla una base maestra y bases independientes por compañía y
 
 ## Bases de datos y convenciones de nombres
 
-- **Base maestra**: `contadb` (configurada en `config/config.php`). Guarda el usuario root, catálogo de compañías y cualquier dato centralizado.
-- **Base por compañía**: se obtiene de la configuración de cada empresa (`base_datos`). Si no existe, se usa el patrón `empresa_{empresaId}_db`.
-- **Base por sucursal**: se deriva desde la base de la empresa (`{base_empresa}_sucursal_{sucursalId}_db`) para respetar nombres personalizados.
+- **Base maestra global**: `contadb` (configurada en `config/config.php`). Guarda el usuario root, catálogo de compañías y cualquier dato centralizado.
+- **Base maestra por compañía**: se crea con el patrón `contadb_{nombre_empresa}` cuando se registra una nueva empresa. Allí se guardan los usuarios propios de la compañía.
+- **Base por sucursal**: se deriva desde la base de la empresa usando el formato `contadb_{nombre_empresa}_sucursal_{sucursalId}_db`.
 
 Los helpers de `TenantContext` generan estos nombres de forma consistente:
 - `TenantContext::databaseNameForEmpresa($empresaId)` → `empresa_{empresaId}_db` (solo como respaldo cuando la empresa no tiene base explícita).
