@@ -13,14 +13,13 @@ class Configuracion extends BaseModel {
 
     public function update($data) {
         $stmt = $this->db->prepare("UPDATE configuracion
-            SET nombre_fantasia=?, direccion=?, telefono=?, cuit=?, punto_venta=?, actualizado=NOW()
+            SET nombre_fantasia=?, direccion=?, telefono=?, cuit=?, actualizado=NOW()
             WHERE id = 1");
         return $stmt->execute([
             $data['nombre_fantasia'],
             $data['direccion'],
             $data['telefono'],
-            $data['cuit'],
-            $data['punto_venta']
+            $data['cuit']
         ]);
     }
 }

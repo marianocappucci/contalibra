@@ -38,11 +38,6 @@
                value="<?php echo htmlspecialchars($config['cuit']); ?>">
       </div>
 
-      <div class="col-md-4 mb-3">
-        <label class="form-label">Punto de venta</label>
-        <input type="text" name="punto_venta" class="form-control"
-               value="<?php echo htmlspecialchars($config['punto_venta']); ?>">
-      </div>
     </div>
 
     <button class="btn btn-success">Guardar cambios</button>
