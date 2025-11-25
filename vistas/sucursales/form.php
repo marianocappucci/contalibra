@@ -11,10 +11,8 @@
     <form method="post">
         <?php
             $empresas = $empresas ?? [];
-            $empresaActiva = $empresaActiva ?? [];
             $esEdicion = $sucursal !== null;
             $empresaSeleccionada = $_POST['empresa_id'] ?? ($sucursal['empresa_id'] ?? '');
-            $empresaActivaNombre = $empresaActiva['nombre'] ?? 'Sin empresa activa';
         ?>
         <div class="row">
             <div class="col-md-6 mb-3">
@@ -36,12 +34,6 @@
                             </option>
                         <?php endforeach; ?>
                     </select>
-                </div>
-            <?php else: ?>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Empresa activa</label>
-                    <input type="hidden" name="empresa_id" value="<?php echo htmlspecialchars($empresaActiva['id'] ?? ''); ?>">
-                    <input type="text" class="form-control" value="<?php echo htmlspecialchars($empresaActivaNombre); ?>" readonly>
                 </div>
             <?php endif; ?>
             <div class="col-md-6 mb-3">
