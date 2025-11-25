@@ -16,7 +16,11 @@ spl_autoload_register(function($class){
 });
 // comentario para ver cambios en github
 $isAuthenticated = isset($_SESSION['user']);
-$contextSelected = $isAuthenticated && isset($_SESSION['empresa_id'], $_SESSION['sucursal_id'], $_SESSION['punto_venta_id']);
+$esRootContadb = $isAuthenticated
+    && strcasecmp($_SESSION['user']['username'] ?? '', 'root') === 0
+    && strcasecmp($_SESSION['user']['base_datos'] ?? '', DB_NAME) === 0;
+$contextSelected = ($isAuthenticated && isset($_SESSION['empresa_id'], $_SESSION['sucursal_id'], $_SESSION['punto_venta_id']))
+    || $esRootContadb;
 $defaultController = $isAuthenticated
     ? ($contextSelected ? 'DashboardController' : 'ContextoController')
     : 'AuthController';
