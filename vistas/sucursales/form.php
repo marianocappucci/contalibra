@@ -5,6 +5,9 @@
 <div id="content">
 <div class="container">
     <h3><?php echo $sucursal ? 'Editar sucursal' : 'Nueva sucursal'; ?></h3>
+    <?php if (!empty($error)): ?>
+        <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
+    <?php endif; ?>
     <form method="post">
         <?php
             $empresas = $empresas ?? [];

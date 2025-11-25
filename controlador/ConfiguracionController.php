@@ -90,20 +90,10 @@ class ConfiguracionController {
                 $error = 'Ya existe una empresa con la base de datos generada. Usa un nombre diferente.';
             } else {
                 try {
-                    $pdoRoot = $this->crearBaseDatos($dbName);
-                    $this->importarEstructuraBase($pdoRoot, $dbName);
-                    $this->configurarNombreFantasia($pdoRoot, $dbName, $empresaNombre);
-
                     $empresaId = $empresaModel->create([
                         'nombre' => $empresaNombre,
                         'base_datos' => $dbName,
                     ]);
-
-                    if (!$empresaId) {
-                        throw new RuntimeException('No se pudo registrar la empresa en la base principal.');
-                    }
-
-                    $this->actualizarDatosInicialesEmpresa($pdoRoot, $dbName, (int) $empresaId, $empresaNombre);
 
                     $mensaje = "Empresa '$empresaNombre' creada con ID $empresaId y base '$dbName'.";
                     $empresas = $empresaModel->getAll();
@@ -141,18 +131,20 @@ class ConfiguracionController {
             } elseif ($empresaId <= 0 || !$empresaModel->getById($empresaId)) {
                 $error = 'Selecciona una empresa válida para asociar la sucursal.';
             } else {
-                $creada = $sucursalModel->create([
-                    'nombre' => $nombre,
-                    'direccion' => $direccion,
-                    'ciudad' => $ciudad,
-                    'empresa_id' => $empresaId,
-                ]);
+                try {
+                    $creada = $sucursalModel->create([
+                        'nombre' => $nombre,
+                        'direccion' => $direccion,
+                        'ciudad' => $ciudad,
+                        'empresa_id' => $empresaId,
+                    ]);
 
-                if ($creada) {
-                    $mensaje = 'Sucursal creada correctamente.';
-                    $sucursales = $sucursalModel->getAll();
-                } else {
-                    $error = 'No se pudo crear la sucursal. Intenta nuevamente.';
+                    if ($creada) {
+                        $mensaje = 'Sucursal creada correctamente.';
+                        $sucursales = $sucursalModel->getAll();
+                    }
+                } catch (Throwable $e) {
+                    $error = 'No se pudo crear la sucursal: ' . $e->getMessage();
                 }
             }
         }

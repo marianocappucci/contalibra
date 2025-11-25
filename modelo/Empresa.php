@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/../libs/DatabaseProvisioner.php';
+
 class Empresa extends BaseModel
 {
     public function getAll(): array
@@ -60,15 +62,39 @@ class Empresa extends BaseModel
     {
         $connection = $this->empresasConnection();
         if ($connection === null) {
-            return 0;
+            throw new RuntimeException('No se pudo conectar a la base maestra de empresas.');
+        }
+
+        $nombre = trim($data['nombre'] ?? '');
+        if ($nombre === '') {
+            throw new RuntimeException('El nombre de la empresa es obligatorio.');
+        }
+
+        $dbName = isset($data['base_datos']) && $data['base_datos'] !== ''
+            ? DatabaseProvisioner::sanitizeDbName($data['base_datos'])
+            : DatabaseProvisioner::generateCompanyDbName($nombre);
+
+        try {
+            $pdoDb = DatabaseProvisioner::provisionDatabase($dbName);
+            DatabaseProvisioner::restoreSchema($pdoDb);
+            DatabaseProvisioner::registerCompanyDatabase($pdoDb, $nombre, $dbName);
+
+            if (isset($data['master_user'], $data['master_pass'])
+                && $data['master_user'] !== ''
+                && $data['master_pass'] !== '') {
+                $roleId = DatabaseProvisioner::resolveRoleId($pdoDb, $data['master_role'] ?? 'Superusuario');
+                DatabaseProvisioner::createUser($pdoDb, $data['master_user'], $data['master_pass'], $roleId, $dbName);
+            }
+        } catch (Throwable $e) {
+            throw new RuntimeException('No se pudo provisionar la base de la empresa: ' . $e->getMessage(), 0, $e);
         }
 
         $stmt = $connection->prepare(
             "INSERT INTO empresas (nombre, base_datos, creado_en) VALUES (?,?,NOW())"
         );
         $stmt->execute([
-            $data['nombre'],
-            $data['base_datos'] ?? null,
+            $nombre,
+            $dbName,
         ]);
 
         return (int) $connection->lastInsertId();
