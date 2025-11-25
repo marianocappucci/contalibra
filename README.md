@@ -11,6 +11,14 @@ php scripts/setup_database.php
 
 El script crea la base `contadb` (si no existe) y carga el esquema/demo desde `backup_temp.sql`.
 
+Si tu instalación es anterior a los puntos de venta y ves errores como `Unknown column 'punto_venta_id' in 'field list'`, ejecuta la migración rápida que agrega las columnas y llaves faltantes en `cajas` y `ventas`:
+
+```bash
+php scripts/migrate_punto_venta_columns.php --base=contadb
+```
+
+Puedes cambiar el valor de `--base` si necesitas ejecutar la migración sobre la base de un tenant.
+
 ## Notas sobre cajas
 - La validación del usuario al abrir una caja se hace siempre contra la base maestra `contadb`.
 - Si la base de datos del tenant no tiene el usuario replicado, se mostrará un error legible en lugar de fallar silenciosamente.
