@@ -17,3 +17,4 @@ El script crea la base `contadb` (si no existe) y carga el esquema/demo desde `b
 
 ## Multiempresa y sucursales
 El proyecto está preparado para aislar los datos de cada compañía y sucursal con bases separadas. Consulta `docs/arquitectura_multitenant.md` para ver las convenciones de nombres (`contadb`, `empresa_{id}_db`, `empresa_{id}_sucursal_{id}_db`) y el flujo recomendado de provisión de datos y permisos.
+En `docs/estructura_empresa.md` encontrarás el detalle de las tablas y modelos PHP para gestionar la jerarquía empresa → sucursal → punto de venta y el inventario entre ellas.

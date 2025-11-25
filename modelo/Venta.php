@@ -9,8 +9,8 @@ class Venta extends BaseModel {
         try {
             $this->db->beginTransaction();
 
-            $stmt = $this->db->prepare("INSERT INTO ventas (caja_id, usuario_id, cliente_id, cliente, subtotal, iva, total, fecha, estado, tipo_comprobante, metodo_pago_id, sucursal_id)"
-                                    . " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)");
+            $stmt = $this->db->prepare("INSERT INTO ventas (caja_id, usuario_id, cliente_id, cliente, subtotal, iva, total, fecha, estado, tipo_comprobante, metodo_pago_id, sucursal_id, punto_venta_id)"
+                                    . " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)");
             $stmt->execute([
                 $data['caja_id'],
                 $data['usuario_id'],
@@ -23,13 +23,15 @@ class Venta extends BaseModel {
                 'PENDIENTE',
                 $data['tipo_comprobante'],
                 $data['metodo_pago_id'],
-                $data['sucursal_id']
+                $data['sucursal_id'],
+                $data['punto_venta_id'] ?? null
             ]);
             $ventaId = $this->db->lastInsertId();
 
             $stmtItem = $this->db->prepare("INSERT INTO ventas_detalle (venta_id, producto_id, cantidad, precio_unitario, total)"
                                         . " VALUES (?,?,?,?,?)");
             $stmtStock = $this->db->prepare("UPDATE productos SET stock = stock - ? WHERE id = ?");
+            $inventarioSucursal = !empty($data['sucursal_id']) ? new InventarioSucursal() : null;
 
             foreach ($items as $it) {
                 $stmtItem->execute([
@@ -40,6 +42,10 @@ class Venta extends BaseModel {
                     $it['total']
                 ]);
                 $stmtStock->execute([$it['cantidad'], $it['producto_id']]);
+
+                if ($inventarioSucursal !== null) {
+                    $inventarioSucursal->ajustarStock((int) $data['sucursal_id'], (int) $it['producto_id'], -1 * (float) $it['cantidad']);
+                }
             }
 
             $this->db->commit();
@@ -51,11 +57,12 @@ class Venta extends BaseModel {
     }
 
     public function getById($id) {
-        $stmt = $this->db->prepare("SELECT v.*, c.nombre as cliente_nombre, mp.nombre as metodo_pago_nombre, s.nombre as sucursal_nombre
+        $stmt = $this->db->prepare("SELECT v.*, c.nombre as cliente_nombre, mp.nombre as metodo_pago_nombre, s.nombre as sucursal_nombre, pv.nombre AS punto_venta_nombre
                                      FROM ventas v
                                      LEFT JOIN clientes c ON c.id = v.cliente_id
                                      LEFT JOIN metodos_pago mp ON mp.id = v.metodo_pago_id
                                      LEFT JOIN sucursales s ON s.id = v.sucursal_id
+                                     LEFT JOIN puntos_venta pv ON pv.id = v.punto_venta_id
                                      WHERE v.id = ?");
         $stmt->execute([$id]);
         $venta = $stmt->fetch();
@@ -72,12 +79,13 @@ class Venta extends BaseModel {
     }
 
     public function listarVentas($desde = null, $hasta = null) {
-        $sql = "SELECT v.*, u.nombre as usuario_nombre, mp.nombre as metodo_pago_nombre, c.nombre as cliente_nombre, s.nombre as sucursal_nombre
+        $sql = "SELECT v.*, u.nombre as usuario_nombre, mp.nombre as metodo_pago_nombre, c.nombre as cliente_nombre, s.nombre as sucursal_nombre, pv.nombre AS punto_venta_nombre
                 FROM ventas v
                 LEFT JOIN usuarios u ON u.id = v.usuario_id
                 LEFT JOIN metodos_pago mp ON mp.id = v.metodo_pago_id
                 LEFT JOIN clientes c ON c.id = v.cliente_id
                 LEFT JOIN sucursales s ON s.id = v.sucursal_id
+                LEFT JOIN puntos_venta pv ON pv.id = v.punto_venta_id
                 WHERE 1=1";
         $params = [];
         if ($desde) {

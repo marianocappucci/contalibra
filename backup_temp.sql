@@ -1,3 +1,8 @@
+DROP TABLE IF EXISTS `transferencias_inventario`;
+DROP TABLE IF EXISTS `pedidos_sucursales_detalle`;
+DROP TABLE IF EXISTS `pedidos_sucursales`;
+DROP TABLE IF EXISTS `inventarios_sucursal`;
+DROP TABLE IF EXISTS `puntos_venta`;
 DROP TABLE IF EXISTS `logs`;
 DROP TABLE IF EXISTS `ventas_detalle`;
 DROP TABLE IF EXISTS `ventas`;
@@ -7,6 +12,7 @@ DROP TABLE IF EXISTS `listas_precios`;
 DROP TABLE IF EXISTS `metodos_pago`;
 DROP TABLE IF EXISTS `depositos`;
 DROP TABLE IF EXISTS `sucursales`;
+DROP TABLE IF EXISTS `empresas`;
 DROP TABLE IF EXISTS `proveedores`;
 DROP TABLE IF EXISTS `clientes`;
 DROP TABLE IF EXISTS `usuarios`;
@@ -19,6 +25,16 @@ CREATE TABLE `roles` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 INSERT INTO `roles` (`id`,`nombre`) VALUES (1,'Administrador'),(2,'Vendedor'),(3,'Superusuario');
+
+CREATE TABLE `empresas` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `nombre` varchar(150) NOT NULL,
+  `base_datos` varchar(120) DEFAULT NULL,
+  `creado_en` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_empresas_nombre` (`nombre`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+INSERT INTO `empresas` VALUES (1,'Contalibra Demo','contadb',NOW());
 
 CREATE TABLE `usuarios` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
@@ -53,9 +69,25 @@ CREATE TABLE `sucursales` (
   `nombre` varchar(120) NOT NULL,
   `direccion` varchar(200) DEFAULT NULL,
   `ciudad` varchar(120) DEFAULT NULL,
-  PRIMARY KEY (`id`)
+  `empresa_id` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `empresa_id` (`empresa_id`),
+  CONSTRAINT `sucursales_ibfk_1` FOREIGN KEY (`empresa_id`) REFERENCES `empresas` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-INSERT INTO `sucursales` (`id`,`nombre`,`direccion`,`ciudad`) VALUES (1,'Casa Central','Av. Principal 123','CABA');
+INSERT INTO `sucursales` (`id`,`nombre`,`direccion`,`ciudad`,`empresa_id`) VALUES (1,'Casa Central','Av. Principal 123','CABA',1);
+
+CREATE TABLE `puntos_venta` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `sucursal_id` int(11) NOT NULL,
+  `nombre` varchar(120) NOT NULL,
+  `codigo` varchar(20) DEFAULT NULL,
+  `activo` tinyint(1) NOT NULL DEFAULT 1,
+  `creado_en` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `sucursal_id` (`sucursal_id`),
+  CONSTRAINT `puntos_venta_ibfk_1` FOREIGN KEY (`sucursal_id`) REFERENCES `sucursales` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+INSERT INTO `puntos_venta` (`id`,`sucursal_id`,`nombre`,`codigo`,`activo`,`creado_en`) VALUES (1,1,'PV Demo','0001',1,NOW());
 
 CREATE TABLE `depositos` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
@@ -143,6 +175,67 @@ INSERT INTO `productos` (`id`,`nombre`,`sku`,`codigo_barras`,`precio`,`lista_pre
  (1,'Producto demo 1','P001','779000000001',100.00,1,10.00,1,1,1),
  (2,'Producto demo 2','P002','779000000002',250.00,1,5.00,1,1,1);
 
+CREATE TABLE `inventarios_sucursal` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `sucursal_id` int(11) NOT NULL,
+  `producto_id` int(11) NOT NULL,
+  `stock` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `actualizado_en` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_inventario_producto_sucursal` (`sucursal_id`,`producto_id`),
+  KEY `producto_id` (`producto_id`),
+  CONSTRAINT `inventarios_sucursal_ibfk_1` FOREIGN KEY (`sucursal_id`) REFERENCES `sucursales` (`id`),
+  CONSTRAINT `inventarios_sucursal_ibfk_2` FOREIGN KEY (`producto_id`) REFERENCES `productos` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+INSERT INTO `inventarios_sucursal` (`id`,`sucursal_id`,`producto_id`,`stock`,`actualizado_en`) VALUES
+ (1,1,1,6.00,NOW()),
+ (2,1,2,3.00,NOW());
+
+CREATE TABLE `pedidos_sucursales` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `origen_id` int(11) NOT NULL,
+  `destino_id` int(11) NOT NULL,
+  `estado` enum('PENDIENTE','ATENDIDO') NOT NULL DEFAULT 'PENDIENTE',
+  `creado_en` datetime NOT NULL,
+  `atendido_en` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `origen_id` (`origen_id`),
+  KEY `destino_id` (`destino_id`),
+  CONSTRAINT `pedidos_sucursales_ibfk_1` FOREIGN KEY (`origen_id`) REFERENCES `sucursales` (`id`),
+  CONSTRAINT `pedidos_sucursales_ibfk_2` FOREIGN KEY (`destino_id`) REFERENCES `sucursales` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE `pedidos_sucursales_detalle` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `pedido_id` int(11) NOT NULL,
+  `producto_id` int(11) NOT NULL,
+  `cantidad` decimal(12,2) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `pedido_id` (`pedido_id`),
+  KEY `producto_id` (`producto_id`),
+  CONSTRAINT `pedidos_sucursales_detalle_ibfk_1` FOREIGN KEY (`pedido_id`) REFERENCES `pedidos_sucursales` (`id`),
+  CONSTRAINT `pedidos_sucursales_detalle_ibfk_2` FOREIGN KEY (`producto_id`) REFERENCES `productos` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE `transferencias_inventario` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `origen_id` int(11) NOT NULL,
+  `destino_id` int(11) NOT NULL,
+  `producto_id` int(11) NOT NULL,
+  `cantidad` decimal(12,2) NOT NULL,
+  `pedido_id` int(11) DEFAULT NULL,
+  `registrado_en` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `origen_id` (`origen_id`),
+  KEY `destino_id` (`destino_id`),
+  KEY `producto_id` (`producto_id`),
+  KEY `pedido_id` (`pedido_id`),
+  CONSTRAINT `transferencias_inventario_ibfk_1` FOREIGN KEY (`origen_id`) REFERENCES `sucursales` (`id`),
+  CONSTRAINT `transferencias_inventario_ibfk_2` FOREIGN KEY (`destino_id`) REFERENCES `sucursales` (`id`),
+  CONSTRAINT `transferencias_inventario_ibfk_3` FOREIGN KEY (`producto_id`) REFERENCES `productos` (`id`),
+  CONSTRAINT `transferencias_inventario_ibfk_4` FOREIGN KEY (`pedido_id`) REFERENCES `pedidos_sucursales` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 CREATE TABLE `cajas` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `nombre` varchar(100) NOT NULL,
@@ -153,11 +246,14 @@ CREATE TABLE `cajas` (
   `fecha_apertura` datetime NOT NULL,
   `fecha_cierre` datetime DEFAULT NULL,
   `estado` enum('ABIERTA','CERRADA') NOT NULL DEFAULT 'ABIERTA',
+  `punto_venta_id` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `abierta_por` (`abierta_por`),
   KEY `cerrada_por` (`cerrada_por`),
+  KEY `punto_venta_id` (`punto_venta_id`),
   CONSTRAINT `cajas_ibfk_1` FOREIGN KEY (`abierta_por`) REFERENCES `usuarios` (`id`),
-  CONSTRAINT `cajas_ibfk_2` FOREIGN KEY (`cerrada_por`) REFERENCES `usuarios` (`id`)
+  CONSTRAINT `cajas_ibfk_2` FOREIGN KEY (`cerrada_por`) REFERENCES `usuarios` (`id`),
+  CONSTRAINT `cajas_ibfk_3` FOREIGN KEY (`punto_venta_id`) REFERENCES `puntos_venta` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE `ventas` (
@@ -176,17 +272,20 @@ CREATE TABLE `ventas` (
   `cae_vencimiento` varchar(8) DEFAULT NULL,
   `metodo_pago_id` int(11) DEFAULT NULL,
   `sucursal_id` int(11) DEFAULT NULL,
+  `punto_venta_id` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `caja_id` (`caja_id`),
   KEY `usuario_id` (`usuario_id`),
   KEY `metodo_pago_id` (`metodo_pago_id`),
   KEY `sucursal_id` (`sucursal_id`),
   KEY `cliente_id` (`cliente_id`),
+  KEY `punto_venta_id` (`punto_venta_id`),
   CONSTRAINT `ventas_ibfk_1` FOREIGN KEY (`caja_id`) REFERENCES `cajas` (`id`),
   CONSTRAINT `ventas_ibfk_2` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`),
   CONSTRAINT `ventas_ibfk_3` FOREIGN KEY (`metodo_pago_id`) REFERENCES `metodos_pago` (`id`),
   CONSTRAINT `ventas_ibfk_4` FOREIGN KEY (`sucursal_id`) REFERENCES `sucursales` (`id`),
-  CONSTRAINT `ventas_ibfk_5` FOREIGN KEY (`cliente_id`) REFERENCES `clientes` (`id`)
+  CONSTRAINT `ventas_ibfk_5` FOREIGN KEY (`cliente_id`) REFERENCES `clientes` (`id`),
+  CONSTRAINT `ventas_ibfk_6` FOREIGN KEY (`punto_venta_id`) REFERENCES `puntos_venta` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE `ventas_detalle` (

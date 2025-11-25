@@ -2,19 +2,21 @@
 class Caja extends BaseModel {
 
     public function getAll() {
-        return $this->db->query("SELECT c.*, u.nombre as usuario_apertura 
+        return $this->db->query("SELECT c.*, u.nombre as usuario_apertura, pv.nombre AS punto_venta_nombre
                                  FROM cajas c
                                  LEFT JOIN usuarios u ON u.id = c.abierta_por
+                                 LEFT JOIN puntos_venta pv ON pv.id = c.punto_venta_id
                                  ORDER BY c.id DESC")->fetchAll();
     }
 
     public function abrirCaja($data) {
-        $stmt = $this->db->prepare("INSERT INTO cajas (nombre, saldo_inicial, abierta_por, fecha_apertura, estado) VALUES (?,?,?,?, 'ABIERTA')");
+        $stmt = $this->db->prepare("INSERT INTO cajas (nombre, saldo_inicial, abierta_por, fecha_apertura, estado, punto_venta_id) VALUES (?,?,?,?, 'ABIERTA', ?)");
         return $stmt->execute([
             $data['nombre'],
             $data['saldo_inicial'],
             $data['usuario_id'],
-            date('Y-m-d H:i:s')
+            date('Y-m-d H:i:s'),
+            $data['punto_venta_id'] ?? null
         ]);
     }
 
