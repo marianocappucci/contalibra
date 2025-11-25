@@ -30,18 +30,30 @@ class SucursalController {
         registrarLog("Acceso a crear","Sucursal");
         $sucursal = null;
         $empresas = $this->empresaModel->getAll();
+        $empresaIdActiva = TenantContext::empresaId();
+        if ($empresaIdActiva === null && isset($_SESSION['empresa_id'])) {
+            $empresaIdActiva = (int) $_SESSION['empresa_id'];
+        }
+
+        $empresaActiva = $empresaIdActiva
+            ? $this->empresaModel->getByIdFromDefault($empresaIdActiva)
+            : null;
         $error = null;
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $data = $_POST;
-            $empresaId = $data['empresa_id'] ?? '';
-            $data['empresa_id'] = $empresaId === '' ? null : (int) $empresaId;
-            try {
-                $this->model->create($data);
-                header('Location: index.php?controller=Sucursal&action=index');
-                exit;
-            } catch (Throwable $e) {
-                $error = 'No se pudo crear la sucursal: ' . $e->getMessage();
+            if ($empresaIdActiva === null) {
+                $error = 'No hay una empresa activa para crear la sucursal.';
                 $sucursal = $data;
+            } else {
+                $data['empresa_id'] = $empresaIdActiva;
+                try {
+                    $this->model->create($data);
+                    header('Location: index.php?controller=Sucursal&action=index');
+                    exit;
+                } catch (Throwable $e) {
+                    $error = 'No se pudo crear la sucursal: ' . $e->getMessage();
+                    $sucursal = $data;
+                }
             }
         }
         include __DIR__ . '/../vistas/sucursales/form.php';
