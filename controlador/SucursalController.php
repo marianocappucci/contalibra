@@ -6,8 +6,13 @@ class SucursalController {
 
     public function __construct(){
         registrarLog("Acceso a __construct","Sucursal");
-        $this->model = new Sucursal();
-        $this->empresaModel = new Empresa();
+        // Siempre usamos la base maestra (contadb) para gestionar las
+        // sucursales y las empresas asociadas. De esta forma evitamos
+        // violaciones de clave foránea cuando el contexto activo apunta
+        // a una base de datos de una sucursal específica.
+        $conexionMaestra = Database::getDefaultStandaloneConnection();
+        $this->model = new Sucursal($conexionMaestra);
+        $this->empresaModel = new Empresa($conexionMaestra);
     }
 
     public function index(){
