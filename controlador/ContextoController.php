@@ -16,7 +16,7 @@ class ContextoController
         $empresaNombre = $_SESSION['empresa_nombre'] ?? '';
 
         $empresaModel = new Empresa();
-        $empresa = $empresaId ? $empresaModel->getById((int) $empresaId) : null;
+        $empresa = $empresaId ? $empresaModel->getByIdFromDefault((int) $empresaId) : null;
 
         if (!$empresa) {
             $error = 'No se pudo identificar la empresa del usuario.';
