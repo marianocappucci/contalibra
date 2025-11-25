@@ -3,15 +3,26 @@ class Empresa extends BaseModel
 {
     public function getAll(): array
     {
-        return $this->db
+        $connection = $this->empresasConnection();
+        if ($connection === null) {
+            return [];
+        }
+
+        return $connection
             ->query("SELECT * FROM empresas ORDER BY nombre")
             ->fetchAll();
     }
 
     public function getById(int $id)
     {
-        $stmt = $this->db->prepare("SELECT * FROM empresas WHERE id = ? LIMIT 1");
+        $connection = $this->empresasConnection();
+        if ($connection === null) {
+            return null;
+        }
+
+        $stmt = $connection->prepare("SELECT * FROM empresas WHERE id = ? LIMIT 1");
         $stmt->execute([$id]);
+
         return $stmt->fetch();
     }
 
@@ -21,7 +32,11 @@ class Empresa extends BaseModel
      */
     public function getByIdFromDefault(int $id)
     {
-        $connection = Database::getDefaultStandaloneConnection();
+        $connection = $this->empresasConnection();
+        if ($connection === null) {
+            return null;
+        }
+
         $stmt = $connection->prepare("SELECT * FROM empresas WHERE id = ? LIMIT 1");
         $stmt->execute([$id]);
 
@@ -30,7 +45,12 @@ class Empresa extends BaseModel
 
     public function getByBaseDatos(string $dbName)
     {
-        $stmt = $this->db->prepare("SELECT * FROM empresas WHERE base_datos = ? LIMIT 1");
+        $connection = $this->empresasConnection();
+        if ($connection === null) {
+            return null;
+        }
+
+        $stmt = $connection->prepare("SELECT * FROM empresas WHERE base_datos = ? LIMIT 1");
         $stmt->execute([$dbName]);
 
         return $stmt->fetch();
@@ -38,7 +58,12 @@ class Empresa extends BaseModel
 
     public function create(array $data): int
     {
-        $stmt = $this->db->prepare(
+        $connection = $this->empresasConnection();
+        if ($connection === null) {
+            return 0;
+        }
+
+        $stmt = $connection->prepare(
             "INSERT INTO empresas (nombre, base_datos, creado_en) VALUES (?,?,NOW())"
         );
         $stmt->execute([
@@ -46,12 +71,17 @@ class Empresa extends BaseModel
             $data['base_datos'] ?? null,
         ]);
 
-        return (int) $this->db->lastInsertId();
+        return (int) $connection->lastInsertId();
     }
 
     public function update(int $id, array $data): bool
     {
-        $stmt = $this->db->prepare(
+        $connection = $this->empresasConnection();
+        if ($connection === null) {
+            return false;
+        }
+
+        $stmt = $connection->prepare(
             "UPDATE empresas SET nombre = ?, base_datos = ? WHERE id = ?"
         );
 
@@ -64,7 +94,13 @@ class Empresa extends BaseModel
 
     public function delete(int $id): bool
     {
-        $stmt = $this->db->prepare("DELETE FROM empresas WHERE id = ?");
+        $connection = $this->empresasConnection();
+        if ($connection === null) {
+            return false;
+        }
+
+        $stmt = $connection->prepare("DELETE FROM empresas WHERE id = ?");
+
         return $stmt->execute([$id]);
     }
 
@@ -121,5 +157,20 @@ class Empresa extends BaseModel
         $stmt->execute([$empresaId]);
 
         return $stmt->fetchAll();
+    }
+
+    private function empresasConnection(): ?PDO
+    {
+        $connection = Database::getDefaultStandaloneConnection();
+
+        return $this->tableExists($connection, 'empresas') ? $connection : null;
+    }
+
+    private function tableExists(PDO $connection, string $table): bool
+    {
+        $stmt = $connection->prepare('SHOW TABLES LIKE ?');
+        $stmt->execute([$table]);
+
+        return (bool) $stmt->fetchColumn();
     }
 }
