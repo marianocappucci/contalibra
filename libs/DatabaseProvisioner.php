@@ -99,6 +99,11 @@ class DatabaseProvisioner
                 continue;
             }
 
+            $rowCount = (int) $pdo->query(sprintf('SELECT COUNT(*) FROM `%s`', $table))->fetchColumn();
+            if ($rowCount > 0) {
+                continue;
+            }
+
             $existing = $pdo->prepare(
                 sprintf('SELECT COUNT(*) FROM `%s` WHERE `%s` = ? OR `%s` = ?', $table, $nameColumn, $dbColumn)
             );
