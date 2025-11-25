@@ -1,3 +1,5 @@
+SET FOREIGN_KEY_CHECKS = 0;
+
 DROP TABLE IF EXISTS `transferencias_inventario`;
 DROP TABLE IF EXISTS `pedidos_sucursales_detalle`;
 DROP TABLE IF EXISTS `pedidos_sucursales`;
@@ -309,3 +311,5 @@ CREATE TABLE `ventas_detalle` (
   CONSTRAINT `ventas_detalle_ibfk_1` FOREIGN KEY (`venta_id`) REFERENCES `ventas` (`id`),
   CONSTRAINT `ventas_detalle_ibfk_2` FOREIGN KEY (`producto_id`) REFERENCES `productos` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+SET FOREIGN_KEY_CHECKS = 1;
