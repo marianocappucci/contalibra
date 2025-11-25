@@ -10,6 +10,7 @@ class Usuario extends BaseModel {
                     u.rol_id,
                     u.activo,
                     u.base_datos,
+                    u.must_change_password,
                     roles.nombre AS rol_nombre
                 FROM usuarios u
                 LEFT JOIN roles ON roles.id = u.rol_id
@@ -31,6 +32,7 @@ class Usuario extends BaseModel {
                     u.rol_id,
                     u.activo,
                     u.base_datos,
+                    u.must_change_password,
                     roles.nombre AS rol_nombre
                 FROM usuarios u
                 LEFT JOIN roles ON roles.id = u.rol_id
@@ -59,6 +61,7 @@ class Usuario extends BaseModel {
                     u.rol_id,
                     u.activo,
                     u.base_datos,
+                    u.must_change_password,
                     roles.nombre AS rol_nombre
                 FROM usuarios u
                 LEFT JOIN roles ON roles.id = u.rol_id
@@ -86,6 +89,7 @@ class Usuario extends BaseModel {
                     u.rol_id,
                     u.activo,
                     u.base_datos,
+                    u.must_change_password,
                     roles.nombre AS rol_nombre
                 FROM usuarios u
                 LEFT JOIN roles ON roles.id = u.rol_id
@@ -106,6 +110,7 @@ class Usuario extends BaseModel {
                     u.rol_id,
                     u.activo,
                     u.base_datos,
+                    u.must_change_password,
                     roles.nombre AS rol_nombre
                 FROM usuarios u
                 LEFT JOIN roles ON roles.id = u.rol_id";
@@ -120,15 +125,16 @@ class Usuario extends BaseModel {
     public function create(array $data) {
         $this->assertUsernameIsUnique($data['username']);
 
-       $stmt = $this->db->prepare("INSERT INTO usuarios(nombre, username, password, rol_id, activo, base_datos)
-                                    VALUES(?,?,?,?,?,?)");
+       $stmt = $this->db->prepare("INSERT INTO usuarios(nombre, username, password, rol_id, activo, base_datos, must_change_password)
+                                    VALUES(?,?,?,?,?,?,?)");
         return $stmt->execute([
             $data['nombre'],
             $data['username'],
             $data['password'],
             $data['rol_id'],
             $data['activo'],
-            $data['base_datos']
+            $data['base_datos'],
+            empty($data['must_change_password']) ? 0 : 1
         ]);
     }
 
@@ -154,7 +160,9 @@ class Usuario extends BaseModel {
 
         $this->assertUsernameIsUnique($data['username'], (int) $id);
 
-        $stmt = $this->db->prepare("UPDATE usuarios SET nombre=?, username=?, password=?, rol_id=?, activo=?, base_datos=? WHERE id=?");
+        $mustChangePassword = $data['must_change_password'] ?? ($currentUser['must_change_password'] ?? 0);
+
+        $stmt = $this->db->prepare("UPDATE usuarios SET nombre=?, username=?, password=?, rol_id=?, activo=?, base_datos=?, must_change_password=? WHERE id=?");
         return $stmt->execute([
             $data['nombre'],
             $data['username'],
@@ -162,6 +170,7 @@ class Usuario extends BaseModel {
             $data['rol_id'],
             $data['activo'],
             $data['base_datos'],
+            $mustChangePassword ? 1 : 0,
             $id
         ]);
     }
@@ -210,8 +219,8 @@ class Usuario extends BaseModel {
     public function syncFromMaster(array $usuarioMaestro): bool
     {
         $stmt = $this->db->prepare(
-            "INSERT INTO usuarios (id, nombre, username, password, rol_id, activo, base_datos)
-             VALUES (?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO usuarios (id, nombre, username, password, rol_id, activo, base_datos, must_change_password)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
         );
 
         return $stmt->execute([
@@ -222,6 +231,14 @@ class Usuario extends BaseModel {
             $usuarioMaestro['rol_id'] ?? 1,
             $usuarioMaestro['activo'] ?? 1,
             $usuarioMaestro['base_datos'] ?? ($_SESSION['db_name'] ?? DB_NAME),
+            $usuarioMaestro['must_change_password'] ?? 0,
         ]);
+    }
+
+    public function updatePasswordAndClearFlag(int $id, string $hashedPassword): bool
+    {
+        $stmt = $this->db->prepare('UPDATE usuarios SET password = ?, must_change_password = 0 WHERE id = ?');
+
+        return $stmt->execute([$hashedPassword, $id]);
     }
 }

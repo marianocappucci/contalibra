@@ -99,6 +99,15 @@ class DatabaseProvisioner
                 continue;
             }
 
+            $existing = $pdo->prepare(
+                sprintf('SELECT COUNT(*) FROM `%s` WHERE `%s` = ? OR `%s` = ?', $table, $nameColumn, $dbColumn)
+            );
+            $existing->execute([$empresaNombre, $dbName]);
+
+            if ((int) $existing->fetchColumn() > 0) {
+                return;
+            }
+
             $insert = $pdo->prepare(sprintf('INSERT INTO `%s` (`%s`, `%s`) VALUES (?, ?)', $table, $nameColumn, $dbColumn));
             $insert->execute([$empresaNombre, $dbName]);
             return;
@@ -134,19 +143,32 @@ class DatabaseProvisioner
         return (int) $pdo->lastInsertId();
     }
 
-    public static function createUser(PDO $pdo, string $username, string $password, int $roleId, string $dbName): int
+    public static function createUser(
+        PDO $pdo,
+        string $username,
+        string $password,
+        int $roleId,
+        string $dbName,
+        ?int $empresaId = null,
+        bool $mustChangePassword = false
+    ): int
     {
         if ($username === '' || $password === '') {
             throw new RuntimeException('Usuario y contraseña maestro son obligatorios.');
         }
 
-        $stmt = $pdo->prepare('INSERT INTO usuarios (nombre, username, password, rol_id, activo, base_datos) VALUES (?, ?, ?, ?, 1, ?)');
+        $stmt = $pdo->prepare(
+            'INSERT INTO usuarios (nombre, username, password, rol_id, activo, base_datos, empresa_id, must_change_password) '
+            . 'VALUES (?, ?, ?, ?, 1, ?, ?, ?)'
+        );
         $stmt->execute([
             $username,
             $username,
             password_hash($password, PASSWORD_BCRYPT),
             $roleId,
             $dbName,
+            $empresaId,
+            $mustChangePassword ? 1 : 0,
         ]);
 
         return (int) $pdo->lastInsertId();
