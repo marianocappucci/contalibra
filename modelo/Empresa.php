@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../libs/DatabaseProvisioner.php';
+require_once __DIR__ . '/configuracion.php';
 
 class Empresa extends BaseModel
 {
@@ -365,8 +366,8 @@ class Empresa extends BaseModel
 
     private function actualizarNombreFantasia(PDO $pdoDb, string $nombre): void
     {
-        $stmt = $pdoDb->prepare('UPDATE configuracion SET nombre_fantasia = ?, actualizado = NOW() WHERE id = 1');
-        $stmt->execute([$nombre]);
+        $configuracion = new Configuracion($pdoDb);
+        $configuracion->setNombreFantasia($nombre);
     }
 
     private function crearSuperusuarioInicial(PDO $pdoDb, int $empresaId, string $dbName): void

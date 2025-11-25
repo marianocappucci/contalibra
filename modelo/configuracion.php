@@ -5,8 +5,14 @@ class Configuracion extends BaseModel {
         return $this->db->query("SELECT * FROM configuracion LIMIT 1")->fetch();
     }
 
+    public function setNombreFantasia(string $nombre): bool
+    {
+        $stmt = $this->db->prepare('UPDATE configuracion SET nombre_fantasia = ?, actualizado = NOW() WHERE id = 1');
+        return $stmt->execute([$nombre]);
+    }
+
     public function update($data) {
-        $stmt = $this->db->prepare("UPDATE configuracion 
+        $stmt = $this->db->prepare("UPDATE configuracion
             SET nombre_fantasia=?, direccion=?, telefono=?, cuit=?, punto_venta=?, actualizado=NOW()
             WHERE id = 1");
         return $stmt->execute([

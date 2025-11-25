@@ -95,6 +95,9 @@ class ConfiguracionController {
                         'base_datos' => $dbName,
                     ]);
 
+                    $configuracion = new Configuracion(Database::getStandaloneConnection($dbName));
+                    $configuracion->setNombreFantasia($empresaNombre);
+
                     $mensaje = "Empresa '$empresaNombre' creada con ID $empresaId y base '$dbName'.";
                     $empresas = $empresaModel->getAll();
                     $dbPreview = $dbName;
