@@ -25,7 +25,7 @@
                 <td><?php echo htmlspecialchars($p['contacto']); ?></td>
                 <td><?php echo htmlspecialchars($p['telefono']); ?></td>
                 <td><?php echo htmlspecialchars($p['email']); ?></td>
-                <td>
+                <td class="table-actions">
                     <a href="index.php?controller=Proveedor&action=editar&id=<?php echo $p['id']; ?>" class="btn btn-sm btn-warning" aria-label="Editar">
                         <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
                         <span class="visually-hidden">Editar</span>

@@ -27,7 +27,7 @@
                 <td><?php echo htmlspecialchars($c['documento']); ?></td>
                 <td><?php echo htmlspecialchars($c['email']); ?></td>
                 <td>$<?php echo number_format($c['saldo'], 2); ?></td>
-                <td>
+                <td class="table-actions">
                     <a href="index.php?controller=Cliente&action=editar&id=<?php echo $c['id']; ?>" class="btn btn-sm btn-warning" aria-label="Editar">
                         <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
                         <span class="visually-hidden">Editar</span>

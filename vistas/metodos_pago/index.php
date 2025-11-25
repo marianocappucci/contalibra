@@ -21,7 +21,7 @@
             <tr>
                 <td><?php echo htmlspecialchars($m['nombre']); ?></td>
                 <td><?php echo htmlspecialchars($m['descripcion']); ?></td>
-                <td>
+                <td class="table-actions">
                     <a href="index.php?controller=MetodoPago&action=editar&id=<?php echo $m['id']; ?>" class="btn btn-sm btn-warning" aria-label="Editar">
                         <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
                         <span class="visually-hidden">Editar</span>

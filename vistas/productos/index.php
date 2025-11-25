@@ -38,7 +38,7 @@
         <td>$<?php echo number_format($p['precio'], 2); ?></td>
         <td><?php echo $p['stock']; ?></td>
         <td><?php echo $p['activo'] ? 'Sí' : 'No'; ?></td>
-        <td>
+        <td class="table-actions">
           <a href="index.php?controller=Producto&action=editar&id=<?php echo $p['id']; ?>" class="btn btn-sm btn-warning" aria-label="Editar">
             <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
             <span class="visually-hidden">Editar</span>

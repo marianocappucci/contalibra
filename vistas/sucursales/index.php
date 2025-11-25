@@ -25,7 +25,7 @@
                 <td><?php echo htmlspecialchars($s['empresa_nombre'] ?? ''); ?></td>
                 <td><?php echo htmlspecialchars($s['direccion']); ?></td>
                 <td><?php echo htmlspecialchars($s['ciudad']); ?></td>
-                <td>
+                <td class="table-actions">
                     <a href="index.php?controller=Sucursal&action=editar&id=<?php echo $s['id']; ?>" class="btn btn-sm btn-warning" aria-label="Editar">
                         <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
                         <span class="visually-hidden">Editar</span>
