@@ -64,6 +64,7 @@ class AuthController {
                     'base_datos' => $baseDatos,
                     'empresa_id' => (int) $empresa['id'],
                 ];
+                $_SESSION['empresa_base'] = $baseDatos;
                 $_SESSION['db_name'] = $baseDatos;
                 $_SESSION['empresa_id'] = (int) $empresa['id'];
                 $_SESSION['empresa_nombre'] = $empresa['nombre'];
