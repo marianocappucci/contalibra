@@ -34,10 +34,17 @@ class SucursalController {
         if ($empresaIdActiva === null && isset($_SESSION['empresa_id'])) {
             $empresaIdActiva = (int) $_SESSION['empresa_id'];
         }
+        if ($empresaIdActiva === null && isset($_SESSION['user']['empresa_id'])) {
+            $empresaIdActiva = (int) $_SESSION['user']['empresa_id'];
+        }
 
         $empresaActiva = $empresaIdActiva
             ? $this->empresaModel->getByIdFromDefault($empresaIdActiva)
             : null;
+        if ($empresaActiva === null && !empty($_SESSION['user']['base_datos'])) {
+            $empresaActiva = $this->empresaModel->getByBaseDatos($_SESSION['user']['base_datos']);
+            $empresaIdActiva = $empresaActiva ? (int) $empresaActiva['id'] : null;
+        }
         $error = null;
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $data = $_POST;
