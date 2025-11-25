@@ -19,6 +19,14 @@ php scripts/migrate_punto_venta_columns.php --base=contadb
 
 Puedes cambiar el valor de `--base` si necesitas ejecutar la migración sobre la base de un tenant.
 
+Si tu base de datos fue creada antes del flag de cambio de contraseña y aparece el error `Unknown column 'must_change_password'`, ejecuta la migración:
+
+```bash
+php scripts/migrate_must_change_password.php --base=contadb
+```
+
+Esto agrega la columna faltante en `usuarios` con un valor por defecto de 0.
+
 ## Notas sobre cajas
 - La validación del usuario al abrir una caja se hace siempre contra la base maestra `contadb`.
 - Si la base de datos del tenant no tiene el usuario replicado, se mostrará un error legible en lugar de fallar silenciosamente.
