@@ -14,7 +14,11 @@ class AuthController {
             $password = $_POST['password'] ?? '';
 
             $usuarioModel = new Usuario();
-            $dbNameFilter = $_POST['base_datos'] ?? ($_SESSION['db_name'] ?? null);
+            // En el login no debemos restringir la búsqueda a la base que
+            // pudiera estar guardada en la sesión (podría pertenecer a otro
+            // tenant). Solo filtramos si el formulario envía explícitamente
+            // una base de datos.
+            $dbNameFilter = $_POST['base_datos'] ?? null;
             $users = $usuarioModel->findActiveByUsername($username, $dbNameFilter);
 
             $user = null;
