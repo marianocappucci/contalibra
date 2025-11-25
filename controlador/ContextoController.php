@@ -12,10 +12,22 @@ class ContextoController
             exit;
         }
 
-        $empresaId = $_SESSION['empresa_id'] ?? null;
+        $empresaId = $_SESSION['empresa_id'] ?? ($_SESSION['user']['empresa_id'] ?? null);
         $empresaNombre = $_SESSION['empresa_nombre'] ?? '';
 
         $empresaModel = new Empresa();
+
+        if (!$empresaId && isset($_SESSION['user']['base_datos'])) {
+            $empresaResuelta = $empresaModel->getByBaseDatos($_SESSION['user']['base_datos']);
+
+            if ($empresaResuelta) {
+                $empresaId = (int) $empresaResuelta['id'];
+                $_SESSION['empresa_id'] = $empresaId;
+                $_SESSION['empresa_nombre'] = $empresaResuelta['nombre'];
+                $empresaNombre = $empresaResuelta['nombre'];
+            }
+        }
+
         $empresa = $empresaId ? $empresaModel->getByIdFromDefault((int) $empresaId) : null;
 
         if (!$empresa) {
