@@ -47,18 +47,34 @@ class TenantContext
         return sprintf('empresa_%d_sucursal_%d_db', $empresaId, $sucursalId);
     }
 
+    public static function databaseNameForSucursalFromBase(string $empresaBase, int $sucursalId): string
+    {
+        $normalizedBase = preg_replace('/_db$/', '', $empresaBase);
+
+        return sprintf('%s_sucursal_%d_db', $normalizedBase, $sucursalId);
+    }
+
     /**
      * Resuelve el nombre de la base activa respetando el contexto de la sesión
-     * (sucursal > empresa > base explícita) y vuelve a la maestra si nada está configurado.
+     * priorizando la base configurada para la empresa actual.
      */
     public static function activeDatabaseName(): string
     {
+        $empresaId = self::empresaId();
+        $sucursalId = self::sucursalId();
+        $empresaBase = self::configuredEmpresaBase();
+
+        if ($empresaBase !== null && $sucursalId !== null) {
+            return self::databaseNameForSucursalFromBase($empresaBase, $sucursalId);
+        }
+
+        if ($empresaBase !== null) {
+            return $empresaBase;
+        }
+
         if (!empty($_SESSION['db_name'])) {
             return (string) $_SESSION['db_name'];
         }
-
-        $empresaId = self::empresaId();
-        $sucursalId = self::sucursalId();
 
         if ($empresaId !== null && $sucursalId !== null) {
             return self::databaseNameForSucursal($empresaId, $sucursalId);
@@ -69,5 +85,18 @@ class TenantContext
         }
 
         return DB_NAME;
+    }
+
+    private static function configuredEmpresaBase(): ?string
+    {
+        if (!empty($_SESSION['empresa_base'])) {
+            return (string) $_SESSION['empresa_base'];
+        }
+
+        if (!empty($_SESSION['user']['base_datos'])) {
+            return (string) $_SESSION['user']['base_datos'];
+        }
+
+        return null;
     }
 }

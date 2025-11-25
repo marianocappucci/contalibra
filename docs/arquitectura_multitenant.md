@@ -6,20 +6,22 @@ La estructura contempla una base maestra y bases independientes por compañía y
 ## Bases de datos y convenciones de nombres
 
 - **Base maestra**: `contadb` (configurada en `config/config.php`). Guarda el usuario root, catálogo de compañías y cualquier dato centralizado.
-- **Base por compañía**: `empresa_{empresaId}_db`.
-- **Base por sucursal**: `empresa_{empresaId}_sucursal_{sucursalId}_db`.
+- **Base por compañía**: se obtiene de la configuración de cada empresa (`base_datos`). Si no existe, se usa el patrón `empresa_{empresaId}_db`.
+- **Base por sucursal**: se deriva desde la base de la empresa (`{base_empresa}_sucursal_{sucursalId}_db`) para respetar nombres personalizados.
 
 Los helpers de `TenantContext` generan estos nombres de forma consistente:
-- `TenantContext::databaseNameForEmpresa($empresaId)` → `empresa_{empresaId}_db`.
-- `TenantContext::databaseNameForSucursal($empresaId, $sucursalId)` → `empresa_{empresaId}_sucursal_{sucursalId}_db`.
+- `TenantContext::databaseNameForEmpresa($empresaId)` → `empresa_{empresaId}_db` (solo como respaldo cuando la empresa no tiene base explícita).
+- `TenantContext::databaseNameForSucursalFromBase($empresaBase, $sucursalId)` → `{base_empresa_normalizada}_sucursal_{sucursalId}_db`.
 
 ## Resolución de base activa
 
 La clase `TenantContext` decide qué base usar en cada request, con la siguiente prioridad:
-1. `$_SESSION['db_name']` (por ejemplo, fijada al autenticar o al elegir manualmente una base).
-2. Contexto de sucursal activo (`empresa_id` + `sucursal_id`).
-3. Contexto de empresa activo (`empresa_id`).
-4. Base maestra `contadb` como último recurso.
+1. Base configurada para la empresa en sesión (`$_SESSION['empresa_base']` o `$_SESSION['user']['base_datos']`). Si existe
+   y hay una sucursal activa, se deriva la base de sucursal con el mismo prefijo.
+2. `$_SESSION['db_name']` (por ejemplo, fijada manualmente).
+3. Contexto de sucursal activo (`empresa_id` + `sucursal_id`) usando el patrón de respaldo.
+4. Contexto de empresa activo (`empresa_id`) usando el patrón de respaldo.
+5. Base maestra `contadb` como último recurso.
 
 `config/database.php` invoca `TenantContext::activeDatabaseName()` para resolver la base antes de abrir la conexión PDO, por lo que la separación se respeta en toda la app.
 

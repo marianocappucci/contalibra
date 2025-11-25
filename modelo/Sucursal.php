@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/../libs/DatabaseProvisioner.php';
+
 class Sucursal extends BaseModel {
     public function getAll() {
         $hasEmpresasTable = $this->tableExists('empresas');
@@ -17,13 +19,65 @@ class Sucursal extends BaseModel {
     }
 
     public function create($data) {
-        $stmt = $this->db->prepare("INSERT INTO sucursales (nombre, direccion, ciudad, empresa_id) VALUES (?,?,?,?)");
-        return $stmt->execute([
-            $data['nombre'],
-            $data['direccion'] ?? '',
-            $data['ciudad'] ?? '',
-            $data['empresa_id'] ?? null
-        ]);
+        $empresaId = $data['empresa_id'] ?? null;
+        if ($empresaId === null) {
+            throw new RuntimeException('Debe indicar la empresa para crear la sucursal y su base.');
+        }
+
+        $this->db->beginTransaction();
+
+        try {
+            $stmt = $this->db->prepare("INSERT INTO sucursales (nombre, direccion, ciudad, empresa_id) VALUES (?,?,?,?)");
+            $stmt->execute([
+                $data['nombre'],
+                $data['direccion'] ?? '',
+                $data['ciudad'] ?? '',
+                $empresaId
+            ]);
+
+            $sucursalId = (int) $this->db->lastInsertId();
+
+            $empresaModel = new Empresa(Database::getDefaultStandaloneConnection());
+            $empresa = $empresaModel->getByIdFromDefault((int) $empresaId);
+            if (!$empresa) {
+                throw new RuntimeException('No se encontró la empresa asociada para provisionar la base.');
+            }
+
+            $sucursalDbName = DatabaseProvisioner::generateSucursalDbName(
+                $empresa['base_datos'] ?? '',
+                $data['nombre'] ?? '',
+                (int) $empresaId,
+                $sucursalId
+            );
+
+            $pdoDb = DatabaseProvisioner::provisionDatabase($sucursalDbName);
+            DatabaseProvisioner::restoreSchema($pdoDb);
+
+            $tenantLabel = trim($empresa['nombre'] . ' - ' . ($data['nombre'] ?? 'Sucursal ' . $sucursalId));
+            DatabaseProvisioner::registerCompanyDatabase($pdoDb, $tenantLabel, $sucursalDbName);
+
+            if (isset($data['usuario_inicial'], $data['password_inicial'])
+                && $data['usuario_inicial'] !== ''
+                && $data['password_inicial'] !== '') {
+                $roleId = DatabaseProvisioner::resolveRoleId($pdoDb, $data['rol_inicial'] ?? 'Superusuario');
+                DatabaseProvisioner::createUser(
+                    $pdoDb,
+                    $data['usuario_inicial'],
+                    $data['password_inicial'],
+                    $roleId,
+                    $sucursalDbName
+                );
+            }
+
+            $this->db->commit();
+            return true;
+        } catch (Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
+            throw new RuntimeException('No se pudo crear la sucursal: ' . $e->getMessage(), 0, $e);
+        }
     }
 
     public function update($id, $data) {
