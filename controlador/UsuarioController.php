@@ -11,7 +11,13 @@ class UsuarioController {
 
     public function index(){
     registrarLog("Acceso a index","Usuario");
-        $usuarios = $this->model->getAll();
+        $empresaBase = $_SESSION['empresa_base'] ?? ($_SESSION['user']['base_datos'] ?? null);
+
+        if (!empty($empresaBase)) {
+            $usuarios = $this->model->getAllByBaseDatos($empresaBase);
+        } else {
+            $usuarios = [];
+        }
         include __DIR__ . '/../vistas/usuarios/index.php';
     }
 
