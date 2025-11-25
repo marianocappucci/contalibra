@@ -22,8 +22,14 @@
                 <td><?php echo htmlspecialchars($m['nombre']); ?></td>
                 <td><?php echo htmlspecialchars($m['descripcion']); ?></td>
                 <td>
-                    <a href="index.php?controller=MetodoPago&action=editar&id=<?php echo $m['id']; ?>" class="btn btn-sm btn-warning">Editar</a>
-                    <a href="index.php?controller=MetodoPago&action=eliminar&id=<?php echo $m['id']; ?>" class="btn btn-sm btn-danger" onclick="return confirm('¿Eliminar método?');">Eliminar</a>
+                    <a href="index.php?controller=MetodoPago&action=editar&id=<?php echo $m['id']; ?>" class="btn btn-sm btn-warning" aria-label="Editar">
+                        <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+                        <span class="visually-hidden">Editar</span>
+                    </a>
+                    <a href="index.php?controller=MetodoPago&action=eliminar&id=<?php echo $m['id']; ?>" class="btn btn-sm btn-danger" onclick="return confirm('¿Eliminar método?');" aria-label="Eliminar">
+                        <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                        <span class="visually-hidden">Eliminar</span>
+                    </a>
                 </td>
             </tr>
         <?php endforeach; ?>

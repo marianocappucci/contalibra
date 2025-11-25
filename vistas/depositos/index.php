@@ -24,8 +24,14 @@
                 <td><?php echo htmlspecialchars($d['descripcion']); ?></td>
                 <td><?php echo htmlspecialchars($d['sucursal_nombre']); ?></td>
                 <td>
-                    <a href="index.php?controller=Deposito&action=editar&id=<?php echo $d['id']; ?>" class="btn btn-sm btn-warning">Editar</a>
-                    <a href="index.php?controller=Deposito&action=eliminar&id=<?php echo $d['id']; ?>" class="btn btn-sm btn-danger" onclick="return confirm('¿Eliminar depósito?');">Eliminar</a>
+                    <a href="index.php?controller=Deposito&action=editar&id=<?php echo $d['id']; ?>" class="btn btn-sm btn-warning" aria-label="Editar">
+                        <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+                        <span class="visually-hidden">Editar</span>
+                    </a>
+                    <a href="index.php?controller=Deposito&action=eliminar&id=<?php echo $d['id']; ?>" class="btn btn-sm btn-danger" onclick="return confirm('¿Eliminar depósito?');" aria-label="Eliminar">
+                        <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                        <span class="visually-hidden">Eliminar</span>
+                    </a>
                 </td>
             </tr>
         <?php endforeach; ?>

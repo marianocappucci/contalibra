@@ -26,8 +26,14 @@
                 <td><?php echo htmlspecialchars($pv['sucursal_nombre']); ?></td>
                 <td><?php echo !empty($pv['activo']) ? 'Activo' : 'Inactivo'; ?></td>
                 <td>
-                    <a href="index.php?controller=PuntoVenta&action=editar&id=<?php echo $pv['id']; ?>" class="btn btn-sm btn-warning">Editar</a>
-                    <a href="index.php?controller=PuntoVenta&action=eliminar&id=<?php echo $pv['id']; ?>" class="btn btn-sm btn-danger" onclick="return confirm('¿Eliminar punto de venta?');">Eliminar</a>
+                    <a href="index.php?controller=PuntoVenta&action=editar&id=<?php echo $pv['id']; ?>" class="btn btn-sm btn-warning" aria-label="Editar">
+                        <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+                        <span class="visually-hidden">Editar</span>
+                    </a>
+                    <a href="index.php?controller=PuntoVenta&action=eliminar&id=<?php echo $pv['id']; ?>" class="btn btn-sm btn-danger" onclick="return confirm('¿Eliminar punto de venta?');" aria-label="Eliminar">
+                        <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                        <span class="visually-hidden">Eliminar</span>
+                    </a>
                 </td>
             </tr>
         <?php endforeach; ?>
