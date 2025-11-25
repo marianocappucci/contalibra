@@ -35,7 +35,7 @@
           <?php endforeach; ?>
         </select>
       </div>
-      <?php if(isset($_SESSION['user']) && $_SESSION['user']['rol_nombre'] === 'Superusuario'): ?>
+      <?php if($usuario && isset($_SESSION['user']) && $_SESSION['user']['rol_nombre'] === 'Superusuario'): ?>
       <div class="col-md-3 mb-3">
         <label class="form-label">Base de datos</label>
         <select name="base_datos" class="form-select" required>
