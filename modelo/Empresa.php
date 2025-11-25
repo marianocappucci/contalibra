@@ -116,7 +116,11 @@ class Empresa extends BaseModel
             $dbName,
         ]);
 
-        return (int) $connection->lastInsertId();
+        $empresaId = (int) $connection->lastInsertId();
+
+        $this->configurarDatosIniciales($pdoDb, $empresaId, $nombre, $dbName);
+
+        return $empresaId;
     }
 
     public function update(int $id, array $data): bool
@@ -225,5 +229,100 @@ class Empresa extends BaseModel
         $stmt->execute([$dbName]);
 
         return (bool) $stmt->fetchColumn();
+    }
+
+    private function configurarDatosIniciales(PDO $pdoDb, int $empresaId, string $nombre, string $dbName): void
+    {
+        $pdoDb->beginTransaction();
+
+        try {
+            $pdoDb->exec('SET FOREIGN_KEY_CHECKS=0');
+
+            $this->sincronizarEmpresaBase($pdoDb, $empresaId, $nombre, $dbName);
+            $sucursalId = $this->asegurarSucursalPrincipal($pdoDb, $empresaId);
+            $this->asegurarPuntoVentaPrincipal($pdoDb, $sucursalId);
+            $this->actualizarNombreFantasia($pdoDb, $nombre);
+
+            $pdoDb->exec('SET FOREIGN_KEY_CHECKS=1');
+            $pdoDb->commit();
+        } catch (Throwable $e) {
+            if ($pdoDb->inTransaction()) {
+                $pdoDb->rollBack();
+            }
+
+            $pdoDb->exec('SET FOREIGN_KEY_CHECKS=1');
+
+            throw new RuntimeException(
+                'No se pudieron configurar los datos iniciales de la empresa recién creada: ' . $e->getMessage(),
+                0,
+                $e
+            );
+        }
+    }
+
+    private function sincronizarEmpresaBase(PDO $pdoDb, int $empresaId, string $nombre, string $dbName): void
+    {
+        $empresa = $pdoDb->query('SELECT id FROM empresas ORDER BY id ASC LIMIT 1')->fetch();
+
+        if ($empresa) {
+            $update = $pdoDb->prepare('UPDATE empresas SET id = ?, nombre = ?, base_datos = ? WHERE id = ?');
+            $update->execute([$empresaId, $nombre, $dbName, $empresa['id']]);
+        } else {
+            $insert = $pdoDb->prepare('INSERT INTO empresas (id, nombre, base_datos, creado_en) VALUES (?,?,?,NOW())');
+            $insert->execute([$empresaId, $nombre, $dbName]);
+        }
+
+        $pdoDb->exec('ALTER TABLE empresas AUTO_INCREMENT = ' . ($empresaId + 1));
+    }
+
+    private function asegurarSucursalPrincipal(PDO $pdoDb, int $empresaId): int
+    {
+        $sucursal = $pdoDb->query('SELECT * FROM sucursales ORDER BY id ASC LIMIT 1')->fetch();
+        $oldSucursalId = $sucursal ? (int) $sucursal['id'] : null;
+
+        if ($sucursal) {
+            $stmt = $pdoDb->prepare('UPDATE sucursales SET empresa_id = ?, nombre = COALESCE(NULLIF(nombre, ""), "Sucursal principal") WHERE id = ?');
+            $stmt->execute([$empresaId, $sucursal['id']]);
+            $sucursalId = (int) $sucursal['id'];
+        } else {
+            $stmt = $pdoDb->prepare('INSERT INTO sucursales (nombre, direccion, ciudad, empresa_id) VALUES (?,?,?,?)');
+            $stmt->execute(['Sucursal principal', '', '', $empresaId]);
+            $sucursalId = (int) $pdoDb->lastInsertId();
+        }
+
+        $depositoUpdate = $pdoDb->prepare('UPDATE depositos SET sucursal_id = ? WHERE sucursal_id IS NULL OR sucursal_id = ?');
+        $depositoUpdate->execute([$sucursalId, $oldSucursalId ?? $sucursalId]);
+
+        $pdoDb->exec('ALTER TABLE sucursales AUTO_INCREMENT = ' . ($sucursalId + 1));
+
+        return $sucursalId;
+    }
+
+    private function asegurarPuntoVentaPrincipal(PDO $pdoDb, int $sucursalId): void
+    {
+        $puntoVenta = $pdoDb
+            ->prepare('SELECT id FROM puntos_venta WHERE sucursal_id = ? ORDER BY id ASC LIMIT 1');
+        $puntoVenta->execute([$sucursalId]);
+        $pv = $puntoVenta->fetch();
+
+        if ($pv) {
+            $update = $pdoDb->prepare('UPDATE puntos_venta SET sucursal_id = ?, nombre = COALESCE(NULLIF(nombre, ""), "Punto de venta principal"), codigo = COALESCE(NULLIF(codigo, ""), "0001"), activo = 1 WHERE id = ?');
+            $update->execute([$sucursalId, $pv['id']]);
+            $pvId = (int) $pv['id'];
+        } else {
+            $insert = $pdoDb->prepare(
+                'INSERT INTO puntos_venta (sucursal_id, nombre, codigo, activo, creado_en) VALUES (?,?,?,?,NOW())'
+            );
+            $insert->execute([$sucursalId, 'Punto de venta principal', '0001', 1]);
+            $pvId = (int) $pdoDb->lastInsertId();
+        }
+
+        $pdoDb->exec('ALTER TABLE puntos_venta AUTO_INCREMENT = ' . ($pvId + 1));
+    }
+
+    private function actualizarNombreFantasia(PDO $pdoDb, string $nombre): void
+    {
+        $stmt = $pdoDb->prepare('UPDATE configuracion SET nombre_fantasia = ?, actualizado = NOW() WHERE id = 1');
+        $stmt->execute([$nombre]);
     }
 }
