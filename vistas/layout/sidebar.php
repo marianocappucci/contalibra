@@ -237,6 +237,8 @@
             <div class="collapse" id="menuSucursales">
                 <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
                     <li><a class="nav-link" href="index.php?controller=Sucursal&action=index">Sucursales</a></li>
+                    <li><a class="nav-link" href="index.php?controller=PuntoVenta&action=index">Puntos de venta</a></li>
+                    <li><a class="nav-link" href="index.php?controller=PuntoVenta&action=crear">Crear punto de venta</a></li>
                     <li><a class="nav-link" href="index.php?controller=Deposito&action=index">Depósitos</a></li>
                 </ul>
             </div>
