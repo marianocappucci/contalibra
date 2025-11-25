@@ -18,6 +18,7 @@ class UsuarioController {
     public function crear(){
     registrarLog("Acceso a crear","Usuario");
         $roles = $this->model->getRoles();
+        $error = '';
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $this->model->create($this->prepareUserData($_POST));
@@ -25,6 +26,8 @@ class UsuarioController {
                 exit;
             } catch (InvalidArgumentException $e) {
                 $error = $e->getMessage();
+            } catch (PDOException $e) {
+                $error = 'No se pudo crear el usuario. Verifica que el nombre de usuario sea único.';
             }
         }
         $usuario = null;
@@ -37,6 +40,7 @@ class UsuarioController {
         if (!$id) { die('ID inválido'); }
         $roles = $this->model->getRoles();
         $usuario = $this->model->getById($id);
+        $error = '';
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $this->model->update($id, $this->prepareUserData($_POST, $usuario));
@@ -44,6 +48,8 @@ class UsuarioController {
                 exit;
             } catch (InvalidArgumentException $e) {
                 $error = $e->getMessage();
+            } catch (PDOException $e) {
+                $error = 'No se pudo actualizar el usuario. Verifica que el nombre de usuario sea único.';
             }
         }
         include __DIR__ . '/../vistas/usuarios/form.php';

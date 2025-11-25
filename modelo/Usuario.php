@@ -118,6 +118,8 @@ class Usuario extends BaseModel {
     }
 
     public function create(array $data) {
+        $this->assertUsernameIsUnique($data['username']);
+
        $stmt = $this->db->prepare("INSERT INTO usuarios(nombre, username, password, rol_id, activo, base_datos)
                                     VALUES(?,?,?,?,?,?)");
         return $stmt->execute([
@@ -149,6 +151,8 @@ class Usuario extends BaseModel {
                 $password = password_hash($password, PASSWORD_BCRYPT);
             }
         }
+
+        $this->assertUsernameIsUnique($data['username'], (int) $id);
 
         $stmt = $this->db->prepare("UPDATE usuarios SET nombre=?, username=?, password=?, rol_id=?, activo=?, base_datos=? WHERE id=?");
         return $stmt->execute([
@@ -183,6 +187,24 @@ class Usuario extends BaseModel {
     {
         $stmt = $this->db->prepare("UPDATE usuarios SET base_datos=? WHERE id=?");
         return $stmt->execute([$dbName, $usuarioId]);
+    }
+
+    private function assertUsernameIsUnique(string $username, ?int $ignoreId = null): void
+    {
+        $sql = 'SELECT COUNT(*) FROM usuarios WHERE username = ?';
+        $params = [$username];
+
+        if ($ignoreId !== null) {
+            $sql .= ' AND id <> ?';
+            $params[] = $ignoreId;
+        }
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+
+        if ((int) $stmt->fetchColumn() > 0) {
+            throw new InvalidArgumentException('El nombre de usuario ya está en uso.');
+        }
     }
 
     public function syncFromMaster(array $usuarioMaestro): bool
