@@ -103,6 +103,8 @@ class ConfiguracionController {
                         throw new RuntimeException('No se pudo registrar la empresa en la base principal.');
                     }
 
+                    $this->actualizarDatosInicialesEmpresa($pdoRoot, $dbName, (int) $empresaId, $empresaNombre);
+
                     $mensaje = "Empresa '$empresaNombre' creada con ID $empresaId y base '$dbName'.";
                     $empresas = $empresaModel->getAll();
                     $dbPreview = $dbName;
@@ -213,6 +215,37 @@ class ConfiguracionController {
 
         $stmt = $pdoDb->prepare('UPDATE configuracion SET nombre_fantasia=?, actualizado=NOW() WHERE id=1');
         $stmt->execute([$empresaNombre]);
+    }
+
+    private function actualizarDatosInicialesEmpresa(PDO $pdoRoot, string $dbName, int $empresaId, string $empresaNombre): void
+    {
+        $pdoDb = new PDO($pdoRoot->getAttribute(PDO::ATTR_DRIVER_NAME) . ':host=' . DB_HOST . ';dbname=' . $dbName . ';charset=utf8mb4', DB_USER, DB_PASS, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        ]);
+
+        $pdoDb->beginTransaction();
+        try {
+            $pdoDb->exec('SET FOREIGN_KEY_CHECKS=0');
+
+            $stmt = $pdoDb->prepare('UPDATE empresas SET id=?, nombre=?, base_datos=? WHERE id=1');
+            $stmt->execute([$empresaId, $empresaNombre, $dbName]);
+
+            $stmt = $pdoDb->prepare('UPDATE usuarios SET empresa_id=?, base_datos=? WHERE empresa_id=1');
+            $stmt->execute([$empresaId, $dbName]);
+
+            $stmt = $pdoDb->prepare('UPDATE sucursales SET empresa_id=? WHERE empresa_id=1');
+            $stmt->execute([$empresaId]);
+
+            $pdoDb->exec('ALTER TABLE empresas AUTO_INCREMENT = ' . ($empresaId + 1));
+
+            $pdoDb->exec('SET FOREIGN_KEY_CHECKS=1');
+            $pdoDb->commit();
+        } catch (Exception $e) {
+            $pdoDb->rollBack();
+            $pdoDb->exec('SET FOREIGN_KEY_CHECKS=1');
+            throw $e;
+        }
     }
 
     private function asignarBaseAUsuario(string $usuarioId, string $dbName): void
