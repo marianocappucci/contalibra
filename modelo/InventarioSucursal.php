@@ -37,6 +37,7 @@ class InventarioSucursal extends BaseModel
     public function ajustarStock(int $sucursalId, int $productoId, float $cantidad): void
     {
         $this->runInTransaction(function () use ($sucursalId, $productoId, $cantidad) {
+            $this->asegurarRegistroInicial($sucursalId, $productoId);
             $this->upsertDelta($sucursalId, $productoId, $cantidad);
             $this->assertStockNoNegative($sucursalId, $productoId);
         });
@@ -157,6 +158,39 @@ class InventarioSucursal extends BaseModel
             "ON DUPLICATE KEY UPDATE stock = stock + VALUES(stock), actualizado_en = VALUES(actualizado_en)"
         );
         $stmt->execute([$sucursalId, $productoId, $cantidad]);
+    }
+
+    private function asegurarRegistroInicial(int $sucursalId, int $productoId): void
+    {
+        if ($this->registroExiste($sucursalId, $productoId)) {
+            return;
+        }
+
+        $stockInicial = $this->obtenerStockProducto($productoId);
+
+        $stmt = $this->db->prepare(
+            "INSERT INTO inventarios_sucursal (sucursal_id, producto_id, stock, actualizado_en) VALUES (?, ?, ?, NOW())"
+        );
+        $stmt->execute([$sucursalId, $productoId, $stockInicial]);
+    }
+
+    private function registroExiste(int $sucursalId, int $productoId): bool
+    {
+        $stmt = $this->db->prepare(
+            "SELECT 1 FROM inventarios_sucursal WHERE sucursal_id = ? AND producto_id = ? LIMIT 1"
+        );
+        $stmt->execute([$sucursalId, $productoId]);
+
+        return (bool) $stmt->fetchColumn();
+    }
+
+    private function obtenerStockProducto(int $productoId): float
+    {
+        $stmt = $this->db->prepare("SELECT stock FROM productos WHERE id = ? LIMIT 1");
+        $stmt->execute([$productoId]);
+        $stock = $stmt->fetchColumn();
+
+        return $stock !== false ? (float) $stock : 0.0;
     }
 
     private function registrarTransferencia(int $origenId, int $destinoId, int $productoId, float $cantidad, ?int $pedidoId = null): void

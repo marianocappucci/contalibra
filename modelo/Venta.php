@@ -31,7 +31,7 @@ class Venta extends BaseModel {
             $stmtItem = $this->db->prepare("INSERT INTO ventas_detalle (venta_id, producto_id, cantidad, precio_unitario, total)"
                                         . " VALUES (?,?,?,?,?)");
             $stmtStock = $this->db->prepare("UPDATE productos SET stock = stock - ? WHERE id = ?");
-            $inventarioSucursal = !empty($data['sucursal_id']) ? new InventarioSucursal() : null;
+            $inventarioSucursal = !empty($data['sucursal_id']) ? new InventarioSucursal($this->db) : null;
 
             foreach ($items as $it) {
                 $stmtItem->execute([
