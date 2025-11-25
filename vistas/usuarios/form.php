@@ -38,9 +38,15 @@
       <?php if(isset($_SESSION['user']) && $_SESSION['user']['rol_nombre'] === 'Superusuario'): ?>
       <div class="col-md-3 mb-3">
         <label class="form-label">Base de datos</label>
-        <input type="text" name="base_datos" class="form-control" placeholder="contadb_empresa" required
-               value="<?php echo $usuario['base_datos'] ?? ($_SESSION['user']['base_datos'] ?? ''); ?>">
-        <div class="form-text">Solo letras, números y guiones bajos. Este campo es obligatorio.</div>
+        <select name="base_datos" class="form-select" required>
+          <option value="" disabled <?php echo empty($usuario['base_datos']) ? 'selected' : ''; ?>>Seleccione una base de datos</option>
+          <?php foreach (($basesDatos ?? []) as $baseNombre): ?>
+            <option value="<?php echo htmlspecialchars($baseNombre); ?>" <?php echo (($usuario['base_datos'] ?? '') === $baseNombre) ? 'selected' : ''; ?>>
+              <?php echo htmlspecialchars($baseNombre); ?>
+            </option>
+          <?php endforeach; ?>
+        </select>
+        <div class="form-text">Seleccione una base de datos existente para asignar al usuario.</div>
       </div>
       <?php endif; ?>
       <div class="col-md-3 mb-3 form-check">
