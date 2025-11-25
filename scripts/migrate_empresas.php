@@ -81,6 +81,13 @@ function ensureSucursalesEmpresaRelation(PDO $pdo, string $dbName): void
         return;
     }
 
+    if (!columnExists($pdo, $dbName, 'sucursales', 'base_datos')) {
+        $pdo->exec('ALTER TABLE `sucursales` ADD COLUMN `base_datos` VARCHAR(160) DEFAULT NULL AFTER `ciudad`');
+        echo "- Columna base_datos agregada a sucursales.\n";
+    } else {
+        echo "- Columna base_datos ya existía en sucursales.\n";
+    }
+
     if (!columnExists($pdo, $dbName, 'sucursales', 'empresa_id')) {
         $pdo->exec('ALTER TABLE `sucursales` ADD COLUMN `empresa_id` INT(11) DEFAULT NULL AFTER `ciudad`');
         echo "- Columna empresa_id agregada a sucursales.\n";
@@ -91,6 +98,11 @@ function ensureSucursalesEmpresaRelation(PDO $pdo, string $dbName): void
     if (!indexExists($pdo, $dbName, 'sucursales', 'empresa_id')) {
         $pdo->exec('ALTER TABLE `sucursales` ADD INDEX (`empresa_id`)');
         echo "- Índice empresa_id agregado a sucursales.\n";
+    }
+
+    if (!indexExists($pdo, $dbName, 'sucursales', 'uq_sucursales_base_datos')) {
+        $pdo->exec('ALTER TABLE `sucursales` ADD UNIQUE KEY `uq_sucursales_base_datos` (`base_datos`)');
+        echo "- Índice único uq_sucursales_base_datos agregado a sucursales.\n";
     }
 
     if (!tableExists($pdo, $dbName, 'empresas')) {
@@ -107,10 +119,33 @@ function ensureSucursalesEmpresaRelation(PDO $pdo, string $dbName): void
     }
 
     $pdo->exec(
-        'ALTER TABLE `sucursales` 
-            ADD CONSTRAINT `sucursales_ibfk_empresas` FOREIGN KEY (`empresa_id`) REFERENCES `empresas`(`id`) ON DELETE SET NULL'
+        'ALTER TABLE `sucursales`'
+            . ' ADD CONSTRAINT `sucursales_ibfk_empresas` FOREIGN KEY (`empresa_id`) REFERENCES `empresas`(`id`) ON DELETE SET NULL'
     );
     echo "- Llave foránea sucursales_ibfk_empresas creada.\n";
+
+    $stmt = $pdo->prepare(
+        'SELECT s.id, s.base_datos, s.empresa_id, e.base_datos AS empresa_base '
+        . 'FROM sucursales s LEFT JOIN empresas e ON e.id = s.empresa_id'
+    );
+    $stmt->execute();
+    $sucursales = $stmt->fetchAll();
+
+    foreach ($sucursales as $sucursal) {
+        if (!empty($sucursal['base_datos']) || $sucursal['empresa_id'] === null) {
+            continue;
+        }
+
+        $sucursalDb = generateSucursalDbName(
+            (string) ($sucursal['empresa_base'] ?? ''),
+            (int) $sucursal['empresa_id'],
+            (int) $sucursal['id']
+        );
+
+        $update = $pdo->prepare('UPDATE sucursales SET base_datos = ? WHERE id = ? LIMIT 1');
+        $update->execute([$sucursalDb, (int) $sucursal['id']]);
+        echo "- base_datos generado para sucursal ID {$sucursal['id']}: {$sucursalDb}.\n";
+    }
 }
 
 function sanitizeDbName(string $name): string
@@ -125,6 +160,15 @@ function sanitizeDbName(string $name): string
     }
 
     return $name;
+}
+
+function generateSucursalDbName(string $empresaBase, int $empresaId, int $sucursalId): string
+{
+    $base = $empresaBase !== ''
+        ? sanitizeDbName(preg_replace('/_db$/', '', $empresaBase))
+        : sanitizeDbName(sprintf('empresa_%d_db', $empresaId));
+
+    return sanitizeDbName(sprintf('%s_sucursal_%d_db', $base, $sucursalId));
 }
 
 function tableExists(PDO $pdo, string $dbName, string $table): bool
