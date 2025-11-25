@@ -75,12 +75,14 @@ CREATE TABLE `sucursales` (
   `nombre` varchar(120) NOT NULL,
   `direccion` varchar(200) DEFAULT NULL,
   `ciudad` varchar(120) DEFAULT NULL,
+  `base_datos` varchar(160) DEFAULT NULL,
   `empresa_id` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_sucursales_base_datos` (`base_datos`),
   KEY `empresa_id` (`empresa_id`),
   CONSTRAINT `sucursales_ibfk_1` FOREIGN KEY (`empresa_id`) REFERENCES `empresas` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-INSERT INTO `sucursales` (`id`,`nombre`,`direccion`,`ciudad`,`empresa_id`) VALUES (1,'Casa Central','Av. Principal 123','CABA',1);
+INSERT INTO `sucursales` (`id`,`nombre`,`direccion`,`ciudad`,`base_datos`,`empresa_id`) VALUES (1,'Casa Central','Av. Principal 123','CABA','contadb_sucursal_1_db',1);
 
 CREATE TABLE `puntos_venta` (
   `id` int(11) NOT NULL AUTO_INCREMENT,

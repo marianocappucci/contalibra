@@ -79,6 +79,9 @@ class Sucursal extends BaseModel {
             $pdoDb = DatabaseProvisioner::provisionDatabase($sucursalDbName);
             DatabaseProvisioner::restoreSchema($pdoDb);
 
+            $update = $this->db->prepare('UPDATE sucursales SET base_datos = ? WHERE id = ?');
+            $update->execute([$sucursalDbName, $sucursalId]);
+
             $tenantLabel = trim($empresa['nombre'] . ' - ' . ($data['nombre'] ?? 'Sucursal ' . $sucursalId));
             DatabaseProvisioner::registerCompanyDatabase($pdoDb, $tenantLabel, $sucursalDbName);
 

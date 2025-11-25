@@ -6,7 +6,8 @@ Este proyecto ahora incluye una jerarquía explícita de **empresas → sucursal
 
 - `empresas`: catálogo corporativo con nombre y base de datos asociada.
 - `usuarios`: ahora puede registrar `empresa_id` para asociar el usuario con la compañía propietaria.
-- `sucursales`: ahora referencia a `empresas` vía `empresa_id` para agrupar sucursales.
+- `sucursales`: ahora referencia a `empresas` vía `empresa_id` para agrupar sucursales y guarda `base_datos` con el nombre de la
+  base de datos propia de la sucursal.
 - `puntos_venta`: puntos de venta físicos por sucursal (código opcional y estado activo/inactivo).
 - `inventarios_sucursal`: stock por producto y sucursal con `actualizado_en`.
 - `pedidos_sucursales` y `pedidos_sucursales_detalle`: pedidos internos entre sucursales.
