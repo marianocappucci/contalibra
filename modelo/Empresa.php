@@ -233,31 +233,22 @@ class Empresa extends BaseModel
 
     private function configurarDatosIniciales(PDO $pdoDb, int $empresaId, string $nombre, string $dbName): void
     {
-        $pdoDb->beginTransaction();
+        $pdoDb->exec('SET FOREIGN_KEY_CHECKS=0');
 
         try {
-            $pdoDb->exec('SET FOREIGN_KEY_CHECKS=0');
-
             $this->sincronizarEmpresaBase($pdoDb, $empresaId, $nombre, $dbName);
             $sucursalId = $this->asegurarSucursalPrincipal($pdoDb, $empresaId);
             $this->asegurarPuntoVentaPrincipal($pdoDb, $sucursalId);
             $this->crearSuperusuarioInicial($pdoDb, $empresaId, $dbName);
             $this->actualizarNombreFantasia($pdoDb, $nombre);
-
-            $pdoDb->exec('SET FOREIGN_KEY_CHECKS=1');
-            $pdoDb->commit();
         } catch (Throwable $e) {
-            if ($pdoDb->inTransaction()) {
-                $pdoDb->rollBack();
-            }
-
-            $pdoDb->exec('SET FOREIGN_KEY_CHECKS=1');
-
             throw new RuntimeException(
                 'No se pudieron configurar los datos iniciales de la empresa recién creada: ' . $e->getMessage(),
                 0,
                 $e
             );
+        } finally {
+            $pdoDb->exec('SET FOREIGN_KEY_CHECKS=1');
         }
     }
 
