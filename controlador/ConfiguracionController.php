@@ -27,6 +27,8 @@ class ConfiguracionController {
     {
         registrarLog("Acceso a manejoBd","Configuracion");
 
+        $this->ensureMasterSuperuser();
+
         $usuarios = (new Usuario())->getAll();
 
         $mensaje = null;
@@ -264,5 +266,19 @@ class ConfiguracionController {
         }
 
         return 'contadb_' . $normalizado;
+    }
+
+    private function ensureMasterSuperuser(): void
+    {
+        $user = $_SESSION['user'] ?? null;
+
+        $activeDatabase = $_SESSION['db_name'] ?? ($user['base_datos'] ?? '');
+
+        $isSuperuser = isset($user['rol_nombre']) && strcasecmp($user['rol_nombre'], 'Superusuario') === 0;
+        $isMasterDatabase = strcasecmp($activeDatabase, DB_NAME) === 0;
+
+        if (!$isSuperuser || !$isMasterDatabase) {
+            die('Acceso denegado');
+        }
     }
 }
