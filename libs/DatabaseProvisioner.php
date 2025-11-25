@@ -27,11 +27,11 @@ class DatabaseProvisioner
         int $empresaId,
         int $sucursalId
     ): string {
-        $base = self::sanitizeDbName($empresaBase !== '' ? $empresaBase : TenantContext::databaseNameForEmpresa($empresaId));
-        $sucursalSlug = self::slugify($sucursalNombre);
-        $suffix = $sucursalSlug !== '' ? $sucursalSlug : 'sucursal_' . $sucursalId;
+        $base = $empresaBase !== ''
+            ? self::sanitizeDbName(preg_replace('/_db$/', '', $empresaBase))
+            : self::sanitizeDbName(TenantContext::databaseNameForEmpresa($empresaId));
 
-        return self::sanitizeDbName(sprintf('%s_%s', $base, $suffix));
+        return self::sanitizeDbName(sprintf('%s_sucursal_%d_db', $base, $sucursalId));
     }
 
     public static function provisionDatabase(string $dbName): PDO

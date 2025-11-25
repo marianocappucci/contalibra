@@ -118,7 +118,23 @@ class Empresa extends BaseModel
 
         $empresaId = (int) $connection->lastInsertId();
 
-        $this->configurarDatosIniciales($pdoDb, $empresaId, $nombre, $dbName);
+        $datosIniciales = $this->configurarDatosIniciales($pdoDb, $empresaId, $nombre, $dbName);
+
+        try {
+            $this->provisionarBaseSucursalPrincipal(
+                $empresaId,
+                $nombre,
+                $dbName,
+                $datosIniciales['sucursal_id'],
+                $datosIniciales['sucursal_nombre']
+            );
+        } catch (Throwable $e) {
+            throw new RuntimeException(
+                'No se pudo provisionar la base de la sucursal principal: ' . $e->getMessage(),
+                0,
+                $e
+            );
+        }
 
         return $empresaId;
     }
@@ -231,7 +247,7 @@ class Empresa extends BaseModel
         return (bool) $stmt->fetchColumn();
     }
 
-    private function configurarDatosIniciales(PDO $pdoDb, int $empresaId, string $nombre, string $dbName): void
+    private function configurarDatosIniciales(PDO $pdoDb, int $empresaId, string $nombre, string $dbName): array
     {
         $pdoDb->exec('SET FOREIGN_KEY_CHECKS=0');
 
@@ -241,6 +257,7 @@ class Empresa extends BaseModel
             $this->asegurarPuntoVentaPrincipal($pdoDb, $sucursalId);
             $this->crearSuperusuarioInicial($pdoDb, $empresaId, $dbName);
             $this->actualizarNombreFantasia($pdoDb, $nombre);
+            $sucursalNombre = $this->obtenerNombreSucursal($pdoDb, $sucursalId);
         } catch (Throwable $e) {
             throw new RuntimeException(
                 'No se pudieron configurar los datos iniciales de la empresa recién creada: ' . $e->getMessage(),
@@ -250,6 +267,32 @@ class Empresa extends BaseModel
         } finally {
             $pdoDb->exec('SET FOREIGN_KEY_CHECKS=1');
         }
+
+        return [
+            'sucursal_id' => $sucursalId,
+            'sucursal_nombre' => $sucursalNombre ?? ('Sucursal ' . $sucursalId),
+        ];
+    }
+
+    private function provisionarBaseSucursalPrincipal(
+        int $empresaId,
+        string $empresaNombre,
+        string $empresaBase,
+        int $sucursalId,
+        string $sucursalNombre
+    ): void {
+        $sucursalDbName = DatabaseProvisioner::generateSucursalDbName(
+            $empresaBase,
+            $sucursalNombre,
+            $empresaId,
+            $sucursalId
+        );
+
+        $pdoSucursal = DatabaseProvisioner::provisionDatabase($sucursalDbName);
+        DatabaseProvisioner::restoreSchema($pdoSucursal);
+
+        $tenantLabel = trim($empresaNombre . ' - ' . $sucursalNombre);
+        DatabaseProvisioner::registerCompanyDatabase($pdoSucursal, $tenantLabel, $sucursalDbName);
     }
 
     private function sincronizarEmpresaBase(PDO $pdoDb, int $empresaId, string $nombre, string $dbName): void
@@ -310,6 +353,14 @@ class Empresa extends BaseModel
         }
 
         $pdoDb->exec('ALTER TABLE puntos_venta AUTO_INCREMENT = ' . ($pvId + 1));
+    }
+
+    private function obtenerNombreSucursal(PDO $pdoDb, int $sucursalId): string
+    {
+        $stmt = $pdoDb->prepare('SELECT nombre FROM sucursales WHERE id = ? LIMIT 1');
+        $stmt->execute([$sucursalId]);
+
+        return (string) ($stmt->fetchColumn() ?: 'Sucursal ' . $sucursalId);
     }
 
     private function actualizarNombreFantasia(PDO $pdoDb, string $nombre): void
