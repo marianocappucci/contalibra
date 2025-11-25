@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/../libs/TenantContext.php';
+
 // Conexión simple usando PDO
 class Database {
     private static $instance = null;
@@ -52,12 +54,12 @@ class Database {
 
     private static function currentDatabase(): string
     {
-        return $_SESSION['db_name'] ?? DB_NAME;
+        return TenantContext::activeDatabaseName();
     }
 
     private function resolveDbName(): string
     {
-        return $_SESSION['db_name'] ?? DB_NAME;
+        return TenantContext::activeDatabaseName();
     }
 
     public function getConnection() {
