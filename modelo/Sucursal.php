@@ -1,7 +1,13 @@
 <?php
 class Sucursal extends BaseModel {
     public function getAll() {
-        return $this->db->query("SELECT s.*, e.nombre AS empresa_nombre FROM sucursales s LEFT JOIN empresas e ON e.id = s.empresa_id ORDER BY s.nombre")->fetchAll();
+        $hasEmpresasTable = $this->tableExists('empresas');
+
+        $sql = $hasEmpresasTable
+            ? "SELECT s.*, e.nombre AS empresa_nombre FROM sucursales s LEFT JOIN empresas e ON e.id = s.empresa_id ORDER BY s.nombre"
+            : "SELECT s.*, NULL AS empresa_nombre FROM sucursales s ORDER BY s.nombre";
+
+        return $this->db->query($sql)->fetchAll();
     }
 
     public function getById($id) {
@@ -40,5 +46,13 @@ class Sucursal extends BaseModel {
     public function delete($id) {
         $stmt = $this->db->prepare("DELETE FROM sucursales WHERE id=?");
         return $stmt->execute([$id]);
+    }
+
+    private function tableExists(string $table): bool
+    {
+        $stmt = $this->db->prepare('SHOW TABLES LIKE ?');
+        $stmt->execute([$table]);
+
+        return (bool) $stmt->fetchColumn();
     }
 }
