@@ -1,5 +1,6 @@
 <?php
 require_once "libs/log_helper.php";
+require_once __DIR__ . '/../libs/TenantContext.php';
 class UsuarioController {
 
     private $model;
@@ -94,7 +95,15 @@ class UsuarioController {
     private function prepareUserData(array $data, ?array $originalUser = null, array $availableDatabases = []): array
     {
         $dbName = '';
-        if (isset($_SESSION['user']) && ($_SESSION['user']['rol_nombre'] ?? '') === 'Superusuario') {
+        if ($originalUser === null) {
+            $dbName = $this->sanitizeDbName(TenantContext::activeDatabaseName());
+            if ($dbName === '') {
+                throw new InvalidArgumentException('No se pudo determinar la base de datos activa para el usuario.');
+            }
+            if (!empty($availableDatabases) && !in_array($dbName, $availableDatabases, true)) {
+                throw new InvalidArgumentException('La base de datos activa no es válida para la creación de usuarios.');
+            }
+        } elseif (isset($_SESSION['user']) && ($_SESSION['user']['rol_nombre'] ?? '') === 'Superusuario') {
             $dbName = $this->sanitizeDbName($data['base_datos'] ?? '');
             if ($dbName === '') {
                 throw new InvalidArgumentException('Debes especificar una base de datos válida para el usuario.');
