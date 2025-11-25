@@ -31,7 +31,7 @@ class AuthController {
 
             // ¿Usuario encontrado?
             if ($user) {
-                $baseDatos = $user['base_datos'];
+                $baseDatos = $this->resolveDatabaseForUser($user, $usuarioModel);
 
                 // Asignar base de datos automáticamente si está vacía
                 if (empty($baseDatos)) {
@@ -82,7 +82,12 @@ class AuthController {
                     exit;
                 }
 
-                header("Location: index.php?controller=Contexto&action=seleccionar");
+                $isRootContadb = $this->isRootContadb($user['username'], $baseDatos);
+                $destination = $isRootContadb
+                    ? 'index.php?controller=Dashboard&action=index'
+                    : 'index.php?controller=Contexto&action=seleccionar';
+
+                header("Location: {$destination}");
                 exit;
             }
 
@@ -94,6 +99,32 @@ class AuthController {
 
         // Mostrar login al principio
         require "vistas/auth/login.php";
+    }
+
+    private function resolveDatabaseForUser(array $user, Usuario $usuarioModel): string
+    {
+        $baseDatosActual = $user['base_datos'] ?? '';
+        $username = $user['username'] ?? '';
+
+        $baseDatos = (strcasecmp($username, 'root') === 0)
+            ? DB_NAME
+            : $baseDatosActual;
+
+        if (empty($baseDatos)) {
+            $baseDatos = DB_NAME;
+        }
+
+        if ($baseDatos !== $baseDatosActual) {
+            $stmt = $usuarioModel->db->prepare("UPDATE usuarios SET base_datos=? WHERE id=?");
+            $stmt->execute([$baseDatos, $user['id']]);
+        }
+
+        return $baseDatos;
+    }
+
+    private function isRootContadb(string $username, ?string $baseDatos): bool
+    {
+        return strcasecmp($username, 'root') === 0 && strcasecmp($baseDatos ?? '', DB_NAME) === 0;
     }
 
     private function passwordMatches($plainPassword, $user){
