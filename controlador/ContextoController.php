@@ -41,15 +41,21 @@ class ContextoController
             ?: TenantContext::databaseNameForEmpresa((int) $empresa['id']);
         $_SESSION['empresa_base'] = $empresaDbName;
 
+        // Refrescar el contexto para eliminar una sucursal previa y evitar que
+        // la resolución de la base activa apunte a una base de sucursal que no
+        // contiene la tabla de sucursales.
+        TenantContext::setContext((int) $empresa['id'], null);
+
         // Asegurar que la conexión activa apunte a la base de datos de la empresa
         // antes de consultar sus sucursales, evitando quedarse con una base previa
         // de otro tenant almacenada en la sesión.
         Database::setActiveDatabase($empresaDbName);
 
-        // Renovar el modelo para que use la conexión activa (tenant) y no la
-        // conexión previa al cambio de base de datos, que seguiría apuntando a
-        // otra empresa.
-        $empresaModel = new Empresa();
+        // Renovar el modelo para que use una conexión específica del tenant
+        // (base de empresa) y no la conexión previa al cambio de base de datos,
+        // que seguiría apuntando a otra empresa.
+        $tenantConnection = Database::getStandaloneConnection($empresaDbName);
+        $empresaModel = new Empresa($tenantConnection);
 
         $sucursales = $empresaModel->sucursalesConPuntosVenta((int) $empresa['id']);
         $error = null;
