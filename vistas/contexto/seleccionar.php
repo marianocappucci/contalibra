@@ -29,6 +29,11 @@
         font-weight: 600;
         font-size: 0.95rem;
     }
+    .contexto-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 12px;
+    }
 </style>
 
 <div class="contexto-container">
@@ -39,6 +44,12 @@
             <small class="text-muted">Empresa autenticada: <?php echo htmlspecialchars($empresa['nombre']); ?></small>
         </div>
         <span class="ms-auto contexto-badge">Paso requerido</span>
+    </div>
+
+    <div class="contexto-actions">
+        <a href="index.php?controller=Auth&action=logout" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-box-arrow-left me-1"></i>Volver al login
+        </a>
     </div>
 
     <?php if (!empty($error)): ?>
