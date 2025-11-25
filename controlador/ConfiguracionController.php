@@ -62,6 +62,59 @@ class ConfiguracionController {
         include __DIR__ . '/../vistas/configuracion/manejo_bd.php';
     }
 
+    public function empresas()
+    {
+        registrarLog("Acceso a empresas","Configuracion");
+
+        if ($_SESSION['user']['rol_nombre'] !== 'Superusuario') {
+            die("Acceso denegado");
+        }
+
+        $empresaModel = new Empresa();
+        $empresas = $empresaModel->getAll();
+        $mensaje = null;
+        $error = null;
+        $dbPreview = '';
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $empresaNombre = trim($_POST['empresa_nombre'] ?? '');
+            $dbName = $this->generarNombreBaseDatos($empresaNombre);
+
+            $dbPreview = $dbName;
+
+            if ($empresaNombre === '') {
+                $error = 'Debes indicar el nombre de la empresa.';
+            } elseif ($dbName === '') {
+                $error = 'El nombre de la empresa debe generar un identificador válido para la base de datos.';
+            } elseif ($empresaModel->getByBaseDatos($dbName)) {
+                $error = 'Ya existe una empresa con la base de datos generada. Usa un nombre diferente.';
+            } else {
+                try {
+                    $pdoRoot = $this->crearBaseDatos($dbName);
+                    $this->importarEstructuraBase($pdoRoot, $dbName);
+                    $this->configurarNombreFantasia($pdoRoot, $dbName, $empresaNombre);
+
+                    $empresaId = $empresaModel->create([
+                        'nombre' => $empresaNombre,
+                        'base_datos' => $dbName,
+                    ]);
+
+                    if (!$empresaId) {
+                        throw new RuntimeException('No se pudo registrar la empresa en la base principal.');
+                    }
+
+                    $mensaje = "Empresa '$empresaNombre' creada con ID $empresaId y base '$dbName'.";
+                    $empresas = $empresaModel->getAll();
+                    $dbPreview = $dbName;
+                } catch (Exception $e) {
+                    $error = 'No se pudo crear la empresa: ' . $e->getMessage();
+                }
+            }
+        }
+
+        include __DIR__ . '/../vistas/configuracion/empresas.php';
+    }
+
     private function sanitizeDbName(string $dbName): string
     {
         return preg_replace('/[^a-zA-Z0-9_]/', '', trim($dbName));
@@ -127,5 +180,18 @@ class ConfiguracionController {
         if (!$resultado) {
             throw new RuntimeException('No se pudo asignar la base de datos al usuario.');
         }
+    }
+
+    private function generarNombreBaseDatos(string $empresaNombre): string
+    {
+        $normalizado = strtolower(trim($empresaNombre));
+        $normalizado = preg_replace('/[^a-z0-9_]+/i', '_', $normalizado);
+        $normalizado = trim($normalizado, '_');
+
+        if ($normalizado === '') {
+            return '';
+        }
+
+        return 'contadb_' . $normalizado;
     }
 }

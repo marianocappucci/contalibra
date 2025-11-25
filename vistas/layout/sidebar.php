@@ -277,19 +277,15 @@
             </button>
             <div class="collapse" id="menuConfig">
                 <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
+                    <?php if ($_SESSION['user']['rol_nombre'] === 'Superusuario'): ?>
+                    <li><a class="nav-link" href="index.php?controller=Configuracion&action=empresas">Empresas</a></li>
+                    <?php endif; ?>
                     <li><a class="nav-link" href="index.php?controller=Usuario&action=index">Usuarios</a></li>
                     <li><a class="nav-link" href="index.php?controller=Configuracion&action=index">Datos de la empresa</a></li>
                     <li><a class="nav-link" href="index.php?controller=Configuracion&action=manejoBd">Manejo de base de datos</a></li>
                 </ul>
             </div>
         </div>
-        <?php endif; ?>
-
-        <?php if ($_SESSION['user']['rol_nombre'] === 'Superusuario'): ?>
-        <a class="nav-link" href="index.php?controller=Superusuario&action=crearBase">
-            <i class="bi bi-shield-lock"></i>
-            <span>Bases para empresas</span>
-        </a>
         <?php endif; ?>
 
         <a class="nav-link" href="index.php?controller=Backup&action=index">
