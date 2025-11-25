@@ -21,6 +21,11 @@ class ProductoController {
         include __DIR__ . '/../vistas/productos/index.php';
     }
 
+    private function validarStockEntero($stock)
+    {
+        return filter_var($stock, FILTER_VALIDATE_INT) !== false;
+    }
+
 public function buscarAjax(){
     registrarLog("Acceso a buscarAjax","Producto");
     $term = $_GET['term'] ?? '';
@@ -37,12 +42,19 @@ public function buscarAjax(){
         $listas = $this->listaModel->getAll();
         $proveedores = $this->proveedorModel->getAll();
         $depositos = $this->depositoModel->getAll();
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $this->model->create($_POST);
-            header('Location: index.php?controller=Producto&action=index');
-            exit;
-        }
         $producto = null;
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $producto = $_POST;
+
+            if (!$this->validarStockEntero($producto['stock'] ?? null)) {
+                $error = 'El stock debe ser un número entero.';
+            } else {
+                $producto['stock'] = (int) $producto['stock'];
+                $this->model->create($producto);
+                header('Location: index.php?controller=Producto&action=index');
+                exit;
+            }
+        }
         include __DIR__ . '/../vistas/productos/form.php';
     }
 
@@ -55,9 +67,16 @@ public function buscarAjax(){
         $depositos = $this->depositoModel->getAll();
         $producto = $this->model->getById($id);
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $this->model->update($id, $_POST);
-            header('Location: index.php?controller=Producto&action=index');
-            exit;
+            $producto = array_merge($producto, $_POST);
+
+            if (!$this->validarStockEntero($producto['stock'] ?? null)) {
+                $error = 'El stock debe ser un número entero.';
+            } else {
+                $producto['stock'] = (int) $producto['stock'];
+                $this->model->update($id, $producto);
+                header('Location: index.php?controller=Producto&action=index');
+                exit;
+            }
         }
         include __DIR__ . '/../vistas/productos/form.php';
     }
