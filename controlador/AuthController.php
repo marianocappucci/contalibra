@@ -1,5 +1,7 @@
 <?php
 require_once "libs/log_helper.php";
+require_once __DIR__ . '/../libs/TenantContext.php';
+require_once __DIR__ . '/../config/database.php';
 
 class AuthController {
 
@@ -25,16 +27,26 @@ class AuthController {
 
             // ¿Usuario encontrado?
             if ($user) {
+                $baseDatos = $user['base_datos'];
 
                 // Asignar base de datos automáticamente si está vacía
-                if (empty($user['base_datos'])) {
+                if (empty($baseDatos)) {
 
-                    $dbName = "contadb";
+                    $baseDatos = "contadb";
 
                     $stmt = $usuarioModel->db->prepare("UPDATE usuarios SET base_datos=? WHERE id=?");
-                    $stmt->execute([$dbName, $user['id']]);
+                    $stmt->execute([$baseDatos, $user['id']]);
 
-                    $user['base_datos'] = $dbName;
+                    $user['base_datos'] = $baseDatos;
+                }
+
+                $empresaModel = new Empresa();
+                $empresa = $empresaModel->getByBaseDatos($baseDatos);
+
+                if (!$empresa) {
+                    $error = "El usuario no está asociado a ninguna empresa configurada.";
+                    require "vistas/auth/login.php";
+                    return;
                 }
 
                 // Iniciar sesión
@@ -45,14 +57,21 @@ class AuthController {
                     'username' => $user['username'],
                     'rol_id' => $user['rol_id'] ?? null,
                     'rol_nombre' => $user['rol_nombre'] ?? '',
-                    'base_datos' => $user['base_datos'],
+                    'base_datos' => $baseDatos,
+                    'empresa_id' => (int) $empresa['id'],
                 ];
-                $_SESSION['db_name'] = $user['base_datos'];
+                $_SESSION['db_name'] = $baseDatos;
+                $_SESSION['empresa_id'] = (int) $empresa['id'];
+                $_SESSION['empresa_nombre'] = $empresa['nombre'];
+                unset($_SESSION['sucursal_id'], $_SESSION['sucursal_nombre'], $_SESSION['punto_venta_id'], $_SESSION['punto_venta_nombre']);
+
+                TenantContext::setContext((int) $empresa['id'], null);
+                Database::setActiveDatabase($baseDatos);
 
                 // Registrar log AHORA (ya hay usuario válido)
                 registrarLog("Acceso correcto", "Auth");
 
-                header("Location: index.php?controller=Dashboard&action=index");
+                header("Location: index.php?controller=Contexto&action=seleccionar");
                 exit;
             }
 

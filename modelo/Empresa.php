@@ -15,6 +15,14 @@ class Empresa extends BaseModel
         return $stmt->fetch();
     }
 
+    public function getByBaseDatos(string $dbName)
+    {
+        $stmt = $this->db->prepare("SELECT * FROM empresas WHERE base_datos = ? LIMIT 1");
+        $stmt->execute([$dbName]);
+
+        return $stmt->fetch();
+    }
+
     public function create(array $data): int
     {
         $stmt = $this->db->prepare(

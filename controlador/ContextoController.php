@@ -1,0 +1,92 @@
+<?php
+require_once "libs/log_helper.php";
+require_once __DIR__ . '/../libs/TenantContext.php';
+require_once __DIR__ . '/../config/database.php';
+
+class ContextoController
+{
+    public function seleccionar()
+    {
+        if (!isset($_SESSION['user'])) {
+            header('Location: index.php?controller=Auth&action=login');
+            exit;
+        }
+
+        $empresaId = $_SESSION['empresa_id'] ?? null;
+        $empresaNombre = $_SESSION['empresa_nombre'] ?? '';
+
+        $empresaModel = new Empresa();
+        $empresa = $empresaId ? $empresaModel->getById((int) $empresaId) : null;
+
+        if (!$empresa) {
+            $error = 'No se pudo identificar la empresa del usuario.';
+            require __DIR__ . '/../vistas/auth/login.php';
+            return;
+        }
+
+        $sucursales = $empresaModel->sucursalesConPuntosVenta((int) $empresa['id']);
+        $error = null;
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $sucursalId = isset($_POST['sucursal_id']) ? (int) $_POST['sucursal_id'] : 0;
+            $puntoVentaId = isset($_POST['punto_venta_id']) ? (int) $_POST['punto_venta_id'] : 0;
+
+            $sucursalSeleccionada = $this->findSucursal($sucursales, $sucursalId);
+
+            if (!$sucursalSeleccionada) {
+                $error = 'Selecciona una sucursal válida.';
+            }
+
+            $puntoVentaSeleccionado = $sucursalSeleccionada
+                ? $this->findPuntoVenta($sucursalSeleccionada['puntos_venta'], $puntoVentaId)
+                : null;
+
+            if (!$error && !$puntoVentaSeleccionado) {
+                $error = 'Selecciona un punto de venta válido para la sucursal elegida.';
+            }
+
+            if (!$error) {
+                $_SESSION['empresa_id'] = (int) $empresa['id'];
+                $_SESSION['empresa_nombre'] = $empresaNombre ?: $empresa['nombre'];
+                $_SESSION['sucursal_id'] = $sucursalSeleccionada['id'];
+                $_SESSION['sucursal_nombre'] = $sucursalSeleccionada['nombre'];
+                $_SESSION['punto_venta_id'] = $puntoVentaSeleccionado['id'];
+                $_SESSION['punto_venta_nombre'] = $puntoVentaSeleccionado['nombre'];
+
+                TenantContext::setContext((int) $empresa['id'], (int) $sucursalSeleccionada['id']);
+                Database::setActiveDatabase(
+                    TenantContext::databaseNameForSucursal((int) $empresa['id'], (int) $sucursalSeleccionada['id'])
+                );
+
+                registrarLog('Selección de sucursal y punto de venta', 'Contexto');
+
+                header('Location: index.php?controller=Dashboard&action=index');
+                exit;
+            }
+        }
+
+        require __DIR__ . '/../vistas/contexto/seleccionar.php';
+    }
+
+    private function findSucursal(array $sucursales, int $sucursalId): ?array
+    {
+        foreach ($sucursales as $sucursal) {
+            if ((int) $sucursal['id'] === $sucursalId) {
+                return $sucursal;
+            }
+        }
+
+        return null;
+    }
+
+    private function findPuntoVenta(array $puntosVenta, int $puntoVentaId): ?array
+    {
+        foreach ($puntosVenta as $puntoVenta) {
+            if ((int) $puntoVenta['id'] === $puntoVentaId) {
+                return $puntoVenta;
+            }
+        }
+
+        return null;
+    }
+}
