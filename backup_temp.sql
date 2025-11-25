@@ -42,15 +42,20 @@ CREATE TABLE `usuarios` (
   `username` varchar(50) NOT NULL,
   `password` varchar(255) NOT NULL,
   `rol_id` int(11) NOT NULL,
+  `empresa_id` int(11) DEFAULT NULL,
   `activo` tinyint(1) NOT NULL DEFAULT 1,
   `base_datos` varchar(100) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `username_base` (`username`,`base_datos`),
   KEY `rol_id` (`rol_id`),
+  KEY `empresa_id` (`empresa_id`),
   CONSTRAINT `usuarios_ibfk_1` FOREIGN KEY (`rol_id`) REFERENCES `roles` (`id`)
+  ON DELETE CASCADE,
+  CONSTRAINT `usuarios_ibfk_empresas` FOREIGN KEY (`empresa_id`) REFERENCES `empresas` (`id`)
+  ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-INSERT INTO `usuarios` (`id`,`nombre`,`username`,`password`,`rol_id`,`activo`,`base_datos`) VALUES
-(1,'Superadmin','admin','$2y$12$ZVuR.sflsOMtMKRhdg6VUeGozhVGYEIaOgD7e11.df8xHuf5bcU9y',3,1,'contadb');
+INSERT INTO `usuarios` (`id`,`nombre`,`username`,`password`,`rol_id`,`empresa_id`,`activo`,`base_datos`) VALUES
+(1,'Superadmin','admin','$2y$12$ZVuR.sflsOMtMKRhdg6VUeGozhVGYEIaOgD7e11.df8xHuf5bcU9y',3,1,1,'contadb');
 
 CREATE TABLE `configuracion` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
