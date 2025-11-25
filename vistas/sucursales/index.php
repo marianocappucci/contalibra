@@ -12,6 +12,7 @@
         <thead>
             <tr>
                 <th>Nombre</th>
+                <th>Empresa</th>
                 <th>Dirección</th>
                 <th>Ciudad</th>
                 <th></th>
@@ -21,6 +22,7 @@
         <?php foreach ($sucursales as $s): ?>
             <tr>
                 <td><?php echo htmlspecialchars($s['nombre']); ?></td>
+                <td><?php echo htmlspecialchars($s['empresa_nombre'] ?? ''); ?></td>
                 <td><?php echo htmlspecialchars($s['direccion']); ?></td>
                 <td><?php echo htmlspecialchars($s['ciudad']); ?></td>
                 <td>

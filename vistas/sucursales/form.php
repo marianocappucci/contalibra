@@ -6,18 +6,33 @@
 <div class="container">
     <h3><?php echo $sucursal ? 'Editar sucursal' : 'Nueva sucursal'; ?></h3>
     <form method="post">
+        <?php
+            $empresas = $empresas ?? [];
+            $empresaSeleccionada = $_POST['empresa_id'] ?? ($sucursal['empresa_id'] ?? '');
+        ?>
         <div class="row">
             <div class="col-md-6 mb-3">
                 <label class="form-label">Nombre</label>
-                <input type="text" name="nombre" class="form-control" required value="<?php echo $sucursal['nombre'] ?? ''; ?>">
+                <input type="text" name="nombre" class="form-control" required value="<?php echo htmlspecialchars($sucursal['nombre'] ?? ''); ?>">
             </div>
             <div class="col-md-6 mb-3">
                 <label class="form-label">Dirección</label>
-                <input type="text" name="direccion" class="form-control" value="<?php echo $sucursal['direccion'] ?? ''; ?>">
+                <input type="text" name="direccion" class="form-control" value="<?php echo htmlspecialchars($sucursal['direccion'] ?? ''); ?>">
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Empresa</label>
+                <select name="empresa_id" class="form-select">
+                    <option value="">Sin empresa</option>
+                    <?php foreach ($empresas as $empresa): ?>
+                        <option value="<?php echo (int) $empresa['id']; ?>" <?php echo ((string) $empresaSeleccionada === (string) $empresa['id']) ? 'selected' : ''; ?>>
+                            <?php echo htmlspecialchars($empresa['nombre']); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
             </div>
             <div class="col-md-6 mb-3">
                 <label class="form-label">Ciudad</label>
-                <input type="text" name="ciudad" class="form-control" value="<?php echo $sucursal['ciudad'] ?? ''; ?>">
+                <input type="text" name="ciudad" class="form-control" value="<?php echo htmlspecialchars($sucursal['ciudad'] ?? ''); ?>">
             </div>
         </div>
         <button class="btn btn-success">Guardar</button>

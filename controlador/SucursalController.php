@@ -2,10 +2,12 @@
 require_once "libs/log_helper.php";
 class SucursalController {
     private $model;
+    private $empresaModel;
 
     public function __construct(){
         registrarLog("Acceso a __construct","Sucursal");
         $this->model = new Sucursal();
+        $this->empresaModel = new Empresa();
     }
 
     public function index(){
@@ -17,8 +19,12 @@ class SucursalController {
     public function crear(){
         registrarLog("Acceso a crear","Sucursal");
         $sucursal = null;
+        $empresas = $this->empresaModel->getAll();
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $this->model->create($_POST);
+            $data = $_POST;
+            $empresaId = $data['empresa_id'] ?? '';
+            $data['empresa_id'] = $empresaId === '' ? null : (int) $empresaId;
+            $this->model->create($data);
             header('Location: index.php?controller=Sucursal&action=index');
             exit;
         }
@@ -30,8 +36,12 @@ class SucursalController {
         $id = $_GET['id'] ?? null;
         if (!$id) { die('ID inválido'); }
         $sucursal = $this->model->getById($id);
+        $empresas = $this->empresaModel->getAll();
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $this->model->update($id, $_POST);
+            $data = $_POST;
+            $empresaId = $data['empresa_id'] ?? '';
+            $data['empresa_id'] = $empresaId === '' ? null : (int) $empresaId;
+            $this->model->update($id, $data);
             header('Location: index.php?controller=Sucursal&action=index');
             exit;
         }
