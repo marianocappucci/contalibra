@@ -14,3 +14,6 @@ El script crea la base `contadb` (si no existe) y carga el esquema/demo desde `b
 ## Notas sobre cajas
 - La validación del usuario al abrir una caja se hace siempre contra la base maestra `contadb`.
 - Si la base de datos del tenant no tiene el usuario replicado, se mostrará un error legible en lugar de fallar silenciosamente.
+
+## Multiempresa y sucursales
+El proyecto está preparado para aislar los datos de cada compañía y sucursal con bases separadas. Consulta `docs/arquitectura_multitenant.md` para ver las convenciones de nombres (`contadb`, `empresa_{id}_db`, `empresa_{id}_sucursal_{id}_db`) y el flujo recomendado de provisión de datos y permisos.
