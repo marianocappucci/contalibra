@@ -2,6 +2,8 @@
     $configuracion = null;
     $empresaActiva = null;
     $baseActiva = $_SESSION['db_name'] ?? ($_SESSION['user']['base_datos'] ?? null);
+    $isSuperuser = isset($_SESSION['user']['rol_nombre']) && strcasecmp($_SESSION['user']['rol_nombre'], 'Superusuario') === 0;
+    $showManejoBd = $isSuperuser && strcasecmp((string) $baseActiva, DB_NAME) === 0;
 
     try {
         $configuracionModel = new Configuracion();
@@ -283,7 +285,9 @@
                     <li><a class="nav-link" href="index.php?controller=Configuracion&action=sucursales">Sucursales</a></li>
                     <li><a class="nav-link" href="index.php?controller=Usuario&action=index">Usuarios</a></li>
                     <li><a class="nav-link" href="index.php?controller=Configuracion&action=index">Datos de la empresa</a></li>
+                    <?php if ($showManejoBd): ?>
                     <li><a class="nav-link" href="index.php?controller=Configuracion&action=manejoBd">Manejo de base de datos</a></li>
+                    <?php endif; ?>
                 </ul>
             </div>
         </div>
