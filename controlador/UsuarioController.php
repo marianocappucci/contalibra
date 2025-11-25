@@ -52,10 +52,28 @@ class UsuarioController {
     public function eliminar(){
     registrarLog("Acceso a eliminar","Usuario");
         $id = $_GET['id'] ?? null;
+        $error = '';
+
         if ($id) {
-            $this->model->delete($id);
+            try {
+                $this->model->delete((int) $id);
+            } catch (RuntimeException $e) {
+                $error = $e->getMessage();
+            } catch (PDOException $e) {
+                $error = 'No se pudo eliminar el usuario. Verifique que no tenga datos asociados.';
+            }
         }
-        header('Location: index.php?controller=Usuario&action=index');
+
+        $queryParams = [
+            'controller' => 'Usuario',
+            'action' => 'index'
+        ];
+
+        if ($error !== '') {
+            $queryParams['error'] = $error;
+        }
+
+        header('Location: index.php?' . http_build_query($queryParams));
         exit;
     }
 

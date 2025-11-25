@@ -135,8 +135,20 @@ class Usuario extends BaseModel {
     }
 
     public function delete($id) {
+        if ($this->usuarioTieneCajas((int) $id)) {
+            throw new RuntimeException('No se puede eliminar el usuario porque tiene cajas asociadas.');
+        }
+
         $stmt = $this->db->prepare("DELETE FROM usuarios WHERE id=?");
         return $stmt->execute([$id]);
+    }
+
+    private function usuarioTieneCajas(int $usuarioId): bool
+    {
+        $stmt = $this->db->prepare('SELECT COUNT(*) FROM cajas WHERE abierta_por = ?');
+        $stmt->execute([$usuarioId]);
+
+        return ((int) $stmt->fetchColumn()) > 0;
     }
 
     public function asignarBaseDatos(int $usuarioId, string $dbName): bool

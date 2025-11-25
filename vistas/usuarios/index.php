@@ -9,6 +9,9 @@
     <h3>Usuarios</h3>
     <a href="index.php?controller=Usuario&action=crear" class="btn btn-primary">Nuevo usuario</a>
   </div>
+  <?php if (!empty($_GET['error'])): ?>
+    <div class="alert alert-danger" role="alert"><?php echo htmlspecialchars($_GET['error']); ?></div>
+  <?php endif; ?>
   <?php $isSuperusuario = isset($_SESSION['user']) && ($_SESSION['user']['rol_nombre'] ?? '') === 'Superusuario'; ?>
   <table class="table table-striped">
     <thead>
