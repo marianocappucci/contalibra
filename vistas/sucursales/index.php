@@ -26,8 +26,14 @@
                 <td><?php echo htmlspecialchars($s['direccion']); ?></td>
                 <td><?php echo htmlspecialchars($s['ciudad']); ?></td>
                 <td>
-                    <a href="index.php?controller=Sucursal&action=editar&id=<?php echo $s['id']; ?>" class="btn btn-sm btn-warning">Editar</a>
-                    <a href="index.php?controller=Sucursal&action=eliminar&id=<?php echo $s['id']; ?>" class="btn btn-sm btn-danger" onclick="return confirm('¿Eliminar sucursal?');">Eliminar</a>
+                    <a href="index.php?controller=Sucursal&action=editar&id=<?php echo $s['id']; ?>" class="btn btn-sm btn-warning" aria-label="Editar">
+                        <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+                        <span class="visually-hidden">Editar</span>
+                    </a>
+                    <a href="index.php?controller=Sucursal&action=eliminar&id=<?php echo $s['id']; ?>" class="btn btn-sm btn-danger" onclick="return confirm('¿Eliminar sucursal?');" aria-label="Eliminar">
+                        <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                        <span class="visually-hidden">Eliminar</span>
+                    </a>
                 </td>
             </tr>
         <?php endforeach; ?>

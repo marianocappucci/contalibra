@@ -552,7 +552,8 @@
             </td>
             <td class="text-center">
                 <button type="button" class="btn btn-sm btn-outline-danger btnEliminarFila">
-                    <i class="bi bi-x-lg"></i>
+                    <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                    <span class="visually-hidden">Eliminar</span>
                 </button>
             </td>
         `;

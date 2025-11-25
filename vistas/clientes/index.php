@@ -28,8 +28,14 @@
                 <td><?php echo htmlspecialchars($c['email']); ?></td>
                 <td>$<?php echo number_format($c['saldo'], 2); ?></td>
                 <td>
-                    <a href="index.php?controller=Cliente&action=editar&id=<?php echo $c['id']; ?>" class="btn btn-sm btn-warning">Editar</a>
-                    <a href="index.php?controller=Cliente&action=eliminar&id=<?php echo $c['id']; ?>" class="btn btn-sm btn-danger" onclick="return confirm('¿Eliminar cliente?');">Eliminar</a>
+                    <a href="index.php?controller=Cliente&action=editar&id=<?php echo $c['id']; ?>" class="btn btn-sm btn-warning" aria-label="Editar">
+                        <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+                        <span class="visually-hidden">Editar</span>
+                    </a>
+                    <a href="index.php?controller=Cliente&action=eliminar&id=<?php echo $c['id']; ?>" class="btn btn-sm btn-danger" onclick="return confirm('¿Eliminar cliente?');" aria-label="Eliminar">
+                        <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                        <span class="visually-hidden">Eliminar</span>
+                    </a>
                 </td>
             </tr>
         <?php endforeach; ?>
