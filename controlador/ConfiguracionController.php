@@ -115,6 +115,49 @@ class ConfiguracionController {
         include __DIR__ . '/../vistas/configuracion/empresas.php';
     }
 
+    public function sucursales()
+    {
+        registrarLog("Acceso a sucursales","Configuracion");
+
+        $empresaModel = new Empresa();
+        $empresas = $empresaModel->getAll();
+
+        $sucursalModel = new Sucursal(Database::getDefaultStandaloneConnection());
+        $sucursales = $sucursalModel->getAll();
+
+        $mensaje = null;
+        $error = null;
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $nombre = trim($_POST['nombre'] ?? '');
+            $direccion = trim($_POST['direccion'] ?? '');
+            $ciudad = trim($_POST['ciudad'] ?? '');
+            $empresaId = isset($_POST['empresa_id']) ? (int) $_POST['empresa_id'] : 0;
+
+            if ($nombre === '') {
+                $error = 'Debes indicar el nombre de la sucursal.';
+            } elseif ($empresaId <= 0 || !$empresaModel->getById($empresaId)) {
+                $error = 'Selecciona una empresa válida para asociar la sucursal.';
+            } else {
+                $creada = $sucursalModel->create([
+                    'nombre' => $nombre,
+                    'direccion' => $direccion,
+                    'ciudad' => $ciudad,
+                    'empresa_id' => $empresaId,
+                ]);
+
+                if ($creada) {
+                    $mensaje = 'Sucursal creada correctamente.';
+                    $sucursales = $sucursalModel->getAll();
+                } else {
+                    $error = 'No se pudo crear la sucursal. Intenta nuevamente.';
+                }
+            }
+        }
+
+        include __DIR__ . '/../vistas/configuracion/sucursales.php';
+    }
+
     private function sanitizeDbName(string $dbName): string
     {
         return preg_replace('/[^a-zA-Z0-9_]/', '', trim($dbName));

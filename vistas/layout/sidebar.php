@@ -280,6 +280,7 @@
                     <?php if ($_SESSION['user']['rol_nombre'] === 'Superusuario'): ?>
                     <li><a class="nav-link" href="index.php?controller=Configuracion&action=empresas">Empresas</a></li>
                     <?php endif; ?>
+                    <li><a class="nav-link" href="index.php?controller=Configuracion&action=sucursales">Sucursales</a></li>
                     <li><a class="nav-link" href="index.php?controller=Usuario&action=index">Usuarios</a></li>
                     <li><a class="nav-link" href="index.php?controller=Configuracion&action=index">Datos de la empresa</a></li>
                     <li><a class="nav-link" href="index.php?controller=Configuracion&action=manejoBd">Manejo de base de datos</a></li>
