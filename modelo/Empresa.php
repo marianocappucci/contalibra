@@ -10,9 +10,21 @@ class Empresa extends BaseModel
             return [];
         }
 
-        return $connection
+        $empresas = $connection
             ->query("SELECT * FROM empresas ORDER BY nombre")
             ->fetchAll();
+
+        $resultados = [];
+        foreach ($empresas as $empresa) {
+            if (!$this->databaseExists($connection, $empresa['base_datos'])) {
+                $this->delete((int) $empresa['id']);
+                continue;
+            }
+
+            $resultados[] = $empresa;
+        }
+
+        return $resultados;
     }
 
     public function getById(int $id)
@@ -55,7 +67,14 @@ class Empresa extends BaseModel
         $stmt = $connection->prepare("SELECT * FROM empresas WHERE base_datos = ? LIMIT 1");
         $stmt->execute([$dbName]);
 
-        return $stmt->fetch();
+        $empresa = $stmt->fetch();
+
+        if ($empresa && !$this->databaseExists($connection, $empresa['base_datos'])) {
+            $this->delete((int) $empresa['id']);
+            return null;
+        }
+
+        return $empresa;
     }
 
     public function create(array $data): int
@@ -196,6 +215,14 @@ class Empresa extends BaseModel
     {
         $stmt = $connection->prepare('SHOW TABLES LIKE ?');
         $stmt->execute([$table]);
+
+        return (bool) $stmt->fetchColumn();
+    }
+
+    private function databaseExists(PDO $connection, string $dbName): bool
+    {
+        $stmt = $connection->prepare('SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?');
+        $stmt->execute([$dbName]);
 
         return (bool) $stmt->fetchColumn();
     }
