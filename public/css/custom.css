@@ -73,3 +73,9 @@ i.menu-icon {
     font-weight: 600;
     margin-left: auto;
 }
+
+.table-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}

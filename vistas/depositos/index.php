@@ -23,7 +23,7 @@
                 <td><?php echo htmlspecialchars($d['nombre']); ?></td>
                 <td><?php echo htmlspecialchars($d['descripcion']); ?></td>
                 <td><?php echo htmlspecialchars($d['sucursal_nombre']); ?></td>
-                <td>
+                <td class="table-actions">
                     <a href="index.php?controller=Deposito&action=editar&id=<?php echo $d['id']; ?>" class="btn btn-sm btn-warning" aria-label="Editar">
                         <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
                         <span class="visually-hidden">Editar</span>

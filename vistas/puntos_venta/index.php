@@ -25,7 +25,7 @@
                 <td><?php echo htmlspecialchars($pv['codigo']); ?></td>
                 <td><?php echo htmlspecialchars($pv['sucursal_nombre']); ?></td>
                 <td><?php echo !empty($pv['activo']) ? 'Activo' : 'Inactivo'; ?></td>
-                <td>
+                <td class="table-actions">
                     <a href="index.php?controller=PuntoVenta&action=editar&id=<?php echo $pv['id']; ?>" class="btn btn-sm btn-warning" aria-label="Editar">
                         <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
                         <span class="visually-hidden">Editar</span>

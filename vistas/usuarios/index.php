@@ -38,7 +38,7 @@
           <td><?php echo htmlspecialchars($u['base_datos'] ?? ''); ?></td>
         <?php endif; ?>
         <td><?php echo $u['activo'] ? 'Sí' : 'No'; ?></td>
-        <td>
+        <td class="table-actions">
           <a href="index.php?controller=Usuario&action=editar&id=<?php echo $u['id']; ?>" class="btn btn-sm btn-warning" aria-label="Editar">
             <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
             <span class="visually-hidden">Editar</span>
