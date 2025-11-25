@@ -23,15 +23,13 @@
                     <input type="text" name="nombre" class="form-control" required value="<?php echo htmlspecialchars($_POST['nombre'] ?? ''); ?>">
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">Empresa *</label>
-                    <select name="empresa_id" class="form-select" required>
-                        <option value="">Selecciona una empresa</option>
-                        <?php foreach ($empresas as $empresa): ?>
-                            <option value="<?php echo (int) $empresa['id']; ?>" <?php echo ((int)($_POST['empresa_id'] ?? 0) === (int) $empresa['id']) ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($empresa['nombre']); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
+                    <label class="form-label">Empresa activa</label>
+                    <?php if (!empty($empresaActiva)): ?>
+                        <input type="text" class="form-control" value="<?php echo htmlspecialchars($empresaActiva['nombre']); ?>" disabled>
+                        <input type="hidden" name="empresa_id" value="<?php echo (int) $empresaActiva['id']; ?>">
+                    <?php else: ?>
+                        <div class="alert alert-warning mb-0">No hay una empresa activa seleccionada.</div>
+                    <?php endif; ?>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Dirección</label>
@@ -42,7 +40,7 @@
                     <input type="text" name="ciudad" class="form-control" value="<?php echo htmlspecialchars($_POST['ciudad'] ?? ''); ?>">
                 </div>
                 <div class="col-12">
-                    <button class="btn btn-primary">Crear sucursal</button>
+                    <button class="btn btn-primary" <?php echo empty($empresaActiva) ? 'disabled' : ''; ?>>Crear sucursal</button>
                     <a href="index.php?controller=Dashboard&action=index" class="btn btn-secondary">Volver</a>
                 </div>
             </form>

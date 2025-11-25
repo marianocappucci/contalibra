@@ -117,36 +117,56 @@ class ConfiguracionController {
         registrarLog("Acceso a sucursales","Configuracion");
 
         $empresaModel = new Empresa();
-        $empresas = $empresaModel->getAll();
+        $empresaIdActiva = TenantContext::empresaId();
+
+        if ($empresaIdActiva === null && isset($_SESSION['empresa_id'])) {
+            $empresaIdActiva = (int) $_SESSION['empresa_id'];
+        }
+
+        if ($empresaIdActiva === null && isset($_SESSION['user']['empresa_id'])) {
+            $empresaIdActiva = (int) $_SESSION['user']['empresa_id'];
+        }
+
+        $empresaActiva = $empresaIdActiva
+            ? $empresaModel->getByIdFromDefault((int) $empresaIdActiva)
+            : null;
+
+        if ($empresaActiva === null && !empty($_SESSION['user']['base_datos'])) {
+            $empresaActiva = $empresaModel->getByBaseDatos($_SESSION['user']['base_datos']);
+            $empresaIdActiva = $empresaActiva ? (int) $empresaActiva['id'] : null;
+        }
+
+        $empresas = $empresaActiva ? [$empresaActiva] : [];
 
         $sucursalModel = new Sucursal(Database::getDefaultStandaloneConnection());
-        $sucursales = $sucursalModel->getAll();
+        $sucursales = $empresaActiva
+            ? $sucursalModel->getAll((int) $empresaActiva['id'])
+            : [];
 
         $mensaje = null;
-        $error = null;
+        $error = $empresaActiva ? null : 'No hay una empresa activa seleccionada.';
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $nombre = trim($_POST['nombre'] ?? '');
             $direccion = trim($_POST['direccion'] ?? '');
             $ciudad = trim($_POST['ciudad'] ?? '');
-            $empresaId = isset($_POST['empresa_id']) ? (int) $_POST['empresa_id'] : 0;
 
             if ($nombre === '') {
                 $error = 'Debes indicar el nombre de la sucursal.';
-            } elseif ($empresaId <= 0 || !$empresaModel->getById($empresaId)) {
-                $error = 'Selecciona una empresa válida para asociar la sucursal.';
+            } elseif ($empresaActiva === null) {
+                $error = 'No hay una empresa activa para asociar la sucursal.';
             } else {
                 try {
                     $creada = $sucursalModel->create([
                         'nombre' => $nombre,
                         'direccion' => $direccion,
                         'ciudad' => $ciudad,
-                        'empresa_id' => $empresaId,
+                        'empresa_id' => (int) $empresaActiva['id'],
                     ]);
 
                     if ($creada) {
                         $mensaje = 'Sucursal creada correctamente.';
-                        $sucursales = $sucursalModel->getAll();
+                        $sucursales = $sucursalModel->getAll((int) $empresaActiva['id']);
                     }
                 } catch (Throwable $e) {
                     $error = 'No se pudo crear la sucursal: ' . $e->getMessage();
