@@ -12,10 +12,19 @@ class AuthController {
             $password = $_POST['password'] ?? '';
 
             $usuarioModel = new Usuario();
-            $user = $usuarioModel->getByUsername($username);
+            $dbNameFilter = $_POST['base_datos'] ?? ($_SESSION['db_name'] ?? null);
+            $users = $usuarioModel->findActiveByUsername($username, $dbNameFilter);
+
+            $user = null;
+            foreach ($users as $candidate) {
+                if ($this->passwordMatches($password, $candidate)) {
+                    $user = $candidate;
+                    break;
+                }
+            }
 
             // ¿Usuario encontrado?
-            if ($user && $this->passwordMatches($password, $user)) {
+            if ($user) {
 
                 // Asignar base de datos automáticamente si está vacía
                 if (empty($user['base_datos'])) {
