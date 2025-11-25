@@ -32,6 +32,7 @@ public function buscarPorNombre($term) {
     public function create($data) {
         $proveedorId = ($data['proveedor_id'] ?? '') !== '' ? $data['proveedor_id'] : null;
         $depositoId = ($data['deposito_id'] ?? '') !== '' ? $data['deposito_id'] : null;
+        $stock = isset($data['stock']) ? (int) $data['stock'] : 0;
 
         $stmt = $this->db->prepare("INSERT INTO productos (nombre, sku, codigo_barras, precio, lista_precio_id, stock, proveedor_id, deposito_id, activo) VALUES (?,?,?,?,?,?,?,?,?)");
         return $stmt->execute([
@@ -40,7 +41,7 @@ public function buscarPorNombre($term) {
             $data['codigo_barras'] ?? '',
             $data['precio'],
             $data['lista_precio_id'],
-            $data['stock'],
+            $stock,
             $proveedorId,
             $depositoId,
             isset($data['activo']) ? 1 : 0
@@ -50,6 +51,7 @@ public function buscarPorNombre($term) {
     public function update($id, $data) {
         $proveedorId = ($data['proveedor_id'] ?? '') !== '' ? $data['proveedor_id'] : null;
         $depositoId = ($data['deposito_id'] ?? '') !== '' ? $data['deposito_id'] : null;
+        $stock = isset($data['stock']) ? (int) $data['stock'] : 0;
 
         $stmt = $this->db->prepare("UPDATE productos SET nombre=?, sku=?, codigo_barras=?, precio=?, lista_precio_id=?, stock=?, proveedor_id=?, deposito_id=?, activo=? WHERE id=?");
         return $stmt->execute([
@@ -58,7 +60,7 @@ public function buscarPorNombre($term) {
             $data['codigo_barras'] ?? '',
             $data['precio'],
             $data['lista_precio_id'],
-            $data['stock'],
+            $stock,
             $proveedorId,
             $depositoId,
             isset($data['activo']) ? 1 : 0,

@@ -6,6 +6,9 @@
 
 <div class="container">
   <h3><?php echo $producto ? 'Editar producto' : 'Nuevo producto'; ?></h3>
+  <?php if (!empty($error)): ?>
+    <div class="alert alert-danger" role="alert"><?php echo htmlspecialchars($error); ?></div>
+  <?php endif; ?>
   <form method="post">
     <div class="row">
       <div class="col-md-6 mb-3">
@@ -54,7 +57,7 @@
       </div>
       <div class="col-md-3 mb-3">
         <label class="form-label">Stock inicial</label>
-        <input type="number" step="0.01" name="stock" class="form-control" required value="<?php echo $producto['stock'] ?? '0'; ?>">
+        <input type="number" step="1" min="0" name="stock" class="form-control" required value="<?php echo $producto['stock'] ?? '0'; ?>">
       </div>
       <div class="col-md-3 mb-3 form-check">
         <input class="form-check-input" type="checkbox" name="activo" id="activo" <?php echo (!$producto || $producto['activo'])?'checked':''; ?>>
