@@ -207,6 +207,15 @@ class Usuario extends BaseModel {
     }
 
     public function delete($id) {
+        $user = $this->db
+            ->prepare('SELECT username, base_datos FROM usuarios WHERE id = ?');
+        $user->execute([$id]);
+        $foundUser = $user->fetch();
+
+        if ($foundUser && $foundUser['username'] === 'root' && ($foundUser['base_datos'] ?? '') === DB_NAME) {
+            throw new RuntimeException('No se puede eliminar el usuario root de la base contadb.');
+        }
+
         if ($this->usuarioTieneCajas((int) $id)) {
             throw new RuntimeException('No se puede eliminar el usuario porque tiene cajas asociadas.');
         }
