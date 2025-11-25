@@ -118,11 +118,17 @@ class VentaController {
             'sucursal_id' => $sucursalId
         ];
 
-        $ventaId = $this->ventaModel->save($dataVenta, $items);
-        $venta = $this->ventaModel->getById($ventaId);
-        $respFE = $this->feModel->enviarAFiscal($venta);
-        header('Location: index.php?controller=Venta&action=ver&id=' . $ventaId);
-        exit;
+        try {
+            $ventaId = $this->ventaModel->save($dataVenta, $items);
+            $venta = $this->ventaModel->getById($ventaId);
+            $respFE = $this->feModel->enviarAFiscal($venta);
+            header('Location: index.php?controller=Venta&action=ver&id=' . $ventaId);
+            exit;
+        } catch (RuntimeException $e) {
+            $_SESSION['venta_error'] = $e->getMessage();
+            header('Location: index.php?controller=Venta&action=nueva');
+            exit;
+        }
     }
 
     public function ver(){
