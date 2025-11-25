@@ -16,8 +16,13 @@ spl_autoload_register(function($class){
 });
 // comentario para ver cambios en github
 $isAuthenticated = isset($_SESSION['user']);
-$defaultController = $isAuthenticated ? 'DashboardController' : 'AuthController';
-$defaultAction = $isAuthenticated ? 'index' : 'login';
+$contextSelected = $isAuthenticated && isset($_SESSION['empresa_id'], $_SESSION['sucursal_id'], $_SESSION['punto_venta_id']);
+$defaultController = $isAuthenticated
+    ? ($contextSelected ? 'DashboardController' : 'ContextoController')
+    : 'AuthController';
+$defaultAction = $isAuthenticated
+    ? ($contextSelected ? 'index' : 'seleccionar')
+    : 'login';
 $controllerName = isset($_GET['controller']) ? $_GET['controller'] . 'Controller' : $defaultController;
 $action = isset($_GET['action']) ? $_GET['action'] : $defaultAction;
 
@@ -29,7 +34,15 @@ if (!$isAuthenticated && $controllerName !== 'AuthController') {
 
 // Si ya está autenticado y vuelve al login, enviarlo al dashboard
 if ($isAuthenticated && $controllerName === 'AuthController' && $action === 'login') {
-    header('Location: index.php?controller=Dashboard&action=index');
+    $destinationController = $contextSelected ? 'Dashboard' : 'Contexto';
+    $destinationAction = $contextSelected ? 'index' : 'seleccionar';
+    header("Location: index.php?controller={$destinationController}&action={$destinationAction}");
+    exit;
+}
+
+// Si está autenticado pero no ha elegido sucursal y punto de venta, forzar ese paso
+if ($isAuthenticated && !$contextSelected && $controllerName !== 'ContextoController' && !($controllerName === 'AuthController' && $action === 'logout')) {
+    header('Location: index.php?controller=Contexto&action=seleccionar');
     exit;
 }
 
