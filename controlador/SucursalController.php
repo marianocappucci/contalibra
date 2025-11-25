@@ -20,13 +20,19 @@ class SucursalController {
         registrarLog("Acceso a crear","Sucursal");
         $sucursal = null;
         $empresas = $this->empresaModel->getAll();
+        $error = null;
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $data = $_POST;
             $empresaId = $data['empresa_id'] ?? '';
             $data['empresa_id'] = $empresaId === '' ? null : (int) $empresaId;
-            $this->model->create($data);
-            header('Location: index.php?controller=Sucursal&action=index');
-            exit;
+            try {
+                $this->model->create($data);
+                header('Location: index.php?controller=Sucursal&action=index');
+                exit;
+            } catch (Throwable $e) {
+                $error = 'No se pudo crear la sucursal: ' . $e->getMessage();
+                $sucursal = $data;
+            }
         }
         include __DIR__ . '/../vistas/sucursales/form.php';
     }
