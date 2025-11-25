@@ -44,6 +44,11 @@ class ContextoController
         // de otro tenant almacenada en la sesión.
         Database::setActiveDatabase($empresaDbName);
 
+        // Renovar el modelo para que use la conexión activa (tenant) y no la
+        // conexión previa al cambio de base de datos, que seguiría apuntando a
+        // otra empresa.
+        $empresaModel = new Empresa();
+
         $sucursales = $empresaModel->sucursalesConPuntosVenta((int) $empresa['id']);
         $error = null;
 
