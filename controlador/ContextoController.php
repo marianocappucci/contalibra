@@ -36,7 +36,9 @@ class ContextoController
             return;
         }
 
-        $empresaDbName = $empresa['base_datos'] ?: TenantContext::databaseNameForEmpresa((int) $empresa['id']);
+        $empresaDbName = $empresa['base_datos']
+            ?: ($_SESSION['user']['base_datos'] ?? null)
+            ?: TenantContext::databaseNameForEmpresa((int) $empresa['id']);
         $_SESSION['empresa_base'] = $empresaDbName;
 
         // Asegurar que la conexión activa apunte a la base de datos de la empresa
