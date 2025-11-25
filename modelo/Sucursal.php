@@ -2,14 +2,40 @@
 require_once __DIR__ . '/../libs/DatabaseProvisioner.php';
 
 class Sucursal extends BaseModel {
-    public function getAll() {
+    public function getAll(?int $empresaId = null) {
         $hasEmpresasTable = $this->tableExists('empresas');
 
-        $sql = $hasEmpresasTable
-            ? "SELECT s.*, e.nombre AS empresa_nombre FROM sucursales s LEFT JOIN empresas e ON e.id = s.empresa_id ORDER BY s.nombre"
-            : "SELECT s.*, NULL AS empresa_nombre FROM sucursales s ORDER BY s.nombre";
+        if ($hasEmpresasTable) {
+            $sql = "SELECT s.*, e.nombre AS empresa_nombre FROM sucursales s LEFT JOIN empresas e ON e.id = s.empresa_id";
+            $params = [];
 
-        return $this->db->query($sql)->fetchAll();
+            if ($empresaId !== null) {
+                $sql .= " WHERE s.empresa_id = ?";
+                $params[] = $empresaId;
+            }
+
+            $sql .= " ORDER BY s.nombre";
+
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($params);
+
+            return $stmt->fetchAll();
+        }
+
+        $sql = "SELECT s.*, NULL AS empresa_nombre FROM sucursales s";
+        $params = [];
+
+        if ($empresaId !== null) {
+            $sql .= " WHERE s.empresa_id = ?";
+            $params[] = $empresaId;
+        }
+
+        $sql .= " ORDER BY s.nombre";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+
+        return $stmt->fetchAll();
     }
 
     public function getById($id) {
@@ -92,9 +118,7 @@ class Sucursal extends BaseModel {
     }
 
     public function getByEmpresa($empresaId) {
-        $stmt = $this->db->prepare("SELECT * FROM sucursales WHERE empresa_id = ? ORDER BY nombre");
-        $stmt->execute([$empresaId]);
-        return $stmt->fetchAll();
+        return $this->getAll((int) $empresaId);
     }
 
     public function delete($id) {
