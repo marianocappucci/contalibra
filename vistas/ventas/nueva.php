@@ -2,6 +2,21 @@
 <?php include __DIR__ . '/../layout/topbar.php'; ?>
 <?php include __DIR__ . '/../layout/sidebar.php'; ?>
 
+<?php if (!empty($error)): ?>
+<div class="container" style="margin-top: 70px;">
+    <div class="alert alert-warning d-flex justify-content-between align-items-center" role="alert">
+        <div>
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <?php echo htmlspecialchars($error); ?>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="index.php?controller=Caja&action=abrir" class="btn btn-sm btn-outline-warning">Abrir caja</a>
+            <a href="index.php" class="btn btn-sm btn-outline-secondary">Ir al menú</a>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
 <style>
     :root {
         --accent: #f38064;

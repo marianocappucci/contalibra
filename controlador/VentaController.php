@@ -29,6 +29,9 @@ class VentaController {
 
     public function nueva(){
     registrarLog("Acceso a nueva","Venta");
+        $error = $_SESSION['venta_error'] ?? null;
+        unset($_SESSION['venta_error']);
+
         $productos = $this->productoModel->getAll();
         $clientes = $this->clienteModel->getAll();
         $metodosPago = $this->metodoPagoModel->getAll();
@@ -49,7 +52,9 @@ class VentaController {
 
         $caja = $this->cajaModel->getCajaAbiertaPorUsuario($_SESSION['user']['id']);
         if (!$caja) {
-            die('Debe abrir una caja antes de registrar una venta.');
+            $_SESSION['venta_error'] = 'Debe abrir una caja antes de registrar una venta.';
+            header('Location: index.php?controller=Venta&action=nueva');
+            exit;
         }
 
         $clienteId = $_POST['cliente_id'] ?? null;
