@@ -865,12 +865,561 @@ class ClientesPage(QWidget):
                 QMessageBox.critical(self, "No se puede eliminar", str(e))
 
 
+# ── Página: Presupuestos ─────────────────────────────────────────────────────
+
+class PresupuestosPage(QWidget):
+    def __init__(self, app):
+        super().__init__()
+        self.app = app
+        self._all = []
+        self._build()
+
+    def _build(self):
+        root = QVBoxLayout(self)
+        root.setContentsMargins(28, 24, 28, 20)
+        root.setSpacing(12)
+
+        # Cabecera
+        hdr = QHBoxLayout()
+        title = QLabel("Presupuestos")
+        title.setObjectName("page_title")
+        hdr.addWidget(title)
+        hdr.addStretch()
+        root.addLayout(hdr)
+
+        # Barra de búsqueda
+        bar = QHBoxLayout()
+        bar.addWidget(QLabel("Buscar:"))
+        self._search = QLineEdit()
+        self._search.setPlaceholderText("Número, cliente u observaciones...")
+        self._search.setMaximumWidth(320)
+        self._search.textChanged.connect(self._filter)
+        bar.addWidget(self._search)
+        bar.addStretch()
+        root.addLayout(bar)
+
+        # Tabla
+        self._table = QTableWidget()
+        self._table.setColumnCount(6)
+        self._table.setHorizontalHeaderLabels(
+            ["Número", "Fecha", "Cliente", "Estado", "Válido hasta", "Total"])
+        self._table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
+        self._table.horizontalHeader().resizeSection(0, 160)
+        self._table.horizontalHeader().resizeSection(1, 110)
+        self._table.horizontalHeader().resizeSection(3, 100)
+        self._table.horizontalHeader().resizeSection(4, 110)
+        self._table.horizontalHeader().resizeSection(5, 130)
+        self._table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self._table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self._table.setAlternatingRowColors(True)
+        self._table.verticalHeader().setVisible(False)
+        self._table.setStyleSheet("alternate-background-color: #f8fafc;")
+        self._table.doubleClicked.connect(self._open_pdf)
+        root.addWidget(self._table)
+
+        # Botones
+        btns = QHBoxLayout()
+        b_open     = make_btn("Abrir PDF",        "primary")
+        b_regen    = make_btn("Re-generar PDF",    "muted")
+        b_convert  = make_btn("Convertir a Remito", "success")
+        b_open.clicked.connect(self._open_pdf)
+        b_regen.clicked.connect(self._regen_pdf)
+        b_convert.clicked.connect(self._convert_to_remito)
+        btns.addWidget(b_open)
+        btns.addWidget(b_regen)
+        btns.addWidget(b_convert)
+        btns.addStretch()
+        root.addLayout(btns)
+
+    def refresh(self):
+        self._all = db.get_all_presupuestos()
+        self._populate(self._all)
+
+    def _populate(self, presupuestos):
+        self._table.setRowCount(0)
+        for p in presupuestos:
+            row = self._table.rowCount()
+            self._table.insertRow(row)
+            self._table.setItem(row, 0, QTableWidgetItem(p["number"]))
+            self._table.setItem(row, 1, QTableWidgetItem(p["date"]))
+            self._table.setItem(row, 2, QTableWidgetItem(p["client_name"]))
+
+            status_item = QTableWidgetItem(p["status"].capitalize())
+            status_color = {"Aceptado": "#16a34a", "Rechazado": "#dc2626", "Pendiente": "#f59e0b"}.get(
+                p["status"].capitalize(), "#64748b")
+            status_item.setForeground(QColor(status_color))
+            self._table.setItem(row, 3, status_item)
+
+            self._table.setItem(row, 4, QTableWidgetItem(p["valid_until"]))
+
+            total_item = QTableWidgetItem(f"$ {p['total']:,.2f}")
+            total_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            self._table.setItem(row, 5, total_item)
+            self._table.item(row, 0).setData(Qt.UserRole, p["id"])
+        if presupuestos:
+            self._table.setRowHeight(len(presupuestos) - 1, 34)
+
+    def _filter(self, q):
+        q = q.lower()
+        filtered = [p for p in self._all
+                    if q in p["number"].lower()
+                    or q in p["client_name"].lower()
+                    or q in (p.get("observations") or "").lower()] if q else self._all
+        self._populate(filtered)
+
+    def _selected_presupuesto(self):
+        row = self._table.currentRow()
+        if row < 0:
+            QMessageBox.information(self, "Atención", "Seleccione un presupuesto.")
+            return None
+        pid = self._table.item(row, 0).data(Qt.UserRole)
+        return db.get_presupuesto(pid)
+
+    def _open_pdf(self):
+        p = self._selected_presupuesto()
+        if not p:
+            return
+        if p.get("pdf_path") and os.path.exists(p["pdf_path"]):
+            open_pdf(p["pdf_path"])
+        else:
+            reply = QMessageBox.question(self, "PDF no encontrado",
+                                          "El archivo no existe. ¿Generar uno nuevo?")
+            if reply == QMessageBox.Yes:
+                path = pdf_gen.generate_pdf_presupuesto(p)
+                db.update_presupuesto_pdf_path(p["id"], path)
+                open_pdf(path)
+
+    def _regen_pdf(self):
+        p = self._selected_presupuesto()
+        if not p:
+            return
+        path = pdf_gen.generate_pdf_presupuesto(p)
+        db.update_presupuesto_pdf_path(p["id"], path)
+        reply = QMessageBox.question(self, "PDF regenerado",
+                                      f"PDF guardado en:\n{path}\n\n¿Abrir?")
+        if reply == QMessageBox.Yes:
+            open_pdf(path)
+
+    def _convert_to_remito(self):
+        p = self._selected_presupuesto()
+        if not p:
+            return
+        if p["status"] != "aceptado":
+            QMessageBox.warning(self, "Atención",
+                                "Solo se pueden convertir presupuestos aceptados.")
+            return
+
+        reply = QMessageBox.question(self, "Confirmar conversión",
+                                      f"¿Convertir el presupuesto {p['number']} a remito?")
+        if reply != QMessageBox.Yes:
+            return
+
+        # Crear remito
+        remito_number = db.get_next_remito_number()
+        remito_id = db.create_remito(
+            number=remito_number,
+            date=p["date"],
+            client_id=p["client_id"],
+            client_name=p["client_name"],
+            client_address=p.get("client_address", ""),
+            client_cuit=p.get("client_cuit", ""),
+            client_email=p.get("client_email", ""),
+            client_phone=p.get("client_phone", ""),
+            items=p["items"],
+            subtotal=p["subtotal"],
+            tax_rate=p["tax_rate"],
+            tax_amount=p["tax_amount"],
+            total=p["total"],
+            observations=p.get("observations", ""),
+        )
+
+        # Generar PDF del remito
+        remito_data = db.get_remito(remito_id)
+        pdf_path = pdf_gen.generate_pdf(remito_data)
+        db.update_remito_pdf_path(remito_id, pdf_path)
+
+        # Registrar en presupuesto
+        db.update_presupuesto_remito_id(p["id"], remito_id)
+
+        QMessageBox.information(self, "Conversión exitosa",
+                                f"Presupuesto convertido a remito {remito_number}.\n\nPDF guardado en:\n{pdf_path}")
+        self.refresh()
+        self.app.pages["remitos"].refresh()
+
+
+# ── Página: Nuevo Presupuesto ────────────────────────────────────────────────
+
+class NuevoPresupuestoPage(QWidget):
+    def __init__(self, app):
+        super().__init__()
+        self.app = app
+        self._items = []
+        self._clients_data = []
+        self._build()
+
+    def _build(self):
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        title = QLabel("Nuevo Presupuesto")
+        title.setObjectName("page_title")
+        title.setContentsMargins(28, 24, 28, 12)
+        outer.addWidget(title)
+
+        # Scroll
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        outer.addWidget(scroll)
+
+        container = QWidget()
+        container.setObjectName("content_area")
+        scroll.setWidget(container)
+
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(28, 8, 28, 28)
+        layout.setSpacing(16)
+
+        layout.addWidget(self._build_cliente())
+        layout.addWidget(self._build_datos())
+        layout.addWidget(self._build_items())
+        layout.addWidget(self._build_obs())
+
+        # Totales
+        totales_row = QHBoxLayout()
+        totales_row.addStretch()
+        totales_w = self._build_totales()
+        totales_row.addWidget(totales_w)
+        layout.addLayout(totales_row)
+
+        # Botones
+        btns = QHBoxLayout()
+        btns.addStretch()
+        b_cancel = make_btn("Cancelar",             "secondary")
+        b_save   = make_btn("Guardar y Generar PDF", "success")
+        b_cancel.clicked.connect(self._cancel)
+        b_save.clicked.connect(self._guardar)
+        btns.addWidget(b_cancel)
+        btns.addWidget(b_save)
+        layout.addLayout(btns)
+
+    def _card(self, title):
+        card = QFrame()
+        card.setObjectName("card")
+        v = QVBoxLayout(card)
+        v.setContentsMargins(20, 16, 20, 16)
+        v.setSpacing(12)
+        lbl = QLabel(title)
+        lbl.setObjectName("card_title")
+        v.addWidget(lbl)
+        return card, v
+
+    def _build_cliente(self):
+        card, layout = self._card("Cliente")
+
+        row = QHBoxLayout()
+        row.addWidget(QLabel("Cliente *"))
+        self._client_combo = QComboBox()
+        self._client_combo.setMinimumWidth(300)
+        self._client_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        row.addWidget(self._client_combo)
+        row.addSpacing(8)
+        b_new = make_btn("+ Nuevo cliente", "primary")
+        b_new.clicked.connect(self._new_client)
+        row.addWidget(b_new)
+        row.addStretch()
+        layout.addLayout(row)
+        return card
+
+    def _build_datos(self):
+        card, layout = self._card("Datos del presupuesto")
+
+        row = QHBoxLayout()
+        row.addWidget(QLabel("Fecha *"))
+        self._date_edit = QLineEdit(date.today().isoformat())
+        self._date_edit.setFixedWidth(130)
+        self._date_edit.setPlaceholderText("YYYY-MM-DD")
+        row.addWidget(self._date_edit)
+
+        row.addSpacing(24)
+        row.addWidget(QLabel("Válido hasta *"))
+        from datetime import datetime, timedelta
+        default_valid = (datetime.now() + timedelta(days=30)).isoformat()[:10]
+        self._valid_until_edit = QLineEdit(default_valid)
+        self._valid_until_edit.setFixedWidth(130)
+        self._valid_until_edit.setPlaceholderText("YYYY-MM-DD")
+        row.addWidget(self._valid_until_edit)
+
+        row.addSpacing(24)
+        row.addWidget(QLabel("IVA"))
+        self._tax_combo = QComboBox()
+        self._tax_combo.addItems(["21%", "10.5%", "0%"])
+        self._tax_combo.setFixedWidth(90)
+        self._tax_combo.currentTextChanged.connect(lambda _: self._update_totals())
+        row.addWidget(self._tax_combo)
+        row.addStretch()
+        layout.addLayout(row)
+        return card
+
+    def _build_items(self):
+        card, layout = self._card("Items")
+
+        # Fila de entrada
+        input_row = QHBoxLayout()
+        input_row.setSpacing(8)
+
+        col = QVBoxLayout()
+        col.addWidget(make_label("Descripción", size=10, color="#64748b"))
+        self._desc_edit = QLineEdit()
+        self._desc_edit.setPlaceholderText("Descripción del ítem...")
+        self._desc_edit.returnPressed.connect(self._add_item)
+        col.addWidget(self._desc_edit)
+        input_row.addLayout(col, 3)
+
+        col2 = QVBoxLayout()
+        col2.addWidget(make_label("Cantidad", size=10, color="#64748b"))
+        self._qty_edit = QLineEdit("1")
+        self._qty_edit.setFixedWidth(80)
+        self._qty_edit.returnPressed.connect(self._add_item)
+        col2.addWidget(self._qty_edit)
+        input_row.addLayout(col2)
+
+        col3 = QVBoxLayout()
+        col3.addWidget(make_label("Precio Unit.", size=10, color="#64748b"))
+        self._price_edit = QLineEdit()
+        self._price_edit.setPlaceholderText("0.00")
+        self._price_edit.setFixedWidth(130)
+        self._price_edit.returnPressed.connect(self._add_item)
+        col3.addWidget(self._price_edit)
+        input_row.addLayout(col3)
+
+        b_add = make_btn("Agregar", "primary")
+        b_add.clicked.connect(self._add_item)
+        input_row.addWidget(b_add, 0, Qt.AlignBottom)
+        layout.addLayout(input_row)
+
+        # Tabla de ítems
+        self._items_table = QTableWidget()
+        self._items_table.setColumnCount(4)
+        self._items_table.setHorizontalHeaderLabels(
+            ["Descripción", "Cant.", "Precio Unit.", "Subtotal"])
+        self._items_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
+        self._items_table.horizontalHeader().resizeSection(1, 80)
+        self._items_table.horizontalHeader().resizeSection(2, 130)
+        self._items_table.horizontalHeader().resizeSection(3, 130)
+        self._items_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self._items_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self._items_table.verticalHeader().setVisible(False)
+        self._items_table.setAlternatingRowColors(True)
+        self._items_table.setStyleSheet("alternate-background-color: #f8fafc;")
+        self._items_table.setMinimumHeight(160)
+        layout.addWidget(self._items_table)
+
+        b_del = make_btn("Eliminar seleccionado", "danger")
+        b_del.clicked.connect(self._remove_item)
+        del_row = QHBoxLayout()
+        del_row.addStretch()
+        del_row.addWidget(b_del)
+        layout.addLayout(del_row)
+        return card
+
+    def _build_obs(self):
+        card, layout = self._card("Observaciones (opcional)")
+        self._obs_edit = QLineEdit()
+        self._obs_edit.setPlaceholderText("Notas adicionales...")
+        layout.addWidget(self._obs_edit)
+        return card
+
+    def _build_totales(self):
+        w = QFrame()
+        w.setObjectName("card")
+        v = QVBoxLayout(w)
+        v.setContentsMargins(20, 14, 20, 14)
+        v.setSpacing(6)
+        v.setAlignment(Qt.AlignRight)
+
+        self._lbl_sub = QLabel()
+        self._lbl_iva = QLabel()
+        self._lbl_tot = QLabel()
+        self._lbl_tot.setStyleSheet("color: #2563eb; font-size: 16px; font-weight: bold;")
+
+        for lbl in (self._lbl_sub, self._lbl_iva, self._lbl_tot):
+            lbl.setAlignment(Qt.AlignRight)
+            v.addWidget(lbl)
+
+        self._update_totals()
+        return w
+
+    # ── Lógica ──
+
+    def refresh(self):
+        clients = db.get_all_clients()
+        self._clients_data = clients
+        current = self._client_combo.currentText()
+        self._client_combo.clear()
+        for c in clients:
+            self._client_combo.addItem(c["name"], c["id"])
+        if current:
+            idx = self._client_combo.findText(current)
+            if idx >= 0:
+                self._client_combo.setCurrentIndex(idx)
+
+    def _tax_rate(self):
+        return {"21%": 0.21, "10.5%": 0.105, "0%": 0.0}.get(
+            self._tax_combo.currentText(), 0.21)
+
+    def _update_totals(self):
+        subtotal   = sum(i["subtotal"] for i in self._items)
+        tax_rate   = self._tax_rate()
+        tax_label  = self._tax_combo.currentText()
+        tax_amount = round(subtotal * tax_rate, 2)
+        total      = round(subtotal + tax_amount, 2)
+
+        self._lbl_sub.setText(f"Subtotal:    $ {subtotal:>12,.2f}")
+        self._lbl_iva.setText(f"IVA {tax_label}:   $ {tax_amount:>12,.2f}")
+        self._lbl_tot.setText(f"TOTAL:       $ {total:>12,.2f}")
+
+    def _add_item(self):
+        desc  = self._desc_edit.text().strip()
+        q_str = self._qty_edit.text().strip().replace(",", ".")
+        p_str = self._price_edit.text().strip().replace(",", ".")
+
+        if not desc:
+            QMessageBox.warning(self, "Atención", "Ingrese una descripción.")
+            self._desc_edit.setFocus()
+            return
+        try:
+            qty   = float(q_str)
+            price = float(p_str)
+            if qty <= 0 or price < 0:
+                raise ValueError
+        except ValueError:
+            QMessageBox.warning(self, "Atención",
+                                "Cantidad y precio deben ser números válidos (mayores a 0).")
+            return
+
+        subtotal = round(qty * price, 2)
+        self._items.append({"description": desc, "qty": qty,
+                             "unit_price": price, "subtotal": subtotal})
+
+        row = self._items_table.rowCount()
+        self._items_table.insertRow(row)
+        self._items_table.setItem(row, 0, QTableWidgetItem(desc))
+        qty_item = QTableWidgetItem(f"{qty:g}")
+        qty_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self._items_table.setItem(row, 1, qty_item)
+        for col, val in [(2, f"$ {price:,.2f}"), (3, f"$ {subtotal:,.2f}")]:
+            it = QTableWidgetItem(val)
+            it.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            self._items_table.setItem(row, col, it)
+
+        self._desc_edit.clear()
+        self._qty_edit.setText("1")
+        self._price_edit.clear()
+        self._desc_edit.setFocus()
+        self._update_totals()
+
+    def _remove_item(self):
+        row = self._items_table.currentRow()
+        if row < 0:
+            return
+        self._items_table.removeRow(row)
+        self._items.pop(row)
+        self._update_totals()
+
+    def _new_client(self):
+        dlg = ClientDialog(self)
+        if dlg.exec_() == QDialog.Accepted and dlg.result_data:
+            cid = db.create_client(*dlg.result_data)
+            self.refresh()
+            idx = self._client_combo.findData(cid)
+            if idx >= 0:
+                self._client_combo.setCurrentIndex(idx)
+
+    def _cancel(self):
+        self._reset()
+        self.app.show_page("presupuestos")
+
+    def _reset(self):
+        self._items.clear()
+        self._items_table.setRowCount(0)
+        self._desc_edit.clear()
+        self._qty_edit.setText("1")
+        self._price_edit.clear()
+        self._obs_edit.clear()
+        self._date_edit.setText(date.today().isoformat())
+        from datetime import datetime, timedelta
+        self._valid_until_edit.setText((datetime.now() + timedelta(days=30)).isoformat()[:10])
+        self._tax_combo.setCurrentIndex(0)
+        self._update_totals()
+
+    def _guardar(self):
+        if not self._items:
+            QMessageBox.warning(self, "Atención", "Agregue al menos un ítem.")
+            return
+
+        if self._client_combo.count() == 0:
+            QMessageBox.warning(self, "Atención", "Seleccione un cliente.")
+            return
+
+        cid = self._client_combo.currentData()
+        client = db.get_client(cid)
+        if not client:
+            QMessageBox.critical(self, "Error", "Cliente no encontrado.")
+            return
+
+        date_str = self._date_edit.text().strip()
+        valid_until = self._valid_until_edit.text().strip()
+        try:
+            date.fromisoformat(date_str)
+            date.fromisoformat(valid_until)
+        except ValueError:
+            QMessageBox.warning(self, "Atención",
+                                "Fechas inválidas. Use el formato YYYY-MM-DD.")
+            return
+
+        tax_rate   = self._tax_rate()
+        subtotal   = round(sum(i["subtotal"] for i in self._items), 2)
+        tax_amount = round(subtotal * tax_rate, 2)
+        total      = round(subtotal + tax_amount, 2)
+        number     = db.get_next_presupuesto_number()
+
+        presupuesto_id = db.create_presupuesto(
+            number=number, date=date_str, valid_until=valid_until,
+            client_id=client["id"],
+            client_name=client["name"],
+            client_address=client.get("address", ""),
+            client_cuit=client.get("cuit_dni", ""),
+            client_email=client.get("email", ""),
+            client_phone=client.get("phone", ""),
+            items=self._items, subtotal=subtotal,
+            tax_rate=tax_rate, tax_amount=tax_amount,
+            total=total, observations=self._obs_edit.text().strip(),
+        )
+
+        presupuesto_data = db.get_presupuesto(presupuesto_id)
+        pdf_path = pdf_gen.generate_pdf_presupuesto(presupuesto_data)
+        db.update_presupuesto_pdf_path(presupuesto_id, pdf_path)
+
+        reply = QMessageBox.question(
+            self, "Presupuesto generado",
+            f"Presupuesto {number} guardado exitosamente.\n\n¿Abrir el PDF?",
+        )
+        if reply == QMessageBox.Yes:
+            open_pdf(pdf_path)
+
+        self._reset()
+        self.app.show_page("presupuestos")
+        self.app.pages["presupuestos"].refresh()
+
+
 # ── Ventana principal ─────────────────────────────────────────────────────────
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Generador de Remitos")
+        self.setWindowTitle("Generador de Remitos y Presupuestos")
         self.resize(1150, 740)
         self.setMinimumSize(900, 600)
 
@@ -902,9 +1451,11 @@ class MainWindow(QMainWindow):
 
         self._nav_btns = {}
         nav_items = [
-            ("remitos",       "  Remitos"),
-            ("nuevo_remito",  "  Nuevo Remito"),
-            ("clientes",      "  Clientes"),
+            ("remitos",         "  Remitos"),
+            ("nuevo_remito",    "  Nuevo Remito"),
+            ("presupuestos",    "  Presupuestos"),
+            ("nuevo_presupuesto", "  Nuevo Presupuesto"),
+            ("clientes",        "  Clientes"),
         ]
         for key, label in nav_items:
             btn = QPushButton(label)
@@ -923,17 +1474,11 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self._stack)
 
         self.pages = {}
-        for PageClass in (RemitosPage, NuevoRemitoPage, ClientesPage):
+        for PageClass in (RemitosPage, NuevoRemitoPage, PresupuestosPage, NuevoPresupuestoPage, ClientesPage):
             page = PageClass(self)
-            self.pages[PageClass.__name__.replace("Page", "").lower().replace("nuevo", "nuevo_")] = page
+            key = PageClass.__name__.replace("Page", "").lower().replace("nuevo", "nuevo_")
+            self.pages[key] = page
             self._stack.addWidget(page)
-
-        # Ajuste manual de claves
-        self.pages = {
-            "remitos":      self._stack.widget(0),
-            "nuevo_remito": self._stack.widget(1),
-            "clientes":     self._stack.widget(2),
-        }
 
         self.show_page("remitos")
 
@@ -952,6 +1497,7 @@ class MainWindow(QMainWindow):
 if __name__ == "__main__":
     db.init_db()
     os.makedirs(pdf_gen.PDF_DIR, exist_ok=True)
+    os.makedirs(pdf_gen.PRESUPUESTOS_PDF_DIR, exist_ok=True)
 
     app = QApplication(sys.argv)
     app.setStyleSheet(STYLESHEET)
