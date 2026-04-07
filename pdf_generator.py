@@ -2,6 +2,7 @@ import os
 from fpdf import FPDF
 
 PDF_DIR = os.path.join(os.path.dirname(__file__), "remitos_pdf")
+PRESUPUESTOS_PDF_DIR = os.path.join(os.path.dirname(__file__), "presupuestos_pdf")
 
 # Configuración de empresa — editar a gusto
 EMPRESA_NOMBRE = "compulibra - soluciones informáticas"
@@ -51,6 +52,51 @@ class RemitoPDF(FPDF):
         self.set_font("Helvetica", "I", 8)
         self.set_text_color(120, 120, 120)
         self.cell(0, 5, "Documento no válido como factura", align="L")
+        self.set_text_color(0, 0, 0)
+
+
+class PresupuestoPDF(FPDF):
+    def __init__(self, presupuesto):
+        super().__init__(orientation="P", unit="mm", format="A4")
+        self.presupuesto = presupuesto
+        self.set_margins(15, 15, 15)
+        self.set_auto_page_break(auto=True, margin=20)
+
+    def header(self):
+        presupuesto = self.presupuesto
+        # Empresa (izquierda)
+        self.set_font("Helvetica", "B", 14)
+        self.cell(0, 7, EMPRESA_NOMBRE, ln=True)
+        self.set_font("Helvetica", "", 9)
+        for line in [EMPRESA_DIRECCION, EMPRESA_CUIT, EMPRESA_TELEFONO, EMPRESA_EMAIL]:
+            self.cell(0, 5, line, ln=True)
+
+        # Caja PRESUPUESTO (derecha)
+        self.set_xy(130, 15)
+        self.set_font("Helvetica", "B", 18)
+        self.set_fill_color(25, 60, 100)
+        self.set_text_color(255, 255, 255)
+        self.cell(65, 12, "PRESUPUESTO", border=1, align="C", fill=True, ln=True)
+        self.set_text_color(0, 0, 0)
+
+        self.set_xy(130, 27)
+        self.set_font("Helvetica", "", 10)
+        self.cell(65, 7, f"N\u00b0 {presupuesto['number']}", border=1, align="C", ln=True)
+        self.set_xy(130, 34)
+        self.cell(65, 7, f"Fecha: {presupuesto['date']}", border=1, align="C", ln=True)
+        self.set_xy(130, 41)
+        self.cell(65, 7, f"Válido: {presupuesto['valid_until']}", border=1, align="C", ln=True)
+
+        self.ln(5)
+        self.set_line_width(0.5)
+        self.line(15, self.get_y(), 195, self.get_y())
+        self.ln(3)
+
+    def footer(self):
+        self.set_y(-15)
+        self.set_font("Helvetica", "I", 8)
+        self.set_text_color(120, 120, 120)
+        self.cell(0, 5, f"Presupuesto válido hasta: {self.presupuesto['valid_until']}", align="L")
         self.set_text_color(0, 0, 0)
 
 
@@ -169,6 +215,24 @@ def generate_pdf(remito, output_dir=None):
     _items_table(pdf, remito["items"])
     _totals_block(pdf, remito)
     _observations_block(pdf, remito.get("observations", ""))
+
+    pdf.output(filepath)
+    return os.path.abspath(filepath)
+
+
+def generate_pdf_presupuesto(presupuesto, output_dir=None):
+    os.makedirs(output_dir or PRESUPUESTOS_PDF_DIR, exist_ok=True)
+    safe_number = presupuesto["number"].replace("/", "-")
+    filename = f"presupuesto_{safe_number}_{presupuesto['date']}.pdf"
+    filepath = os.path.join(output_dir or PRESUPUESTOS_PDF_DIR, filename)
+
+    pdf = PresupuestoPDF(presupuesto)
+    pdf.add_page()
+
+    _client_block(pdf, presupuesto)
+    _items_table(pdf, presupuesto["items"])
+    _totals_block(pdf, presupuesto)
+    _observations_block(pdf, presupuesto.get("observations", ""))
 
     pdf.output(filepath)
     return os.path.abspath(filepath)

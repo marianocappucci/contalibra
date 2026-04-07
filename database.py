@@ -44,6 +44,29 @@ def init_db():
                 pdf_path       TEXT,
                 created_at     TEXT DEFAULT (datetime('now'))
             );
+
+            CREATE TABLE IF NOT EXISTS presupuestos (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                number          TEXT NOT NULL UNIQUE,
+                date            TEXT NOT NULL,
+                valid_until     TEXT NOT NULL,
+                status          TEXT NOT NULL DEFAULT 'pendiente',
+                client_id       INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+                client_name     TEXT NOT NULL,
+                client_address  TEXT,
+                client_cuit     TEXT,
+                client_email    TEXT,
+                client_phone    TEXT,
+                items           TEXT NOT NULL,
+                subtotal        REAL NOT NULL,
+                tax_rate        REAL NOT NULL DEFAULT 0.21,
+                tax_amount      REAL NOT NULL,
+                total           REAL NOT NULL,
+                observations    TEXT,
+                pdf_path        TEXT,
+                remito_id       INTEGER REFERENCES remitos(id),
+                created_at      TEXT DEFAULT (datetime('now'))
+            );
         """)
 
 
@@ -90,11 +113,20 @@ def update_client(client_id, name=None, address=None, cuit_dni=None, email=None,
 
 def delete_client(client_id):
     with get_connection() as conn:
-        count = conn.execute(
+        remito_count = conn.execute(
             "SELECT COUNT(*) FROM remitos WHERE client_id=?", (client_id,)
         ).fetchone()[0]
-        if count > 0:
-            raise ValueError(f"El cliente tiene {count} remito(s) asociado(s) y no puede eliminarse.")
+        presupuesto_count = conn.execute(
+            "SELECT COUNT(*) FROM presupuestos WHERE client_id=?", (client_id,)
+        ).fetchone()[0]
+        total_count = remito_count + presupuesto_count
+        if total_count > 0:
+            msg_parts = []
+            if remito_count > 0:
+                msg_parts.append(f"{remito_count} remito(s)")
+            if presupuesto_count > 0:
+                msg_parts.append(f"{presupuesto_count} presupuesto(s)")
+            raise ValueError(f"El cliente tiene {' y '.join(msg_parts)} asociado(s) y no puede eliminarse.")
         conn.execute("DELETE FROM clients WHERE id=?", (client_id,))
 
 
@@ -172,6 +204,102 @@ def search_remitos(query):
     with get_connection() as conn:
         rows = conn.execute(
             """SELECT * FROM remitos
+               WHERE number LIKE ? OR client_name LIKE ? OR observations LIKE ?
+               ORDER BY id DESC""",
+            (q, q, q),
+        ).fetchall()
+        result = []
+        for r in rows:
+            d = dict(r)
+            d["items"] = json.loads(d["items"])
+            result.append(d)
+        return result
+
+
+# ── Presupuestos ───────────────────────────────────────────────────────────────
+
+def get_next_presupuesto_number():
+    with get_connection() as conn:
+        row = conn.execute("SELECT MAX(id) FROM presupuestos").fetchone()
+        next_id = (row[0] or 0) + 1
+        return f"PRES-{next_id:08d}"
+
+
+def create_presupuesto(number, date, valid_until, client_id, client_name, client_address,
+                       client_cuit, client_email, client_phone, items, subtotal, tax_rate,
+                       tax_amount, total, observations="", pdf_path="", status="pendiente"):
+    with get_connection() as conn:
+        cur = conn.execute(
+            """INSERT INTO presupuestos
+               (number, date, valid_until, status, client_id, client_name, client_address,
+                client_cuit, client_email, client_phone, items, subtotal, tax_rate,
+                tax_amount, total, observations, pdf_path)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                number, date, valid_until, status, client_id, client_name, client_address,
+                client_cuit, client_email, client_phone, json.dumps(items, ensure_ascii=False),
+                subtotal, tax_rate, tax_amount, total, observations, pdf_path,
+            ),
+        )
+        return cur.lastrowid
+
+
+def update_presupuesto_pdf_path(presupuesto_id, pdf_path):
+    with get_connection() as conn:
+        conn.execute("UPDATE presupuestos SET pdf_path=? WHERE id=?", (pdf_path, presupuesto_id))
+
+
+def update_presupuesto_status(presupuesto_id, status):
+    with get_connection() as conn:
+        conn.execute("UPDATE presupuestos SET status=? WHERE id=?", (status, presupuesto_id))
+
+
+def update_presupuesto_remito_id(presupuesto_id, remito_id):
+    with get_connection() as conn:
+        conn.execute("UPDATE presupuestos SET remito_id=? WHERE id=?", (remito_id, presupuesto_id))
+
+
+def get_all_presupuestos(limit=100):
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT * FROM presupuestos ORDER BY id DESC LIMIT ?", (limit,)
+        ).fetchall()
+        result = []
+        for r in rows:
+            d = dict(r)
+            d["items"] = json.loads(d["items"])
+            result.append(d)
+        return result
+
+
+def get_presupuesto(presupuesto_id):
+    with get_connection() as conn:
+        row = conn.execute("SELECT * FROM presupuestos WHERE id=?", (presupuesto_id,)).fetchone()
+        if not row:
+            return None
+        d = dict(row)
+        d["items"] = json.loads(d["items"])
+        return d
+
+
+def get_presupuestos_by_client(client_id):
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT * FROM presupuestos WHERE client_id=? ORDER BY id DESC", (client_id,)
+        ).fetchall()
+        result = []
+        for r in rows:
+            d = dict(r)
+            d["items"] = json.loads(d["items"])
+            result.append(d)
+        return result
+
+
+def search_presupuestos(query):
+    q = f"%{query}%"
+    with get_connection() as conn:
+        rows = conn.execute(
+            """SELECT * FROM presupuestos
                WHERE number LIKE ? OR client_name LIKE ? OR observations LIKE ?
                ORDER BY id DESC""",
             (q, q, q),
