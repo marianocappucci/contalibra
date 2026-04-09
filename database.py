@@ -68,6 +68,27 @@ def init_db():
                 created_at      TEXT DEFAULT (datetime('now'))
             );
 
+            CREATE TABLE IF NOT EXISTS facturas (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                tipo            INTEGER NOT NULL,
+                punto_venta     INTEGER NOT NULL,
+                numero          INTEGER NOT NULL,
+                fecha           TEXT NOT NULL,
+                cliente_cuit    TEXT,
+                cliente_razon   TEXT,
+                cliente_iva_cond INTEGER,
+                items           TEXT NOT NULL,
+                subtotal        REAL NOT NULL,
+                iva_amount      REAL NOT NULL,
+                total           REAL NOT NULL,
+                concepto        INTEGER NOT NULL DEFAULT 1,
+                cae             TEXT,
+                cae_vto         TEXT,
+                observaciones   TEXT,
+                pdf_path        TEXT,
+                created_at      TEXT DEFAULT (datetime('now'))
+            );
+
             CREATE TABLE IF NOT EXISTS arca_config (
                 id              INTEGER PRIMARY KEY AUTOINCREMENT,
                 empresa         TEXT NOT NULL UNIQUE,
@@ -443,3 +464,90 @@ def eliminar_arca_config(empresa):
         conn.execute(
             "UPDATE arca_config SET activo=0 WHERE empresa=?", (empresa,)
         )
+
+
+# ── Facturas ────────────────────────────────────────────────────────────────────
+
+def create_factura(tipo, punto_venta, numero, fecha, cliente_cuit, cliente_razon,
+                   cliente_iva_cond, items, subtotal, iva_amount, total,
+                   concepto=1, cae="", cae_vto="", observaciones="", pdf_path=""):
+    """Crea una nueva factura electrónica."""
+    with get_connection() as conn:
+        cur = conn.execute(
+            """INSERT INTO facturas
+               (tipo, punto_venta, numero, fecha, cliente_cuit, cliente_razon,
+                cliente_iva_cond, items, subtotal, iva_amount, total, concepto,
+                cae, cae_vto, observaciones, pdf_path)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (tipo, punto_venta, numero, fecha, cliente_cuit, cliente_razon,
+             cliente_iva_cond, json.dumps(items, ensure_ascii=False), subtotal,
+             iva_amount, total, concepto, cae, cae_vto, observaciones, pdf_path),
+        )
+        return cur.lastrowid
+
+
+def get_all_facturas(limit=100):
+    """Obtiene todas las facturas (últimas primero)."""
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT * FROM facturas ORDER BY id DESC LIMIT ?", (limit,)
+        ).fetchall()
+        result = []
+        for r in rows:
+            d = dict(r)
+            d["items"] = json.loads(d["items"])
+            result.append(d)
+        return result
+
+
+def get_factura(factura_id):
+    """Obtiene una factura por ID."""
+    with get_connection() as conn:
+        row = conn.execute("SELECT * FROM facturas WHERE id=?", (factura_id,)).fetchone()
+        if not row:
+            return None
+        d = dict(row)
+        d["items"] = json.loads(d["items"])
+        return d
+
+
+def update_factura_cae(factura_id, cae, cae_vto):
+    """Actualiza CAE de una factura después de obtenerlo de ARCA."""
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE facturas SET cae=?, cae_vto=? WHERE id=?",
+            (cae, cae_vto, factura_id)
+        )
+
+
+def update_factura_pdf_path(factura_id, pdf_path):
+    """Actualiza el path del PDF de la factura."""
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE facturas SET pdf_path=? WHERE id=?",
+            (pdf_path, factura_id)
+        )
+
+
+def search_facturas(query):
+    """Busca facturas por número, cliente o observaciones."""
+    q = f"%{query}%"
+    with get_connection() as conn:
+        rows = conn.execute(
+            """SELECT * FROM facturas
+               WHERE numero LIKE ? OR cliente_razon LIKE ? OR observaciones LIKE ?
+               ORDER BY id DESC""",
+            (q, q, q),
+        ).fetchall()
+        result = []
+        for r in rows:
+            d = dict(r)
+            d["items"] = json.loads(d["items"])
+            result.append(d)
+        return result
+
+
+def delete_factura(factura_id):
+    """Elimina una factura."""
+    with get_connection() as conn:
+        conn.execute("DELETE FROM facturas WHERE id=?", (factura_id,))

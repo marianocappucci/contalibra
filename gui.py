@@ -20,6 +20,7 @@ from PyQt5.QtGui import QFont, QColor, QPalette
 import database as db
 import pdf_generator as pdf_gen
 from arca_gui import ARCAConfigPage
+from gui_facturas import FacturasPage, NuevaFacturaPage
 
 # ── Estilos ───────────────────────────────────────────────────────────────────
 
@@ -1654,6 +1655,8 @@ class MainWindow(QMainWindow):
             ("nuevo_remito",    "  Nuevo Remito"),
             ("presupuestos",    "  Presupuestos"),
             ("nuevo_presupuesto", "  Nuevo Presupuesto"),
+            ("facturas",        "  Facturas"),
+            ("nueva_factura",   "  Nueva Factura"),
             ("clientes",        "  Clientes"),
             ("arca_config",     "  Certificado ARCA"),
         ]
@@ -1674,9 +1677,9 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self._stack)
 
         self.pages = {}
-        for PageClass in (RemitosPage, NuevoRemitoPage, PresupuestosPage, NuevoPresupuestoPage, ClientesPage, ARCAConfigPage):
+        for PageClass in (RemitosPage, NuevoRemitoPage, PresupuestosPage, NuevoPresupuestoPage, FacturasPage, NuevaFacturaPage, ClientesPage, ARCAConfigPage):
             page = PageClass(self)
-            key = PageClass.__name__.replace("Page", "").lower().replace("nuevo", "nuevo_").replace("arcaconfig", "arca_config")
+            key = PageClass.__name__.replace("Page", "").lower().replace("nuevo", "nueva_").replace("arcaconfig", "arca_config")
             self.pages[key] = page
             self._stack.addWidget(page)
 
@@ -1698,6 +1701,7 @@ if __name__ == "__main__":
     db.init_db()
     os.makedirs(pdf_gen.PDF_DIR, exist_ok=True)
     os.makedirs(pdf_gen.PRESUPUESTOS_PDF_DIR, exist_ok=True)
+    os.makedirs("facturas_pdf", exist_ok=True)
 
     app = QApplication(sys.argv)
     app.setStyleSheet(STYLESHEET)
