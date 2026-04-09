@@ -91,8 +91,8 @@ class ARCAConfigPage(QWidget):
         self._sistema_edit.setPlaceholderText("Ej: sistemas_remitos (opcional)")
         form1.addRow("Nombre del Sistema", self._sistema_edit)
 
-        # Card: Directorio
-        card2, form2 = self._card("Ubicación")
+        # Card: Directorio y Ambiente
+        card2, form2 = self._card("Ubicación y Ambiente")
         layout.addWidget(card2)
 
         self._directorio_edit = QLineEdit()
@@ -102,6 +102,18 @@ class ARCAConfigPage(QWidget):
         info = QLabel("Se guardará en: <directorio>/<empresa>_<cuit>/")
         info.setStyleSheet("color: #64748b; font-size: 11px;")
         form2.addRow("", info)
+
+        self._ambiente_gen_combo = QComboBox()
+        self._ambiente_gen_combo.addItems(["homologacion", "produccion"])
+        self._ambiente_gen_combo.setMaximumWidth(300)
+        form2.addRow("Ambiente ARCA *", self._ambiente_gen_combo)
+
+        ambiente_info = QLabel(
+            "Selecciona el ambiente donde subirás el CSR en ARCA.\n"
+            "Esto se guarda en config.json para referencia."
+        )
+        ambiente_info.setStyleSheet("color: #64748b; font-size: 11px; font-style: italic;")
+        form2.addRow("", ambiente_info)
 
         # Botones
         btns_layout = QHBoxLayout()
@@ -279,6 +291,7 @@ class ARCAConfigPage(QWidget):
         cuit = self._cuit_gen_edit.text().strip().replace("-", "").replace(" ", "")
         sistema = self._sistema_edit.text().strip() or None
         directorio = self._directorio_edit.text().strip()
+        ambiente = self._ambiente_gen_combo.currentText()
 
         # Validaciones
         if not empresa:
@@ -296,7 +309,8 @@ class ARCAConfigPage(QWidget):
             base_dir=directorio,
             empresa=empresa,
             cuit=cuit,
-            sistema=sistema
+            sistema=sistema,
+            ambiente=ambiente
         )
 
         mensaje = "\n".join(resultado['mensajes'])

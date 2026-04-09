@@ -4,6 +4,7 @@ Reutilizable para múltiples empresas.
 """
 
 import os
+import json
 import subprocess
 from pathlib import Path
 from datetime import datetime
@@ -160,7 +161,8 @@ def generar_carpeta_empresa(
     base_dir: str,
     empresa: str,
     cuit: str,
-    sistema: str = None
+    sistema: str = None,
+    ambiente: str = "homologacion"
 ) -> dict:
     """
     Genera certificados en una carpeta organizada por empresa.
@@ -169,16 +171,19 @@ def generar_carpeta_empresa(
     base_dir/
     ├── empresa_1/
     │   ├── clave.key
-    │   └── pedido.csr
+    │   ├── pedido.csr
+    │   └── config.json        ← NUEVO
     ├── empresa_2/
     │   ├── clave.key
-    │   └── pedido.csr
+    │   ├── pedido.csr
+    │   └── config.json
 
     Args:
         base_dir: Directorio base (default: certs/)
         empresa: Nombre de la empresa
         cuit: CUIT sin guiones
         sistema: Nombre descriptivo (optional)
+        ambiente: "homologacion" o "produccion" (default: homologacion)
 
     Returns:
         Dict con rutas y estado
@@ -188,12 +193,36 @@ def generar_carpeta_empresa(
     nombre_carpeta = f"{empresa.lower().replace(' ', '_')}_{cuit}"
     directorio_empresa = os.path.join(base_dir, nombre_carpeta)
 
-    return generar_certificados_completos(
+    resultado = generar_certificados_completos(
         directorio=directorio_empresa,
         empresa=empresa,
         cuit=cuit,
         sistema=sistema
     )
+
+    # Guardar metadatos en config.json
+    if resultado['éxito']:
+        config_data = {
+            "empresa": empresa,
+            "cuit": cuit,
+            "sistema": sistema or empresa.lower().replace(" ", "_"),
+            "ambiente": ambiente,
+            "fecha_generacion": datetime.now().isoformat(),
+            "clave_path": resultado['clave_path'],
+            "csr_path": resultado['csr_path'],
+            "notas": f"Generado automáticamente. Subir CSR a ARCA en ambiente: {ambiente}"
+        }
+
+        config_path = os.path.join(directorio_empresa, "config.json")
+        try:
+            with open(config_path, 'w', encoding='utf-8') as f:
+                json.dump(config_data, f, indent=2, ensure_ascii=False)
+            resultado['config_path'] = config_path
+            resultado['mensajes'].append(f"✓ Configuración guardada en: {config_path}")
+        except Exception as e:
+            resultado['mensajes'].append(f"⚠ Advertencia: No se pudo guardar config.json: {str(e)}")
+
+    return resultado
 
 
 def leer_csr(csr_path: str) -> tuple[bool, str]:
