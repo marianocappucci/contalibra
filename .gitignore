@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv
+
+# Base de datos
+*.db
+*.sqlite
+*.sqlite3
+
+# PDFs generados
+remitos_pdf/
+presupuestos_pdf/
+facturas_pdf/
+
+# Certificados digitales y claves privadas (SEGURIDAD)
+certs/
+*.key
+*.pem
+*.pfx
+*.p12
+*.crt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporales
+*.tmp
+*.temp
