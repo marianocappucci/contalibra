@@ -9,9 +9,9 @@ import database as db
 
 # Intentar importar pyafipws
 try:
-    from pyafipws.wsfev1 import SimpleFeatures
-except ImportError:
-    print("❌ Error: pyafipws no está instalado")
+    from pyafipws.wsfev1 import WSFEv1
+except ImportError as e:
+    print(f"❌ Error al importar pyafipws: {e}")
     print("Instala con: pip install pyafipws")
     sys.exit(1)
 
@@ -50,15 +50,16 @@ def test_arca():
 
     print("✓ Archivos de certificado verificados\n")
 
-    # Crear instancia de SimpleFeatures
+    # Crear instancia de WSFEv1
     print("Conectando a ARCA...")
     try:
-        wsfev1 = SimpleFeatures()
+        wsfev1 = WSFEv1()
 
-        # Configurar para homologación
-        wsfev1.SetTestMode(True)  # Homologación
+        # Configurar para homologación (se detecta automáticamente)
+        # HOMO = True para homologación
 
         # Cargar certificado y clave
+        wsfev1.Cuit = config['cuit']
         wsfev1.LoadCertificate(config['certificado_path'])
         wsfev1.LoadPrivateKey(config['clave_path'])
 
@@ -66,9 +67,9 @@ def test_arca():
 
         # Conectar a WSAA para obtener token
         print("Obteniendo token de WSAA...")
-        ta = wsfev1.FEAuthRequest()
+        wsfev1.Authenticate()
 
-        if ta is None:
+        if not wsfev1.Token or not wsfev1.Sign:
             print("❌ Error obteniendo token")
             print(f"   {wsfev1.ErrMsg}")
             return False
@@ -79,12 +80,12 @@ def test_arca():
 
         # Obtener último número de comprobante
         print("Consultando último número de comprobante...")
-        last_number = wsfev1.FECompUltimoAutorizado(
+        last_number = wsfev1.CompUltimoAutorizado(
             config['punto_venta'],
             1  # Tipo de comprobante: 1 = Factura A
         )
 
-        if last_number is None:
+        if not last_number:
             print(f"❌ Error obteniendo último número")
             print(f"   {wsfev1.ErrMsg}")
             return False
@@ -128,7 +129,7 @@ def test_arca():
         # Solicitar CAE
         print("Solicitando CAE a WSFEV1...")
 
-        # Agregar factura a solicitud
+        # Crear solicitud de factura
         wsfev1.CrearFactura(
             tipo_cbte=factura['CbteTipo'],
             punto_vta=factura['PtoVta'],
@@ -151,19 +152,21 @@ def test_arca():
             base_imponible=factura['ImpTotOper'] - factura['ImpTaxVat']
         )
 
-        # Autorizar
-        cae = wsfev1.FECAESolicitar()
+        # Autorizar (FECAESolicitar)
+        cae = wsfev1.CAESolicitar()
 
-        if cae is None:
+        if not cae:
             print(f"❌ Error obteniendo CAE")
-            print(f"   {wsfev1.ErrMsg}")
-            if hasattr(wsfev1, 'Errores'):
+            print(f"   Error: {wsfev1.ErrMsg}")
+            print(f"   Código: {wsfev1.ErrCode}")
+            if hasattr(wsfev1, 'Errores') and wsfev1.Errores:
                 for error in wsfev1.Errores:
                     print(f"   - {error}")
             return False
 
+        vto_cae = wsfev1.VtoCAE if hasattr(wsfev1, 'VtoCAE') else "Sin info"
         print(f"✅ CAE OBTENIDO: {cae}")
-        print(f"✓ Vencimiento: {wsfev1.Vencimiento}\n")
+        print(f"✓ Vencimiento: {vto_cae}\n")
 
         print("="*70)
         print("✅ TEST EXITOSO - CONEXIÓN A ARCA VERIFICADA")
