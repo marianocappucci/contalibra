@@ -4,7 +4,8 @@ Script de prueba para conectar a ARCA y obtener CAE en homologación.
 """
 
 import sys
-from datetime import datetime, timedelta
+import os
+from datetime import datetime
 import database as db
 
 # Intentar importar pyafipws
@@ -40,7 +41,6 @@ def test_arca():
     print()
 
     # Verificar que los archivos existan
-    import os
     if not os.path.exists(config['clave_path']):
         print(f"❌ Error: Clave privada no encontrada en {config['clave_path']}")
         return False
@@ -51,32 +51,45 @@ def test_arca():
     print("✓ Archivos de certificado verificados\n")
 
     # Crear instancia de WSFEv1
-    print("Conectando a ARCA...")
+    print("Creando instancia de WSFEv1...")
     try:
         wsfev1 = WSFEv1()
 
-        # Configurar para homologación (se detecta automáticamente)
-        # HOMO = True para homologación
+        # Configurar CUIT
+        wsfev1.Cuit = config['cuit']
+
+        # Conectar (homologación por defecto en pyafipws)
+        print("Conectando a WSAA (homologación)...")
+        wsfev1.Conectar(
+            cache="",
+            wsdl=None,
+            proxy="",
+            wrapper=None,
+            cacert=None,
+            timeout=30,
+            soap_server=None
+        )
 
         # Cargar certificado y clave
-        wsfev1.Cuit = config['cuit']
-        wsfev1.LoadCertificate(config['certificado_path'])
-        wsfev1.LoadPrivateKey(config['clave_path'])
+        print("Cargando certificado...")
+        wsfev1.SetCertificate(config['certificado_path'])
+        wsfev1.SetPrivateKey(config['clave_path'])
 
         print("✓ Certificado cargado\n")
 
-        # Conectar a WSAA para obtener token
+        # Autenticar
         print("Obteniendo token de WSAA...")
-        wsfev1.Authenticate()
+        ta = wsfev1.Autenticar()
 
-        if not wsfev1.Token or not wsfev1.Sign:
-            print("❌ Error obteniendo token")
-            print(f"   {wsfev1.ErrMsg}")
+        if not ta:
+            print(f"❌ Error en autenticación")
+            print(f"   Error: {wsfev1.ErrMsg}")
+            print(f"   Código: {wsfev1.ErrCode}")
             return False
 
         print(f"✓ Token obtenido")
-        print(f"  - Token: {wsfev1.Token[:50]}...")
-        print(f"  - Sign: {wsfev1.Sign[:50]}...\n")
+        print(f"  - Token: {wsfev1.Token[:50]}..." if wsfev1.Token else "  - Token: No disponible")
+        print()
 
         # Obtener último número de comprobante
         print("Consultando último número de comprobante...")
@@ -87,7 +100,7 @@ def test_arca():
 
         if not last_number:
             print(f"❌ Error obteniendo último número")
-            print(f"   {wsfev1.ErrMsg}")
+            print(f"   Error: {wsfev1.ErrMsg}")
             return False
 
         print(f"✓ Último número de factura A: {last_number}\n")
@@ -97,62 +110,40 @@ def test_arca():
         nuevo_numero = int(last_number) + 1
         fecha = datetime.now().strftime("%Y%m%d")
 
-        # Datos de la factura
-        factura = {
-            "CantReg": 1,
-            "PtoVta": config['punto_venta'],
-            "CbteTipo": 1,  # Factura A
-            "CbteNro": nuevo_numero,
-            "CbteFecha": int(fecha),
-            "ImpTotal": 100.00,
-            "ImpTotConc": 0,
-            "ImpNetUnifafip": 0,
-            "ImpTaxVat": 21.00,
-            "ImpTotOper": 100.00,
-            "ImpOpEx": 0,
-            "FchVencPago": int(fecha),
-            "FchCbte": int(fecha),
-            "CUITEmisor": config['cuit'],
-            "CUIT": "20000000001",  # CUIT de cliente de prueba
-            "IVA": 21,
-            "Concepto": 1,
-            "DocTipo": 80,  # CUIT
-            "DocNro": 20000000001,
-        }
-
         print(f"✓ Factura preparada:")
-        print(f"  - Tipo: A")
+        print(f"  - Tipo: A (responsable inscripto)")
         print(f"  - Número: {nuevo_numero}")
+        print(f"  - Punto de venta: {config['punto_venta']}")
         print(f"  - Fecha: {fecha}")
         print(f"  - Total: $100.00\n")
 
-        # Solicitar CAE
-        print("Solicitando CAE a WSFEV1...")
-
-        # Crear solicitud de factura
+        # Crear factura
+        print("Creando factura...")
         wsfev1.CrearFactura(
-            tipo_cbte=factura['CbteTipo'],
-            punto_vta=factura['PtoVta'],
-            cbte_nro=factura['CbteNro'],
-            imp_total=factura['ImpTotal'],
-            imp_neto=factura['ImpTotOper'] - factura['ImpTaxVat'],
-            imp_iva=factura['ImpTaxVat'],
+            tipo_cbte=1,  # Factura A
+            punto_vta=config['punto_venta'],
+            cbte_nro=nuevo_numero,
+            imp_total=100.00,
+            imp_neto=82.64,
+            imp_iva=17.36,
             imp_otros_tributos=0,
-            fecha_cbte=factura['FchCbte'],
-            fecha_venc_pago=factura['FchVencPago'],
-            tipo_doc=factura['DocTipo'],
-            nro_doc=factura['DocNro'],
-            concepto=factura['Concepto'],
+            fecha_cbte=int(fecha),
+            fecha_venc_pago=int(fecha),
+            tipo_doc=80,  # CUIT
+            nro_doc=20000000001,  # Cliente de prueba
+            concepto=1,  # Productos
             tipo_expo=0
         )
 
-        # Agregar IVA
+        # Agregar IVA (21%)
+        print("Agregando IVA...")
         wsfev1.AgregarIVA(
-            alicuota=21.00,
-            base_imponible=factura['ImpTotOper'] - factura['ImpTaxVat']
+            alicuota=21.0,
+            base_imponible=82.64
         )
 
-        # Autorizar (FECAESolicitar)
+        # Solicitar CAE
+        print("Solicitando CAE a WSFEV1...\n")
         cae = wsfev1.CAESolicitar()
 
         if not cae:
@@ -160,18 +151,23 @@ def test_arca():
             print(f"   Error: {wsfev1.ErrMsg}")
             print(f"   Código: {wsfev1.ErrCode}")
             if hasattr(wsfev1, 'Errores') and wsfev1.Errores:
+                print(f"   Detalles:")
                 for error in wsfev1.Errores:
-                    print(f"   - {error}")
+                    print(f"     - {error}")
             return False
 
         vto_cae = wsfev1.VtoCAE if hasattr(wsfev1, 'VtoCAE') else "Sin info"
-        print(f"✅ CAE OBTENIDO: {cae}")
-        print(f"✓ Vencimiento: {vto_cae}\n")
 
         print("="*70)
-        print("✅ TEST EXITOSO - CONEXIÓN A ARCA VERIFICADA")
+        print("✅ CAE OBTENIDO EXITOSAMENTE")
         print("="*70)
-        print(f"\nAhora estás listo para integrar facturación en la app.\n")
+        print(f"CAE: {cae}")
+        print(f"Vencimiento: {vto_cae}")
+        print()
+        print("✓ Conexión a ARCA verificada correctamente")
+        print("✓ Certificado funciona correctamente")
+        print()
+        print("Ahora estás listo para integrar facturación en la app.\n")
 
         return True
 
@@ -183,7 +179,6 @@ def test_arca():
 
 
 if __name__ == "__main__":
-    import os
     # Asegurarse de estar en el directorio correcto
     os.chdir(os.path.dirname(__file__))
 
