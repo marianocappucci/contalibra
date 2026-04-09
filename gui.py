@@ -19,6 +19,7 @@ from PyQt5.QtGui import QFont, QColor, QPalette
 
 import database as db
 import pdf_generator as pdf_gen
+from arca_gui import ARCAConfigPage
 
 # ── Estilos ───────────────────────────────────────────────────────────────────
 
@@ -341,12 +342,18 @@ class RemitosPage(QWidget):
 
         # Botones
         btns = QHBoxLayout()
-        b_open  = make_btn("Abrir PDF",       "primary")
-        b_regen = make_btn("Re-generar PDF",   "muted")
+        b_open   = make_btn("Abrir PDF",       "primary")
+        b_regen  = make_btn("Re-generar PDF",   "muted")
+        b_edit   = make_btn("Editar",           "secondary")
+        b_delete = make_btn("Eliminar",         "danger")
         b_open.clicked.connect(self._open_pdf)
         b_regen.clicked.connect(self._regen_pdf)
+        b_edit.clicked.connect(self._editar)
+        b_delete.clicked.connect(self._eliminar)
         btns.addWidget(b_open)
         btns.addWidget(b_regen)
+        btns.addWidget(b_edit)
+        btns.addWidget(b_delete)
         btns.addStretch()
         root.addLayout(btns)
 
@@ -409,6 +416,24 @@ class RemitosPage(QWidget):
         if reply == QMessageBox.Yes:
             open_pdf(path)
 
+    def _editar(self):
+        r = self._selected_remito()
+        if not r:
+            return
+        self.app.pages["nuevo_remito"].load_for_edit(r)
+        self.app.show_page("nuevo_remito")
+
+    def _eliminar(self):
+        r = self._selected_remito()
+        if not r:
+            return
+        reply = QMessageBox.question(self, "Confirmar eliminación",
+                                      f"¿Está seguro de que desea eliminar el remito {r['number']}?")
+        if reply == QMessageBox.Yes:
+            db.delete_remito(r["id"])
+            self.refresh()
+            QMessageBox.information(self, "Eliminado", f"Remito {r['number']} eliminado exitosamente.")
+
 
 # ── Página: Nuevo Remito ──────────────────────────────────────────────────────
 
@@ -418,6 +443,8 @@ class NuevoRemitoPage(QWidget):
         self.app = app
         self._items = []
         self._clients_data = []
+        self._edit_id = None
+        self._title_label = None
         self._build()
 
     def _build(self):
@@ -425,10 +452,10 @@ class NuevoRemitoPage(QWidget):
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
 
-        title = QLabel("Nuevo Remito")
-        title.setObjectName("page_title")
-        title.setContentsMargins(28, 24, 28, 12)
-        outer.addWidget(title)
+        self._title_label = QLabel("Nuevo Remito")
+        self._title_label.setObjectName("page_title")
+        self._title_label.setContentsMargins(28, 24, 28, 12)
+        outer.addWidget(self._title_label)
 
         # Scroll
         scroll = QScrollArea()
@@ -466,6 +493,46 @@ class NuevoRemitoPage(QWidget):
         btns.addWidget(b_cancel)
         btns.addWidget(b_save)
         layout.addLayout(btns)
+
+    def load_for_edit(self, remito):
+        """Carga un remito existente en el formulario para edición."""
+        self._edit_id = remito["id"]
+        self._title_label.setText("Editar Remito")
+
+        # Pre-cargar cliente
+        self.refresh()
+        idx = self._client_combo.findData(remito["client_id"])
+        if idx >= 0:
+            self._client_combo.setCurrentIndex(idx)
+
+        # Pre-cargar datos
+        self._date_edit.setText(remito["date"])
+        self._obs_edit.setText(remito.get("observations") or "")
+
+        # Pre-cargar tasa de IVA
+        tax_pct = int(remito["tax_rate"] * 100)
+        tax_text = f"{tax_pct}%"
+        idx = self._tax_combo.findText(tax_text)
+        if idx >= 0:
+            self._tax_combo.setCurrentIndex(idx)
+
+        # Pre-cargar items
+        self._items.clear()
+        self._items_table.setRowCount(0)
+        for item in remito["items"]:
+            self._items.append(item)
+            row = self._items_table.rowCount()
+            self._items_table.insertRow(row)
+            self._items_table.setItem(row, 0, QTableWidgetItem(item["description"]))
+            qty_item = QTableWidgetItem(f"{item['qty']:g}")
+            qty_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            self._items_table.setItem(row, 1, qty_item)
+            for col, val in [(2, f"$ {item['unit_price']:,.2f}"), (3, f"$ {item['subtotal']:,.2f}")]:
+                it = QTableWidgetItem(val)
+                it.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                self._items_table.setItem(row, col, it)
+
+        self._update_totals()
 
     def _card(self, title):
         card = QFrame()
@@ -703,6 +770,8 @@ class NuevoRemitoPage(QWidget):
         self._obs_edit.clear()
         self._date_edit.setText(date.today().isoformat())
         self._tax_combo.setCurrentIndex(0)
+        self._edit_id = None
+        self._title_label.setText("Nuevo Remito")
         self._update_totals()
 
     def _guardar(self):
@@ -732,31 +801,60 @@ class NuevoRemitoPage(QWidget):
         subtotal   = round(sum(i["subtotal"] for i in self._items), 2)
         tax_amount = round(subtotal * tax_rate, 2)
         total      = round(subtotal + tax_amount, 2)
-        number     = db.get_next_remito_number()
 
-        remito_id = db.create_remito(
-            number=number, date=date_str,
-            client_id=client["id"],
-            client_name=client["name"],
-            client_address=client.get("address", ""),
-            client_cuit=client.get("cuit_dni", ""),
-            client_email=client.get("email", ""),
-            client_phone=client.get("phone", ""),
-            items=self._items, subtotal=subtotal,
-            tax_rate=tax_rate, tax_amount=tax_amount,
-            total=total, observations=self._obs_edit.text().strip(),
-        )
+        if self._edit_id:
+            # Modo edición: actualizar remito existente
+            db.update_remito(
+                remito_id=self._edit_id,
+                date=date_str,
+                client_id=client["id"],
+                client_name=client["name"],
+                client_address=client.get("address", ""),
+                client_cuit=client.get("cuit_dni", ""),
+                client_email=client.get("email", ""),
+                client_phone=client.get("phone", ""),
+                items=self._items,
+                subtotal=subtotal,
+                tax_rate=tax_rate,
+                tax_amount=tax_amount,
+                total=total,
+                observations=self._obs_edit.text().strip(),
+            )
+            remito_data = db.get_remito(self._edit_id)
+            pdf_path = pdf_gen.generate_pdf(remito_data)
+            db.update_remito_pdf_path(self._edit_id, pdf_path)
+            reply = QMessageBox.question(
+                self, "Remito actualizado",
+                f"Remito actualizado exitosamente.\n\n¿Abrir el PDF?",
+            )
+            if reply == QMessageBox.Yes:
+                open_pdf(pdf_path)
+        else:
+            # Modo creación: crear nuevo remito
+            number = db.get_next_remito_number()
+            remito_id = db.create_remito(
+                number=number, date=date_str,
+                client_id=client["id"],
+                client_name=client["name"],
+                client_address=client.get("address", ""),
+                client_cuit=client.get("cuit_dni", ""),
+                client_email=client.get("email", ""),
+                client_phone=client.get("phone", ""),
+                items=self._items, subtotal=subtotal,
+                tax_rate=tax_rate, tax_amount=tax_amount,
+                total=total, observations=self._obs_edit.text().strip(),
+            )
 
-        remito_data = db.get_remito(remito_id)
-        pdf_path = pdf_gen.generate_pdf(remito_data)
-        db.update_remito_pdf_path(remito_id, pdf_path)
+            remito_data = db.get_remito(remito_id)
+            pdf_path = pdf_gen.generate_pdf(remito_data)
+            db.update_remito_pdf_path(remito_id, pdf_path)
 
-        reply = QMessageBox.question(
-            self, "Remito generado",
-            f"Remito {number} guardado exitosamente.\n\n¿Abrir el PDF?",
-        )
-        if reply == QMessageBox.Yes:
-            open_pdf(pdf_path)
+            reply = QMessageBox.question(
+                self, "Remito generado",
+                f"Remito {number} guardado exitosamente.\n\n¿Abrir el PDF?",
+            )
+            if reply == QMessageBox.Yes:
+                open_pdf(pdf_path)
 
         self._reset()
         self.app.show_page("remitos")
@@ -922,12 +1020,18 @@ class PresupuestosPage(QWidget):
         b_open     = make_btn("Abrir PDF",        "primary")
         b_regen    = make_btn("Re-generar PDF",    "muted")
         b_convert  = make_btn("Convertir a Remito", "success")
+        b_edit     = make_btn("Editar",            "secondary")
+        b_delete   = make_btn("Eliminar",          "danger")
         b_open.clicked.connect(self._open_pdf)
         b_regen.clicked.connect(self._regen_pdf)
         b_convert.clicked.connect(self._convert_to_remito)
+        b_edit.clicked.connect(self._editar)
+        b_delete.clicked.connect(self._eliminar)
         btns.addWidget(b_open)
         btns.addWidget(b_regen)
         btns.addWidget(b_convert)
+        btns.addWidget(b_edit)
+        btns.addWidget(b_delete)
         btns.addStretch()
         root.addLayout(btns)
 
@@ -1046,6 +1150,24 @@ class PresupuestosPage(QWidget):
         self.refresh()
         self.app.pages["remitos"].refresh()
 
+    def _editar(self):
+        p = self._selected_presupuesto()
+        if not p:
+            return
+        self.app.pages["nuevo_presupuesto"].load_for_edit(p)
+        self.app.show_page("nuevo_presupuesto")
+
+    def _eliminar(self):
+        p = self._selected_presupuesto()
+        if not p:
+            return
+        reply = QMessageBox.question(self, "Confirmar eliminación",
+                                      f"¿Está seguro de que desea eliminar el presupuesto {p['number']}?")
+        if reply == QMessageBox.Yes:
+            db.delete_presupuesto(p["id"])
+            self.refresh()
+            QMessageBox.information(self, "Eliminado", f"Presupuesto {p['number']} eliminado exitosamente.")
+
 
 # ── Página: Nuevo Presupuesto ────────────────────────────────────────────────
 
@@ -1055,6 +1177,8 @@ class NuevoPresupuestoPage(QWidget):
         self.app = app
         self._items = []
         self._clients_data = []
+        self._edit_id = None
+        self._title_label = None
         self._build()
 
     def _build(self):
@@ -1062,10 +1186,10 @@ class NuevoPresupuestoPage(QWidget):
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
 
-        title = QLabel("Nuevo Presupuesto")
-        title.setObjectName("page_title")
-        title.setContentsMargins(28, 24, 28, 12)
-        outer.addWidget(title)
+        self._title_label = QLabel("Nuevo Presupuesto")
+        self._title_label.setObjectName("page_title")
+        self._title_label.setContentsMargins(28, 24, 28, 12)
+        outer.addWidget(self._title_label)
 
         # Scroll
         scroll = QScrollArea()
@@ -1253,6 +1377,47 @@ class NuevoPresupuestoPage(QWidget):
 
     # ── Lógica ──
 
+    def load_for_edit(self, presupuesto):
+        """Carga un presupuesto existente en el formulario para edición."""
+        self._edit_id = presupuesto["id"]
+        self._title_label.setText("Editar Presupuesto")
+
+        # Pre-cargar cliente
+        self.refresh()
+        idx = self._client_combo.findData(presupuesto["client_id"])
+        if idx >= 0:
+            self._client_combo.setCurrentIndex(idx)
+
+        # Pre-cargar datos
+        self._date_edit.setText(presupuesto["date"])
+        self._valid_until_edit.setText(presupuesto["valid_until"])
+        self._obs_edit.setText(presupuesto.get("observations") or "")
+
+        # Pre-cargar tasa de IVA
+        tax_pct = int(presupuesto["tax_rate"] * 100)
+        tax_text = f"{tax_pct}%"
+        idx = self._tax_combo.findText(tax_text)
+        if idx >= 0:
+            self._tax_combo.setCurrentIndex(idx)
+
+        # Pre-cargar items
+        self._items.clear()
+        self._items_table.setRowCount(0)
+        for item in presupuesto["items"]:
+            self._items.append(item)
+            row = self._items_table.rowCount()
+            self._items_table.insertRow(row)
+            self._items_table.setItem(row, 0, QTableWidgetItem(item["description"]))
+            qty_item = QTableWidgetItem(f"{item['qty']:g}")
+            qty_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            self._items_table.setItem(row, 1, qty_item)
+            for col, val in [(2, f"$ {item['unit_price']:,.2f}"), (3, f"$ {item['subtotal']:,.2f}")]:
+                it = QTableWidgetItem(val)
+                it.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                self._items_table.setItem(row, col, it)
+
+        self._update_totals()
+
     def refresh(self):
         clients = db.get_all_clients()
         self._clients_data = clients
@@ -1352,6 +1517,8 @@ class NuevoPresupuestoPage(QWidget):
         from datetime import datetime, timedelta
         self._valid_until_edit.setText((datetime.now() + timedelta(days=30)).isoformat()[:10])
         self._tax_combo.setCurrentIndex(0)
+        self._edit_id = None
+        self._title_label.setText("Nuevo Presupuesto")
         self._update_totals()
 
     def _guardar(self):
@@ -1383,31 +1550,63 @@ class NuevoPresupuestoPage(QWidget):
         subtotal   = round(sum(i["subtotal"] for i in self._items), 2)
         tax_amount = round(subtotal * tax_rate, 2)
         total      = round(subtotal + tax_amount, 2)
-        number     = db.get_next_presupuesto_number()
 
-        presupuesto_id = db.create_presupuesto(
-            number=number, date=date_str, valid_until=valid_until,
-            client_id=client["id"],
-            client_name=client["name"],
-            client_address=client.get("address", ""),
-            client_cuit=client.get("cuit_dni", ""),
-            client_email=client.get("email", ""),
-            client_phone=client.get("phone", ""),
-            items=self._items, subtotal=subtotal,
-            tax_rate=tax_rate, tax_amount=tax_amount,
-            total=total, observations=self._obs_edit.text().strip(),
-        )
+        if self._edit_id:
+            # Modo edición: actualizar presupuesto existente
+            presupuesto_data = db.get_presupuesto(self._edit_id)
+            db.update_presupuesto(
+                presupuesto_id=self._edit_id,
+                date=date_str,
+                valid_until=valid_until,
+                status=presupuesto_data["status"],
+                client_id=client["id"],
+                client_name=client["name"],
+                client_address=client.get("address", ""),
+                client_cuit=client.get("cuit_dni", ""),
+                client_email=client.get("email", ""),
+                client_phone=client.get("phone", ""),
+                items=self._items,
+                subtotal=subtotal,
+                tax_rate=tax_rate,
+                tax_amount=tax_amount,
+                total=total,
+                observations=self._obs_edit.text().strip(),
+            )
+            presupuesto_data = db.get_presupuesto(self._edit_id)
+            pdf_path = pdf_gen.generate_pdf_presupuesto(presupuesto_data)
+            db.update_presupuesto_pdf_path(self._edit_id, pdf_path)
+            reply = QMessageBox.question(
+                self, "Presupuesto actualizado",
+                f"Presupuesto actualizado exitosamente.\n\n¿Abrir el PDF?",
+            )
+            if reply == QMessageBox.Yes:
+                open_pdf(pdf_path)
+        else:
+            # Modo creación: crear nuevo presupuesto
+            number = db.get_next_presupuesto_number()
+            presupuesto_id = db.create_presupuesto(
+                number=number, date=date_str, valid_until=valid_until,
+                client_id=client["id"],
+                client_name=client["name"],
+                client_address=client.get("address", ""),
+                client_cuit=client.get("cuit_dni", ""),
+                client_email=client.get("email", ""),
+                client_phone=client.get("phone", ""),
+                items=self._items, subtotal=subtotal,
+                tax_rate=tax_rate, tax_amount=tax_amount,
+                total=total, observations=self._obs_edit.text().strip(),
+            )
 
-        presupuesto_data = db.get_presupuesto(presupuesto_id)
-        pdf_path = pdf_gen.generate_pdf_presupuesto(presupuesto_data)
-        db.update_presupuesto_pdf_path(presupuesto_id, pdf_path)
+            presupuesto_data = db.get_presupuesto(presupuesto_id)
+            pdf_path = pdf_gen.generate_pdf_presupuesto(presupuesto_data)
+            db.update_presupuesto_pdf_path(presupuesto_id, pdf_path)
 
-        reply = QMessageBox.question(
-            self, "Presupuesto generado",
-            f"Presupuesto {number} guardado exitosamente.\n\n¿Abrir el PDF?",
-        )
-        if reply == QMessageBox.Yes:
-            open_pdf(pdf_path)
+            reply = QMessageBox.question(
+                self, "Presupuesto generado",
+                f"Presupuesto {number} guardado exitosamente.\n\n¿Abrir el PDF?",
+            )
+            if reply == QMessageBox.Yes:
+                open_pdf(pdf_path)
 
         self._reset()
         self.app.show_page("presupuestos")
@@ -1456,6 +1655,7 @@ class MainWindow(QMainWindow):
             ("presupuestos",    "  Presupuestos"),
             ("nuevo_presupuesto", "  Nuevo Presupuesto"),
             ("clientes",        "  Clientes"),
+            ("arca_config",     "  Certificado ARCA"),
         ]
         for key, label in nav_items:
             btn = QPushButton(label)
@@ -1474,9 +1674,9 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self._stack)
 
         self.pages = {}
-        for PageClass in (RemitosPage, NuevoRemitoPage, PresupuestosPage, NuevoPresupuestoPage, ClientesPage):
+        for PageClass in (RemitosPage, NuevoRemitoPage, PresupuestosPage, NuevoPresupuestoPage, ClientesPage, ARCAConfigPage):
             page = PageClass(self)
-            key = PageClass.__name__.replace("Page", "").lower().replace("nuevo", "nuevo_")
+            key = PageClass.__name__.replace("Page", "").lower().replace("nuevo", "nuevo_").replace("arcaconfig", "arca_config")
             self.pages[key] = page
             self._stack.addWidget(page)
 

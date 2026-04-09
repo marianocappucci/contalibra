@@ -67,6 +67,20 @@ def init_db():
                 remito_id       INTEGER REFERENCES remitos(id),
                 created_at      TEXT DEFAULT (datetime('now'))
             );
+
+            CREATE TABLE IF NOT EXISTS arca_config (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa         TEXT NOT NULL UNIQUE,
+                cuit            TEXT NOT NULL,
+                punto_venta     INTEGER NOT NULL,
+                clave_path      TEXT NOT NULL,
+                certificado_path TEXT NOT NULL,
+                ambiente        TEXT DEFAULT 'homologacion',
+                activo          INTEGER DEFAULT 1,
+                alias           TEXT,
+                created_at      TEXT DEFAULT (datetime('now')),
+                updated_at      TEXT DEFAULT (datetime('now'))
+            );
         """)
 
 
@@ -310,3 +324,122 @@ def search_presupuestos(query):
             d["items"] = json.loads(d["items"])
             result.append(d)
         return result
+
+
+# ── Eliminar ───────────────────────────────────────────────────────────────────
+
+def delete_remito(remito_id):
+    with get_connection() as conn:
+        conn.execute("DELETE FROM remitos WHERE id=?", (remito_id,))
+
+
+def delete_presupuesto(presupuesto_id):
+    with get_connection() as conn:
+        conn.execute("DELETE FROM presupuestos WHERE id=?", (presupuesto_id,))
+
+
+# ── Actualizar ──────────────────────────────────────────────────────────────────
+
+def update_remito(remito_id, date, client_id, client_name, client_address, client_cuit,
+                  client_email, client_phone, items, subtotal, tax_rate, tax_amount,
+                  total, observations=""):
+    with get_connection() as conn:
+        conn.execute(
+            """UPDATE remitos
+               SET date=?, client_id=?, client_name=?, client_address=?, client_cuit=?,
+                   client_email=?, client_phone=?, items=?, subtotal=?, tax_rate=?,
+                   tax_amount=?, total=?, observations=?
+               WHERE id=?""",
+            (
+                date, client_id, client_name, client_address, client_cuit,
+                client_email, client_phone, json.dumps(items, ensure_ascii=False),
+                subtotal, tax_rate, tax_amount, total, observations, remito_id,
+            ),
+        )
+
+
+def update_presupuesto(presupuesto_id, date, valid_until, status, client_id, client_name,
+                       client_address, client_cuit, client_email, client_phone, items,
+                       subtotal, tax_rate, tax_amount, total, observations=""):
+    with get_connection() as conn:
+        conn.execute(
+            """UPDATE presupuestos
+               SET date=?, valid_until=?, status=?, client_id=?, client_name=?,
+                   client_address=?, client_cuit=?, client_email=?, client_phone=?,
+                   items=?, subtotal=?, tax_rate=?, tax_amount=?, total=?, observations=?
+               WHERE id=?""",
+            (
+                date, valid_until, status, client_id, client_name, client_address,
+                client_cuit, client_email, client_phone, json.dumps(items, ensure_ascii=False),
+                subtotal, tax_rate, tax_amount, total, observations, presupuesto_id,
+            ),
+        )
+
+
+# ── Configuración ARCA ──────────────────────────────────────────────────────────
+
+def crear_arca_config(empresa, cuit, punto_venta, clave_path, certificado_path,
+                      ambiente="homologacion", alias=""):
+    """Crea configuración ARCA para una empresa."""
+    with get_connection() as conn:
+        try:
+            cur = conn.execute(
+                """INSERT INTO arca_config
+                   (empresa, cuit, punto_venta, clave_path, certificado_path, ambiente, alias)
+                   VALUES (?,?,?,?,?,?,?)""",
+                (empresa, cuit, punto_venta, clave_path, certificado_path, ambiente, alias),
+            )
+            return cur.lastrowid
+        except Exception as e:
+            raise ValueError(f"Error creando configuración ARCA: {str(e)}")
+
+
+def obtener_arca_config(empresa):
+    """Obtiene configuración ARCA por nombre de empresa."""
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT * FROM arca_config WHERE empresa=? AND activo=1", (empresa,)
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def obtener_todas_arca_configs():
+    """Obtiene todas las configuraciones ARCA activas."""
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT * FROM arca_config WHERE activo=1 ORDER BY empresa"
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def actualizar_arca_config(empresa, cuit=None, punto_venta=None, clave_path=None,
+                          certificado_path=None, ambiente=None, alias=None):
+    """Actualiza configuración ARCA."""
+    with get_connection() as conn:
+        config = obtener_arca_config(empresa)
+        if not config:
+            raise ValueError(f"Configuración ARCA no encontrada para: {empresa}")
+
+        conn.execute(
+            """UPDATE arca_config
+               SET cuit=?, punto_venta=?, clave_path=?, certificado_path=?,
+                   ambiente=?, alias=?, updated_at=datetime('now')
+               WHERE empresa=?""",
+            (
+                cuit if cuit is not None else config["cuit"],
+                punto_venta if punto_venta is not None else config["punto_venta"],
+                clave_path if clave_path is not None else config["clave_path"],
+                certificado_path if certificado_path is not None else config["certificado_path"],
+                ambiente if ambiente is not None else config["ambiente"],
+                alias if alias is not None else config["alias"],
+                empresa,
+            ),
+        )
+
+
+def eliminar_arca_config(empresa):
+    """Marca como inactivo la configuración ARCA."""
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE arca_config SET activo=0 WHERE empresa=?", (empresa,)
+        )

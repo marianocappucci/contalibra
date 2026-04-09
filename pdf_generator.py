@@ -112,7 +112,6 @@ def _client_block(pdf, remito):
     pdf.set_font("Helvetica", "", 10)
     pdf.set_draw_color(180, 180, 180)
     start_y = pdf.get_y()
-    pdf.rect(15, start_y, 180, 28)
 
     fields = [
         ("Cliente", remito["client_name"]),
@@ -121,21 +120,20 @@ def _client_block(pdf, remito):
         ("Email", remito.get("client_email") or "-"),
         ("Teléfono", remito.get("client_phone") or "-"),
     ]
-    col_w = 90
-    x_left = 18
-    y = start_y + 3
+
+    field_height = 7
+    box_height = len(fields) * field_height
+    pdf.rect(15, start_y, 180, box_height)
+
     for i, (label, value) in enumerate(fields):
-        col = i % 2
-        row = i // 2
-        x = x_left + col * col_w
-        yl = start_y + 3 + row * 7
-        pdf.set_xy(x, yl)
+        y = start_y + 3 + i * field_height
+        pdf.set_xy(18, y)
         pdf.set_font("Helvetica", "B", 9)
         pdf.cell(28, 6, f"{label}:", ln=False)
         pdf.set_font("Helvetica", "", 9)
-        pdf.cell(col_w - 30, 6, str(value)[:40], ln=False)
+        pdf.cell(147, 6, str(value)[:80], ln=False)
 
-    pdf.set_y(start_y + 30)
+    pdf.set_y(start_y + box_height + 3)
     pdf.ln(3)
 
 
