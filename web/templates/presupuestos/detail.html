@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Presupuesto {{ presupuesto.number }} — Contalibra{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-calculator me-2 text-primary"></i>Presupuesto <span class="font-monospace">{{ presupuesto.number }}</span></h1>
+  <div class="d-flex gap-2">
+    <a href="/presupuestos/{{ presupuesto.id }}/pdf" class="btn btn-outline-primary" target="_blank">
+      <i class="bi bi-file-pdf me-1"></i>Ver PDF
+    </a>
+    <a href="/presupuestos" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Volver</a>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header">Datos del cliente</div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-sm-4">Cliente</dt><dd class="col-sm-8">{{ presupuesto.client_name }}</dd>
+          {% if presupuesto.client_cuit %}
+          <dt class="col-sm-4">CUIT / DNI</dt><dd class="col-sm-8">{{ presupuesto.client_cuit }}</dd>
+          {% endif %}
+          {% if presupuesto.client_address %}
+          <dt class="col-sm-4">Domicilio</dt><dd class="col-sm-8">{{ presupuesto.client_address }}</dd>
+          {% endif %}
+          {% if presupuesto.client_email %}
+          <dt class="col-sm-4">Email</dt><dd class="col-sm-8">{{ presupuesto.client_email }}</dd>
+          {% endif %}
+          {% if presupuesto.client_phone %}
+          <dt class="col-sm-4">Teléfono</dt><dd class="col-sm-8">{{ presupuesto.client_phone }}</dd>
+          {% endif %}
+        </dl>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header">Datos del presupuesto</div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-sm-5">Número</dt><dd class="col-sm-7 font-monospace">{{ presupuesto.number }}</dd>
+          <dt class="col-sm-5">Fecha</dt><dd class="col-sm-7">{{ presupuesto.date }}</dd>
+          <dt class="col-sm-5">Válido hasta</dt><dd class="col-sm-7">{{ presupuesto.valid_until }}</dd>
+          <dt class="col-sm-5">Estado</dt>
+          <dd class="col-sm-7">
+            {% if presupuesto.status == 'aceptado' %}
+              <span class="badge badge-aceptado rounded-pill px-3">Aceptado</span>
+            {% elif presupuesto.status == 'rechazado' %}
+              <span class="badge badge-rechazado rounded-pill px-3">Rechazado</span>
+            {% else %}
+              <span class="badge badge-pendiente rounded-pill px-3">Pendiente</span>
+            {% endif %}
+          </dd>
+          {% if presupuesto.observations %}
+          <dt class="col-sm-5">Observaciones</dt><dd class="col-sm-7">{{ presupuesto.observations }}</dd>
+          {% endif %}
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">Ítems</div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Descripción</th>
+                <th class="text-end">Cantidad</th>
+                <th class="text-end">Precio unit.</th>
+                <th class="text-end">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in presupuesto['items'] %}
+              <tr>
+                <td>{{ item.description }}</td>
+                <td class="text-end">{{ item.qty }}</td>
+                <td class="text-end">$ {{ "{:,.2f}".format(item.unit_price) }}</td>
+                <td class="text-end">$ {{ "{:,.2f}".format(item.subtotal) }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot class="table-light fw-semibold">
+              <tr>
+                <td colspan="3" class="text-end">Subtotal</td>
+                <td class="text-end">$ {{ "{:,.2f}".format(presupuesto.subtotal) }}</td>
+              </tr>
+              <tr>
+                <td colspan="3" class="text-end">IVA {{ (presupuesto.tax_rate * 100)|int }}%</td>
+                <td class="text-end">$ {{ "{:,.2f}".format(presupuesto.tax_amount) }}</td>
+              </tr>
+              <tr class="fs-5">
+                <td colspan="3" class="text-end fw-bold">TOTAL</td>
+                <td class="text-end fw-bold text-primary">$ {{ "{:,.2f}".format(presupuesto.total) }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if presupuesto.status == 'pendiente' %}
+  <div class="col-12">
+    <div class="card border-warning">
+      <div class="card-header text-warning fw-semibold">Cambiar estado</div>
+      <div class="card-body">
+        <div class="d-flex gap-3 flex-wrap">
+          <form method="post" action="/presupuestos/{{ presupuesto.id }}/estado">
+            <input type="hidden" name="estado" value="aceptado">
+            <input type="hidden" name="convertir_remito" value="0">
+            <button class="btn btn-success"><i class="bi bi-check-circle me-1"></i>Aceptar</button>
+          </form>
+          <form method="post" action="/presupuestos/{{ presupuesto.id }}/estado">
+            <input type="hidden" name="estado" value="aceptado">
+            <input type="hidden" name="convertir_remito" value="1">
+            <button class="btn btn-success"><i class="bi bi-arrow-repeat me-1"></i>Aceptar y convertir a remito</button>
+          </form>
+          <form method="post" action="/presupuestos/{{ presupuesto.id }}/estado"
+                onsubmit="return confirm('¿Marcar como rechazado?')">
+            <input type="hidden" name="estado" value="rechazado">
+            <button class="btn btn-outline-danger"><i class="bi bi-x-circle me-1"></i>Rechazar</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="col-12 d-flex justify-content-end pb-4">
+    <form method="post" action="/presupuestos/{{ presupuesto.id }}/eliminar"
+          onsubmit="return confirm('¿Eliminar este presupuesto?')">
+      <button class="btn btn-outline-danger"><i class="bi bi-trash me-1"></i>Eliminar presupuesto</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
