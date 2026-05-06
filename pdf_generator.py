@@ -24,8 +24,8 @@ def _draw_header_empresa(pdf, empresa, y_start=15, right_box_x=130):
     y = y_start
 
     if logo_path and os.path.exists(logo_path):
-        pdf.image(logo_path, x=15, y=y, h=14)
-        y += 16
+        pdf.image(logo_path, x=15, y=y, h=20)
+        y += 22
     else:
         pdf.set_xy(15, y)
         pdf.set_font("Helvetica", "B", 13)

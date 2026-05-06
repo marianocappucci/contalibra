@@ -41,8 +41,8 @@ class FacturaPDF(FPDF):
         logo_path = config_manager.load().get("logo_path", "")
         y = 10
         if logo_path and os.path.exists(logo_path):
-            self.image(logo_path, x=10, y=y, h=14)
-            y += 16
+            self.image(logo_path, x=10, y=y, h=20)
+            y += 22
 
         # Título centrado
         self.set_y(y)

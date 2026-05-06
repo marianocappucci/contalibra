@@ -572,27 +572,49 @@ class NuevoRemitoPage(QWidget):
         row.addStretch()
         layout.addLayout(row)
 
+        self._cli_lbl_nombre    = QLabel()
         self._cli_lbl_domicilio = QLabel()
         self._cli_lbl_cuit      = QLabel()
         self._cli_lbl_email     = QLabel()
         self._cli_lbl_telefono  = QLabel()
 
-        for lbl_txt, lbl_val, lbl_txt2, lbl_val2 in [
-            ("Domicilio",  self._cli_lbl_domicilio, "CUIT / DNI", self._cli_lbl_cuit),
-            ("Email",      self._cli_lbl_email,     "Teléfono",   self._cli_lbl_telefono),
+        cols = QHBoxLayout()
+        cols.setSpacing(16)
+
+        left  = QVBoxLayout()
+        right = QVBoxLayout()
+        left.setSpacing(4)
+        right.setSpacing(4)
+
+        for lbl_txt, lbl_val in [
+            ("Cliente",    self._cli_lbl_nombre),
+            ("Domicilio",  self._cli_lbl_domicilio),
+            ("CUIT / DNI", self._cli_lbl_cuit),
         ]:
             r = QHBoxLayout()
             r.setSpacing(6)
-            lbl_a = make_label(lbl_txt, size=10, color="#64748b")
-            lbl_a.setFixedWidth(80)
-            r.addWidget(lbl_a)
+            lbl = make_label(lbl_txt, size=10, color="#64748b")
+            lbl.setFixedWidth(80)
+            r.addWidget(lbl)
             r.addWidget(lbl_val, 1)
-            r.addSpacing(20)
-            lbl_b = make_label(lbl_txt2, size=10, color="#64748b")
-            lbl_b.setFixedWidth(80)
-            r.addWidget(lbl_b)
-            r.addWidget(lbl_val2, 1)
-            layout.addLayout(r)
+            left.addLayout(r)
+
+        for lbl_txt, lbl_val in [
+            ("Email",     self._cli_lbl_email),
+            ("Teléfono",  self._cli_lbl_telefono),
+        ]:
+            r = QHBoxLayout()
+            r.setSpacing(6)
+            lbl = make_label(lbl_txt, size=10, color="#64748b")
+            lbl.setFixedWidth(80)
+            r.addWidget(lbl)
+            r.addWidget(lbl_val, 1)
+            right.addLayout(r)
+
+        right.addStretch()
+        cols.addLayout(left, 1)
+        cols.addLayout(right, 1)
+        layout.addLayout(cols)
 
         self._client_combo.currentIndexChanged.connect(self._update_client_info)
         return card
@@ -600,6 +622,7 @@ class NuevoRemitoPage(QWidget):
     def _update_client_info(self):
         cid = self._client_combo.currentData()
         c = db.get_client(cid) if cid else None
+        self._cli_lbl_nombre.setText(c["name"]        or "" if c else "")
         self._cli_lbl_domicilio.setText(c["address"]  or "" if c else "")
         self._cli_lbl_cuit.setText(c["cuit_dni"]      or "" if c else "")
         self._cli_lbl_email.setText(c["email"]        or "" if c else "")
@@ -1298,27 +1321,49 @@ class NuevoPresupuestoPage(QWidget):
         row.addStretch()
         layout.addLayout(row)
 
+        self._cli_lbl_nombre    = QLabel()
         self._cli_lbl_domicilio = QLabel()
         self._cli_lbl_cuit      = QLabel()
         self._cli_lbl_email     = QLabel()
         self._cli_lbl_telefono  = QLabel()
 
-        for lbl_txt, lbl_val, lbl_txt2, lbl_val2 in [
-            ("Domicilio",  self._cli_lbl_domicilio, "CUIT / DNI", self._cli_lbl_cuit),
-            ("Email",      self._cli_lbl_email,     "Teléfono",   self._cli_lbl_telefono),
+        cols = QHBoxLayout()
+        cols.setSpacing(16)
+
+        left  = QVBoxLayout()
+        right = QVBoxLayout()
+        left.setSpacing(4)
+        right.setSpacing(4)
+
+        for lbl_txt, lbl_val in [
+            ("Cliente",    self._cli_lbl_nombre),
+            ("Domicilio",  self._cli_lbl_domicilio),
+            ("CUIT / DNI", self._cli_lbl_cuit),
         ]:
             r = QHBoxLayout()
             r.setSpacing(6)
-            lbl_a = make_label(lbl_txt, size=10, color="#64748b")
-            lbl_a.setFixedWidth(80)
-            r.addWidget(lbl_a)
+            lbl = make_label(lbl_txt, size=10, color="#64748b")
+            lbl.setFixedWidth(80)
+            r.addWidget(lbl)
             r.addWidget(lbl_val, 1)
-            r.addSpacing(20)
-            lbl_b = make_label(lbl_txt2, size=10, color="#64748b")
-            lbl_b.setFixedWidth(80)
-            r.addWidget(lbl_b)
-            r.addWidget(lbl_val2, 1)
-            layout.addLayout(r)
+            left.addLayout(r)
+
+        for lbl_txt, lbl_val in [
+            ("Email",     self._cli_lbl_email),
+            ("Teléfono",  self._cli_lbl_telefono),
+        ]:
+            r = QHBoxLayout()
+            r.setSpacing(6)
+            lbl = make_label(lbl_txt, size=10, color="#64748b")
+            lbl.setFixedWidth(80)
+            r.addWidget(lbl)
+            r.addWidget(lbl_val, 1)
+            right.addLayout(r)
+
+        right.addStretch()
+        cols.addLayout(left, 1)
+        cols.addLayout(right, 1)
+        layout.addLayout(cols)
 
         self._client_combo.currentIndexChanged.connect(self._update_client_info)
         return card
@@ -1326,6 +1371,7 @@ class NuevoPresupuestoPage(QWidget):
     def _update_client_info(self):
         cid = self._client_combo.currentData()
         c = db.get_client(cid) if cid else None
+        self._cli_lbl_nombre.setText(c["name"]        or "" if c else "")
         self._cli_lbl_domicilio.setText(c["address"]  or "" if c else "")
         self._cli_lbl_cuit.setText(c["cuit_dni"]      or "" if c else "")
         self._cli_lbl_email.setText(c["email"]        or "" if c else "")
