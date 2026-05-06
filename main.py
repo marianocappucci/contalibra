@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generador de Remitos
+Contalibra
 """
 import os
 import sys
@@ -649,7 +649,7 @@ def main_menu():
     while True:
         clear()
         console.print(Panel(
-            "[bold white]GENERADOR DE REMITOS Y PRESUPUESTOS[/bold white]",
+            "[bold white]CONTALIBRA[/bold white]",
             subtitle="[dim]Ctrl+C para salir[/dim]",
             expand=False,
         ))

@@ -2,7 +2,7 @@ import sqlite3
 import json
 import os
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "remitos.db")
+DB_PATH = os.path.join(os.path.dirname(__file__), "contalibra.db")
 
 
 def get_connection():

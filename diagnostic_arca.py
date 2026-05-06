@@ -97,10 +97,10 @@ def check_arca_enrollment():
 1. Ingresa a https://www.arca.gob.ar con tu clave fiscal
 2. Ve a "Administración de Certificados Digitales"
 3. Crea un nuevo alias (nombre: compulibra_20289933604)
-4. Sube el archivo CSR: /home/marianocappucci/dev/proyectos/remitos/certs/compulibra_20289933604/pedido.csr
+4. Sube el archivo CSR: /home/usuario/proyectos/contalibra/certs/compulibra_20289933604/pedido.csr
 5. ARCA procesará y firmará tu certificado (puede tomar minutos a horas)
 6. Una vez listo, descarga el archivo .crt
-7. Colócalo en: /home/marianocappucci/dev/proyectos/remitos/certs/compulibra_20289933604/
+7. Colócalo en: /home/usuario/proyectos/contalibra/certs/compulibra_20289933604/
 8. Reemplaza el actual: sistema_facturacion_3e19dd5ee9329945.crt
 
 IMPORTANTE - Asociar a WSFE:
@@ -120,7 +120,7 @@ if __name__ == "__main__":
     os.chdir(os.path.dirname(__file__) or '.')
     db.init_db()
 
-    cert_path = "/home/marianocappucci/dev/proyectos/remitos/certs/compulibra_20289933604/sistema_facturacion_3e19dd5ee9329945.crt"
+    cert_path = "/home/usuario/proyectos/contalibra/certs/compulibra_20289933604/sistema_facturacion_3e19dd5ee9329945.crt"
 
     print("\n" + "="*70)
     print("DIAGNÓSTICO DE CONFIGURACIÓN ARCA")
