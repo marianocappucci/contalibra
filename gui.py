@@ -578,13 +578,19 @@ class NuevoRemitoPage(QWidget):
         self._cli_lbl_email     = QLabel()
         self._cli_lbl_telefono  = QLabel()
 
-        cols = QHBoxLayout()
-        cols.setSpacing(16)
+        cols_row = QHBoxLayout()
+        cols_row.setSpacing(16)
 
-        left  = QVBoxLayout()
-        right = QVBoxLayout()
-        left.setSpacing(4)
-        right.setSpacing(4)
+        left_w  = QWidget()
+        right_w = QWidget()
+        left_w.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        right_w.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        left_v  = QVBoxLayout(left_w)
+        right_v = QVBoxLayout(right_w)
+        left_v.setContentsMargins(0, 0, 0, 0)
+        right_v.setContentsMargins(0, 0, 0, 0)
+        left_v.setSpacing(4)
+        right_v.setSpacing(4)
 
         for lbl_txt, lbl_val in [
             ("Cliente",    self._cli_lbl_nombre),
@@ -597,11 +603,11 @@ class NuevoRemitoPage(QWidget):
             lbl.setFixedWidth(80)
             r.addWidget(lbl)
             r.addWidget(lbl_val, 1)
-            left.addLayout(r)
+            left_v.addLayout(r)
 
         for lbl_txt, lbl_val in [
-            ("Email",     self._cli_lbl_email),
-            ("Teléfono",  self._cli_lbl_telefono),
+            ("Email",    self._cli_lbl_email),
+            ("Teléfono", self._cli_lbl_telefono),
         ]:
             r = QHBoxLayout()
             r.setSpacing(6)
@@ -609,12 +615,12 @@ class NuevoRemitoPage(QWidget):
             lbl.setFixedWidth(80)
             r.addWidget(lbl)
             r.addWidget(lbl_val, 1)
-            right.addLayout(r)
+            right_v.addLayout(r)
 
-        right.addStretch()
-        cols.addLayout(left, 1)
-        cols.addLayout(right, 1)
-        layout.addLayout(cols)
+        right_v.addStretch()
+        cols_row.addWidget(left_w)
+        cols_row.addWidget(right_w)
+        layout.addLayout(cols_row)
 
         self._client_combo.currentIndexChanged.connect(self._update_client_info)
         return card
@@ -1083,18 +1089,24 @@ class PresupuestosPage(QWidget):
 
         # Botones
         btns = QHBoxLayout()
-        b_open     = make_btn("Abrir PDF",        "primary")
-        b_regen    = make_btn("Re-generar PDF",    "muted")
+        b_open     = make_btn("Abrir PDF",          "primary")
+        b_regen    = make_btn("Re-generar PDF",     "muted")
+        b_aprobar  = make_btn("Aprobar",            "success")
+        b_rechazar = make_btn("Rechazar",           "muted")
         b_convert  = make_btn("Convertir a Remito", "success")
-        b_edit     = make_btn("Editar",            "secondary")
-        b_delete   = make_btn("Eliminar",          "danger")
+        b_edit     = make_btn("Editar",             "secondary")
+        b_delete   = make_btn("Eliminar",           "danger")
         b_open.clicked.connect(self._open_pdf)
         b_regen.clicked.connect(self._regen_pdf)
+        b_aprobar.clicked.connect(self._aprobar)
+        b_rechazar.clicked.connect(self._rechazar)
         b_convert.clicked.connect(self._convert_to_remito)
         b_edit.clicked.connect(self._editar)
         b_delete.clicked.connect(self._eliminar)
         btns.addWidget(b_open)
         btns.addWidget(b_regen)
+        btns.addWidget(b_aprobar)
+        btns.addWidget(b_rechazar)
         btns.addWidget(b_convert)
         btns.addWidget(b_edit)
         btns.addWidget(b_delete)
@@ -1170,14 +1182,40 @@ class PresupuestosPage(QWidget):
         if reply == QMessageBox.Yes:
             open_pdf(path)
 
+    def _aprobar(self):
+        p = self._selected_presupuesto()
+        if not p:
+            return
+        if p["status"] == "aceptado":
+            QMessageBox.information(self, "Atención", "El presupuesto ya está aceptado.")
+            return
+        db.update_presupuesto_status(p["id"], "aceptado")
+        self.refresh()
+
+    def _rechazar(self):
+        p = self._selected_presupuesto()
+        if not p:
+            return
+        if p["status"] == "rechazado":
+            QMessageBox.information(self, "Atención", "El presupuesto ya está rechazado.")
+            return
+        db.update_presupuesto_status(p["id"], "rechazado")
+        self.refresh()
+
     def _convert_to_remito(self):
         p = self._selected_presupuesto()
         if not p:
             return
         if p["status"] != "aceptado":
-            QMessageBox.warning(self, "Atención",
-                                "Solo se pueden convertir presupuestos aceptados.")
-            return
+            reply = QMessageBox.question(
+                self, "Presupuesto no aprobado",
+                f"El presupuesto está en estado '{p['status']}'.\n"
+                "¿Aprobarlo y convertirlo a remito ahora?",
+            )
+            if reply != QMessageBox.Yes:
+                return
+            db.update_presupuesto_status(p["id"], "aceptado")
+            p = db.get_presupuesto(p["id"])
 
         reply = QMessageBox.question(self, "Confirmar conversión",
                                       f"¿Convertir el presupuesto {p['number']} a remito?")
@@ -1327,13 +1365,19 @@ class NuevoPresupuestoPage(QWidget):
         self._cli_lbl_email     = QLabel()
         self._cli_lbl_telefono  = QLabel()
 
-        cols = QHBoxLayout()
-        cols.setSpacing(16)
+        cols_row = QHBoxLayout()
+        cols_row.setSpacing(16)
 
-        left  = QVBoxLayout()
-        right = QVBoxLayout()
-        left.setSpacing(4)
-        right.setSpacing(4)
+        left_w  = QWidget()
+        right_w = QWidget()
+        left_w.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        right_w.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        left_v  = QVBoxLayout(left_w)
+        right_v = QVBoxLayout(right_w)
+        left_v.setContentsMargins(0, 0, 0, 0)
+        right_v.setContentsMargins(0, 0, 0, 0)
+        left_v.setSpacing(4)
+        right_v.setSpacing(4)
 
         for lbl_txt, lbl_val in [
             ("Cliente",    self._cli_lbl_nombre),
@@ -1346,11 +1390,11 @@ class NuevoPresupuestoPage(QWidget):
             lbl.setFixedWidth(80)
             r.addWidget(lbl)
             r.addWidget(lbl_val, 1)
-            left.addLayout(r)
+            left_v.addLayout(r)
 
         for lbl_txt, lbl_val in [
-            ("Email",     self._cli_lbl_email),
-            ("Teléfono",  self._cli_lbl_telefono),
+            ("Email",    self._cli_lbl_email),
+            ("Teléfono", self._cli_lbl_telefono),
         ]:
             r = QHBoxLayout()
             r.setSpacing(6)
@@ -1358,12 +1402,12 @@ class NuevoPresupuestoPage(QWidget):
             lbl.setFixedWidth(80)
             r.addWidget(lbl)
             r.addWidget(lbl_val, 1)
-            right.addLayout(r)
+            right_v.addLayout(r)
 
-        right.addStretch()
-        cols.addLayout(left, 1)
-        cols.addLayout(right, 1)
-        layout.addLayout(cols)
+        right_v.addStretch()
+        cols_row.addWidget(left_w)
+        cols_row.addWidget(right_w)
+        layout.addLayout(cols_row)
 
         self._client_combo.currentIndexChanged.connect(self._update_client_info)
         return card
