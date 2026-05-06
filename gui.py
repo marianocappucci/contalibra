@@ -1677,9 +1677,17 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self._stack)
 
         self.pages = {}
-        for PageClass in (RemitosPage, NuevoRemitoPage, PresupuestosPage, NuevoPresupuestoPage, FacturasPage, NuevaFacturaPage, ClientesPage, ARCAConfigPage):
+        for key, PageClass in [
+            ("remitos",           RemitosPage),
+            ("nuevo_remito",      NuevoRemitoPage),
+            ("presupuestos",      PresupuestosPage),
+            ("nuevo_presupuesto", NuevoPresupuestoPage),
+            ("facturas",          FacturasPage),
+            ("nueva_factura",     NuevaFacturaPage),
+            ("clientes",          ClientesPage),
+            ("arca_config",       ARCAConfigPage),
+        ]:
             page = PageClass(self)
-            key = PageClass.__name__.replace("Page", "").lower().replace("nuevo", "nueva_").replace("arcaconfig", "arca_config")
             self.pages[key] = page
             self._stack.addWidget(page)
 
