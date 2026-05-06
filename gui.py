@@ -572,29 +572,28 @@ class NuevoRemitoPage(QWidget):
         row.addStretch()
         layout.addLayout(row)
 
-        grid = QGridLayout()
-        grid.setSpacing(6)
-        grid.setColumnMinimumWidth(0, 90)
-        grid.setColumnStretch(1, 1)
-        grid.setColumnMinimumWidth(2, 16)
-        grid.setColumnMinimumWidth(3, 90)
-        grid.setColumnStretch(4, 1)
-
         self._cli_lbl_domicilio = QLabel()
         self._cli_lbl_cuit      = QLabel()
         self._cli_lbl_email     = QLabel()
         self._cli_lbl_telefono  = QLabel()
 
-        grid.addWidget(make_label("Domicilio",  size=10, color="#64748b"), 0, 0)
-        grid.addWidget(self._cli_lbl_domicilio, 0, 1)
-        grid.addWidget(make_label("CUIT / DNI", size=10, color="#64748b"), 0, 3)
-        grid.addWidget(self._cli_lbl_cuit,      0, 4)
-        grid.addWidget(make_label("Email",      size=10, color="#64748b"), 1, 0)
-        grid.addWidget(self._cli_lbl_email,     1, 1)
-        grid.addWidget(make_label("Teléfono",   size=10, color="#64748b"), 1, 3)
-        grid.addWidget(self._cli_lbl_telefono,  1, 4)
+        for lbl_txt, lbl_val, lbl_txt2, lbl_val2 in [
+            ("Domicilio",  self._cli_lbl_domicilio, "CUIT / DNI", self._cli_lbl_cuit),
+            ("Email",      self._cli_lbl_email,     "Teléfono",   self._cli_lbl_telefono),
+        ]:
+            r = QHBoxLayout()
+            r.setSpacing(6)
+            lbl_a = make_label(lbl_txt, size=10, color="#64748b")
+            lbl_a.setFixedWidth(80)
+            r.addWidget(lbl_a)
+            r.addWidget(lbl_val, 1)
+            r.addSpacing(20)
+            lbl_b = make_label(lbl_txt2, size=10, color="#64748b")
+            lbl_b.setFixedWidth(80)
+            r.addWidget(lbl_b)
+            r.addWidget(lbl_val2, 1)
+            layout.addLayout(r)
 
-        layout.addLayout(grid)
         self._client_combo.currentIndexChanged.connect(self._update_client_info)
         return card
 
@@ -1299,29 +1298,28 @@ class NuevoPresupuestoPage(QWidget):
         row.addStretch()
         layout.addLayout(row)
 
-        grid = QGridLayout()
-        grid.setSpacing(6)
-        grid.setColumnMinimumWidth(0, 90)
-        grid.setColumnStretch(1, 1)
-        grid.setColumnMinimumWidth(2, 16)
-        grid.setColumnMinimumWidth(3, 90)
-        grid.setColumnStretch(4, 1)
-
         self._cli_lbl_domicilio = QLabel()
         self._cli_lbl_cuit      = QLabel()
         self._cli_lbl_email     = QLabel()
         self._cli_lbl_telefono  = QLabel()
 
-        grid.addWidget(make_label("Domicilio",  size=10, color="#64748b"), 0, 0)
-        grid.addWidget(self._cli_lbl_domicilio, 0, 1)
-        grid.addWidget(make_label("CUIT / DNI", size=10, color="#64748b"), 0, 3)
-        grid.addWidget(self._cli_lbl_cuit,      0, 4)
-        grid.addWidget(make_label("Email",      size=10, color="#64748b"), 1, 0)
-        grid.addWidget(self._cli_lbl_email,     1, 1)
-        grid.addWidget(make_label("Teléfono",   size=10, color="#64748b"), 1, 3)
-        grid.addWidget(self._cli_lbl_telefono,  1, 4)
+        for lbl_txt, lbl_val, lbl_txt2, lbl_val2 in [
+            ("Domicilio",  self._cli_lbl_domicilio, "CUIT / DNI", self._cli_lbl_cuit),
+            ("Email",      self._cli_lbl_email,     "Teléfono",   self._cli_lbl_telefono),
+        ]:
+            r = QHBoxLayout()
+            r.setSpacing(6)
+            lbl_a = make_label(lbl_txt, size=10, color="#64748b")
+            lbl_a.setFixedWidth(80)
+            r.addWidget(lbl_a)
+            r.addWidget(lbl_val, 1)
+            r.addSpacing(20)
+            lbl_b = make_label(lbl_txt2, size=10, color="#64748b")
+            lbl_b.setFixedWidth(80)
+            r.addWidget(lbl_b)
+            r.addWidget(lbl_val2, 1)
+            layout.addLayout(r)
 
-        layout.addLayout(grid)
         self._client_combo.currentIndexChanged.connect(self._update_client_info)
         return card
 

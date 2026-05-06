@@ -19,17 +19,20 @@ def _empresa():
 
 
 def _draw_header_empresa(pdf, empresa, y_start=15, right_box_x=130):
-    """Dibuja logo + datos de empresa en la columna izquierda del encabezado."""
+    """Dibuja logo (o razón social si no hay logo) + datos de empresa."""
     logo_path = empresa.get("logo_path", "")
     y = y_start
 
     if logo_path and os.path.exists(logo_path):
         pdf.image(logo_path, x=15, y=y, h=14)
         y += 16
+    else:
+        pdf.set_xy(15, y)
+        pdf.set_font("Helvetica", "B", 13)
+        pdf.cell(right_box_x - 20, 7, empresa["nombre"], ln=True)
+        y = pdf.get_y()
 
     pdf.set_xy(15, y)
-    pdf.set_font("Helvetica", "B", 13)
-    pdf.cell(right_box_x - 20, 7, empresa["nombre"], ln=True)
     pdf.set_font("Helvetica", "", 9)
     for line in filter(None, [empresa["direccion"], empresa["cuit"],
                                empresa["telefono"],  empresa["email"]]):
