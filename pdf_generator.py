@@ -133,29 +133,46 @@ def _section_title(pdf, text):
 
 def _client_block(pdf, doc):
     _section_title(pdf, "DATOS DEL CLIENTE")
-    pdf.set_font("Helvetica", "", 10)
     pdf.set_draw_color(180, 180, 180)
     start_y = pdf.get_y()
 
-    fields = [
+    # Columna izquierda: Cliente, Domicilio, CUIT/DNI
+    left_fields = [
         ("Cliente",    doc["client_name"]),
         ("Domicilio",  doc.get("client_address") or "-"),
         ("CUIT / DNI", doc.get("client_cuit")    or "-"),
-        ("Email",      doc.get("client_email")   or "-"),
-        ("Teléfono",   doc.get("client_phone")   or "-"),
+    ]
+    # Columna derecha: Email, Teléfono
+    right_fields = [
+        ("Email",     doc.get("client_email") or "-"),
+        ("Teléfono",  doc.get("client_phone") or "-"),
     ]
 
-    field_h  = 7
-    box_h    = len(fields) * field_h
-    pdf.rect(15, start_y, 180, box_h)
+    field_h = 7
+    box_h   = max(len(left_fields), len(right_fields)) * field_h
+    mid_x   = 105  # punto medio: 15 + 90
 
-    for i, (label, value) in enumerate(fields):
+    pdf.rect(15, start_y, 180, box_h)
+    pdf.set_line_width(0.3)
+    pdf.line(mid_x, start_y, mid_x, start_y + box_h)
+    pdf.set_line_width(0.5)
+
+    label_w = 28
+    for i, (label, value) in enumerate(left_fields):
         y = start_y + 3 + i * field_h
         pdf.set_xy(18, y)
         pdf.set_font("Helvetica", "B", 9)
-        pdf.cell(28, 6, f"{label}:", ln=False)
+        pdf.cell(label_w, 6, f"{label}:", ln=False)
         pdf.set_font("Helvetica", "", 9)
-        pdf.cell(147, 6, str(value)[:80], ln=False)
+        pdf.cell(mid_x - 18 - label_w - 2, 6, str(value)[:38], ln=False)
+
+    for i, (label, value) in enumerate(right_fields):
+        y = start_y + 3 + i * field_h
+        pdf.set_xy(mid_x + 3, y)
+        pdf.set_font("Helvetica", "B", 9)
+        pdf.cell(label_w, 6, f"{label}:", ln=False)
+        pdf.set_font("Helvetica", "", 9)
+        pdf.cell(195 - mid_x - label_w - 6, 6, str(value)[:38], ln=False)
 
     pdf.set_y(start_y + box_h + 3)
     pdf.ln(3)
