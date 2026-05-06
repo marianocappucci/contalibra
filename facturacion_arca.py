@@ -12,10 +12,9 @@ import database as db
 try:
     from pyafipws.wsaa import WSAA
     from pyafipws.wsfev1 import WSFEv1
-except ImportError as e:
-    print(f"Error importando pyafipws: {e}")
-    print("Instala con: pip install pyafipws")
-    sys.exit(1)
+    PYAFIPWS_DISPONIBLE = True
+except ImportError:
+    PYAFIPWS_DISPONIBLE = False
 
 
 class AutenticacionARCA:
@@ -241,6 +240,10 @@ def obtener_cae(empresa_name, tipo, numero, fecha, cliente_cuit, cliente_razon,
     Returns:
         dict con cae, vto_cae, factura_id
     """
+    if not PYAFIPWS_DISPONIBLE:
+        raise RuntimeError(
+            "pyafipws no está instalado. Ejecutá: pip install pyafipws"
+        )
     # Fase 1: Autenticación
     auth = AutenticacionARCA(empresa_name)
     auth.conectar()
