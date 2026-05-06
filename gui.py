@@ -228,10 +228,18 @@ def make_label(text, bold=False, size=13, color=None):
 
 
 def open_pdf(path):
-    if sys.platform == "linux":
-        subprocess.Popen(["xdg-open", path])
-    elif sys.platform == "darwin":
+    if sys.platform == "darwin":
         subprocess.Popen(["open", path])
+    elif sys.platform == "linux":
+        # En WSL2 usar explorer.exe; en Linux nativo usar xdg-open
+        import shutil
+        if shutil.which("explorer.exe"):
+            subprocess.Popen(["explorer.exe", path])
+        elif shutil.which("xdg-open"):
+            subprocess.Popen(["xdg-open", path])
+        elif shutil.which("wslview"):
+            subprocess.Popen(["wslview", path])
+        # Si no hay ninguno disponible, no hacemos nada (el PDF igual se guardó)
     else:
         os.startfile(path)
 
