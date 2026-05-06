@@ -136,43 +136,50 @@ def _client_block(pdf, doc):
     pdf.set_draw_color(180, 180, 180)
     start_y = pdf.get_y()
 
-    # Columna izquierda: Cliente, Domicilio, CUIT/DNI
     left_fields = [
         ("Cliente",    doc["client_name"]),
         ("Domicilio",  doc.get("client_address") or "-"),
         ("CUIT / DNI", doc.get("client_cuit")    or "-"),
     ]
-    # Columna derecha: Email, Teléfono
     right_fields = [
         ("Email",     doc.get("client_email") or "-"),
         ("Teléfono",  doc.get("client_phone") or "-"),
     ]
 
-    field_h = 7
-    box_h   = max(len(left_fields), len(right_fields)) * field_h
-    mid_x   = 105  # punto medio: 15 + 90
+    PAD     = 3   # mm — igual arriba y abajo
+    field_h = 7   # espacio entre filas
+    cell_h  = 6   # alto del texto
+    max_rows = max(len(left_fields), len(right_fields))
+    # box_h: PAD arriba + filas + PAD abajo (cell_h < field_h, la diferencia es el gap entre filas)
+    box_h = PAD + (max_rows - 1) * field_h + cell_h + PAD
+
+    mid_x   = 105  # 15 + 90 — divide el área en dos mitades iguales
+    label_w = 28   # ancho reservado para la etiqueta en negrita
+
+    # Ancho exacto de valores: desde el fin del label hasta el borde interior de cada columna
+    left_val_w  = mid_x - (15 + PAD + label_w) - PAD       # hasta mid_x con margen
+    right_val_w = (195 - PAD) - (mid_x + PAD + label_w)    # hasta borde derecho con margen
 
     pdf.rect(15, start_y, 180, box_h)
     pdf.set_line_width(0.3)
     pdf.line(mid_x, start_y, mid_x, start_y + box_h)
     pdf.set_line_width(0.5)
 
-    label_w = 28
     for i, (label, value) in enumerate(left_fields):
-        y = start_y + 3 + i * field_h
-        pdf.set_xy(18, y)
+        y = start_y + PAD + i * field_h
+        pdf.set_xy(15 + PAD, y)
         pdf.set_font("Helvetica", "B", 9)
-        pdf.cell(label_w, 6, f"{label}:", ln=False)
+        pdf.cell(label_w, cell_h, f"{label}:", ln=False)
         pdf.set_font("Helvetica", "", 9)
-        pdf.cell(mid_x - 18 - label_w - 2, 6, str(value)[:38], ln=False)
+        pdf.cell(left_val_w, cell_h, str(value), ln=False)
 
     for i, (label, value) in enumerate(right_fields):
-        y = start_y + 3 + i * field_h
-        pdf.set_xy(mid_x + 3, y)
+        y = start_y + PAD + i * field_h
+        pdf.set_xy(mid_x + PAD, y)
         pdf.set_font("Helvetica", "B", 9)
-        pdf.cell(label_w, 6, f"{label}:", ln=False)
+        pdf.cell(label_w, cell_h, f"{label}:", ln=False)
         pdf.set_font("Helvetica", "", 9)
-        pdf.cell(195 - mid_x - label_w - 6, 6, str(value)[:38], ln=False)
+        pdf.cell(right_val_w, cell_h, str(value), ln=False)
 
     pdf.set_y(start_y + box_h + 3)
     pdf.ln(3)
