@@ -12,13 +12,15 @@ from PyQt5.QtWidgets import (
     QLabel, QPushButton, QLineEdit, QComboBox, QTableWidget,
     QTableWidgetItem, QHeaderView, QAbstractItemView, QFrame,
     QSplitter, QStackedWidget, QFormLayout, QDialog, QDialogButtonBox,
-    QMessageBox, QScrollArea, QSizePolicy, QSpacerItem,
+    QMessageBox, QScrollArea, QSizePolicy, QSpacerItem, QGridLayout,
+    QFileDialog,
 )
 from PyQt5.QtCore import Qt, QSize
-from PyQt5.QtGui import QFont, QColor, QPalette
+from PyQt5.QtGui import QFont, QColor, QPalette, QPixmap
 
 import database as db
 import pdf_generator as pdf_gen
+import config_manager
 from arca_gui import ARCAConfigPage
 from gui_facturas import FacturasPage, NuevaFacturaPage
 
@@ -561,7 +563,40 @@ class NuevoRemitoPage(QWidget):
         row.addWidget(b_new)
         row.addStretch()
         layout.addLayout(row)
+
+        grid = QGridLayout()
+        grid.setSpacing(6)
+        grid.setColumnMinimumWidth(0, 90)
+        grid.setColumnStretch(1, 1)
+        grid.setColumnMinimumWidth(2, 16)
+        grid.setColumnMinimumWidth(3, 90)
+        grid.setColumnStretch(4, 1)
+
+        self._cli_lbl_domicilio = QLabel()
+        self._cli_lbl_cuit      = QLabel()
+        self._cli_lbl_email     = QLabel()
+        self._cli_lbl_telefono  = QLabel()
+
+        grid.addWidget(make_label("Domicilio",  size=10, color="#64748b"), 0, 0)
+        grid.addWidget(self._cli_lbl_domicilio, 0, 1)
+        grid.addWidget(make_label("CUIT / DNI", size=10, color="#64748b"), 0, 3)
+        grid.addWidget(self._cli_lbl_cuit,      0, 4)
+        grid.addWidget(make_label("Email",      size=10, color="#64748b"), 1, 0)
+        grid.addWidget(self._cli_lbl_email,     1, 1)
+        grid.addWidget(make_label("Teléfono",   size=10, color="#64748b"), 1, 3)
+        grid.addWidget(self._cli_lbl_telefono,  1, 4)
+
+        layout.addLayout(grid)
+        self._client_combo.currentIndexChanged.connect(self._update_client_info)
         return card
+
+    def _update_client_info(self):
+        cid = self._client_combo.currentData()
+        c = db.get_client(cid) if cid else None
+        self._cli_lbl_domicilio.setText(c["address"]  or "" if c else "")
+        self._cli_lbl_cuit.setText(c["cuit_dni"]      or "" if c else "")
+        self._cli_lbl_email.setText(c["email"]        or "" if c else "")
+        self._cli_lbl_telefono.setText(c["phone"]     or "" if c else "")
 
     def _build_datos(self):
         card, layout = self._card("Datos del remito")
@@ -1255,7 +1290,40 @@ class NuevoPresupuestoPage(QWidget):
         row.addWidget(b_new)
         row.addStretch()
         layout.addLayout(row)
+
+        grid = QGridLayout()
+        grid.setSpacing(6)
+        grid.setColumnMinimumWidth(0, 90)
+        grid.setColumnStretch(1, 1)
+        grid.setColumnMinimumWidth(2, 16)
+        grid.setColumnMinimumWidth(3, 90)
+        grid.setColumnStretch(4, 1)
+
+        self._cli_lbl_domicilio = QLabel()
+        self._cli_lbl_cuit      = QLabel()
+        self._cli_lbl_email     = QLabel()
+        self._cli_lbl_telefono  = QLabel()
+
+        grid.addWidget(make_label("Domicilio",  size=10, color="#64748b"), 0, 0)
+        grid.addWidget(self._cli_lbl_domicilio, 0, 1)
+        grid.addWidget(make_label("CUIT / DNI", size=10, color="#64748b"), 0, 3)
+        grid.addWidget(self._cli_lbl_cuit,      0, 4)
+        grid.addWidget(make_label("Email",      size=10, color="#64748b"), 1, 0)
+        grid.addWidget(self._cli_lbl_email,     1, 1)
+        grid.addWidget(make_label("Teléfono",   size=10, color="#64748b"), 1, 3)
+        grid.addWidget(self._cli_lbl_telefono,  1, 4)
+
+        layout.addLayout(grid)
+        self._client_combo.currentIndexChanged.connect(self._update_client_info)
         return card
+
+    def _update_client_info(self):
+        cid = self._client_combo.currentData()
+        c = db.get_client(cid) if cid else None
+        self._cli_lbl_domicilio.setText(c["address"]  or "" if c else "")
+        self._cli_lbl_cuit.setText(c["cuit_dni"]      or "" if c else "")
+        self._cli_lbl_email.setText(c["email"]        or "" if c else "")
+        self._cli_lbl_telefono.setText(c["phone"]     or "" if c else "")
 
     def _build_datos(self):
         card, layout = self._card("Datos del presupuesto")
@@ -1614,6 +1682,181 @@ class NuevoPresupuestoPage(QWidget):
         self.app.pages["presupuestos"].refresh()
 
 
+# ── Página: Configuración ─────────────────────────────────────────────────────
+
+class ConfiguracionPage(QWidget):
+    def __init__(self, app):
+        super().__init__()
+        self.app = app
+        self._logo_path = ""
+        self._build()
+
+    def _build(self):
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        title = QLabel("Configuración")
+        title.setObjectName("page_title")
+        title.setContentsMargins(28, 24, 28, 12)
+        outer.addWidget(title)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        outer.addWidget(scroll)
+
+        container = QWidget()
+        container.setObjectName("content_area")
+        scroll.setWidget(container)
+
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(28, 8, 28, 28)
+        layout.setSpacing(16)
+
+        layout.addWidget(self._build_empresa())
+        layout.addWidget(self._build_logo())
+        layout.addStretch()
+
+        btns = QHBoxLayout()
+        btns.addStretch()
+        b_save = make_btn("Guardar configuración", "success")
+        b_save.clicked.connect(self._guardar)
+        btns.addWidget(b_save)
+        layout.addLayout(btns)
+
+    def _card(self, title):
+        card = QFrame()
+        card.setObjectName("card")
+        v = QVBoxLayout(card)
+        v.setContentsMargins(20, 16, 20, 16)
+        v.setSpacing(12)
+        lbl = QLabel(title)
+        lbl.setObjectName("card_title")
+        v.addWidget(lbl)
+        return card, v
+
+    def _build_empresa(self):
+        card, layout = self._card("Datos de la empresa")
+
+        grid = QGridLayout()
+        grid.setSpacing(8)
+        grid.setColumnMinimumWidth(0, 140)
+        grid.setColumnStretch(1, 1)
+        grid.setColumnMinimumWidth(2, 24)
+        grid.setColumnMinimumWidth(3, 140)
+        grid.setColumnStretch(4, 1)
+
+        self._f_nombre    = QLineEdit()
+        self._f_direccion = QLineEdit()
+        self._f_cuit      = QLineEdit()
+        self._f_telefono  = QLineEdit()
+        self._f_email     = QLineEdit()
+        self._f_iibb      = QLineEdit()
+
+        for row, (lbl_a, w_a, lbl_b, w_b) in enumerate([
+            ("Nombre / Razón social *", self._f_nombre,    "CUIT",     self._f_cuit),
+            ("Dirección",               self._f_direccion, "Teléfono", self._f_telefono),
+            ("Email",                   self._f_email,     "IIBB",     self._f_iibb),
+        ]):
+            grid.addWidget(QLabel(lbl_a), row, 0)
+            grid.addWidget(w_a,           row, 1)
+            grid.addWidget(QLabel(lbl_b), row, 3)
+            grid.addWidget(w_b,           row, 4)
+
+        layout.addLayout(grid)
+        return card
+
+    def _build_logo(self):
+        card, layout = self._card("Logo de la empresa")
+
+        hint = QLabel("Se imprimirá en el encabezado de remitos, presupuestos y facturas. "
+                       "Formatos admitidos: PNG, JPG.")
+        hint.setWordWrap(True)
+        hint.setStyleSheet("color: #94a3b8; font-size: 11px;")
+        layout.addWidget(hint)
+
+        row = QHBoxLayout()
+        row.setSpacing(20)
+
+        self._logo_preview = QLabel("Sin logo")
+        self._logo_preview.setFixedSize(200, 80)
+        self._logo_preview.setAlignment(Qt.AlignCenter)
+        self._logo_preview.setStyleSheet(
+            "border: 1px dashed #475569; border-radius: 6px; color: #64748b;"
+        )
+        row.addWidget(self._logo_preview)
+
+        col = QVBoxLayout()
+        col.setSpacing(8)
+        b_pick  = make_btn("Seleccionar imagen…", "primary")
+        b_clear = make_btn("Quitar logo",          "secondary")
+        b_pick.clicked.connect(self._pick_logo)
+        b_clear.clicked.connect(self._clear_logo)
+        col.addWidget(b_pick)
+        col.addWidget(b_clear)
+        col.addStretch()
+        row.addLayout(col)
+        row.addStretch()
+
+        layout.addLayout(row)
+        return card
+
+    def _pick_logo(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Seleccionar logo", "",
+            "Imágenes (*.png *.jpg *.jpeg *.bmp)"
+        )
+        if path:
+            self._logo_path = path
+            self._set_preview(path)
+
+    def _clear_logo(self):
+        self._logo_path = ""
+        self._logo_preview.setPixmap(QPixmap())
+        self._logo_preview.setText("Sin logo")
+
+    def _set_preview(self, path):
+        if path and os.path.exists(path):
+            px = QPixmap(path).scaled(
+                self._logo_preview.width() - 4,
+                self._logo_preview.height() - 4,
+                Qt.KeepAspectRatio, Qt.SmoothTransformation
+            )
+            self._logo_preview.setPixmap(px)
+        else:
+            self._logo_preview.setPixmap(QPixmap())
+            self._logo_preview.setText("Sin logo")
+
+    def refresh(self):
+        cfg = config_manager.load()
+        self._f_nombre.setText(cfg.get("empresa_nombre",    ""))
+        self._f_direccion.setText(cfg.get("empresa_direccion", ""))
+        self._f_cuit.setText(cfg.get("empresa_cuit",        ""))
+        self._f_telefono.setText(cfg.get("empresa_telefono",  ""))
+        self._f_email.setText(cfg.get("empresa_email",       ""))
+        self._f_iibb.setText(cfg.get("empresa_iibb",         ""))
+        self._logo_path = cfg.get("logo_path", "")
+        self._set_preview(self._logo_path)
+
+    def _guardar(self):
+        nombre = self._f_nombre.text().strip()
+        if not nombre:
+            QMessageBox.warning(self, "Atención", "El nombre de la empresa es obligatorio.")
+            self._f_nombre.setFocus()
+            return
+        config_manager.save({
+            "empresa_nombre":    nombre,
+            "empresa_direccion": self._f_direccion.text().strip(),
+            "empresa_cuit":      self._f_cuit.text().strip(),
+            "empresa_telefono":  self._f_telefono.text().strip(),
+            "empresa_email":     self._f_email.text().strip(),
+            "empresa_iibb":      self._f_iibb.text().strip(),
+            "logo_path":         self._logo_path,
+        })
+        QMessageBox.information(self, "Guardado", "Configuración guardada correctamente.")
+
+
 # ── Ventana principal ─────────────────────────────────────────────────────────
 
 class MainWindow(QMainWindow):
@@ -1651,14 +1894,15 @@ class MainWindow(QMainWindow):
 
         self._nav_btns = {}
         nav_items = [
-            ("remitos",         "  Remitos"),
-            ("nuevo_remito",    "  Nuevo Remito"),
-            ("presupuestos",    "  Presupuestos"),
+            ("remitos",           "  Remitos"),
+            ("nuevo_remito",      "  Nuevo Remito"),
+            ("presupuestos",      "  Presupuestos"),
             ("nuevo_presupuesto", "  Nuevo Presupuesto"),
-            ("facturas",        "  Facturas"),
-            ("nueva_factura",   "  Nueva Factura"),
-            ("clientes",        "  Clientes"),
-            ("arca_config",     "  Certificado ARCA"),
+            ("facturas",          "  Facturas"),
+            ("nueva_factura",     "  Nueva Factura"),
+            ("clientes",          "  Clientes"),
+            ("arca_config",       "  Certificado ARCA"),
+            ("configuracion",     "  Configuración"),
         ]
         for key, label in nav_items:
             btn = QPushButton(label)
@@ -1686,6 +1930,7 @@ class MainWindow(QMainWindow):
             ("nueva_factura",     NuevaFacturaPage),
             ("clientes",          ClientesPage),
             ("arca_config",       ARCAConfigPage),
+            ("configuracion",     ConfiguracionPage),
         ]:
             page = PageClass(self)
             self.pages[key] = page

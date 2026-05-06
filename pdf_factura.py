@@ -9,6 +9,7 @@ from datetime import datetime
 from fpdf import FPDF
 import qrcode
 import io
+import config_manager
 
 
 class FacturaPDF(FPDF):
@@ -28,18 +29,29 @@ class FacturaPDF(FPDF):
 
     def encabezado(self):
         """Dibuja el encabezado con datos de la empresa."""
-        # Título
-        self.set_font("Helvetica", "B", size=14)
         tipo_nombres = {
             1: "FACTURA A",
             6: "FACTURA B",
             3: "NOTA DE CRÉDITO A",
             8: "NOTA DE CRÉDITO B"
         }
-        self.cell(0, 8, tipo_nombres.get(self.factura.get('tipo'), 'DOCUMENTO'), ln=True, align='C')
+        tipo_txt = tipo_nombres.get(self.factura.get('tipo'), 'DOCUMENTO')
+
+        # Logo (si existe)
+        logo_path = config_manager.load().get("logo_path", "")
+        y = 10
+        if logo_path and os.path.exists(logo_path):
+            self.image(logo_path, x=10, y=y, h=14)
+            y += 16
+
+        # Título centrado
+        self.set_y(y)
+        self.set_font("Helvetica", "B", size=14)
+        self.cell(0, 8, tipo_txt, ln=True, align='C')
 
         # Línea separadora
-        self.line(10, 18, 200, 18)
+        self.line(10, self.get_y(), 200, self.get_y())
+        self.ln(1)
 
         # Datos de la empresa
         self.set_font("Helvetica", "B", size=11)
