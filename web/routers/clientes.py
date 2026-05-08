@@ -15,6 +15,15 @@ templates = Jinja2Templates(directory=os.path.join(os.path.dirname(os.path.dirna
 
 Auth = Annotated[str, Depends(require_auth)]
 
+IVA_CONDITIONS = [
+    "Responsable Inscripto",
+    "Monotributista",
+    "IVA Exento",
+    "Consumidor Final",
+    "No Alcanzado",
+    "IVA No Responsable",
+]
+
 
 @router.get("/clientes")
 def clientes_list(request: Request, user: Auth):
@@ -27,6 +36,7 @@ def clientes_list(request: Request, user: Auth):
 def cliente_nuevo_get(request: Request, user: Auth):
     return templates.TemplateResponse(request, "clientes/form.html", {
         "cliente": None, "error": None, "active": "clientes",
+        "iva_conditions": IVA_CONDITIONS,
     })
 
 
@@ -36,7 +46,8 @@ async def cliente_nuevo_post(request: Request, user: Auth):
     name = str(form.get("name", "")).strip()
     if not name:
         return templates.TemplateResponse(request, "clientes/form.html", {
-            "cliente": None, "error": "El nombre es obligatorio.", "active": "clientes",
+            "cliente": None, "error": "El nombre es obligatorio.",
+            "active": "clientes", "iva_conditions": IVA_CONDITIONS,
         }, status_code=422)
     db.create_client(
         name,
@@ -44,6 +55,7 @@ async def cliente_nuevo_post(request: Request, user: Auth):
         str(form.get("cuit_dni", "")).strip(),
         str(form.get("email", "")).strip(),
         str(form.get("phone", "")).strip(),
+        str(form.get("iva_condition", "")).strip(),
     )
     return RedirectResponse("/clientes", status_code=303)
 
@@ -55,6 +67,7 @@ def cliente_editar_get(request: Request, cliente_id: int, user: Auth):
         raise HTTPException(404)
     return templates.TemplateResponse(request, "clientes/form.html", {
         "cliente": cliente, "error": None, "active": "clientes",
+        "iva_conditions": IVA_CONDITIONS,
     })
 
 
@@ -67,7 +80,8 @@ async def cliente_editar_post(request: Request, cliente_id: int, user: Auth):
     name = str(form.get("name", "")).strip()
     if not name:
         return templates.TemplateResponse(request, "clientes/form.html", {
-            "cliente": cliente, "error": "El nombre es obligatorio.", "active": "clientes",
+            "cliente": cliente, "error": "El nombre es obligatorio.",
+            "active": "clientes", "iva_conditions": IVA_CONDITIONS,
         }, status_code=422)
     db.update_client(
         cliente_id,
@@ -76,6 +90,7 @@ async def cliente_editar_post(request: Request, cliente_id: int, user: Auth):
         cuit_dni=str(form.get("cuit_dni", "")).strip(),
         email=str(form.get("email", "")).strip(),
         phone=str(form.get("phone", "")).strip(),
+        iva_condition=str(form.get("iva_condition", "")).strip(),
     )
     return RedirectResponse("/clientes", status_code=303)
 

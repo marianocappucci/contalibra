@@ -24,7 +24,12 @@
             <select class="form-select" id="client-select" name="client_id">
               <option value="">— Nuevo cliente —</option>
               {% for c in clientes %}
-              <option value="{{ c.id }}" data-address="{{ c.address or '' }}" data-cuit="{{ c.cuit_dni or '' }}" data-email="{{ c.email or '' }}" data-phone="{{ c.phone or '' }}">{{ c.name }}</option>
+              <option value="{{ c.id }}"
+                data-address="{{ c.address or '' }}"
+                data-cuit="{{ c.cuit_dni or '' }}"
+                data-email="{{ c.email or '' }}"
+                data-phone="{{ c.phone or '' }}"
+                data-iva="{{ c.iva_condition or '' }}">{{ c.name }}</option>
               {% endfor %}
             </select>
           </div>
@@ -34,9 +39,13 @@
               <label class="form-label">Nombre / Razón social <span class="text-danger">*</span></label>
               <input type="text" class="form-control" name="client_name" id="client_name" required>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-3">
               <label class="form-label">CUIT / DNI</label>
               <input type="text" class="form-control" name="client_cuit" id="client_cuit">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Condición IVA</label>
+              <input type="text" class="form-control" name="client_iva" id="client_iva" placeholder="Ej: Responsable Inscripto">
             </div>
             <div class="col-md-6">
               <label class="form-label">Domicilio</label>
@@ -196,11 +205,12 @@ if (sel) {
   sel.addEventListener('change', () => {
     const opt = sel.options[sel.selectedIndex];
     const fieldsDisabled = opt.value !== '';
-    document.getElementById('client_name').value = opt.value ? opt.text : '';
+    document.getElementById('client_name').value    = opt.value ? opt.text : '';
     document.getElementById('client_address').value = opt.dataset.address || '';
-    document.getElementById('client_cuit').value = opt.dataset.cuit || '';
-    document.getElementById('client_email').value = opt.dataset.email || '';
-    document.getElementById('client_phone').value = opt.dataset.phone || '';
+    document.getElementById('client_cuit').value    = opt.dataset.cuit || '';
+    document.getElementById('client_email').value   = opt.dataset.email || '';
+    document.getElementById('client_phone').value   = opt.dataset.phone || '';
+    document.getElementById('client_iva').value     = opt.dataset.iva || '';
     document.querySelectorAll('#client-fields input').forEach(i => i.readOnly = fieldsDisabled);
   });
 }

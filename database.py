@@ -16,13 +16,14 @@ def init_db():
     with get_connection() as conn:
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS clients (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                name        TEXT NOT NULL,
-                address     TEXT,
-                cuit_dni    TEXT,
-                email       TEXT,
-                phone       TEXT,
-                created_at  TEXT DEFAULT (datetime('now'))
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                name          TEXT NOT NULL,
+                address       TEXT,
+                cuit_dni      TEXT,
+                email         TEXT,
+                phone         TEXT,
+                iva_condition TEXT DEFAULT '',
+                created_at    TEXT DEFAULT (datetime('now'))
             );
 
             CREATE TABLE IF NOT EXISTS remitos (
@@ -103,15 +104,19 @@ def init_db():
                 updated_at      TEXT DEFAULT (datetime('now'))
             );
         """)
+        # Migración: agregar columna iva_condition si no existe
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(clients)").fetchall()]
+        if "iva_condition" not in cols:
+            conn.execute("ALTER TABLE clients ADD COLUMN iva_condition TEXT DEFAULT ''")
 
 
 # ── Clients ────────────────────────────────────────────────────────────────────
 
-def create_client(name, address="", cuit_dni="", email="", phone=""):
+def create_client(name, address="", cuit_dni="", email="", phone="", iva_condition=""):
     with get_connection() as conn:
         cur = conn.execute(
-            "INSERT INTO clients (name, address, cuit_dni, email, phone) VALUES (?,?,?,?,?)",
-            (name, address, cuit_dni, email, phone),
+            "INSERT INTO clients (name, address, cuit_dni, email, phone, iva_condition) VALUES (?,?,?,?,?,?)",
+            (name, address, cuit_dni, email, phone, iva_condition),
         )
         return cur.lastrowid
 
@@ -127,20 +132,21 @@ def get_client(client_id):
         return dict(row) if row else None
 
 
-def update_client(client_id, name=None, address=None, cuit_dni=None, email=None, phone=None):
+def update_client(client_id, name=None, address=None, cuit_dni=None, email=None, phone=None, iva_condition=None):
     client = get_client(client_id)
     if not client:
         return
     with get_connection() as conn:
         conn.execute(
-            """UPDATE clients SET name=?, address=?, cuit_dni=?, email=?, phone=?
+            """UPDATE clients SET name=?, address=?, cuit_dni=?, email=?, phone=?, iva_condition=?
                WHERE id=?""",
             (
-                name    if name    is not None else client["name"],
-                address if address is not None else client["address"],
-                cuit_dni if cuit_dni is not None else client["cuit_dni"],
-                email   if email   is not None else client["email"],
-                phone   if phone   is not None else client["phone"],
+                name          if name          is not None else client["name"],
+                address       if address       is not None else client["address"],
+                cuit_dni      if cuit_dni      is not None else client["cuit_dni"],
+                email         if email         is not None else client["email"],
+                phone         if phone         is not None else client["phone"],
+                iva_condition if iva_condition is not None else client.get("iva_condition", ""),
                 client_id,
             ),
         )

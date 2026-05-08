@@ -1,13 +1,15 @@
 import sys
 import os
+import re
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from fastapi import FastAPI, Request, Depends
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
+import httpx
 
 import database as db
 from web.auth import (
@@ -68,3 +70,67 @@ def logout():
     response = RedirectResponse("/login", status_code=303)
     clear_session_cookie(response)
     return response
+
+
+@app.get("/api/consultar-cuit/{cuit}", include_in_schema=False)
+async def consultar_cuit(cuit: str, user: str = Depends(require_auth)):
+    cuit_limpio = re.sub(r"[^0-9]", "", cuit)
+    if len(cuit_limpio) != 11:
+        return JSONResponse({"error": "CUIT inválido. Debe tener 11 dígitos."}, status_code=400)
+
+    url = f"https://soa.afip.gob.ar/sr-padron/v2/persona/{cuit_limpio}"
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "application/json",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=8) as client:
+            resp = await client.get(url, headers=headers)
+
+        if resp.status_code == 404:
+            return JSONResponse({"error": "CUIT no encontrado en ARCA."}, status_code=404)
+        if resp.status_code != 200:
+            return JSONResponse({"error": f"ARCA respondió con error {resp.status_code}."}, status_code=502)
+
+        data = resp.json().get("data", {})
+        if not data:
+            return JSONResponse({"error": "No se encontraron datos para ese CUIT."}, status_code=404)
+
+        # Armar nombre
+        if data.get("tipoPersona") == "JURIDICA":
+            nombre = data.get("razonSocial") or data.get("nombre", "")
+        else:
+            apellido = data.get("apellido", "")
+            nombre_p = data.get("nombre", "")
+            nombre = f"{apellido}, {nombre_p}".strip(", ")
+
+        # Domicilio fiscal
+        dom = data.get("domicilioFiscal", {})
+        calle = dom.get("calle", "")
+        numero = dom.get("numero", "")
+        localidad = dom.get("localidad", "")
+        provincia = dom.get("descripcionProvincia", "")
+        domicilio_parts = [p for p in [f"{calle} {numero}".strip(), localidad, provincia] if p]
+        domicilio = ", ".join(domicilio_parts)
+
+        # Condición IVA
+        impuestos = data.get("impuestos", [])
+        iva_condition = ""
+        if 30 in impuestos:
+            iva_condition = "Responsable Inscripto"
+        elif 32 in impuestos:
+            iva_condition = "Monotributista"
+        elif 48 in impuestos:
+            iva_condition = "IVA Exento"
+
+        return JSONResponse({
+            "nombre": nombre,
+            "domicilio": domicilio,
+            "iva_condition": iva_condition,
+            "estado": data.get("estadoClave", ""),
+        })
+
+    except httpx.TimeoutException:
+        return JSONResponse({"error": "Tiempo de espera agotado al consultar ARCA."}, status_code=504)
+    except Exception as e:
+        return JSONResponse({"error": f"Error al consultar ARCA: {str(e)}"}, status_code=500)
