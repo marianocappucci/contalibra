@@ -104,10 +104,13 @@ def init_db():
                 updated_at      TEXT DEFAULT (datetime('now'))
             );
         """)
-        # Migración: agregar columna iva_condition si no existe
+        # Migración: columnas faltantes
         cols = [r[1] for r in conn.execute("PRAGMA table_info(clients)").fetchall()]
         if "iva_condition" not in cols:
             conn.execute("ALTER TABLE clients ADD COLUMN iva_condition TEXT DEFAULT ''")
+        fact_cols = [r[1] for r in conn.execute("PRAGMA table_info(facturas)").fetchall()]
+        if "cliente_domicilio" not in fact_cols:
+            conn.execute("ALTER TABLE facturas ADD COLUMN cliente_domicilio TEXT DEFAULT ''")
 
 
 # ── Clients ────────────────────────────────────────────────────────────────────
@@ -474,20 +477,32 @@ def eliminar_arca_config(empresa):
 
 # ── Facturas ────────────────────────────────────────────────────────────────────
 
+def get_next_factura_numero(punto_venta, tipo):
+    """Devuelve el próximo número correlativo para tipo+punto_venta."""
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT MAX(numero) FROM facturas WHERE punto_venta=? AND tipo=?",
+            (punto_venta, tipo),
+        ).fetchone()
+        return (row[0] or 0) + 1
+
+
 def create_factura(tipo, punto_venta, numero, fecha, cliente_cuit, cliente_razon,
                    cliente_iva_cond, items, subtotal, iva_amount, total,
-                   concepto=1, cae="", cae_vto="", observaciones="", pdf_path=""):
+                   concepto=1, cae="", cae_vto="", observaciones="", pdf_path="",
+                   cliente_domicilio=""):
     """Crea una nueva factura electrónica."""
     with get_connection() as conn:
         cur = conn.execute(
             """INSERT INTO facturas
                (tipo, punto_venta, numero, fecha, cliente_cuit, cliente_razon,
                 cliente_iva_cond, items, subtotal, iva_amount, total, concepto,
-                cae, cae_vto, observaciones, pdf_path)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                cae, cae_vto, observaciones, pdf_path, cliente_domicilio)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (tipo, punto_venta, numero, fecha, cliente_cuit, cliente_razon,
              cliente_iva_cond, json.dumps(items, ensure_ascii=False), subtotal,
-             iva_amount, total, concepto, cae, cae_vto, observaciones, pdf_path),
+             iva_amount, total, concepto, cae, cae_vto, observaciones, pdf_path,
+             cliente_domicilio),
         )
         return cur.lastrowid
 

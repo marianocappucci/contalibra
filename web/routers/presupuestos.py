@@ -157,10 +157,8 @@ def presupuesto_pdf(pres_id: int, user: Auth):
     pres = db.get_presupuesto(pres_id)
     if not pres:
         raise HTTPException(404)
-    pdf_path = pres.get("pdf_path", "")
-    if not pdf_path or not os.path.exists(pdf_path):
-        pdf_path = pdf_gen.generate_pdf_presupuesto(pres)
-        db.update_presupuesto_pdf_path(pres_id, pdf_path)
+    pdf_path = pdf_gen.generate_pdf_presupuesto(pres)
+    db.update_presupuesto_pdf_path(pres_id, pdf_path)
     safe = pres["number"].replace("/", "-")
     return FileResponse(pdf_path, media_type="application/pdf",
                         filename=f"presupuesto_{safe}.pdf")

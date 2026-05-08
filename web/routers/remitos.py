@@ -119,10 +119,8 @@ def remito_pdf(remito_id: int, user: Auth):
     remito = db.get_remito(remito_id)
     if not remito:
         raise HTTPException(404)
-    pdf_path = remito.get("pdf_path", "")
-    if not pdf_path or not os.path.exists(pdf_path):
-        pdf_path = pdf_gen.generate_pdf(remito)
-        db.update_remito_pdf_path(remito_id, pdf_path)
+    pdf_path = pdf_gen.generate_pdf(remito)
+    db.update_remito_pdf_path(remito_id, pdf_path)
     safe = remito["number"].replace("/", "-")
     return FileResponse(pdf_path, media_type="application/pdf",
                         filename=f"remito_{safe}.pdf")

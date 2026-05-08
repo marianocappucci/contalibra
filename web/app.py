@@ -17,7 +17,7 @@ from web.auth import (
     create_session_cookie, clear_session_cookie,
     SECRET_KEY,
 )
-from web.routers import clientes, remitos, presupuestos, config as config_router
+from web.routers import clientes, remitos, presupuestos, facturas, config as config_router
 
 app = FastAPI(title="Contalibra")
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
@@ -31,6 +31,7 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 app.include_router(clientes.router)
 app.include_router(remitos.router)
 app.include_router(presupuestos.router)
+app.include_router(facturas.router)
 app.include_router(config_router.router)
 
 
@@ -39,6 +40,7 @@ def startup():
     db.init_db()
     os.makedirs(os.path.join(os.path.dirname(os.path.dirname(__file__)), "remitos_pdf"), exist_ok=True)
     os.makedirs(os.path.join(os.path.dirname(os.path.dirname(__file__)), "presupuestos_pdf"), exist_ok=True)
+    os.makedirs(os.path.join(os.path.dirname(os.path.dirname(__file__)), "facturas_pdf"), exist_ok=True)
 
 
 @app.get("/", include_in_schema=False)
