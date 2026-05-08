@@ -11,6 +11,7 @@ services:
       - ./presupuestos_pdf:/app/presupuestos_pdf
       - ./config.json:/app/config.json
       - ./logos:/app/logos
+      - ./arca_certs:/app/arca_certs
       - ./web:/app/web
     environment:
       - APP_USER=${APP_USER:-admin}

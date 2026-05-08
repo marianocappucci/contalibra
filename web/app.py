@@ -72,6 +72,23 @@ def logout():
     return response
 
 
+@app.get("/api/arca/estado", include_in_schema=False)
+def arca_estado(user: str = Depends(require_auth)):
+    configs = db.obtener_todas_arca_configs()
+    if not configs:
+        return JSONResponse({"configurado": False})
+    cfg = configs[0]
+    tiene_cert  = bool(cfg.get("certificado_path")) and os.path.exists(cfg.get("certificado_path", ""))
+    tiene_clave = bool(cfg.get("clave_path")) and os.path.exists(cfg.get("clave_path", ""))
+    return JSONResponse({
+        "configurado": tiene_cert and tiene_clave,
+        "ambiente": cfg.get("ambiente", ""),
+        "cuit": cfg.get("cuit", ""),
+        "tiene_certificado": tiene_cert,
+        "tiene_clave": tiene_clave,
+    })
+
+
 @app.get("/api/consultar-cuit/{cuit}", include_in_schema=False)
 async def consultar_cuit(cuit: str, user: str = Depends(require_auth)):
     cuit_limpio = re.sub(r"[^0-9]", "", cuit)

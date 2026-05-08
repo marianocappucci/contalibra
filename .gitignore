@@ -21,6 +21,7 @@ facturas_pdf/
 
 # Certificados digitales y claves privadas (SEGURIDAD)
 certs/
+arca_certs/
 *.key
 *.pem
 *.pfx
