@@ -124,8 +124,10 @@ async def solicitar_cae(
     tipo     = int(factura.get("tipo", 6))
     pct      = round(iva / sub * 100, 1) if sub > 0 else 0
 
-    # Importes — Factura C (tipo 11) el total va todo como ImpNeto sin discriminar IVA
-    if tipo == 11:
+    # Comprobantes tipo C (11=FC, 12=ND-C, 13=NC-C): todo el importe va como ImpNeto,
+    # ImpOpEx debe ser 0, sin bloque de alícuotas de IVA
+    _TIPOS_C = {11, 12, 13}
+    if tipo in _TIPOS_C:
         imp_neto = f"{total:.2f}"
         imp_iva  = "0.00"
         imp_opex = "0.00"
@@ -145,9 +147,9 @@ async def solicitar_cae(
     else:
         doc_tipo, doc_nro = 99, 0
 
-    # Bloque IVA — Factura C no lleva alicuotas
+    # Bloque IVA — comprobantes C nunca llevan alícuotas
     iva_block = ""
-    if tipo != 11 and pct > 0:
+    if tipo not in _TIPOS_C and pct > 0:
         aid = _iva_id(pct)
         iva_block = (
             "<Iva><AlicIva>"
