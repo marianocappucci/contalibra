@@ -9,8 +9,8 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 
 from cryptography import x509
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.serialization import pkcs7, Encoding
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.serialization import Encoding
 
 WSAA_URL = {
     "homologacion": "https://wsaahomo.afip.gov.ar/ws/services/LoginCms",
@@ -107,18 +107,34 @@ def _generar_tra(servicio="wsfe"):
 
 
 def _firmar_tra(tra_bytes, cert_path, key_path):
-    with open(cert_path, "rb") as f:
-        cert = x509.load_pem_x509_certificate(f.read())
-    with open(key_path, "rb") as f:
-        key = serialization.load_pem_private_key(f.read(), password=None)
+    """Firma el TRA con openssl smime (SHA1, DER, contenido embebido)."""
+    import subprocess
+    import tempfile
+    import os
 
-    signed = (
-        pkcs7.PKCS7SignatureBuilder()
-        .set_data(tra_bytes)
-        .add_signer(cert, key, hashes.SHA256())
-        .sign(Encoding.DER, [pkcs7.PKCS7Options.Binary])
-    )
-    return base64.b64encode(signed).decode()
+    with tempfile.NamedTemporaryFile(suffix=".xml", delete=False) as f:
+        f.write(tra_bytes)
+        tra_file = f.name
+
+    try:
+        result = subprocess.run(
+            [
+                "openssl", "smime", "-sign",
+                "-in",      tra_file,
+                "-signer",  cert_path,
+                "-inkey",   key_path,
+                "-outform", "DER",
+                "-nodetach",
+                "-md",      "sha1",
+            ],
+            capture_output=True,
+            timeout=10,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(result.stderr.decode().strip())
+        return base64.b64encode(result.stdout).decode()
+    finally:
+        os.unlink(tra_file)
 
 
 async def autenticar(cert_path, key_path, ambiente="homologacion", servicio="wsfe"):
