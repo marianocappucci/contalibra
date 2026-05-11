@@ -7,6 +7,8 @@ from fastapi.responses import RedirectResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 from typing import Annotated
 
+import datetime
+
 import database as db
 import pdf_generator as pdf_gen
 import arca_wsaa
@@ -233,6 +235,8 @@ def _detail_ctx(factura: dict, error: str = "") -> dict:
             factura["cbte_asoc_tipo"], factura["cbte_asoc_pv"], factura["cbte_asoc_nro"]
         )
 
+    cobro = db.get_cobro_factura(factura["id"]) if es_factura else None
+
     return {
         "factura":          factura,
         "tipo_label":       _TIPO_LABELS.get(factura["tipo"], "Documento"),
@@ -244,6 +248,7 @@ def _detail_ctx(factura: dict, error: str = "") -> dict:
         "notas_debito":     nds,
         "factura_original": factura_original,
         "tipo_labels":      _TIPO_LABELS,
+        "cobro":            cobro,
     }
 
 
@@ -430,3 +435,30 @@ async def nd_crear(factura_id: int, user: Auth):
         raise HTTPException(400, "Tipo de comprobante no admite nota de débito")
     nota_id = await _crear_nota(orig, nd_tipo, "Referencia")
     return RedirectResponse(f"/facturas/{nota_id}", status_code=303)
+
+
+@router.post("/facturas/{factura_id}/cobrar")
+async def factura_cobrar(request: Request, factura_id: int, user: Auth):
+    """Registra el cobro de una factura creando un ingreso en caja."""
+    factura = db.get_factura(factura_id)
+    if not factura:
+        raise HTTPException(404)
+    if db.get_cobro_factura(factura_id):
+        return RedirectResponse(f"/facturas/{factura_id}", status_code=303)
+
+    from pdf_generator import _TIPO_LABELS
+    tipo_label = _TIPO_LABELS.get(factura["tipo"], "Factura")
+    pv  = str(factura["punto_venta"]).zfill(4)
+    num = str(factura["numero"]).zfill(8)
+    concepto   = f"Cobro {tipo_label} {pv}-{num} — {factura['cliente_razon']}"
+    referencia = f"{pv}-{num}"
+
+    db.create_caja_movimiento(
+        fecha=datetime.date.today().isoformat(),
+        tipo="ingreso",
+        concepto=concepto,
+        monto=factura["total"],
+        referencia=referencia,
+        factura_id=factura_id,
+    )
+    return RedirectResponse(f"/facturas/{factura_id}", status_code=303)

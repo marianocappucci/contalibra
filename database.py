@@ -90,6 +90,17 @@ def init_db():
                 created_at      TEXT DEFAULT (datetime('now'))
             );
 
+            CREATE TABLE IF NOT EXISTS caja_movimientos (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                fecha       TEXT NOT NULL,
+                tipo        TEXT NOT NULL,
+                concepto    TEXT NOT NULL,
+                monto       REAL NOT NULL,
+                referencia  TEXT DEFAULT '',
+                factura_id  INTEGER,
+                created_at  TEXT DEFAULT (datetime('now'))
+            );
+
             CREATE TABLE IF NOT EXISTS arca_config (
                 id              INTEGER PRIMARY KEY AUTOINCREMENT,
                 empresa         TEXT NOT NULL UNIQUE,
@@ -648,3 +659,79 @@ def delete_factura(factura_id):
     """Elimina una factura."""
     with get_connection() as conn:
         conn.execute("DELETE FROM facturas WHERE id=?", (factura_id,))
+
+
+# ── Caja ───────────────────────────────────────────────────────────────────────
+
+def create_caja_movimiento(fecha, tipo, concepto, monto, referencia="", factura_id=None):
+    with get_connection() as conn:
+        cur = conn.execute(
+            """INSERT INTO caja_movimientos (fecha, tipo, concepto, monto, referencia, factura_id)
+               VALUES (?,?,?,?,?,?)""",
+            (fecha, tipo, concepto, float(monto), referencia, factura_id),
+        )
+        return cur.lastrowid
+
+
+def get_caja_movimientos(desde=None, hasta=None, limit=500):
+    with get_connection() as conn:
+        if desde and hasta:
+            rows = conn.execute(
+                "SELECT * FROM caja_movimientos WHERE fecha BETWEEN ? AND ? ORDER BY fecha DESC, id DESC LIMIT ?",
+                (desde, hasta, limit),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM caja_movimientos ORDER BY fecha DESC, id DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_caja_resumen(desde=None, hasta=None):
+    """Devuelve {ingresos, egresos, saldo_periodo, saldo_total}."""
+    with get_connection() as conn:
+        if desde and hasta:
+            row = conn.execute(
+                """SELECT
+                     COALESCE(SUM(CASE WHEN tipo='ingreso' THEN monto ELSE 0 END), 0) AS ingresos,
+                     COALESCE(SUM(CASE WHEN tipo='egreso'  THEN monto ELSE 0 END), 0) AS egresos
+                   FROM caja_movimientos WHERE fecha BETWEEN ? AND ?""",
+                (desde, hasta),
+            ).fetchone()
+        else:
+            row = conn.execute(
+                """SELECT
+                     COALESCE(SUM(CASE WHEN tipo='ingreso' THEN monto ELSE 0 END), 0) AS ingresos,
+                     COALESCE(SUM(CASE WHEN tipo='egreso'  THEN monto ELSE 0 END), 0) AS egresos
+                   FROM caja_movimientos""",
+            ).fetchone()
+        ingresos = row["ingresos"]
+        egresos  = row["egresos"]
+
+        total = conn.execute(
+            """SELECT COALESCE(SUM(CASE WHEN tipo='ingreso' THEN monto ELSE -monto END), 0)
+               FROM caja_movimientos"""
+        ).fetchone()[0]
+
+        return {
+            "ingresos":     ingresos,
+            "egresos":      egresos,
+            "saldo_periodo": ingresos - egresos,
+            "saldo_total":  total,
+        }
+
+
+def get_cobro_factura(factura_id):
+    """Devuelve el movimiento de cobro de una factura, o None."""
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT * FROM caja_movimientos WHERE factura_id=? AND tipo='ingreso' ORDER BY id DESC LIMIT 1",
+            (factura_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def delete_caja_movimiento(mov_id):
+    with get_connection() as conn:
+        conn.execute("DELETE FROM caja_movimientos WHERE id=?", (mov_id,))

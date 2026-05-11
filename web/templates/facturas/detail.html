@@ -74,6 +74,32 @@
 </div>
 {% endif %}
 
+<!-- Estado de cobro -->
+{% if factura.tipo in (1, 6, 11) %}
+{% if cobro %}
+<div class="alert alert-success d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <i class="bi bi-check-circle-fill me-2"></i>
+    <strong>Cobrada</strong> el {{ cobro.fecha }} — $ {{ "{:,.2f}".format(cobro.monto) }}
+    {% if cobro.referencia %}<span class="text-muted small ms-1">({{ cobro.referencia }})</span>{% endif %}
+  </div>
+  <a href="/caja" class="btn btn-sm btn-outline-success">Ver en caja</a>
+</div>
+{% elif factura.cae %}
+<div class="alert alert-secondary d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <i class="bi bi-hourglass-split me-2"></i>
+    <strong>Pendiente de cobro</strong>
+  </div>
+  <form method="post" action="/facturas/{{ factura.id }}/cobrar" class="ms-3">
+    <button class="btn btn-success btn-sm fw-semibold">
+      <i class="bi bi-cash me-1"></i>Registrar cobro
+    </button>
+  </form>
+</div>
+{% endif %}
+{% endif %}
+
 <!-- CAE banner -->
 {% if arca_error %}
 <div class="alert alert-danger d-flex align-items-center gap-2 mb-3">

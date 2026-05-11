@@ -19,7 +19,7 @@ from web.auth import (
     create_session_cookie, clear_session_cookie,
     SECRET_KEY,
 )
-from web.routers import clientes, remitos, presupuestos, facturas, config as config_router
+from web.routers import clientes, remitos, presupuestos, facturas, config as config_router, caja
 
 app = FastAPI(title="Contalibra")
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
@@ -35,6 +35,7 @@ app.include_router(remitos.router)
 app.include_router(presupuestos.router)
 app.include_router(facturas.router)
 app.include_router(config_router.router)
+app.include_router(caja.router)
 
 
 @app.on_event("startup")
