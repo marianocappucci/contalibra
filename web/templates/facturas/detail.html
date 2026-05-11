@@ -77,6 +77,14 @@
           <dt class="col-sm-4">Número</dt><dd class="col-sm-8 font-monospace">{{ pv }}-{{ num }}</dd>
           <dt class="col-sm-4">Fecha</dt><dd class="col-sm-8">{{ factura.fecha }}</dd>
           <dt class="col-sm-4">Concepto</dt><dd class="col-sm-8">{{ concepto_label }}</dd>
+          {% if factura.cbte_asoc_tipo %}
+          <dt class="col-sm-4">Cbte. asociado</dt>
+          <dd class="col-sm-8">
+            <a href="/facturas?q={{ '%04d' % factura.cbte_asoc_pv }}-{{ '%08d' % factura.cbte_asoc_nro }}" class="font-monospace">
+              {{ '%04d' % factura.cbte_asoc_pv }}-{{ '%08d' % factura.cbte_asoc_nro }}
+            </a>
+          </dd>
+          {% endif %}
           {% if factura.observaciones %}
           <dt class="col-sm-4">Observaciones</dt><dd class="col-sm-8">{{ factura.observaciones }}</dd>
           {% endif %}
@@ -132,10 +140,15 @@
     </div>
   </div>
 
-  <div class="col-12 d-flex justify-content-end pb-4">
+  <div class="col-12 d-flex justify-content-end gap-2 pb-4">
+    {% if factura.tipo in (1, 6, 11) %}
+    <a href="/facturas/{{ factura.id }}/nota-credito" class="btn btn-outline-warning">
+      <i class="bi bi-file-minus me-1"></i>Generar Nota de Crédito
+    </a>
+    {% endif %}
     <form method="post" action="/facturas/{{ factura.id }}/eliminar"
           onsubmit="return confirm('¿Eliminar esta factura? Esta acción no se puede deshacer.')">
-      <button class="btn btn-outline-danger"><i class="bi bi-trash me-1"></i>Eliminar factura</button>
+      <button class="btn btn-outline-danger"><i class="bi bi-trash me-1"></i>Eliminar</button>
     </form>
   </div>
 </div>

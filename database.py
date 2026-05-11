@@ -117,6 +117,12 @@ def init_db():
             conn.execute("ALTER TABLE facturas ADD COLUMN fch_serv_hasta TEXT DEFAULT ''")
         if "fch_vto_pago" not in fact_cols:
             conn.execute("ALTER TABLE facturas ADD COLUMN fch_vto_pago TEXT DEFAULT ''")
+        if "cbte_asoc_tipo" not in fact_cols:
+            conn.execute("ALTER TABLE facturas ADD COLUMN cbte_asoc_tipo INTEGER DEFAULT 0")
+        if "cbte_asoc_pv" not in fact_cols:
+            conn.execute("ALTER TABLE facturas ADD COLUMN cbte_asoc_pv INTEGER DEFAULT 0")
+        if "cbte_asoc_nro" not in fact_cols:
+            conn.execute("ALTER TABLE facturas ADD COLUMN cbte_asoc_nro INTEGER DEFAULT 0")
 
 
 # ── Clients ────────────────────────────────────────────────────────────────────
@@ -497,7 +503,7 @@ def create_factura(tipo, punto_venta, numero, fecha, cliente_cuit, cliente_razon
                    cliente_iva_cond, items, subtotal, iva_amount, total,
                    concepto=1, cae="", cae_vto="", observaciones="", pdf_path="",
                    cliente_domicilio="", fch_serv_desde="", fch_serv_hasta="",
-                   fch_vto_pago=""):
+                   fch_vto_pago="", cbte_asoc_tipo=0, cbte_asoc_pv=0, cbte_asoc_nro=0):
     """Crea una nueva factura electrónica."""
     with get_connection() as conn:
         cur = conn.execute(
@@ -505,12 +511,14 @@ def create_factura(tipo, punto_venta, numero, fecha, cliente_cuit, cliente_razon
                (tipo, punto_venta, numero, fecha, cliente_cuit, cliente_razon,
                 cliente_iva_cond, items, subtotal, iva_amount, total, concepto,
                 cae, cae_vto, observaciones, pdf_path, cliente_domicilio,
-                fch_serv_desde, fch_serv_hasta, fch_vto_pago)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                fch_serv_desde, fch_serv_hasta, fch_vto_pago,
+                cbte_asoc_tipo, cbte_asoc_pv, cbte_asoc_nro)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (tipo, punto_venta, numero, fecha, cliente_cuit, cliente_razon,
              cliente_iva_cond, json.dumps(items, ensure_ascii=False), subtotal,
              iva_amount, total, concepto, cae, cae_vto, observaciones, pdf_path,
-             cliente_domicilio, fch_serv_desde, fch_serv_hasta, fch_vto_pago),
+             cliente_domicilio, fch_serv_desde, fch_serv_hasta, fch_vto_pago,
+             cbte_asoc_tipo, cbte_asoc_pv, cbte_asoc_nro),
         )
         return cur.lastrowid
 

@@ -33,6 +33,11 @@ _TIPOS_POR_CONDICION = {
 }
 _TIPOS_DEFAULT = _TIPOS_POR_CONDICION["Monotributista"]
 
+# Factura → tipo de Nota de Crédito correspondiente
+_TIPO_NC = {1: 3, 6: 8, 11: 13}
+_TIPO_LABEL = {1: "Factura A", 6: "Factura B", 11: "Factura C",
+               3: "Nota de Crédito A", 8: "Nota de Crédito B", 13: "Nota de Crédito C"}
+
 
 def _tipos_emisor():
     cfg = config_manager.load()
@@ -282,3 +287,93 @@ def factura_pdf(factura_id: int, user: Auth):
 def factura_eliminar(factura_id: int, user: Auth):
     db.delete_factura(factura_id)
     return RedirectResponse("/facturas", status_code=303)
+
+
+@router.get("/facturas/{factura_id}/nota-credito")
+def nc_confirm_get(request: Request, factura_id: int, user: Auth):
+    """Muestra página de confirmación antes de generar la NC."""
+    factura = db.get_factura(factura_id)
+    if not factura:
+        raise HTTPException(404)
+    nc_tipo = _TIPO_NC.get(factura["tipo"])
+    if not nc_tipo:
+        raise HTTPException(400, "Este tipo de comprobante no admite nota de crédito")
+    return templates.TemplateResponse(request, "facturas/nc_confirm.html", {
+        **_detail_ctx(factura),
+        "nc_tipo_label": _TIPO_LABEL[nc_tipo],
+        "active": "facturas",
+    })
+
+
+@router.post("/facturas/{factura_id}/nota-credito")
+async def nc_crear(request: Request, factura_id: int, user: Auth):
+    """Crea la nota de crédito a partir de la factura original."""
+    orig = db.get_factura(factura_id)
+    if not orig:
+        raise HTTPException(404)
+    nc_tipo = _TIPO_NC.get(orig["tipo"])
+    if not nc_tipo:
+        raise HTTPException(400, "Tipo de comprobante no admite nota de crédito")
+
+    arca_cfg = db.obtener_todas_arca_configs()
+    arca     = arca_cfg[0] if arca_cfg else None
+    ta       = None
+
+    punto_venta = orig["punto_venta"]
+    import datetime
+    fecha_hoy = datetime.date.today().isoformat()
+
+    if arca and arca.get("certificado_path") and arca.get("clave_path"):
+        try:
+            ta = await arca_wsaa.autenticar(
+                arca["certificado_path"], arca["clave_path"], arca["ambiente"]
+            )
+            ultimo = await arca_wsfe.ultimo_numero_autorizado(
+                punto_venta, nc_tipo, arca["cuit"],
+                ta["token"], ta["sign"], arca["ambiente"],
+            )
+            numero = ultimo + 1
+        except Exception:
+            ta     = None
+            numero = db.get_next_factura_numero(punto_venta, nc_tipo)
+    else:
+        numero = db.get_next_factura_numero(punto_venta, nc_tipo)
+
+    nc_id = db.create_factura(
+        tipo=nc_tipo, punto_venta=punto_venta, numero=numero,
+        fecha=fecha_hoy,
+        cliente_cuit=orig["cliente_cuit"],
+        cliente_razon=orig["cliente_razon"],
+        cliente_iva_cond=orig.get("cliente_iva_cond") or 0,
+        items=orig["items"],
+        subtotal=orig["subtotal"],
+        iva_amount=orig["iva_amount"],
+        total=orig["total"],
+        concepto=orig.get("concepto", 1),
+        observaciones=f"Anula {_TIPO_LABEL.get(orig['tipo'], 'comprobante')} "
+                      f"{str(orig['punto_venta']).zfill(4)}-{str(orig['numero']).zfill(8)}",
+        cliente_domicilio=orig.get("cliente_domicilio", ""),
+        fch_serv_desde=orig.get("fch_serv_desde", ""),
+        fch_serv_hasta=orig.get("fch_serv_hasta", ""),
+        fch_vto_pago=fecha_hoy,
+        cbte_asoc_tipo=orig["tipo"],
+        cbte_asoc_pv=orig["punto_venta"],
+        cbte_asoc_nro=orig["numero"],
+    )
+    nc = db.get_factura(nc_id)
+
+    arca_error = ""
+    if ta and arca:
+        try:
+            cae_data = await arca_wsfe.solicitar_cae(
+                nc, arca["cuit"], ta["token"], ta["sign"], arca["ambiente"]
+            )
+            db.update_factura_cae(nc_id, cae_data["cae"], cae_data["cae_vto"])
+            nc = db.get_factura(nc_id)
+        except Exception as e:
+            arca_error = str(e)
+
+    pdf_path = pdf_gen.generate_pdf_factura(nc)
+    db.update_factura_pdf_path(nc_id, pdf_path)
+
+    return RedirectResponse(f"/facturas/{nc_id}", status_code=303)

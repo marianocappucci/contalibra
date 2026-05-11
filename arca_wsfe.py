@@ -56,6 +56,23 @@ async def _soap(url: str, action: str, body: str) -> ET.Element:
     return root
 
 
+def _cbte_asoc_block(factura: dict, empresa_cuit: str) -> str:
+    asoc_tipo = int(factura.get("cbte_asoc_tipo") or 0)
+    asoc_pv   = int(factura.get("cbte_asoc_pv")   or 0)
+    asoc_nro  = int(factura.get("cbte_asoc_nro")  or 0)
+    if not asoc_tipo or not asoc_nro:
+        return ""
+    cuit = empresa_cuit.replace("-", "")
+    return (
+        "<CbtesAsoc><CbteAsoc>"
+        f"<Tipo>{asoc_tipo}</Tipo>"
+        f"<PtoVta>{asoc_pv}</PtoVta>"
+        f"<Nro>{asoc_nro}</Nro>"
+        f"<Cuit>{cuit}</Cuit>"
+        "</CbteAsoc></CbtesAsoc>"
+    )
+
+
 def _auth(token: str, sign: str, cuit: str) -> str:
     c = cuit.replace("-", "")
     return f"<Auth><Token>{token}</Token><Sign>{sign}</Sign><Cuit>{c}</Cuit></Auth>"
@@ -165,6 +182,7 @@ async def solicitar_cae(
         + "<ImpTrib>0.00</ImpTrib>"
         + "<MonId>PES</MonId><MonCotiz>1</MonCotiz>"
         + iva_block
+        + _cbte_asoc_block(factura, empresa_cuit)
         + "</FECAEDetRequest></FeDetReq></FeCAEReq>"
         + "</FECAESolicitar>"
     )
