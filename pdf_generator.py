@@ -303,7 +303,7 @@ class FacturaPDF(FPDF):
         self.set_y(-15)
         self.set_font("Helvetica", "I", 8)
         self.set_text_color(120, 120, 120)
-        self.cell(0, 5, "Comprobante emitido por Contalibra — ARCA", align="L")
+        self.cell(0, 5, "Comprobante emitido por Contalibra - ARCA", align="L")
         self.set_text_color(0, 0, 0)
 
 
@@ -381,7 +381,7 @@ def _factura_totals_block(pdf, factura):
 
 
 def _cae_block(pdf, factura):
-    _section_title(pdf, "COMPROBANTE ELECTRÓNICO — ARCA")
+    _section_title(pdf, "COMPROBANTE ELECTRONICO - ARCA")
     cae     = factura.get("cae")  or ""
     cae_vto = factura.get("cae_vto") or ""
     if cae_vto and len(cae_vto) == 8:

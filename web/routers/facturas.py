@@ -9,6 +9,8 @@ from typing import Annotated
 
 import database as db
 import pdf_generator as pdf_gen
+import arca_wsaa
+import arca_wsfe
 from web.auth import require_auth
 
 router = APIRouter()
@@ -120,8 +122,29 @@ async def factura_nueva_post(request: Request, user: Auth):
         subtotal   = round(sum(i["subtotal"] for i in items), 2)
         iva_amount = round(subtotal * tax_rate, 2)
         total      = round(subtotal + iva_amount, 2)
-        numero     = db.get_next_factura_numero(punto_venta, tipo)
         iva_code   = IVA_CODES.get(client_iva, 0)
+
+        # Obtener configuración ARCA y autenticar
+        arca_cfg = db.obtener_todas_arca_configs()
+        arca     = arca_cfg[0] if arca_cfg else None
+        ta       = None
+
+        if arca and arca.get("certificado_path") and arca.get("clave_path"):
+            try:
+                ta = await arca_wsaa.autenticar(
+                    arca["certificado_path"], arca["clave_path"], arca["ambiente"]
+                )
+                # Número correlativo según ARCA (no la DB local)
+                ultimo = await arca_wsfe.ultimo_numero_autorizado(
+                    punto_venta, tipo, arca["cuit"],
+                    ta["token"], ta["sign"], arca["ambiente"],
+                )
+                numero = ultimo + 1
+            except Exception:
+                ta     = None
+                numero = db.get_next_factura_numero(punto_venta, tipo)
+        else:
+            numero = db.get_next_factura_numero(punto_venta, tipo)
 
         factura_id = db.create_factura(
             tipo=tipo, punto_venta=punto_venta, numero=numero,
@@ -132,6 +155,18 @@ async def factura_nueva_post(request: Request, user: Auth):
             cliente_domicilio=client_address,
         )
         factura = db.get_factura(factura_id)
+
+        # Solicitar CAE si tenemos token válido
+        if ta and arca:
+            try:
+                cae_data = await arca_wsfe.solicitar_cae(
+                    factura, arca["cuit"], ta["token"], ta["sign"], arca["ambiente"]
+                )
+                db.update_factura_cae(factura_id, cae_data["cae"], cae_data["cae_vto"])
+                factura = db.get_factura(factura_id)
+            except Exception:
+                pass  # Factura guardada sin CAE; se puede reintentar desde el detalle
+
         pdf_path = pdf_gen.generate_pdf_factura(factura)
         db.update_factura_pdf_path(factura_id, pdf_path)
         return RedirectResponse(f"/facturas/{factura_id}", status_code=303)
@@ -144,19 +179,61 @@ async def factura_nueva_post(request: Request, user: Auth):
         }, status_code=422)
 
 
+def _detail_ctx(factura: dict, error: str = "") -> dict:
+    from pdf_generator import _TIPO_LABELS, _CONCEPTO_LABELS, _IVA_LABELS
+    return {
+        "factura":        factura,
+        "tipo_label":     _TIPO_LABELS.get(factura["tipo"], "Documento"),
+        "concepto_label": _CONCEPTO_LABELS.get(factura.get("concepto", 1), "Productos"),
+        "iva_label":      _IVA_LABELS.get(factura.get("cliente_iva_cond") or 0, ""),
+        "active":         "facturas",
+        "arca_error":     error,
+    }
+
+
 @router.get("/facturas/{factura_id}")
 def factura_detail(request: Request, factura_id: int, user: Auth):
     factura = db.get_factura(factura_id)
     if not factura:
         raise HTTPException(404)
-    from pdf_generator import _TIPO_LABELS, _CONCEPTO_LABELS, _IVA_LABELS
-    return templates.TemplateResponse(request, "facturas/detail.html", {
-        "factura": factura,
-        "tipo_label":    _TIPO_LABELS.get(factura["tipo"], "Documento"),
-        "concepto_label": _CONCEPTO_LABELS.get(factura.get("concepto", 1), "Productos"),
-        "iva_label":     _IVA_LABELS.get(factura.get("cliente_iva_cond") or 0, ""),
-        "active": "facturas",
-    })
+    return templates.TemplateResponse(request, "facturas/detail.html",
+                                      _detail_ctx(factura))
+
+
+@router.post("/facturas/{factura_id}/autorizar")
+async def factura_autorizar(request: Request, factura_id: int, user: Auth):
+    """Reintenta obtener CAE para una factura pendiente."""
+    factura = db.get_factura(factura_id)
+    if not factura:
+        raise HTTPException(404)
+
+    if factura.get("cae"):
+        return RedirectResponse(f"/facturas/{factura_id}", status_code=303)
+
+    arca_cfg = db.obtener_todas_arca_configs()
+    arca     = arca_cfg[0] if arca_cfg else None
+    if not arca or not arca.get("certificado_path") or not arca.get("clave_path"):
+        return templates.TemplateResponse(request, "facturas/detail.html",
+            {**_detail_ctx(factura),
+             "arca_error": "ARCA no está configurado. Cargá los certificados en Configuración."})
+
+    try:
+        ta = await arca_wsaa.autenticar(
+            arca["certificado_path"], arca["clave_path"], arca["ambiente"]
+        )
+        cae_data = await arca_wsfe.solicitar_cae(
+            factura, arca["cuit"], ta["token"], ta["sign"], arca["ambiente"]
+        )
+        db.update_factura_cae(factura_id, cae_data["cae"], cae_data["cae_vto"])
+        factura = db.get_factura(factura_id)
+        pdf_path = pdf_gen.generate_pdf_factura(factura)
+        db.update_factura_pdf_path(factura_id, pdf_path)
+        return RedirectResponse(f"/facturas/{factura_id}", status_code=303)
+
+    except Exception as e:
+        factura = db.get_factura(factura_id)
+        return templates.TemplateResponse(request, "facturas/detail.html",
+            {**_detail_ctx(factura), "arca_error": str(e)})
 
 
 @router.get("/facturas/{factura_id}/pdf")

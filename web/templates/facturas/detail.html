@@ -18,19 +18,33 @@
 </div>
 
 <!-- CAE banner -->
+{% if arca_error %}
+<div class="alert alert-danger d-flex align-items-center gap-2 mb-3">
+  <i class="bi bi-x-circle-fill fs-5"></i>
+  <div><strong>Error al autorizar en ARCA:</strong> {{ arca_error }}</div>
+</div>
+{% endif %}
+
 {% if factura.cae %}
 <div class="alert alert-success d-flex align-items-center gap-2 mb-3">
   <i class="bi bi-check-circle-fill fs-5"></i>
   <div>
-    <strong>Comprobante autorizado por ARCA</strong> —
+    <strong>Comprobante autorizado por ARCA</strong> &mdash;
     CAE: <code>{{ factura.cae }}</code>
-    &nbsp;·&nbsp; Vence: <strong>{{ factura.cae_vto }}</strong>
+    &nbsp;&middot;&nbsp; Vence: <strong>{{ factura.cae_vto }}</strong>
   </div>
 </div>
 {% else %}
-<div class="alert alert-warning d-flex align-items-center gap-2 mb-3">
-  <i class="bi bi-exclamation-triangle-fill fs-5"></i>
-  <div>Comprobante <strong>pendiente de autorización ARCA</strong>. Configurá los certificados en Configuración para habilitar la facturación electrónica.</div>
+<div class="alert alert-warning d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+    Comprobante <strong>pendiente de autorización ARCA</strong>.
+  </div>
+  <form method="post" action="/facturas/{{ factura.id }}/autorizar" class="ms-3">
+    <button class="btn btn-warning btn-sm fw-semibold">
+      <i class="bi bi-send me-1"></i>Autorizar ahora
+    </button>
+  </form>
 </div>
 {% endif %}
 
