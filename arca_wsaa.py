@@ -178,7 +178,18 @@ async def autenticar(cert_path, key_path, ambiente="homologacion", servicio="wsf
         raise RuntimeError(f"Error de red al conectar con WSAA: {e}")
 
     if resp.status_code != 200:
-        raise RuntimeError(f"WSAA respondio HTTP {resp.status_code}: {resp.text[:300]}")
+        # Intentar extraer faultcode + faultstring del XML antes de truncar
+        try:
+            root_err = ET.fromstring(resp.text)
+            fc  = next((e.text or "" for e in root_err.iter() if e.tag.endswith("faultcode")),   "")
+            fs  = next((e.text or "" for e in root_err.iter() if e.tag.endswith("faultstring")), "")
+            if fs:
+                raise RuntimeError(f"WSAA error [{fc}]: {fs}")
+        except RuntimeError:
+            raise
+        except Exception:
+            pass
+        raise RuntimeError(f"WSAA respondio HTTP {resp.status_code}: {resp.text[:500]}")
 
     # SOAP fault check
     if "<faultstring>" in resp.text:

@@ -163,8 +163,17 @@ async def consultar_cuit(cuit: str, user: str = Depends(require_auth)):
 
     except RuntimeError as e:
         msg = str(e)
-        if "no encontrado" in msg.lower():
+        if "no encontrado" in msg.lower() or "inexistente" in msg.lower():
             return JSONResponse({"error": msg}, status_code=404)
+        # Error de autorización del servicio en WSAA
+        if "coe" in msg.lower() or "no autorizado" in msg.lower() or "constraints" in msg.lower() or "sin acceso" in msg.lower():
+            return JSONResponse({
+                "error": (
+                    "El certificado no tiene acceso al servicio de Padrón (ws_sr_padron_a4). "
+                    "Ingresá a ARCA → Administración de Relaciones → delegá el servicio "
+                    "'Consulta a Padrón Alcance 4' para tu CUIT y volvé a intentarlo."
+                )
+            }, status_code=403)
         return JSONResponse({"error": msg}, status_code=502)
     except Exception as e:
         return JSONResponse({"error": f"Error al consultar ARCA: {e}"}, status_code=500)
