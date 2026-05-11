@@ -13,6 +13,7 @@ import httpx
 
 import database as db
 import arca_wsaa
+import arca_wspadron
 from web.auth import (
     require_auth, check_credentials,
     create_session_cookie, clear_session_cookie,
@@ -141,59 +142,29 @@ async def consultar_cuit(cuit: str, user: str = Depends(require_auth)):
     if len(cuit_limpio) != 11:
         return JSONResponse({"error": "CUIT inválido. Debe tener 11 dígitos."}, status_code=400)
 
-    url = f"https://soa.afip.gob.ar/sr-padron/v2/persona/{cuit_limpio}"
-    headers = {
-        "User-Agent": "Mozilla/5.0",
-        "Accept": "application/json",
-    }
+    arca_cfg = db.obtener_todas_arca_configs()
+    arca     = arca_cfg[0] if arca_cfg else None
+
+    if not arca or not arca.get("certificado_path") or not arca.get("clave_path"):
+        return JSONResponse(
+            {"error": "Configurá los certificados ARCA en Configuración para habilitar la consulta de CUIT."},
+            status_code=503,
+        )
+
     try:
-        async with httpx.AsyncClient(timeout=8) as client:
-            resp = await client.get(url, headers=headers)
+        ta = await arca_wsaa.autenticar(
+            arca["certificado_path"], arca["clave_path"], arca["ambiente"],
+            servicio="ws_sr_padron_a4",
+        )
+        datos = await arca_wspadron.consultar_persona(
+            arca["cuit"], cuit_limpio, ta["token"], ta["sign"], arca["ambiente"]
+        )
+        return JSONResponse(datos)
 
-        if resp.status_code == 404:
-            return JSONResponse({"error": "CUIT no encontrado en ARCA."}, status_code=404)
-        if resp.status_code != 200:
-            return JSONResponse({"error": f"ARCA respondió con error {resp.status_code}."}, status_code=502)
-
-        data = resp.json().get("data", {})
-        if not data:
-            return JSONResponse({"error": "No se encontraron datos para ese CUIT."}, status_code=404)
-
-        # Armar nombre
-        if data.get("tipoPersona") == "JURIDICA":
-            nombre = data.get("razonSocial") or data.get("nombre", "")
-        else:
-            apellido = data.get("apellido", "")
-            nombre_p = data.get("nombre", "")
-            nombre = f"{apellido}, {nombre_p}".strip(", ")
-
-        # Domicilio fiscal
-        dom = data.get("domicilioFiscal", {})
-        calle = dom.get("calle", "")
-        numero = dom.get("numero", "")
-        localidad = dom.get("localidad", "")
-        provincia = dom.get("descripcionProvincia", "")
-        domicilio_parts = [p for p in [f"{calle} {numero}".strip(), localidad, provincia] if p]
-        domicilio = ", ".join(domicilio_parts)
-
-        # Condición IVA
-        impuestos = data.get("impuestos", [])
-        iva_condition = ""
-        if 30 in impuestos:
-            iva_condition = "Responsable Inscripto"
-        elif 32 in impuestos:
-            iva_condition = "Monotributista"
-        elif 48 in impuestos:
-            iva_condition = "IVA Exento"
-
-        return JSONResponse({
-            "nombre": nombre,
-            "domicilio": domicilio,
-            "iva_condition": iva_condition,
-            "estado": data.get("estadoClave", ""),
-        })
-
-    except httpx.TimeoutException:
-        return JSONResponse({"error": "Tiempo de espera agotado al consultar ARCA."}, status_code=504)
+    except RuntimeError as e:
+        msg = str(e)
+        if "no encontrado" in msg.lower():
+            return JSONResponse({"error": msg}, status_code=404)
+        return JSONResponse({"error": msg}, status_code=502)
     except Exception as e:
-        return JSONResponse({"error": f"Error al consultar ARCA: {str(e)}"}, status_code=500)
+        return JSONResponse({"error": f"Error al consultar ARCA: {e}"}, status_code=500)
