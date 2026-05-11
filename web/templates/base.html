@@ -62,6 +62,11 @@
     <div class="brand"><i class="bi bi-journal-bookmark-fill me-2"></i>Contalibra</div>
     <ul class="nav flex-column mt-2 flex-grow-1">
       <li class="nav-item">
+        <a class="nav-link {% if active == 'dashboard' %}active{% endif %}" href="/dashboard">
+          <i class="bi bi-speedometer2"></i>Dashboard
+        </a>
+      </li>
+      <li class="nav-item">
         <a class="nav-link {% if active == 'remitos' %}active{% endif %}" href="/remitos">
           <i class="bi bi-file-earmark-text"></i>Remitos
         </a>

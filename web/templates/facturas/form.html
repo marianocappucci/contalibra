@@ -208,6 +208,9 @@
 
     <div class="col-12 d-flex justify-content-end gap-2 pb-4">
       <a href="/facturas" class="btn btn-outline-secondary">Cancelar</a>
+      <button type="button" class="btn btn-outline-secondary fw-semibold px-4" id="btnBorrador">
+        <i class="bi bi-eye me-1"></i>Previsualizar borrador
+      </button>
       <button type="submit" class="btn btn-primary fw-semibold px-4">
         <i class="bi bi-save me-1"></i>Guardar y generar PDF
       </button>
@@ -297,5 +300,56 @@ document.getElementById('concepto-select').addEventListener('change', toggleFech
 toggleFechasServicio();
 
 recalc();
+
+{% if prefill %}
+(function() {
+  {% if prefill.client_id %}
+  const clientSel = document.getElementById('client-select');
+  if (clientSel) {
+    clientSel.value = '{{ prefill.client_id }}';
+    clientSel.dispatchEvent(new Event('change'));
+  }
+  {% else %}
+  document.getElementById('client_name').value    = {{ prefill.client_name | tojson }};
+  document.getElementById('client_cuit').value    = {{ prefill.client_cuit | tojson }};
+  document.getElementById('client_address').value = {{ prefill.client_address | tojson }};
+  document.getElementById('client_iva').value     = {{ prefill.client_iva | tojson }};
+  {% endif %}
+
+  const conceptoSel = document.getElementById('concepto-select');
+  conceptoSel.value = '{{ prefill.concepto }}';
+  conceptoSel.dispatchEvent(new Event('change'));
+
+  const tbody = document.getElementById('items-body');
+  const prefillItems = {{ prefill['items'] | tojson }};
+  // Ensure correct number of rows without clearing (keeps first row available)
+  while (tbody.querySelectorAll('.item-row').length < prefillItems.length) addRow();
+  Array.from(tbody.querySelectorAll('.item-row')).slice(prefillItems.length).forEach(r => r.remove());
+  prefillItems.forEach((item, i) => {
+    const row = tbody.querySelectorAll('.item-row')[i];
+    row.querySelector('[name="desc[]"]').value = item.description;
+    row.querySelector('.qty').value            = item.qty;
+    row.querySelector('.price').value          = item.unit_price;
+  });
+
+  {% if prefill.observations %}
+  document.querySelector('[name="observations"]').value = {{ prefill.observations | tojson }};
+  {% endif %}
+
+  recalc();
+})();
+{% endif %}
+
+document.getElementById('btnBorrador').addEventListener('click', function() {
+  const form = document.querySelector('form');
+  const clone = form.cloneNode(true);
+  clone.method = 'POST';
+  clone.action = '/facturas/borrador-pdf';
+  clone.target = '_blank';
+  clone.style.display = 'none';
+  document.body.appendChild(clone);
+  clone.submit();
+  document.body.removeChild(clone);
+});
 </script>
 {% endblock %}

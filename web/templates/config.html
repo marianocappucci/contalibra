@@ -9,6 +9,8 @@
 <div class="alert alert-success"><i class="bi bi-check-circle me-1"></i>Datos de empresa guardados.</div>
 {% elif saved == 'arca' %}
 <div class="alert alert-success"><i class="bi bi-check-circle me-1"></i>Configuración ARCA guardada.</div>
+{% elif saved == 'integraciones' %}
+<div class="alert alert-success"><i class="bi bi-check-circle me-1"></i>Configuración de integraciones guardada.</div>
 {% endif %}
 
 <!-- Tabs -->
@@ -21,6 +23,16 @@
   <li class="nav-item">
     <a class="nav-link {% if tab == 'arca' %}active{% endif %}" href="/config?tab=arca">
       <i class="bi bi-shield-lock me-1"></i>ARCA / Facturación electrónica
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if tab == 'integraciones' %}active{% endif %}" href="/config?tab=integraciones">
+      <i class="bi bi-plug me-1"></i>Integraciones
+    </a>
+  </li>
+  <li class="nav-item ms-auto">
+    <a href="/config/backup-db" class="btn btn-outline-secondary btn-sm mt-1" download>
+      <i class="bi bi-download me-1"></i>Descargar backup
     </a>
   </li>
 </ul>
@@ -57,6 +69,12 @@
           <label class="form-label fw-semibold">Email</label>
           <input type="email" class="form-control" name="empresa_email" value="{{ cfg.empresa_email }}">
         </div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Fecha de inicio de actividades</label>
+        <input type="date" class="form-control" name="empresa_inicio_actividades"
+               value="{{ cfg.empresa_inicio_actividades }}">
+        <div class="form-text">Aparece en el encabezado de las facturas.</div>
       </div>
       <div class="mb-3">
         <label class="form-label fw-semibold">Condición IVA del emisor <span class="text-danger">*</span></label>
@@ -227,6 +245,109 @@
   </div>
   {% endif %}
 
+</div>
+{% endif %}
+
+<!-- ── TAB INTEGRACIONES ────────────────────────────────────────────── -->
+{% if tab == 'integraciones' %}
+<div style="max-width: 680px;">
+
+  <!-- MercadoPago -->
+  <div class="card mb-4">
+    <div class="card-header fw-semibold"><i class="bi bi-credit-card me-2 text-primary"></i>MercadoPago</div>
+    <div class="card-body">
+      <form method="post" action="/config/integraciones">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Access Token</label>
+          <input type="password" class="form-control font-monospace" name="mp_access_token"
+                 value="{{ cfg.mp_access_token }}"
+                 placeholder="APP_USR-...">
+          <div class="form-text">Token de producción de tu aplicación en MercadoPago.</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Webhook Secret</label>
+          <input type="password" class="form-control font-monospace" name="mp_webhook_secret"
+                 value="{{ cfg.mp_webhook_secret }}"
+                 placeholder="Secret para verificar firmas HMAC">
+          <div class="form-text">
+            Clave secreta configurada en MercadoPago → Tus integraciones → Webhooks.
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Descripción del servicio</label>
+          <input type="text" class="form-control" name="mp_concepto_descripcion"
+                 value="{{ cfg.mp_concepto_descripcion }}"
+                 placeholder="Suscripcion mensual">
+          <div class="form-text">Aparece como descripción del ítem en la factura generada.</div>
+        </div>
+        <div class="mb-4">
+          <label class="form-label fw-semibold">Alícuota IVA sobre el monto cobrado</label>
+          <select class="form-select" name="mp_iva_rate" style="max-width: 220px;">
+            {% set rate = cfg.mp_iva_rate | string %}
+            <option value="0"    {% if rate in ('0', '0.0', '') %}selected{% endif %}>Sin IVA (Monotributista / Exento)</option>
+            <option value="0.21" {% if rate == '0.21' %}selected{% endif %}>21% IVA incluido en el precio</option>
+            <option value="0.105"{% if rate == '0.105'%}selected{% endif %}>10.5% IVA incluido en el precio</option>
+          </select>
+          <div class="form-text">Para monotributistas dejá en "Sin IVA".</div>
+        </div>
+
+        <hr class="my-4">
+        <p class="fw-semibold mb-3"><i class="bi bi-envelope me-1"></i>Envío de comprobantes por email</p>
+        <div class="row g-3 mb-3">
+          <div class="col-md-8">
+            <label class="form-label fw-semibold">Servidor SMTP</label>
+            <input type="text" class="form-control" name="email_smtp_host"
+                   value="{{ cfg.email_smtp_host }}" placeholder="smtp.gmail.com">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Puerto</label>
+            <input type="number" class="form-control" name="email_smtp_port"
+                   value="{{ cfg.email_smtp_port }}" placeholder="587">
+          </div>
+        </div>
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Usuario SMTP</label>
+            <input type="text" class="form-control" name="email_smtp_user"
+                   value="{{ cfg.email_smtp_user }}" placeholder="tu@gmail.com">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Contraseña SMTP</label>
+            <input type="password" class="form-control" name="email_smtp_password"
+                   value="" placeholder="Dejar vacío para no cambiar">
+            <div class="form-text">
+              {% if cfg.email_smtp_password %}
+                <span class="text-success"><i class="bi bi-check-circle me-1"></i>Contraseña guardada.</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="row g-3 mb-4">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Email del remitente</label>
+            <input type="email" class="form-control" name="email_from"
+                   value="{{ cfg.email_from }}" placeholder="tu@gmail.com">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Nombre del remitente</label>
+            <input type="text" class="form-control" name="email_from_name"
+                   value="{{ cfg.email_from_name }}" placeholder="Mi Empresa">
+          </div>
+        </div>
+
+        <div class="p-3 bg-light rounded mb-4 small text-muted">
+          <i class="bi bi-info-circle me-1"></i>
+          La URL del webhook a configurar en MercadoPago es:
+          <code id="webhook-url">https://tu-dominio/webhooks/mercadopago</code><br>
+          Eventos a suscribir: <strong>Pagos</strong> (payment).
+        </div>
+
+        <button type="submit" class="btn btn-primary fw-semibold px-4">
+          <i class="bi bi-save me-1"></i>Guardar integraciones
+        </button>
+      </form>
+    </div>
+  </div>
 </div>
 {% endif %}
 

@@ -6,14 +6,7 @@ services:
     ports:
       - "8070:8000"
     volumes:
-      - ./contalibra.db:/app/contalibra.db
-      - ./remitos_pdf:/app/remitos_pdf
-      - ./presupuestos_pdf:/app/presupuestos_pdf
-      - ./facturas_pdf:/app/facturas_pdf
-      - ./config.json:/app/config.json
-      - ./logos:/app/logos
-      - ./arca_certs:/app/arca_certs
-      - ./web:/app/web
+      - ./:/app
     environment:
       - APP_USER=${APP_USER:-admin}
       - APP_PASSWORD=${APP_PASSWORD:-cambiar_esta_clave}

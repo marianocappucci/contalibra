@@ -9,6 +9,8 @@ from typing import Annotated
 
 import database as db
 import pdf_generator as pdf_gen
+import config_manager
+import email_sender
 from web.auth import require_auth
 
 router = APIRouter()
@@ -112,6 +114,7 @@ def presupuesto_detail(request: Request, pres_id: int, user: Auth):
         raise HTTPException(404)
     return templates.TemplateResponse(request, "presupuestos/detail.html", {
         "presupuesto": pres, "active": "presupuestos",
+        "email_ok": None, "email_error": None,
     })
 
 
@@ -162,6 +165,57 @@ def presupuesto_pdf(pres_id: int, user: Auth):
     safe = pres["number"].replace("/", "-")
     return FileResponse(pdf_path, media_type="application/pdf",
                         filename=f"presupuesto_{safe}.pdf")
+
+
+@router.post("/presupuestos/{pres_id}/enviar-email")
+async def presupuesto_enviar_email(request: Request, pres_id: int, user: Auth):
+    form    = await request.form()
+    to_mail = str(form.get("email", "")).strip()
+    pres    = db.get_presupuesto(pres_id)
+    if not pres:
+        raise HTTPException(404)
+
+    cfg = config_manager.load()
+    ctx = {"presupuesto": pres, "active": "presupuestos"}
+
+    if not cfg.get("email_smtp_host"):
+        return templates.TemplateResponse(request, "presupuestos/detail.html",
+            {**ctx, "email_error": "Configurá el servidor SMTP en Configuración → Integraciones.",
+             "email_ok": None})
+
+    if not to_mail:
+        return templates.TemplateResponse(request, "presupuestos/detail.html",
+            {**ctx, "email_error": "Ingresá una dirección de email.", "email_ok": None})
+
+    pdf_path = pres.get("pdf_path") or pdf_gen.generate_pdf_presupuesto(pres)
+    doc_label = f"Presupuesto {pres['number']}"
+
+    try:
+        email_sender.enviar_comprobante(
+            to_email=to_mail, to_name=pres["client_name"],
+            pdf_path=pdf_path, empresa_nombre=cfg.get("empresa_nombre", ""),
+            factura_label=doc_label, total=pres["total"],
+            smtp_host=cfg["email_smtp_host"],
+            smtp_port=int(cfg.get("email_smtp_port", 587)),
+            smtp_user=cfg["email_smtp_user"],
+            smtp_password=cfg.get("email_smtp_password", ""),
+            from_email=cfg.get("email_from") or cfg["email_smtp_user"],
+            from_name=cfg.get("email_from_name", ""),
+            asunto=f"{doc_label} — {cfg.get('empresa_nombre', '')}",
+            cuerpo=(
+                f"Estimado/a {pres['client_name']},\n\n"
+                f"Adjuntamos el presupuesto solicitado.\n\n"
+                f"Número: {pres['number']}\n"
+                f"Total: $ {pres['total']:,.2f}\n"
+                f"Válido hasta: {pres['valid_until']}\n\n"
+                f"Muchas gracias.\n{cfg.get('empresa_nombre', '')}"
+            ),
+        )
+        return templates.TemplateResponse(request, "presupuestos/detail.html",
+            {**ctx, "email_ok": f"Email enviado a {to_mail}.", "email_error": None})
+    except Exception as e:
+        return templates.TemplateResponse(request, "presupuestos/detail.html",
+            {**ctx, "email_error": f"Error al enviar: {e}", "email_ok": None})
 
 
 @router.post("/presupuestos/{pres_id}/eliminar")

@@ -10,8 +10,21 @@ _DEFAULTS = {
     "empresa_telefono":       "",
     "empresa_email":          "",
     "empresa_iibb":           "",
-    "empresa_iva_condition":  "Monotributista",
-    "logo_path":              "",
+    "empresa_iva_condition":       "Monotributista",
+    "empresa_inicio_actividades":  "",
+    "logo_path":                   "",
+    # MercadoPago
+    "mp_access_token":        "",
+    "mp_webhook_secret":      "",
+    "mp_concepto_descripcion": "Suscripcion mensual",
+    "mp_iva_rate":            "0",
+    # Email / SMTP
+    "email_smtp_host":        "",
+    "email_smtp_port":        "587",
+    "email_smtp_user":        "",
+    "email_smtp_password":    "",
+    "email_from":             "",
+    "email_from_name":        "",
 }
 
 

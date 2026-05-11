@@ -101,6 +101,17 @@ def init_db():
                 created_at  TEXT DEFAULT (datetime('now'))
             );
 
+            CREATE TABLE IF NOT EXISTS mp_pagos (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                mp_payment_id   TEXT NOT NULL UNIQUE,
+                status          TEXT,
+                monto           REAL,
+                payer_email     TEXT,
+                payer_name      TEXT,
+                factura_id      INTEGER,
+                created_at      TEXT DEFAULT (datetime('now'))
+            );
+
             CREATE TABLE IF NOT EXISTS arca_config (
                 id              INTEGER PRIMARY KEY AUTOINCREMENT,
                 empresa         TEXT NOT NULL UNIQUE,
@@ -562,6 +573,34 @@ def get_all_facturas(limit=100, vista="facturas"):
         return result
 
 
+def get_facturas_filtradas(desde="", hasta="", q="", vista="facturas", limit=50, offset=0):
+    """Listado de facturas con filtros de fecha, búsqueda y paginación."""
+    tipos = _VISTA_TIPOS.get(vista, _TIPOS_FACTURA)
+    ph = ",".join("?" * len(tipos))
+    conds = [f"tipo IN ({ph})"]
+    params = list(tipos)
+    if desde:
+        conds.append("fecha >= ?"); params.append(desde)
+    if hasta:
+        conds.append("fecha <= ?"); params.append(hasta)
+    if q:
+        conds.append("(CAST(numero AS TEXT) LIKE ? OR cliente_razon LIKE ? OR observaciones LIKE ?)")
+        params += [f"%{q}%", f"%{q}%", f"%{q}%"]
+    where = " AND ".join(conds)
+    with get_connection() as conn:
+        total = conn.execute(f"SELECT COUNT(*) FROM facturas WHERE {where}", params).fetchone()[0]
+        rows = conn.execute(
+            f"SELECT * FROM facturas WHERE {where} ORDER BY id DESC LIMIT ? OFFSET ?",
+            params + [limit, offset],
+        ).fetchall()
+    result = []
+    for r in rows:
+        d = dict(r)
+        d["items"] = json.loads(d["items"])
+        result.append(d)
+    return {"items": result, "total": total}
+
+
 def get_factura(factura_id):
     """Obtiene una factura por ID."""
     with get_connection() as conn:
@@ -735,3 +774,101 @@ def get_cobro_factura(factura_id):
 def delete_caja_movimiento(mov_id):
     with get_connection() as conn:
         conn.execute("DELETE FROM caja_movimientos WHERE id=?", (mov_id,))
+
+
+# ── MercadoPago pagos ──────────────────────────────────────────────────────────
+
+def get_mp_pago(mp_payment_id: str):
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT * FROM mp_pagos WHERE mp_payment_id=?", (str(mp_payment_id),)
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def create_mp_pago(mp_payment_id: str, status: str, monto: float,
+                   payer_email: str, payer_name: str, factura_id=None):
+    with get_connection() as conn:
+        cur = conn.execute(
+            """INSERT INTO mp_pagos (mp_payment_id, status, monto, payer_email, payer_name, factura_id)
+               VALUES (?,?,?,?,?,?)""",
+            (str(mp_payment_id), status, float(monto), payer_email, payer_name, factura_id),
+        )
+        return cur.lastrowid
+
+
+def get_client_by_email(email: str):
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT * FROM clients WHERE email=? LIMIT 1", (email,)
+        ).fetchone()
+        return dict(row) if row else None
+
+
+# ── Dashboard ──────────────────────────────────────────────────────────────────
+
+def get_dashboard_data(mes_desde: str, mes_hasta: str) -> dict:
+    """Devuelve todos los datos necesarios para el dashboard en una sola llamada."""
+    _TIPOS_FACTURA = (1, 6, 11)
+    with get_connection() as conn:
+        # KPI 1: total facturado en el mes (solo facturas, no NC/ND)
+        row = conn.execute(
+            "SELECT COALESCE(SUM(total), 0) FROM facturas WHERE tipo IN (1,6,11) AND fecha BETWEEN ? AND ?",
+            (mes_desde, mes_hasta),
+        ).fetchone()
+        facturado_mes = row[0]
+
+        # KPI 2/3: ingresos y egresos de caja del mes
+        row = conn.execute(
+            """SELECT
+                 COALESCE(SUM(CASE WHEN tipo='ingreso' THEN monto ELSE 0 END), 0),
+                 COALESCE(SUM(CASE WHEN tipo='egreso'  THEN monto ELSE 0 END), 0)
+               FROM caja_movimientos WHERE fecha BETWEEN ? AND ?""",
+            (mes_desde, mes_hasta),
+        ).fetchone()
+        cobrado_mes = row[0]
+        egresos_mes = row[1]
+
+        # KPI 4: saldo total de caja (histórico)
+        saldo_total = conn.execute(
+            "SELECT COALESCE(SUM(CASE WHEN tipo='ingreso' THEN monto ELSE -monto END), 0) FROM caja_movimientos"
+        ).fetchone()[0]
+
+        # Cantidad de facturas emitidas en el mes
+        cant_facturas_mes = conn.execute(
+            "SELECT COUNT(*) FROM facturas WHERE tipo IN (1,6,11) AND fecha BETWEEN ? AND ?",
+            (mes_desde, mes_hasta),
+        ).fetchone()[0]
+
+        # Facturas sin cobrar (tipo factura, sin ingreso en caja)
+        rows = conn.execute(
+            """SELECT f.id, f.tipo, f.punto_venta, f.numero, f.fecha, f.cliente_razon, f.total
+               FROM facturas f
+               LEFT JOIN caja_movimientos c ON c.factura_id = f.id AND c.tipo = 'ingreso'
+               WHERE f.tipo IN (1,6,11) AND c.id IS NULL
+               ORDER BY f.id DESC LIMIT 8""",
+        ).fetchall()
+        facturas_sin_cobrar = [dict(r) for r in rows]
+
+        # Presupuestos pendientes de respuesta
+        rows = conn.execute(
+            "SELECT id, number, date, client_name, total FROM presupuestos WHERE status='pendiente' ORDER BY id DESC LIMIT 8"
+        ).fetchall()
+        presupuestos_pendientes = [dict(r) for r in rows]
+
+        # Últimos 6 movimientos de caja
+        rows = conn.execute(
+            "SELECT * FROM caja_movimientos ORDER BY fecha DESC, id DESC LIMIT 6"
+        ).fetchall()
+        ultimos_movimientos = [dict(r) for r in rows]
+
+    return {
+        "facturado_mes":        facturado_mes,
+        "cobrado_mes":          cobrado_mes,
+        "egresos_mes":          egresos_mes,
+        "saldo_total":          saldo_total,
+        "cant_facturas_mes":    cant_facturas_mes,
+        "facturas_sin_cobrar":  facturas_sin_cobrar,
+        "presupuestos_pendientes": presupuestos_pendientes,
+        "ultimos_movimientos":  ultimos_movimientos,
+    }

@@ -2,8 +2,9 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
+import datetime
 from fastapi import APIRouter, Request, Depends
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 from typing import Annotated
 
@@ -28,11 +29,11 @@ def _arca_cfg():
 @router.get("/config")
 def config_get(request: Request, user: Auth, tab: str = "empresa"):
     return templates.TemplateResponse(request, "config.html", {
-        "cfg": config_manager.load(),
-        "arca": _arca_cfg(),
+        "cfg":    config_manager.load(),
+        "arca":   _arca_cfg(),
         "active": "config",
-        "tab": tab,
-        "saved": None,
+        "tab":    tab,
+        "saved":  None,
     })
 
 
@@ -47,8 +48,9 @@ async def config_empresa_post(request: Request, user: Auth):
         "empresa_telefono":  str(form.get("empresa_telefono", "")).strip(),
         "empresa_email":     str(form.get("empresa_email", "")).strip(),
         "empresa_iibb":           str(form.get("empresa_iibb", "")).strip(),
-        "empresa_iva_condition":  str(form.get("empresa_iva_condition", "")).strip(),
-        "logo_path":              existing.get("logo_path", ""),
+        "empresa_iva_condition":       str(form.get("empresa_iva_condition", "")).strip(),
+        "empresa_inicio_actividades":  str(form.get("empresa_inicio_actividades", "")).strip(),
+        "logo_path":                   existing.get("logo_path", ""),
     }
     logo_file = form.get("logo")
     if logo_file and hasattr(logo_file, "filename") and logo_file.filename:
@@ -71,6 +73,31 @@ async def config_empresa_post(request: Request, user: Auth):
 @router.post("/config")
 async def config_post_compat(request: Request, user: Auth):
     return await config_empresa_post(request, user)
+
+
+@router.post("/config/integraciones")
+async def config_integraciones_post(request: Request, user: Auth):
+    form = await request.form()
+    existing = config_manager.load()
+    cfg = {**existing}
+    cfg["mp_access_token"]        = str(form.get("mp_access_token", "")).strip()
+    cfg["mp_webhook_secret"]      = str(form.get("mp_webhook_secret", "")).strip()
+    cfg["mp_concepto_descripcion"] = str(form.get("mp_concepto_descripcion", "")).strip()
+    cfg["mp_iva_rate"]            = str(form.get("mp_iva_rate", "0")).strip()
+    cfg["email_smtp_host"]        = str(form.get("email_smtp_host", "")).strip()
+    cfg["email_smtp_port"]        = str(form.get("email_smtp_port", "587")).strip()
+    cfg["email_smtp_user"]        = str(form.get("email_smtp_user", "")).strip()
+    cfg["email_from"]             = str(form.get("email_from", "")).strip()
+    cfg["email_from_name"]        = str(form.get("email_from_name", "")).strip()
+    # Solo sobreescribir password si se ingresó uno nuevo
+    new_pass = str(form.get("email_smtp_password", "")).strip()
+    if new_pass:
+        cfg["email_smtp_password"] = new_pass
+    config_manager.save(cfg)
+    return templates.TemplateResponse(request, "config.html", {
+        "cfg": cfg, "arca": _arca_cfg(),
+        "active": "config", "tab": "integraciones", "saved": "integraciones",
+    })
 
 
 @router.post("/config/arca")
@@ -119,3 +146,12 @@ async def config_arca_post(request: Request, user: Auth):
         "cfg": config_manager.load(), "arca": _arca_cfg(),
         "active": "config", "tab": "arca", "saved": "arca",
     })
+
+
+@router.get("/config/backup-db")
+def config_backup_db(user: Auth):
+    import database as _db
+    hoy      = datetime.date.today().strftime("%Y%m%d")
+    filename = f"contalibra_backup_{hoy}.db"
+    return FileResponse(_db.DB_PATH, media_type="application/octet-stream",
+                        filename=filename)

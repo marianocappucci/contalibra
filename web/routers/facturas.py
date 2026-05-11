@@ -3,7 +3,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from fastapi import APIRouter, Request, Depends, HTTPException
-from fastapi.responses import RedirectResponse, FileResponse
+from fastapi.responses import RedirectResponse, FileResponse, Response
 from fastapi.templating import Jinja2Templates
 from typing import Annotated
 
@@ -14,6 +14,7 @@ import pdf_generator as pdf_gen
 import arca_wsaa
 import arca_wsfe
 import config_manager
+import email_sender
 from web.auth import require_auth
 
 router = APIRouter()
@@ -74,27 +75,161 @@ def _arca_punto_venta():
     return configs[0].get("punto_venta", 1) if configs else 1
 
 
+_PAGE_SIZE = 50
+
+
 @router.get("/facturas")
-def facturas_list(request: Request, user: Auth, q: str = "", vista: str = "facturas"):
-    items = db.search_facturas(q, vista) if q else db.get_all_facturas(200, vista)
+def facturas_list(request: Request, user: Auth,
+                  q: str = "", vista: str = "facturas",
+                  desde: str = "", hasta: str = "", page: int = 1):
+    offset = (page - 1) * _PAGE_SIZE
+    result = db.get_facturas_filtradas(desde, hasta, q, vista, _PAGE_SIZE, offset)
+    total_pages = max(1, (result["total"] + _PAGE_SIZE - 1) // _PAGE_SIZE)
     return templates.TemplateResponse(request, "facturas/list.html", {
-        "facturas": items, "q": q, "vista": vista, "active": "facturas",
+        "facturas":    result["items"],
+        "q":           q,
+        "vista":       vista,
+        "desde":       desde,
+        "hasta":       hasta,
+        "page":        page,
+        "total_pages": total_pages,
+        "total_items": result["total"],
+        "active":      "facturas",
     })
 
 
+@router.post("/facturas/borrador-pdf")
+async def factura_borrador_pdf(request: Request, user: Auth):
+    """Genera un PDF de borrador con los datos del formulario, sin guardar ni llamar a ARCA."""
+    import tempfile, os as _os
+    form = await request.form()
+    try:
+        tipo        = int(form.get("tipo", 11))
+        punto_venta = int(form.get("punto_venta", 1) or 1)
+        concepto    = int(form.get("concepto", 2))
+        fecha_str       = str(form.get("fecha", datetime.date.today().isoformat())).strip()
+        observations    = str(form.get("observations", "")).strip()
+        fch_serv_desde  = str(form.get("fch_serv_desde", "")).strip()
+        fch_serv_hasta  = str(form.get("fch_serv_hasta", "")).strip()
+        fch_vto_pago    = str(form.get("fch_vto_pago", "")).strip()
+        tax_rate    = 0.0 if tipo == 11 else float(form.get("tax_rate", "0.21") or "0.21")
+
+        client_id = int(form.get("client_id", 0) or 0)
+        client_name    = str(form.get("client_name", "")).strip()
+        client_cuit    = str(form.get("client_cuit", "")).strip()
+        client_address = str(form.get("client_address", "")).strip()
+        client_iva     = str(form.get("client_iva", "")).strip()
+
+        if client_id:
+            c = db.get_client(client_id)
+            if c:
+                client_name    = c["name"]
+                client_cuit    = c.get("cuit_dni", "")
+                client_address = c.get("address", "")
+                client_iva     = c.get("iva_condition", "")
+
+        descs  = form.getlist("desc[]")
+        qtys   = form.getlist("qty[]")
+        prices = form.getlist("price[]")
+
+        items = []
+        for desc, qty_s, price_s in zip(descs, qtys, prices):
+            if not desc.strip():
+                continue
+            qty   = float(qty_s.replace(",", ".") or "1")
+            price = float(price_s.replace(",", ".") or "0")
+            items.append({
+                "description": desc.strip(),
+                "qty": qty,
+                "unit_price": price,
+                "subtotal": round(qty * price, 2),
+            })
+
+        if not items:
+            items = [{"description": "Ejemplo de servicio", "qty": 1, "unit_price": 1000.0, "subtotal": 1000.0}]
+
+        subtotal   = round(sum(i["subtotal"] for i in items), 2)
+        iva_amount = round(subtotal * tax_rate, 2)
+        total      = round(subtotal + iva_amount, 2)
+
+        factura_draft = {
+            "id": 0,
+            "tipo": tipo,
+            "punto_venta": punto_venta,
+            "numero": 0,
+            "fecha": fecha_str,
+            "cliente_cuit": client_cuit,
+            "cliente_razon": client_name or "BORRADOR",
+            "cliente_iva_cond": IVA_CODES.get(client_iva, 0),
+            "cliente_domicilio": client_address,
+            "items": items,
+            "subtotal": subtotal,
+            "iva_amount": iva_amount,
+            "total": total,
+            "concepto": concepto,
+            "observaciones": observations,
+            "fch_serv_desde": fch_serv_desde,
+            "fch_serv_hasta": fch_serv_hasta,
+            "fch_vto_pago": fch_vto_pago,
+            "cae": "",
+            "cae_vto": "",
+        }
+
+        tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+        tmp.close()
+        pdf_gen.generate_pdf_factura(factura_draft, output_dir=_os.path.dirname(tmp.name))
+        # generate_pdf_factura usa punto_venta y numero para el nombre, entonces lo buscamos
+        pv  = str(punto_venta).zfill(4)
+        num = "00000000"
+        pdf_path = _os.path.join(_os.path.dirname(tmp.name), f"factura_{pv}_{num}.pdf")
+        if not _os.path.exists(pdf_path):
+            pdf_path = tmp.name  # fallback
+        with open(pdf_path, "rb") as f:
+            content = f.read()
+        try:
+            _os.unlink(pdf_path)
+            _os.unlink(tmp.name)
+        except Exception:
+            pass
+        return Response(content, media_type="application/pdf",
+                        headers={"Content-Disposition": 'inline; filename="borrador.pdf"'})
+    except Exception as e:
+        return Response(f"Error generando borrador: {e}", status_code=500)
+
+
 @router.get("/facturas/nueva")
-def factura_nueva_get(request: Request, user: Auth):
+def factura_nueva_get(request: Request, user: Auth, from_presupuesto: int = 0):
     tipos = _tipos_emisor()
     es_monotributista = len(tipos) == 1 and tipos[0]["value"] == 11
+    prefill = None
+    if from_presupuesto:
+        pres = db.get_presupuesto(from_presupuesto)
+        if pres:
+            client_iva = ""
+            if pres.get("client_id"):
+                c = db.get_client(pres["client_id"])
+                if c:
+                    client_iva = c.get("iva_condition", "")
+            prefill = {
+                "client_id":      pres.get("client_id") or "",
+                "client_name":    pres["client_name"],
+                "client_cuit":    pres.get("client_cuit", ""),
+                "client_address": pres.get("client_address", ""),
+                "client_iva":     client_iva,
+                "concepto":       2,
+                "observations":   pres.get("observations", ""),
+                "items":          pres["items"],
+            }
     return templates.TemplateResponse(request, "facturas/form.html", {
-        "clientes": db.get_all_clients(),
-        "tipos": tipos,
-        "conceptos": CONCEPTOS,
-        "punto_venta": _arca_punto_venta(),
-        "active": "facturas",
-        "factura": None,
-        "error": None,
+        "clientes":          db.get_all_clients(),
+        "tipos":             tipos,
+        "conceptos":         CONCEPTOS,
+        "punto_venta":       _arca_punto_venta(),
+        "active":            "facturas",
+        "factura":           None,
+        "error":             None,
         "es_monotributista": es_monotributista,
+        "prefill":           prefill,
     })
 
 
@@ -237,6 +372,13 @@ def _detail_ctx(factura: dict, error: str = "") -> dict:
 
     cobro = db.get_cobro_factura(factura["id"]) if es_factura else None
 
+    # Intentar obtener email del cliente para pre-llenar el modal
+    cliente_email = ""
+    if factura.get("client_id"):
+        c = db.get_client(factura["client_id"])
+        if c:
+            cliente_email = c.get("email", "")
+
     return {
         "factura":          factura,
         "tipo_label":       _TIPO_LABELS.get(factura["tipo"], "Documento"),
@@ -249,6 +391,9 @@ def _detail_ctx(factura: dict, error: str = "") -> dict:
         "factura_original": factura_original,
         "tipo_labels":      _TIPO_LABELS,
         "cobro":            cobro,
+        "cliente_email":    cliente_email,
+        "email_ok":         None,
+        "email_error":      None,
     }
 
 
@@ -308,6 +453,52 @@ def factura_pdf(factura_id: int, user: Auth):
     num = str(factura["numero"]).zfill(8)
     return FileResponse(pdf_path, media_type="application/pdf",
                         filename=f"factura_{pv}_{num}.pdf")
+
+
+@router.post("/facturas/{factura_id}/enviar-email")
+async def factura_enviar_email(request: Request, factura_id: int, user: Auth):
+    form    = await request.form()
+    to_mail = str(form.get("email", "")).strip()
+    factura = db.get_factura(factura_id)
+    if not factura:
+        raise HTTPException(404)
+
+    cfg = config_manager.load()
+    ctx = _detail_ctx(factura)
+
+    if not cfg.get("email_smtp_host"):
+        return templates.TemplateResponse(request, "facturas/detail.html",
+            {**ctx, "email_error": "Configurá el servidor SMTP en Configuración → Integraciones.",
+             "email_ok": None})
+
+    if not to_mail:
+        return templates.TemplateResponse(request, "facturas/detail.html",
+            {**ctx, "email_error": "Ingresá una dirección de email.", "email_ok": None})
+
+    from pdf_generator import _TIPO_LABELS
+    pdf_path   = factura.get("pdf_path") or pdf_gen.generate_pdf_factura(factura)
+    tipo_label = _TIPO_LABELS.get(factura["tipo"], "Comprobante")
+    pv         = str(factura["punto_venta"]).zfill(4)
+    num        = str(factura["numero"]).zfill(8)
+    doc_label  = f"{tipo_label} {pv}-{num}"
+
+    try:
+        email_sender.enviar_comprobante(
+            to_email=to_mail, to_name=factura["cliente_razon"],
+            pdf_path=pdf_path, empresa_nombre=cfg.get("empresa_nombre", ""),
+            factura_label=doc_label, total=factura["total"],
+            smtp_host=cfg["email_smtp_host"],
+            smtp_port=int(cfg.get("email_smtp_port", 587)),
+            smtp_user=cfg["email_smtp_user"],
+            smtp_password=cfg.get("email_smtp_password", ""),
+            from_email=cfg.get("email_from") or cfg["email_smtp_user"],
+            from_name=cfg.get("email_from_name", ""),
+        )
+        return templates.TemplateResponse(request, "facturas/detail.html",
+            {**ctx, "email_ok": f"Email enviado a {to_mail}.", "email_error": None})
+    except Exception as e:
+        return templates.TemplateResponse(request, "facturas/detail.html",
+            {**ctx, "email_error": f"Error al enviar: {e}", "email_ok": None})
 
 
 @router.post("/facturas/{factura_id}/eliminar")
