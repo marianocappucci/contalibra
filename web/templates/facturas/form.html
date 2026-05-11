@@ -30,7 +30,7 @@
       <div class="card h-100">
         <div class="card-header">Concepto</div>
         <div class="card-body">
-          <select class="form-select" name="concepto">
+          <select class="form-select" name="concepto" id="concepto-select">
             {% for c in conceptos %}
             <option value="{{ c.value }}">{{ c.label }}</option>
             {% endfor %}
@@ -52,6 +52,32 @@
         <div class="card-header">Fecha</div>
         <div class="card-body">
           <input type="date" class="form-control" name="fecha" required>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fechas de servicio (concepto 2 o 3) -->
+    <div class="col-12" id="fechas-servicio" style="display:none">
+      <div class="card border-warning">
+        <div class="card-header bg-warning bg-opacity-10">
+          <i class="bi bi-calendar-range me-1"></i>Período de servicio
+          <span class="text-muted fw-normal small ms-2">Requerido por ARCA cuando el concepto es Servicios</span>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Fecha desde <span class="text-danger">*</span></label>
+              <input type="date" class="form-control" name="fch_serv_desde" id="fch_serv_desde">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Fecha hasta <span class="text-danger">*</span></label>
+              <input type="date" class="form-control" name="fch_serv_hasta" id="fch_serv_hasta">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Vto. de pago <span class="text-danger">*</span></label>
+              <input type="date" class="form-control" name="fch_vto_pago" id="fch_vto_pago">
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -251,6 +277,24 @@ if (sel) {
 
 const dateInput = document.querySelector('input[name="fecha"]');
 if (dateInput && !dateInput.value) dateInput.value = new Date().toISOString().slice(0, 10);
+
+function toggleFechasServicio() {
+  const concepto = parseInt(document.getElementById('concepto-select').value);
+  const bloque   = document.getElementById('fechas-servicio');
+  const show     = concepto === 2 || concepto === 3;
+  bloque.style.display = show ? '' : 'none';
+  if (show) {
+    const today = new Date().toISOString().slice(0, 10);
+    const desde = document.getElementById('fch_serv_desde');
+    const hasta = document.getElementById('fch_serv_hasta');
+    const vto   = document.getElementById('fch_vto_pago');
+    if (!desde.value) desde.value = today;
+    if (!hasta.value) hasta.value = today;
+    if (!vto.value)   vto.value   = today;
+  }
+}
+document.getElementById('concepto-select').addEventListener('change', toggleFechasServicio);
+toggleFechasServicio();
 
 recalc();
 </script>

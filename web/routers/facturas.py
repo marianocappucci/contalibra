@@ -96,8 +96,11 @@ async def factura_nueva_post(request: Request, user: Auth):
         tipo        = int(form.get("tipo", 6))
         punto_venta = int(form.get("punto_venta", 1) or 1)
         concepto    = int(form.get("concepto", 1))
-        fecha_str   = str(form.get("fecha", "")).strip()
-        observations = str(form.get("observations", "")).strip()
+        fecha_str       = str(form.get("fecha", "")).strip()
+        observations    = str(form.get("observations", "")).strip()
+        fch_serv_desde  = str(form.get("fch_serv_desde", "")).strip()
+        fch_serv_hasta  = str(form.get("fch_serv_hasta", "")).strip()
+        fch_vto_pago    = str(form.get("fch_vto_pago",   "")).strip()
         # Factura C (monotributista) nunca discrimina IVA
         tax_rate    = 0.0 if tipo == 11 else float(form.get("tax_rate", "0.21"))
 
@@ -174,6 +177,9 @@ async def factura_nueva_post(request: Request, user: Auth):
             items=items, subtotal=subtotal, iva_amount=iva_amount,
             total=total, concepto=concepto, observaciones=observations,
             cliente_domicilio=client_address,
+            fch_serv_desde=fch_serv_desde,
+            fch_serv_hasta=fch_serv_hasta,
+            fch_vto_pago=fch_vto_pago,
         )
         factura = db.get_factura(factura_id)
 

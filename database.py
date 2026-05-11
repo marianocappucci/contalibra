@@ -111,6 +111,12 @@ def init_db():
         fact_cols = [r[1] for r in conn.execute("PRAGMA table_info(facturas)").fetchall()]
         if "cliente_domicilio" not in fact_cols:
             conn.execute("ALTER TABLE facturas ADD COLUMN cliente_domicilio TEXT DEFAULT ''")
+        if "fch_serv_desde" not in fact_cols:
+            conn.execute("ALTER TABLE facturas ADD COLUMN fch_serv_desde TEXT DEFAULT ''")
+        if "fch_serv_hasta" not in fact_cols:
+            conn.execute("ALTER TABLE facturas ADD COLUMN fch_serv_hasta TEXT DEFAULT ''")
+        if "fch_vto_pago" not in fact_cols:
+            conn.execute("ALTER TABLE facturas ADD COLUMN fch_vto_pago TEXT DEFAULT ''")
 
 
 # ── Clients ────────────────────────────────────────────────────────────────────
@@ -490,19 +496,21 @@ def get_next_factura_numero(punto_venta, tipo):
 def create_factura(tipo, punto_venta, numero, fecha, cliente_cuit, cliente_razon,
                    cliente_iva_cond, items, subtotal, iva_amount, total,
                    concepto=1, cae="", cae_vto="", observaciones="", pdf_path="",
-                   cliente_domicilio=""):
+                   cliente_domicilio="", fch_serv_desde="", fch_serv_hasta="",
+                   fch_vto_pago=""):
     """Crea una nueva factura electrónica."""
     with get_connection() as conn:
         cur = conn.execute(
             """INSERT INTO facturas
                (tipo, punto_venta, numero, fecha, cliente_cuit, cliente_razon,
                 cliente_iva_cond, items, subtotal, iva_amount, total, concepto,
-                cae, cae_vto, observaciones, pdf_path, cliente_domicilio)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                cae, cae_vto, observaciones, pdf_path, cliente_domicilio,
+                fch_serv_desde, fch_serv_hasta, fch_vto_pago)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (tipo, punto_venta, numero, fecha, cliente_cuit, cliente_razon,
              cliente_iva_cond, json.dumps(items, ensure_ascii=False), subtotal,
              iva_amount, total, concepto, cae, cae_vto, observaciones, pdf_path,
-             cliente_domicilio),
+             cliente_domicilio, fch_serv_desde, fch_serv_hasta, fch_vto_pago),
         )
         return cur.lastrowid
 

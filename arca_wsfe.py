@@ -95,7 +95,12 @@ async def solicitar_cae(
     """
     url = WSFE_URL.get(ambiente, WSFE_URL["produccion"])
 
-    fecha    = (factura.get("fecha") or "").replace("-", "")  # YYYYMMDD
+    fecha       = (factura.get("fecha") or "").replace("-", "")  # YYYYMMDD
+    concepto_n  = int(factura.get("concepto", 1))
+    # Fechas de servicio — obligatorias cuando concepto es 2 o 3
+    fch_desde   = (factura.get("fch_serv_desde") or fecha).replace("-", "")
+    fch_hasta   = (factura.get("fch_serv_hasta") or fecha).replace("-", "")
+    fch_vto     = (factura.get("fch_vto_pago")   or fecha).replace("-", "")
     sub      = float(factura.get("subtotal",   0))
     iva      = float(factura.get("iva_amount", 0))
     total    = float(factura.get("total",      0))
@@ -149,6 +154,9 @@ async def solicitar_cae(
         + f"<CbteDesde>{factura['numero']}</CbteDesde>"
         + f"<CbteHasta>{factura['numero']}</CbteHasta>"
         + f"<CbteFch>{fecha}</CbteFch>"
+        + (f"<FchServDesde>{fch_desde}</FchServDesde>"
+           f"<FchServHasta>{fch_hasta}</FchServHasta>"
+           f"<FchVtoPago>{fch_vto}</FchVtoPago>" if concepto_n in (2, 3) else "")
         + f"<ImpTotal>{total:.2f}</ImpTotal>"
         + "<ImpTotConc>0.00</ImpTotConc>"
         + f"<ImpNeto>{imp_neto}</ImpNeto>"
