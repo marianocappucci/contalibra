@@ -1,20 +1,47 @@
 {% extends "base.html" %}
-{% block title %}Facturas — Contalibra{% endblock %}
+{% block title %}{% if vista == 'nc' %}Notas de Crédito{% else %}Facturas{% endif %} — Contalibra{% endblock %}
 {% block content %}
 <div class="page-header">
-  <h1><i class="bi bi-receipt me-2 text-primary"></i>Facturas</h1>
+  <h1><i class="bi bi-receipt me-2 text-primary"></i>Comprobantes</h1>
+  {% if vista != 'nc' %}
   <a href="/facturas/nueva" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Nueva factura</a>
+  {% endif %}
 </div>
+
+<!-- Tabs -->
+<ul class="nav nav-tabs mb-3">
+  <li class="nav-item">
+    <a class="nav-link {% if vista != 'nc' %}active{% endif %}" href="/facturas?vista=facturas">
+      <i class="bi bi-receipt me-1"></i>Facturas
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if vista == 'nc' %}active{% endif %}" href="/facturas?vista=nc">
+      <i class="bi bi-file-minus me-1"></i>Notas de Crédito
+    </a>
+  </li>
+</ul>
 
 <div class="card mb-3">
   <div class="card-body py-2">
     <form class="d-flex gap-2" method="get" action="/facturas">
-      <input class="form-control" name="q" value="{{ q }}" placeholder="Buscar por número, cliente u observaciones…">
+      <input type="hidden" name="vista" value="{{ vista }}">
+      <input class="form-control" name="q" value="{{ q }}"
+             placeholder="Buscar por número, cliente u observaciones…">
       <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
-      {% if q %}<a href="/facturas" class="btn btn-outline-danger"><i class="bi bi-x"></i></a>{% endif %}
+      {% if q %}<a href="/facturas?vista={{ vista }}" class="btn btn-outline-danger"><i class="bi bi-x"></i></a>{% endif %}
     </form>
   </div>
 </div>
+
+{% set tipo_badge = {
+  1:  ('bg-primary',   'Fact. A'),
+  6:  ('bg-secondary', 'Fact. B'),
+  11: ('bg-info text-dark', 'Fact. C'),
+  3:  ('bg-danger',    'NC-A'),
+  8:  ('bg-danger',    'NC-B'),
+  13: ('bg-danger',    'NC-C'),
+} %}
 
 <div class="card">
   <div class="card-body p-0">
@@ -27,8 +54,9 @@
             <th>Tipo</th>
             <th>Fecha</th>
             <th>Cliente</th>
+            {% if vista == 'nc' %}<th>Anula</th>{% endif %}
             <th class="text-end">Total</th>
-            <th>CAE</th>
+            <th>Estado</th>
             <th></th>
           </tr>
         </thead>
@@ -36,17 +64,24 @@
           {% for f in facturas %}
           {% set pv  = '%04d' % f.punto_venta %}
           {% set num = '%08d' % f.numero %}
-          {% set tipos = {1: 'A', 6: 'B', 3: 'NC-A', 8: 'NC-B'} %}
+          {% set badge = tipo_badge.get(f.tipo, ('bg-secondary', '?')) %}
           <tr>
             <td><span class="font-monospace small">{{ pv }}-{{ num }}</span></td>
-            <td>
-              <span class="badge {% if f.tipo == 1 %}bg-primary{% else %}bg-secondary{% endif %}">
-                {{ tipos.get(f.tipo, '?') }}
-              </span>
-            </td>
+            <td><span class="badge {{ badge[0] }}">{{ badge[1] }}</span></td>
             <td>{{ f.fecha }}</td>
             <td>{{ f.cliente_razon }}</td>
-            <td class="text-end fw-semibold">$ {{ "{:,.2f}".format(f.total) }}</td>
+            {% if vista == 'nc' %}
+            <td>
+              {% if f.cbte_asoc_nro %}
+              <span class="font-monospace small text-muted">
+                {{ '%04d' % f.cbte_asoc_pv }}-{{ '%08d' % f.cbte_asoc_nro }}
+              </span>
+              {% endif %}
+            </td>
+            {% endif %}
+            <td class="text-end fw-semibold {% if vista == 'nc' %}text-danger{% endif %}">
+              {% if vista == 'nc' %}-{% endif %}$ {{ "{:,.2f}".format(f.total) }}
+            </td>
             <td>
               {% if f.cae %}
               <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Autorizada</span>
@@ -65,7 +100,13 @@
     </div>
     {% else %}
     <div class="p-4 text-center text-muted">
-      {% if q %}No se encontraron facturas para "<strong>{{ q }}</strong>".{% else %}No hay facturas registradas aún.{% endif %}
+      {% if q %}
+        No se encontraron comprobantes para "<strong>{{ q }}</strong>".
+      {% elif vista == 'nc' %}
+        No hay notas de crédito registradas aún.
+      {% else %}
+        No hay facturas registradas aún.
+      {% endif %}
     </div>
     {% endif %}
   </div>

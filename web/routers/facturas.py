@@ -69,10 +69,11 @@ def _arca_punto_venta():
 
 
 @router.get("/facturas")
-def facturas_list(request: Request, user: Auth, q: str = ""):
-    items = db.search_facturas(q) if q else db.get_all_facturas(200)
+def facturas_list(request: Request, user: Auth, q: str = "", vista: str = "facturas"):
+    solo_nc = vista == "nc"
+    items = db.search_facturas(q, solo_nc) if q else db.get_all_facturas(200, solo_nc)
     return templates.TemplateResponse(request, "facturas/list.html", {
-        "facturas": items, "q": q, "active": "facturas",
+        "facturas": items, "q": q, "vista": vista, "active": "facturas",
     })
 
 
@@ -215,13 +216,29 @@ async def factura_nueva_post(request: Request, user: Auth):
 
 def _detail_ctx(factura: dict, error: str = "") -> dict:
     from pdf_generator import _TIPO_LABELS, _CONCEPTO_LABELS, _IVA_LABELS
+
+    # Notas de crédito que anulan esta factura (solo aplica a facturas, no a NCs)
+    ncs = []
+    if factura["tipo"] in (1, 6, 11):
+        ncs = db.get_nc_de_factura(factura["tipo"], factura["punto_venta"], factura["numero"])
+
+    # Factura original que esta NC anula
+    factura_original = None
+    if factura.get("cbte_asoc_tipo") and factura.get("cbte_asoc_nro"):
+        factura_original = db.get_factura_por_tipo_pv_nro(
+            factura["cbte_asoc_tipo"], factura["cbte_asoc_pv"], factura["cbte_asoc_nro"]
+        )
+
     return {
-        "factura":        factura,
-        "tipo_label":     _TIPO_LABELS.get(factura["tipo"], "Documento"),
-        "concepto_label": _CONCEPTO_LABELS.get(factura.get("concepto", 1), "Productos"),
-        "iva_label":      _IVA_LABELS.get(factura.get("cliente_iva_cond") or 0, ""),
-        "active":         "facturas",
-        "arca_error":     error,
+        "factura":          factura,
+        "tipo_label":       _TIPO_LABELS.get(factura["tipo"], "Documento"),
+        "concepto_label":   _CONCEPTO_LABELS.get(factura.get("concepto", 1), "Productos"),
+        "iva_label":        _IVA_LABELS.get(factura.get("cliente_iva_cond") or 0, ""),
+        "active":           "facturas",
+        "arca_error":       error,
+        "notas_credito":    ncs,
+        "factura_original": factura_original,
+        "tipo_labels":      _TIPO_LABELS,
     }
 
 

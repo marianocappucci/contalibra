@@ -17,6 +17,42 @@
   </div>
 </div>
 
+<!-- Factura original (cuando este comprobante es una NC) -->
+{% if factura_original %}
+<div class="alert alert-secondary d-flex align-items-center gap-2 mb-3">
+  <i class="bi bi-arrow-return-left fs-5"></i>
+  <div>
+    Este comprobante anula la
+    <strong>{{ tipo_labels.get(factura_original.tipo, 'Factura') }}</strong>
+    <a href="/facturas/{{ factura_original.id }}" class="font-monospace fw-semibold">
+      {{ '%04d' % factura_original.punto_venta }}-{{ '%08d' % factura_original.numero }}
+    </a>
+    del {{ factura_original.fecha }} — {{ factura_original.cliente_razon }}
+  </div>
+</div>
+{% endif %}
+
+<!-- Notas de crédito que anulan esta factura -->
+{% if notas_credito %}
+<div class="alert alert-warning d-flex align-items-start gap-2 mb-3">
+  <i class="bi bi-exclamation-triangle-fill fs-5 mt-1"></i>
+  <div>
+    <strong>Este comprobante tiene {% if notas_credito|length == 1 %}una nota de crédito asociada{% else %}{{ notas_credito|length }} notas de crédito asociadas{% endif %}:</strong>
+    <ul class="mb-0 mt-1">
+      {% for nc in notas_credito %}
+      <li>
+        <a href="/facturas/{{ nc.id }}" class="font-monospace fw-semibold">
+          {{ tipo_labels.get(nc.tipo, 'NC') }} {{ '%04d' % nc.punto_venta }}-{{ '%08d' % nc.numero }}
+        </a>
+        — {{ nc.fecha }}
+        {% if nc.cae %}<span class="badge bg-success ms-1">Autorizada</span>{% else %}<span class="badge bg-warning text-dark ms-1">Pendiente</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+
 <!-- CAE banner -->
 {% if arca_error %}
 <div class="alert alert-danger d-flex align-items-center gap-2 mb-3">
@@ -77,11 +113,11 @@
           <dt class="col-sm-4">Número</dt><dd class="col-sm-8 font-monospace">{{ pv }}-{{ num }}</dd>
           <dt class="col-sm-4">Fecha</dt><dd class="col-sm-8">{{ factura.fecha }}</dd>
           <dt class="col-sm-4">Concepto</dt><dd class="col-sm-8">{{ concepto_label }}</dd>
-          {% if factura.cbte_asoc_tipo %}
-          <dt class="col-sm-4">Cbte. asociado</dt>
+          {% if factura_original %}
+          <dt class="col-sm-4">Cbte. anulado</dt>
           <dd class="col-sm-8">
-            <a href="/facturas?q={{ '%04d' % factura.cbte_asoc_pv }}-{{ '%08d' % factura.cbte_asoc_nro }}" class="font-monospace">
-              {{ '%04d' % factura.cbte_asoc_pv }}-{{ '%08d' % factura.cbte_asoc_nro }}
+            <a href="/facturas/{{ factura_original.id }}" class="font-monospace">
+              {{ '%04d' % factura_original.punto_venta }}-{{ '%08d' % factura_original.numero }}
             </a>
           </dd>
           {% endif %}

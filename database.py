@@ -523,11 +523,18 @@ def create_factura(tipo, punto_venta, numero, fecha, cliente_cuit, cliente_razon
         return cur.lastrowid
 
 
-def get_all_facturas(limit=100):
-    """Obtiene todas las facturas (últimas primero)."""
+_TIPOS_FACTURA = (1, 6, 11)
+_TIPOS_NC      = (3, 8, 13)
+
+
+def get_all_facturas(limit=100, solo_nc=False):
+    """Obtiene facturas o notas de crédito (últimas primero)."""
+    tipos = _TIPOS_NC if solo_nc else _TIPOS_FACTURA
+    placeholders = ",".join("?" * len(tipos))
     with get_connection() as conn:
         rows = conn.execute(
-            "SELECT * FROM facturas ORDER BY id DESC LIMIT ?", (limit,)
+            f"SELECT * FROM facturas WHERE tipo IN ({placeholders}) ORDER BY id DESC LIMIT ?",
+            (*tipos, limit),
         ).fetchall()
         result = []
         for r in rows:
@@ -566,15 +573,18 @@ def update_factura_pdf_path(factura_id, pdf_path):
         )
 
 
-def search_facturas(query):
-    """Busca facturas por número, cliente o observaciones."""
+def search_facturas(query, solo_nc=False):
+    """Busca facturas por número, cliente u observaciones."""
+    tipos = _TIPOS_NC if solo_nc else _TIPOS_FACTURA
+    placeholders = ",".join("?" * len(tipos))
     q = f"%{query}%"
     with get_connection() as conn:
         rows = conn.execute(
-            """SELECT * FROM facturas
-               WHERE numero LIKE ? OR cliente_razon LIKE ? OR observaciones LIKE ?
+            f"""SELECT * FROM facturas
+               WHERE tipo IN ({placeholders})
+                 AND (numero LIKE ? OR cliente_razon LIKE ? OR observaciones LIKE ?)
                ORDER BY id DESC""",
-            (q, q, q),
+            (*tipos, q, q, q),
         ).fetchall()
         result = []
         for r in rows:
@@ -582,6 +592,37 @@ def search_facturas(query):
             d["items"] = json.loads(d["items"])
             result.append(d)
         return result
+
+
+def get_nc_de_factura(tipo, punto_venta, numero):
+    """Devuelve las notas de crédito que anulan un comprobante."""
+    with get_connection() as conn:
+        rows = conn.execute(
+            """SELECT * FROM facturas
+               WHERE cbte_asoc_tipo=? AND cbte_asoc_pv=? AND cbte_asoc_nro=?
+               ORDER BY id DESC""",
+            (tipo, punto_venta, numero),
+        ).fetchall()
+        result = []
+        for r in rows:
+            d = dict(r)
+            d["items"] = json.loads(d["items"])
+            result.append(d)
+        return result
+
+
+def get_factura_por_tipo_pv_nro(tipo, punto_venta, numero):
+    """Busca un comprobante por tipo + punto de venta + número."""
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT * FROM facturas WHERE tipo=? AND punto_venta=? AND numero=?",
+            (tipo, punto_venta, numero),
+        ).fetchone()
+        if not row:
+            return None
+        d = dict(row)
+        d["items"] = json.loads(d["items"])
+        return d
 
 
 def delete_factura(factura_id):
