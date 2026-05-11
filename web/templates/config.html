@@ -199,7 +199,70 @@
       </form>
     </div>
   </div>
+
+  <!-- Probar conexión -->
+  {% if arca and arca.certificado_path and arca.clave_path %}
+  <div class="card mt-3">
+    <div class="card-header fw-semibold"><i class="bi bi-plug me-1"></i>Probar conexión con ARCA</div>
+    <div class="card-body">
+      <p class="text-muted small mb-3">
+        Valida los certificados localmente y autentica contra el servicio WSAA de ARCA
+        (ambiente: <strong>{{ arca.ambiente }}</strong>). Si el ticket se obtiene correctamente, la facturación electrónica está lista.
+      </p>
+      <button class="btn btn-outline-primary" id="btn-probar" onclick="probarArca()">
+        <i class="bi bi-send me-1"></i>Probar conexión
+      </button>
+      <div id="arca-resultado" class="mt-3" style="display:none"></div>
+    </div>
+  </div>
+  {% endif %}
+
 </div>
 {% endif %}
 
+{% endblock %}
+
+{% block scripts %}
+{% if tab == 'arca' and arca and arca.certificado_path and arca.clave_path %}
+<script>
+async function probarArca() {
+  const btn = document.getElementById('btn-probar');
+  const res = document.getElementById('arca-resultado');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Probando…';
+  res.style.display = 'none';
+
+  try {
+    const r = await fetch('/api/arca/probar');
+    const d = await r.json();
+
+    if (d.ok) {
+      res.innerHTML = `
+        <div class="alert alert-success mb-0">
+          <i class="bi bi-check-circle-fill me-2"></i>
+          <strong>Conexion exitosa con WSAA (${d.ambiente})</strong><br>
+          <span class="small">
+            Ticket valido hasta: <strong>${d.expiracion}</strong><br>
+            Certificado vence: <strong>${d.cert_vencimiento}</strong>
+            (${d.cert_dias_restantes} dias restantes)
+          </span>
+        </div>`;
+    } else {
+      res.innerHTML = `
+        <div class="alert alert-danger mb-0">
+          <i class="bi bi-x-circle-fill me-2"></i>
+          <strong>Error al conectar con ARCA</strong><br>
+          <span class="small">${d.error}</span>
+        </div>`;
+    }
+  } catch(e) {
+    res.innerHTML = `<div class="alert alert-danger mb-0">Error inesperado: ${e}</div>`;
+  }
+
+  res.style.display = 'block';
+  btn.disabled = false;
+  btn.innerHTML = '<i class="bi bi-send me-1"></i>Probar conexion';
+}
+</script>
+{% endif %}
 {% endblock %}

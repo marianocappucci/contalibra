@@ -12,6 +12,7 @@ from starlette.middleware.sessions import SessionMiddleware
 import httpx
 
 import database as db
+import arca_wsaa
 from web.auth import (
     require_auth, check_credentials,
     create_session_cookie, clear_session_cookie,
@@ -89,6 +90,49 @@ def arca_estado(user: str = Depends(require_auth)):
         "tiene_certificado": tiene_cert,
         "tiene_clave": tiene_clave,
     })
+
+
+@app.get("/api/arca/probar", include_in_schema=False)
+async def arca_probar(user: str = Depends(require_auth)):
+    configs = db.obtener_todas_arca_configs()
+    if not configs:
+        return JSONResponse({"ok": False, "error": "ARCA no está configurado."}, status_code=400)
+
+    cfg        = configs[0]
+    cert_path  = cfg.get("certificado_path", "")
+    key_path   = cfg.get("clave_path", "")
+    ambiente   = cfg.get("ambiente", "homologacion")
+
+    # Validar archivos localmente primero
+    errores = arca_wsaa.validar_archivos(cert_path, key_path)
+    if errores:
+        return JSONResponse({"ok": False, "error": " | ".join(errores)}, status_code=400)
+
+    # Info del certificado
+    info = arca_wsaa.info_certificado(cert_path)
+
+    # Autenticar contra WSAA
+    try:
+        ta = await arca_wsaa.autenticar(cert_path, key_path, ambiente)
+        return JSONResponse({
+            "ok": True,
+            "ambiente": ambiente,
+            "expiracion": ta["expiracion"],
+            "cert_vencimiento": info.get("vencimiento"),
+            "cert_dias_restantes": info.get("dias_restantes"),
+            "cert_subject": info.get("subject"),
+        })
+    except RuntimeError as e:
+        return JSONResponse({"ok": False, "error": str(e), "cert": info}, status_code=502)
+
+
+@app.get("/api/arca/certificado-info", include_in_schema=False)
+def arca_cert_info(user: str = Depends(require_auth)):
+    configs = db.obtener_todas_arca_configs()
+    if not configs:
+        return JSONResponse({"error": "Sin configuracion"}, status_code=404)
+    cert_path = configs[0].get("certificado_path", "")
+    return JSONResponse(arca_wsaa.info_certificado(cert_path))
 
 
 @app.get("/api/consultar-cuit/{cuit}", include_in_schema=False)
