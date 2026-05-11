@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{% if vista == 'nc' %}Notas de Crédito{% else %}Facturas{% endif %} — Contalibra{% endblock %}
+{% block title %}{% if vista == 'nc' %}Notas de Crédito{% elif vista == 'nd' %}Notas de Débito{% else %}Facturas{% endif %} — Contalibra{% endblock %}
 {% block content %}
 <div class="page-header">
   <h1><i class="bi bi-receipt me-2 text-primary"></i>Comprobantes</h1>
@@ -11,13 +11,18 @@
 <!-- Tabs -->
 <ul class="nav nav-tabs mb-3">
   <li class="nav-item">
-    <a class="nav-link {% if vista != 'nc' %}active{% endif %}" href="/facturas?vista=facturas">
+    <a class="nav-link {% if vista == 'facturas' or vista not in ('nc','nd') %}active{% endif %}" href="/facturas?vista=facturas">
       <i class="bi bi-receipt me-1"></i>Facturas
     </a>
   </li>
   <li class="nav-item">
     <a class="nav-link {% if vista == 'nc' %}active{% endif %}" href="/facturas?vista=nc">
       <i class="bi bi-file-minus me-1"></i>Notas de Crédito
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if vista == 'nd' %}active{% endif %}" href="/facturas?vista=nd">
+      <i class="bi bi-file-plus me-1"></i>Notas de Débito
     </a>
   </li>
 </ul>
@@ -35,12 +40,15 @@
 </div>
 
 {% set tipo_badge = {
-  1:  ('bg-primary',   'Fact. A'),
-  6:  ('bg-secondary', 'Fact. B'),
+  1:  ('bg-primary',        'Fact. A'),
+  6:  ('bg-secondary',      'Fact. B'),
   11: ('bg-info text-dark', 'Fact. C'),
-  3:  ('bg-danger',    'NC-A'),
-  8:  ('bg-danger',    'NC-B'),
-  13: ('bg-danger',    'NC-C'),
+  3:  ('bg-danger',         'NC-A'),
+  8:  ('bg-danger',         'NC-B'),
+  13: ('bg-danger',         'NC-C'),
+  2:  ('bg-primary',        'ND-A'),
+  7:  ('bg-secondary',      'ND-B'),
+  12: ('bg-info text-dark', 'ND-C'),
 } %}
 
 <div class="card">
@@ -54,7 +62,7 @@
             <th>Tipo</th>
             <th>Fecha</th>
             <th>Cliente</th>
-            {% if vista == 'nc' %}<th>Anula</th>{% endif %}
+            {% if vista in ('nc', 'nd') %}<th>Cbte. asociado</th>{% endif %}
             <th class="text-end">Total</th>
             <th>Estado</th>
             <th></th>
@@ -70,7 +78,7 @@
             <td><span class="badge {{ badge[0] }}">{{ badge[1] }}</span></td>
             <td>{{ f.fecha }}</td>
             <td>{{ f.cliente_razon }}</td>
-            {% if vista == 'nc' %}
+            {% if vista in ('nc', 'nd') %}
             <td>
               {% if f.cbte_asoc_nro %}
               <span class="font-monospace small text-muted">
@@ -79,8 +87,8 @@
               {% endif %}
             </td>
             {% endif %}
-            <td class="text-end fw-semibold {% if vista == 'nc' %}text-danger{% endif %}">
-              {% if vista == 'nc' %}-{% endif %}$ {{ "{:,.2f}".format(f.total) }}
+            <td class="text-end fw-semibold {% if vista == 'nc' %}text-danger{% elif vista == 'nd' %}text-primary{% endif %}">
+              {% if vista == 'nc' %}-{% elif vista == 'nd' %}+{% endif %}$ {{ "{:,.2f}".format(f.total) }}
             </td>
             <td>
               {% if f.cae %}
@@ -104,6 +112,8 @@
         No se encontraron comprobantes para "<strong>{{ q }}</strong>".
       {% elif vista == 'nc' %}
         No hay notas de crédito registradas aún.
+      {% elif vista == 'nd' %}
+        No hay notas de débito registradas aún.
       {% else %}
         No hay facturas registradas aún.
       {% endif %}

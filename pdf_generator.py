@@ -6,8 +6,9 @@ PDF_DIR              = os.path.join(os.path.dirname(__file__), "remitos_pdf")
 PRESUPUESTOS_PDF_DIR = os.path.join(os.path.dirname(__file__), "presupuestos_pdf")
 FACTURAS_PDF_DIR     = os.path.join(os.path.dirname(__file__), "facturas_pdf")
 
-_TIPO_LABELS    = {1: "FACTURA A", 6: "FACTURA B", 11: "FACTURA C",
-                   3: "NOTA CREDITO A", 8: "NOTA CREDITO B", 13: "NOTA CREDITO C"}
+_TIPO_LABELS    = {1: "FACTURA A",      6: "FACTURA B",      11: "FACTURA C",
+                   3: "NOTA CREDITO A", 8: "NOTA CREDITO B", 13: "NOTA CREDITO C",
+                   2: "NOTA DEBITO A",  7: "NOTA DEBITO B",  12: "NOTA DEBITO C"}
 _CONCEPTO_LABELS = {1: "Productos", 2: "Servicios", 3: "Productos y Servicios"}
 _IVA_LABELS     = {1: "Responsable Inscripto", 6: "Monotributista", 4: "IVA Exento",
                    5: "Consumidor Final", 3: "No Alcanzado"}

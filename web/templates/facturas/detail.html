@@ -37,7 +37,7 @@
 <div class="alert alert-warning d-flex align-items-start gap-2 mb-3">
   <i class="bi bi-exclamation-triangle-fill fs-5 mt-1"></i>
   <div>
-    <strong>Este comprobante tiene {% if notas_credito|length == 1 %}una nota de crédito asociada{% else %}{{ notas_credito|length }} notas de crédito asociadas{% endif %}:</strong>
+    <strong>{% if notas_credito|length == 1 %}Nota de crédito asociada{% else %}Notas de crédito asociadas{% endif %}:</strong>
     <ul class="mb-0 mt-1">
       {% for nc in notas_credito %}
       <li>
@@ -46,6 +46,27 @@
         </a>
         — {{ nc.fecha }}
         {% if nc.cae %}<span class="badge bg-success ms-1">Autorizada</span>{% else %}<span class="badge bg-warning text-dark ms-1">Pendiente</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+
+<!-- Notas de débito asociadas a esta factura -->
+{% if notas_debito %}
+<div class="alert alert-info d-flex align-items-start gap-2 mb-3">
+  <i class="bi bi-info-circle-fill fs-5 mt-1"></i>
+  <div>
+    <strong>{% if notas_debito|length == 1 %}Nota de débito asociada{% else %}Notas de débito asociadas{% endif %}:</strong>
+    <ul class="mb-0 mt-1">
+      {% for nd in notas_debito %}
+      <li>
+        <a href="/facturas/{{ nd.id }}" class="font-monospace fw-semibold">
+          {{ tipo_labels.get(nd.tipo, 'ND') }} {{ '%04d' % nd.punto_venta }}-{{ '%08d' % nd.numero }}
+        </a>
+        — {{ nd.fecha }}
+        {% if nd.cae %}<span class="badge bg-success ms-1">Autorizada</span>{% else %}<span class="badge bg-warning text-dark ms-1">Pendiente</span>{% endif %}
       </li>
       {% endfor %}
     </ul>
@@ -178,8 +199,11 @@
 
   <div class="col-12 d-flex justify-content-end gap-2 pb-4">
     {% if factura.tipo in (1, 6, 11) %}
+    <a href="/facturas/{{ factura.id }}/nota-debito" class="btn btn-outline-info">
+      <i class="bi bi-file-plus me-1"></i>Nota de Débito
+    </a>
     <a href="/facturas/{{ factura.id }}/nota-credito" class="btn btn-outline-warning">
-      <i class="bi bi-file-minus me-1"></i>Generar Nota de Crédito
+      <i class="bi bi-file-minus me-1"></i>Nota de Crédito
     </a>
     {% endif %}
     <form method="post" action="/facturas/{{ factura.id }}/eliminar"

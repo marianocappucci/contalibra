@@ -33,10 +33,14 @@ _TIPOS_POR_CONDICION = {
 }
 _TIPOS_DEFAULT = _TIPOS_POR_CONDICION["Monotributista"]
 
-# Factura → tipo de Nota de Crédito correspondiente
-_TIPO_NC = {1: 3, 6: 8, 11: 13}
-_TIPO_LABEL = {1: "Factura A", 6: "Factura B", 11: "Factura C",
-               3: "Nota de Crédito A", 8: "Nota de Crédito B", 13: "Nota de Crédito C"}
+# Factura → tipo de Nota de Crédito / Débito correspondiente
+_TIPO_NC = {1: 3,  6: 8,  11: 13}
+_TIPO_ND = {1: 2,  6: 7,  11: 12}
+_TIPO_LABEL = {
+    1: "Factura A",        6: "Factura B",        11: "Factura C",
+    3: "Nota de Crédito A", 8: "Nota de Crédito B", 13: "Nota de Crédito C",
+    2: "Nota de Débito A",  7: "Nota de Débito B",  12: "Nota de Débito C",
+}
 
 
 def _tipos_emisor():
@@ -70,8 +74,7 @@ def _arca_punto_venta():
 
 @router.get("/facturas")
 def facturas_list(request: Request, user: Auth, q: str = "", vista: str = "facturas"):
-    solo_nc = vista == "nc"
-    items = db.search_facturas(q, solo_nc) if q else db.get_all_facturas(200, solo_nc)
+    items = db.search_facturas(q, vista) if q else db.get_all_facturas(200, vista)
     return templates.TemplateResponse(request, "facturas/list.html", {
         "facturas": items, "q": q, "vista": vista, "active": "facturas",
     })
@@ -217,12 +220,13 @@ async def factura_nueva_post(request: Request, user: Auth):
 def _detail_ctx(factura: dict, error: str = "") -> dict:
     from pdf_generator import _TIPO_LABELS, _CONCEPTO_LABELS, _IVA_LABELS
 
-    # Notas de crédito que anulan esta factura (solo aplica a facturas, no a NCs)
-    ncs = []
-    if factura["tipo"] in (1, 6, 11):
-        ncs = db.get_nc_de_factura(factura["tipo"], factura["punto_venta"], factura["numero"])
+    es_factura = factura["tipo"] in (1, 6, 11)
 
-    # Factura original que esta NC anula
+    # Notas de crédito y débito que referencian esta factura
+    ncs = db.get_nc_de_factura(factura["tipo"], factura["punto_venta"], factura["numero"]) if es_factura else []
+    nds = db.get_nd_de_factura(factura["tipo"], factura["punto_venta"], factura["numero"]) if es_factura else []
+
+    # Factura original que esta NC/ND referencia
     factura_original = None
     if factura.get("cbte_asoc_tipo") and factura.get("cbte_asoc_nro"):
         factura_original = db.get_factura_por_tipo_pv_nro(
@@ -237,6 +241,7 @@ def _detail_ctx(factura: dict, error: str = "") -> dict:
         "active":           "facturas",
         "arca_error":       error,
         "notas_credito":    ncs,
+        "notas_debito":     nds,
         "factura_original": factura_original,
         "tipo_labels":      _TIPO_LABELS,
     }
@@ -306,39 +311,14 @@ def factura_eliminar(factura_id: int, user: Auth):
     return RedirectResponse("/facturas", status_code=303)
 
 
-@router.get("/facturas/{factura_id}/nota-credito")
-def nc_confirm_get(request: Request, factura_id: int, user: Auth):
-    """Muestra página de confirmación antes de generar la NC."""
-    factura = db.get_factura(factura_id)
-    if not factura:
-        raise HTTPException(404)
-    nc_tipo = _TIPO_NC.get(factura["tipo"])
-    if not nc_tipo:
-        raise HTTPException(400, "Este tipo de comprobante no admite nota de crédito")
-    return templates.TemplateResponse(request, "facturas/nc_confirm.html", {
-        **_detail_ctx(factura),
-        "nc_tipo_label": _TIPO_LABEL[nc_tipo],
-        "active": "facturas",
-    })
-
-
-@router.post("/facturas/{factura_id}/nota-credito")
-async def nc_crear(request: Request, factura_id: int, user: Auth):
-    """Crea la nota de crédito a partir de la factura original."""
-    orig = db.get_factura(factura_id)
-    if not orig:
-        raise HTTPException(404)
-    nc_tipo = _TIPO_NC.get(orig["tipo"])
-    if not nc_tipo:
-        raise HTTPException(400, "Tipo de comprobante no admite nota de crédito")
-
+async def _crear_nota(orig: dict, nuevo_tipo: int, obs_prefijo: str) -> int:
+    """Helper compartido para crear NC o ND a partir de una factura original."""
+    import datetime
     arca_cfg = db.obtener_todas_arca_configs()
     arca     = arca_cfg[0] if arca_cfg else None
     ta       = None
-
-    punto_venta = orig["punto_venta"]
-    import datetime
-    fecha_hoy = datetime.date.today().isoformat()
+    fecha_hoy    = datetime.date.today().isoformat()
+    punto_venta  = orig["punto_venta"]
 
     if arca and arca.get("certificado_path") and arca.get("clave_path"):
         try:
@@ -346,18 +326,18 @@ async def nc_crear(request: Request, factura_id: int, user: Auth):
                 arca["certificado_path"], arca["clave_path"], arca["ambiente"]
             )
             ultimo = await arca_wsfe.ultimo_numero_autorizado(
-                punto_venta, nc_tipo, arca["cuit"],
+                punto_venta, nuevo_tipo, arca["cuit"],
                 ta["token"], ta["sign"], arca["ambiente"],
             )
             numero = ultimo + 1
         except Exception:
             ta     = None
-            numero = db.get_next_factura_numero(punto_venta, nc_tipo)
+            numero = db.get_next_factura_numero(punto_venta, nuevo_tipo)
     else:
-        numero = db.get_next_factura_numero(punto_venta, nc_tipo)
+        numero = db.get_next_factura_numero(punto_venta, nuevo_tipo)
 
-    nc_id = db.create_factura(
-        tipo=nc_tipo, punto_venta=punto_venta, numero=numero,
+    nota_id = db.create_factura(
+        tipo=nuevo_tipo, punto_venta=punto_venta, numero=numero,
         fecha=fecha_hoy,
         cliente_cuit=orig["cliente_cuit"],
         cliente_razon=orig["cliente_razon"],
@@ -367,7 +347,7 @@ async def nc_crear(request: Request, factura_id: int, user: Auth):
         iva_amount=orig["iva_amount"],
         total=orig["total"],
         concepto=orig.get("concepto", 1),
-        observaciones=f"Anula {_TIPO_LABEL.get(orig['tipo'], 'comprobante')} "
+        observaciones=f"{obs_prefijo} {_TIPO_LABEL.get(orig['tipo'], 'comprobante')} "
                       f"{str(orig['punto_venta']).zfill(4)}-{str(orig['numero']).zfill(8)}",
         cliente_domicilio=orig.get("cliente_domicilio", ""),
         fch_serv_desde=orig.get("fch_serv_desde", ""),
@@ -377,20 +357,76 @@ async def nc_crear(request: Request, factura_id: int, user: Auth):
         cbte_asoc_pv=orig["punto_venta"],
         cbte_asoc_nro=orig["numero"],
     )
-    nc = db.get_factura(nc_id)
+    nota = db.get_factura(nota_id)
 
-    arca_error = ""
     if ta and arca:
         try:
             cae_data = await arca_wsfe.solicitar_cae(
-                nc, arca["cuit"], ta["token"], ta["sign"], arca["ambiente"]
+                nota, arca["cuit"], ta["token"], ta["sign"], arca["ambiente"]
             )
-            db.update_factura_cae(nc_id, cae_data["cae"], cae_data["cae_vto"])
-            nc = db.get_factura(nc_id)
-        except Exception as e:
-            arca_error = str(e)
+            db.update_factura_cae(nota_id, cae_data["cae"], cae_data["cae_vto"])
+            nota = db.get_factura(nota_id)
+        except Exception:
+            pass
 
-    pdf_path = pdf_gen.generate_pdf_factura(nc)
-    db.update_factura_pdf_path(nc_id, pdf_path)
+    pdf_path = pdf_gen.generate_pdf_factura(nota)
+    db.update_factura_pdf_path(nota_id, pdf_path)
+    return nota_id
 
-    return RedirectResponse(f"/facturas/{nc_id}", status_code=303)
+
+@router.get("/facturas/{factura_id}/nota-credito")
+def nc_confirm_get(request: Request, factura_id: int, user: Auth):
+    factura = db.get_factura(factura_id)
+    if not factura:
+        raise HTTPException(404)
+    nc_tipo = _TIPO_NC.get(factura["tipo"])
+    if not nc_tipo:
+        raise HTTPException(400, "Este tipo de comprobante no admite nota de crédito")
+    return templates.TemplateResponse(request, "facturas/nota_confirm.html", {
+        **_detail_ctx(factura),
+        "nota_tipo_label": _TIPO_LABEL[nc_tipo],
+        "nota_url":        f"/facturas/{factura_id}/nota-credito",
+        "nota_color":      "warning",
+        "nota_icono":      "bi-file-minus",
+    })
+
+
+@router.post("/facturas/{factura_id}/nota-credito")
+async def nc_crear(factura_id: int, user: Auth):
+    orig = db.get_factura(factura_id)
+    if not orig:
+        raise HTTPException(404)
+    nc_tipo = _TIPO_NC.get(orig["tipo"])
+    if not nc_tipo:
+        raise HTTPException(400, "Tipo de comprobante no admite nota de crédito")
+    nota_id = await _crear_nota(orig, nc_tipo, "Anula")
+    return RedirectResponse(f"/facturas/{nota_id}", status_code=303)
+
+
+@router.get("/facturas/{factura_id}/nota-debito")
+def nd_confirm_get(request: Request, factura_id: int, user: Auth):
+    factura = db.get_factura(factura_id)
+    if not factura:
+        raise HTTPException(404)
+    nd_tipo = _TIPO_ND.get(factura["tipo"])
+    if not nd_tipo:
+        raise HTTPException(400, "Este tipo de comprobante no admite nota de débito")
+    return templates.TemplateResponse(request, "facturas/nota_confirm.html", {
+        **_detail_ctx(factura),
+        "nota_tipo_label": _TIPO_LABEL[nd_tipo],
+        "nota_url":        f"/facturas/{factura_id}/nota-debito",
+        "nota_color":      "info",
+        "nota_icono":      "bi-file-plus",
+    })
+
+
+@router.post("/facturas/{factura_id}/nota-debito")
+async def nd_crear(factura_id: int, user: Auth):
+    orig = db.get_factura(factura_id)
+    if not orig:
+        raise HTTPException(404)
+    nd_tipo = _TIPO_ND.get(orig["tipo"])
+    if not nd_tipo:
+        raise HTTPException(400, "Tipo de comprobante no admite nota de débito")
+    nota_id = await _crear_nota(orig, nd_tipo, "Referencia")
+    return RedirectResponse(f"/facturas/{nota_id}", status_code=303)

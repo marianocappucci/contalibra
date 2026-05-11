@@ -525,11 +525,18 @@ def create_factura(tipo, punto_venta, numero, fecha, cliente_cuit, cliente_razon
 
 _TIPOS_FACTURA = (1, 6, 11)
 _TIPOS_NC      = (3, 8, 13)
+_TIPOS_ND      = (2, 7, 12)
+
+_VISTA_TIPOS = {
+    "facturas": _TIPOS_FACTURA,
+    "nc":       _TIPOS_NC,
+    "nd":       _TIPOS_ND,
+}
 
 
-def get_all_facturas(limit=100, solo_nc=False):
-    """Obtiene facturas o notas de crédito (últimas primero)."""
-    tipos = _TIPOS_NC if solo_nc else _TIPOS_FACTURA
+def get_all_facturas(limit=100, vista="facturas"):
+    """Obtiene facturas, notas de crédito o notas de débito (últimas primero)."""
+    tipos = _VISTA_TIPOS.get(vista, _TIPOS_FACTURA)
     placeholders = ",".join("?" * len(tipos))
     with get_connection() as conn:
         rows = conn.execute(
@@ -573,9 +580,9 @@ def update_factura_pdf_path(factura_id, pdf_path):
         )
 
 
-def search_facturas(query, solo_nc=False):
+def search_facturas(query, vista="facturas"):
     """Busca facturas por número, cliente u observaciones."""
-    tipos = _TIPOS_NC if solo_nc else _TIPOS_FACTURA
+    tipos = _VISTA_TIPOS.get(vista, _TIPOS_FACTURA)
     placeholders = ",".join("?" * len(tipos))
     q = f"%{query}%"
     with get_connection() as conn:
@@ -594,14 +601,16 @@ def search_facturas(query, solo_nc=False):
         return result
 
 
-def get_nc_de_factura(tipo, punto_venta, numero):
-    """Devuelve las notas de crédito que anulan un comprobante."""
+def get_notas_de_factura(tipo, punto_venta, numero, tipos_nota):
+    """Devuelve notas (NC o ND) que referencian un comprobante."""
+    placeholders = ",".join("?" * len(tipos_nota))
     with get_connection() as conn:
         rows = conn.execute(
-            """SELECT * FROM facturas
-               WHERE cbte_asoc_tipo=? AND cbte_asoc_pv=? AND cbte_asoc_nro=?
+            f"""SELECT * FROM facturas
+               WHERE tipo IN ({placeholders})
+                 AND cbte_asoc_tipo=? AND cbte_asoc_pv=? AND cbte_asoc_nro=?
                ORDER BY id DESC""",
-            (tipo, punto_venta, numero),
+            (*tipos_nota, tipo, punto_venta, numero),
         ).fetchall()
         result = []
         for r in rows:
@@ -609,6 +618,16 @@ def get_nc_de_factura(tipo, punto_venta, numero):
             d["items"] = json.loads(d["items"])
             result.append(d)
         return result
+
+
+def get_nc_de_factura(tipo, punto_venta, numero):
+    """Devuelve las notas de crédito que anulan un comprobante."""
+    return get_notas_de_factura(tipo, punto_venta, numero, _TIPOS_NC)
+
+
+def get_nd_de_factura(tipo, punto_venta, numero):
+    """Devuelve las notas de débito asociadas a un comprobante."""
+    return get_notas_de_factura(tipo, punto_venta, numero, _TIPOS_ND)
 
 
 def get_factura_por_tipo_pv_nro(tipo, punto_venta, numero):
