@@ -46,8 +46,9 @@ async def config_empresa_post(request: Request, user: Auth):
         "empresa_cuit":      str(form.get("empresa_cuit", "")).strip(),
         "empresa_telefono":  str(form.get("empresa_telefono", "")).strip(),
         "empresa_email":     str(form.get("empresa_email", "")).strip(),
-        "empresa_iibb":      str(form.get("empresa_iibb", "")).strip(),
-        "logo_path":         existing.get("logo_path", ""),
+        "empresa_iibb":           str(form.get("empresa_iibb", "")).strip(),
+        "empresa_iva_condition":  str(form.get("empresa_iva_condition", "")).strip(),
+        "logo_path":              existing.get("logo_path", ""),
     }
     logo_file = form.get("logo")
     if logo_file and hasattr(logo_file, "filename") and logo_file.filename:

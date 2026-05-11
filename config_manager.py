@@ -4,13 +4,14 @@ import os
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.json")
 
 _DEFAULTS = {
-    "empresa_nombre":    "",
-    "empresa_direccion": "",
-    "empresa_cuit":      "",
-    "empresa_telefono":  "",
-    "empresa_email":     "",
-    "empresa_iibb":      "",
-    "logo_path":         "",
+    "empresa_nombre":         "",
+    "empresa_direccion":      "",
+    "empresa_cuit":           "",
+    "empresa_telefono":       "",
+    "empresa_email":          "",
+    "empresa_iibb":           "",
+    "empresa_iva_condition":  "Monotributista",
+    "logo_path":              "",
 }
 
 

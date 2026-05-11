@@ -100,6 +100,7 @@
     </div>
 
     <!-- Tasa IVA y Observaciones -->
+    {% if not es_monotributista %}
     <div class="col-md-4">
       <div class="card h-100">
         <div class="card-header">Tasa de IVA</div>
@@ -112,7 +113,10 @@
         </div>
       </div>
     </div>
-    <div class="col-md-8">
+    {% else %}
+    <input type="hidden" name="tax_rate" value="0.0">
+    {% endif %}
+    <div class="col-md-{% if es_monotributista %}12{% else %}8{% endif %}">
       <div class="card h-100">
         <div class="card-header">Observaciones</div>
         <div class="card-body">
@@ -157,11 +161,13 @@
                   <td class="text-end" id="footer-subtotal">$ 0,00</td>
                   <td></td>
                 </tr>
+                {% if not es_monotributista %}
                 <tr class="table-light">
                   <td colspan="3" class="text-end fw-semibold">IVA (<span id="tax-pct">21</span>%)</td>
                   <td class="text-end" id="footer-tax">$ 0,00</td>
                   <td></td>
                 </tr>
+                {% endif %}
                 <tr class="table-light">
                   <td colspan="3" class="text-end fw-bold fs-5">TOTAL</td>
                   <td class="text-end fw-bold fs-5 text-primary" id="footer-total">$ 0,00</td>
@@ -188,6 +194,8 @@
 <script>
 const fmt = n => '$ ' + n.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
 
+const esMonotributista = {{ 'true' if es_monotributista else 'false' }};
+
 function recalc() {
   let sub = 0;
   document.querySelectorAll('.item-row').forEach(row => {
@@ -197,12 +205,15 @@ function recalc() {
     row.querySelector('.subtotal').textContent = fmt(st);
     sub += st;
   });
-  const rate = parseFloat(document.getElementById('tax-rate').value) || 0;
+  const rateEl = document.getElementById('tax-rate');
+  const rate = esMonotributista ? 0 : (parseFloat(rateEl ? rateEl.value : '0') || 0);
   const tax = Math.round(sub * rate * 100) / 100;
   document.getElementById('footer-subtotal').textContent = fmt(sub);
-  document.getElementById('footer-tax').textContent = fmt(tax);
+  if (!esMonotributista) {
+    document.getElementById('footer-tax').textContent = fmt(tax);
+    document.getElementById('tax-pct').textContent = Math.round(rate * 100);
+  }
   document.getElementById('footer-total').textContent = fmt(sub + tax);
-  document.getElementById('tax-pct').textContent = Math.round(rate * 100);
 }
 
 function addRow() {
@@ -223,7 +234,7 @@ function bindRow(row) {
 
 document.querySelectorAll('.item-row').forEach(bindRow);
 document.getElementById('add-row').addEventListener('click', addRow);
-document.getElementById('tax-rate').addEventListener('change', recalc);
+if (!esMonotributista) document.getElementById('tax-rate').addEventListener('change', recalc);
 
 const sel = document.getElementById('client-select');
 if (sel) {

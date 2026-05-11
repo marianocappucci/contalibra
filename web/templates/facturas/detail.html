@@ -110,6 +110,7 @@
               {% endfor %}
             </tbody>
             <tfoot class="table-light fw-semibold">
+              {% if factura.tipo != 11 and factura.iva_amount > 0 %}
               {% set pct = (factura.iva_amount / factura.subtotal * 100)|round|int if factura.subtotal > 0 else 21 %}
               <tr>
                 <td colspan="3" class="text-end">Subtotal</td>
@@ -119,6 +120,7 @@
                 <td colspan="3" class="text-end">IVA {{ pct }}%</td>
                 <td class="text-end">$ {{ "{:,.2f}".format(factura.iva_amount) }}</td>
               </tr>
+              {% endif %}
               <tr class="fs-5">
                 <td colspan="3" class="text-end fw-bold">TOTAL</td>
                 <td class="text-end fw-bold text-primary">$ {{ "{:,.2f}".format(factura.total) }}</td>

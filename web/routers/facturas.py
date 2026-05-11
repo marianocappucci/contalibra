@@ -11,6 +11,7 @@ import database as db
 import pdf_generator as pdf_gen
 import arca_wsaa
 import arca_wsfe
+import config_manager
 from web.auth import require_auth
 
 router = APIRouter()
@@ -18,10 +19,26 @@ templates = Jinja2Templates(directory=os.path.join(os.path.dirname(os.path.dirna
 
 Auth = Annotated[str, Depends(require_auth)]
 
-TIPOS = [
-    {"value": 1, "label": "Factura A"},
-    {"value": 6, "label": "Factura B"},
-]
+_TIPOS_POR_CONDICION = {
+    "Responsable Inscripto": [
+        {"value": 1, "label": "Factura A"},
+        {"value": 6, "label": "Factura B"},
+    ],
+    "IVA Exento": [
+        {"value": 6, "label": "Factura B"},
+    ],
+    "Monotributista": [
+        {"value": 11, "label": "Factura C"},
+    ],
+}
+_TIPOS_DEFAULT = _TIPOS_POR_CONDICION["Monotributista"]
+
+
+def _tipos_emisor():
+    cfg = config_manager.load()
+    cond = cfg.get("empresa_iva_condition", "Monotributista")
+    return _TIPOS_POR_CONDICION.get(cond, _TIPOS_DEFAULT)
+
 
 CONCEPTOS = [
     {"value": 1, "label": "Productos"},
@@ -56,14 +73,17 @@ def facturas_list(request: Request, user: Auth, q: str = ""):
 
 @router.get("/facturas/nueva")
 def factura_nueva_get(request: Request, user: Auth):
+    tipos = _tipos_emisor()
+    es_monotributista = len(tipos) == 1 and tipos[0]["value"] == 11
     return templates.TemplateResponse(request, "facturas/form.html", {
         "clientes": db.get_all_clients(),
-        "tipos": TIPOS,
+        "tipos": tipos,
         "conceptos": CONCEPTOS,
         "punto_venta": _arca_punto_venta(),
         "active": "facturas",
         "factura": None,
         "error": None,
+        "es_monotributista": es_monotributista,
     })
 
 
@@ -78,7 +98,8 @@ async def factura_nueva_post(request: Request, user: Auth):
         concepto    = int(form.get("concepto", 1))
         fecha_str   = str(form.get("fecha", "")).strip()
         observations = str(form.get("observations", "")).strip()
-        tax_rate    = float(form.get("tax_rate", "0.21"))
+        # Factura C (monotributista) nunca discrimina IVA
+        tax_rate    = 0.0 if tipo == 11 else float(form.get("tax_rate", "0.21"))
 
         client_id      = int(form.get("client_id", 0)) or None
         client_name    = str(form.get("client_name", "")).strip()
@@ -172,10 +193,12 @@ async def factura_nueva_post(request: Request, user: Auth):
         return RedirectResponse(f"/facturas/{factura_id}", status_code=303)
 
     except Exception as e:
+        tipos = _tipos_emisor()
         return templates.TemplateResponse(request, "facturas/form.html", {
-            "clientes": clientes, "tipos": TIPOS, "conceptos": CONCEPTOS,
+            "clientes": clientes, "tipos": tipos, "conceptos": CONCEPTOS,
             "punto_venta": _arca_punto_venta(),
             "active": "facturas", "factura": None, "error": str(e),
+            "es_monotributista": len(tipos) == 1 and tipos[0]["value"] == 11,
         }, status_code=422)
 
 

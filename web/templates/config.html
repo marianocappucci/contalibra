@@ -58,6 +58,16 @@
           <input type="email" class="form-control" name="empresa_email" value="{{ cfg.empresa_email }}">
         </div>
       </div>
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Condición IVA del emisor <span class="text-danger">*</span></label>
+        <select class="form-select" name="empresa_iva_condition">
+          {% set cond = cfg.empresa_iva_condition %}
+          <option value="Monotributista"         {% if cond == 'Monotributista' %}selected{% endif %}>Monotributista (emite Factura C)</option>
+          <option value="Responsable Inscripto"  {% if cond == 'Responsable Inscripto' %}selected{% endif %}>Responsable Inscripto (emite Factura A y B)</option>
+          <option value="IVA Exento"             {% if cond == 'IVA Exento' %}selected{% endif %}>IVA Exento (emite Factura B)</option>
+        </select>
+        <div class="form-text">Determina qué tipos de comprobante podés emitir.</div>
+      </div>
       <div class="mb-4">
         <label class="form-label fw-semibold">Logo de la empresa</label>
         {% if cfg.logo_path %}

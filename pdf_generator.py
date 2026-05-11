@@ -6,7 +6,7 @@ PDF_DIR              = os.path.join(os.path.dirname(__file__), "remitos_pdf")
 PRESUPUESTOS_PDF_DIR = os.path.join(os.path.dirname(__file__), "presupuestos_pdf")
 FACTURAS_PDF_DIR     = os.path.join(os.path.dirname(__file__), "facturas_pdf")
 
-_TIPO_LABELS    = {1: "FACTURA A", 6: "FACTURA B", 3: "NOTA CRÉDITO A", 8: "NOTA CRÉDITO B"}
+_TIPO_LABELS    = {1: "FACTURA A", 6: "FACTURA B", 11: "FACTURA C", 3: "NOTA CREDITO A", 8: "NOTA CREDITO B"}
 _CONCEPTO_LABELS = {1: "Productos", 2: "Servicios", 3: "Productos y Servicios"}
 _IVA_LABELS     = {1: "Responsable Inscripto", 6: "Monotributista", 4: "IVA Exento",
                    5: "Consumidor Final", 3: "No Alcanzado"}
@@ -372,9 +372,11 @@ def _factura_totals_block(pdf, factura):
     sub  = factura.get("subtotal", 0)
     iva  = factura.get("iva_amount", 0)
     tot  = factura.get("total", 0)
-    pct  = round(iva / sub * 100) if sub > 0 else 21
-    row("Subtotal:", f"$ {sub:,.2f}")
-    row(f"IVA {pct:.0f}%:", f"$ {iva:,.2f}")
+    tipo = factura.get("tipo", 0)
+    if iva > 0 and tipo != 11:
+        pct = round(iva / sub * 100) if sub > 0 else 21
+        row("Subtotal:", f"$ {sub:,.2f}")
+        row(f"IVA {pct:.0f}%:", f"$ {iva:,.2f}")
     pdf.set_font("Helvetica", "B", 11)
     row("TOTAL:", f"$ {tot:,.2f}", bold=True)
     pdf.ln(3)

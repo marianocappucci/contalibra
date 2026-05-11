@@ -99,10 +99,15 @@ async def solicitar_cae(
     sub      = float(factura.get("subtotal",   0))
     iva      = float(factura.get("iva_amount", 0))
     total    = float(factura.get("total",      0))
+    tipo     = int(factura.get("tipo", 6))
     pct      = round(iva / sub * 100, 1) if sub > 0 else 0
 
-    # Importes
-    if pct > 0:
+    # Importes — Factura C (tipo 11) el total va todo como ImpNeto sin discriminar IVA
+    if tipo == 11:
+        imp_neto = f"{total:.2f}"
+        imp_iva  = "0.00"
+        imp_opex = "0.00"
+    elif pct > 0:
         imp_neto = f"{sub:.2f}"
         imp_iva  = f"{iva:.2f}"
         imp_opex = "0.00"
@@ -118,9 +123,9 @@ async def solicitar_cae(
     else:
         doc_tipo, doc_nro = 99, 0
 
-    # Bloque IVA
+    # Bloque IVA — Factura C no lleva alicuotas
     iva_block = ""
-    if pct > 0:
+    if tipo != 11 and pct > 0:
         aid = _iva_id(pct)
         iva_block = (
             "<Iva><AlicIva>"
@@ -169,13 +174,25 @@ async def solicitar_cae(
         cae_vto = next((e.text for e in det.iter() if e.tag.endswith("CAEFchVto")), "") or ""
         return {"cae": cae, "cae_vto": cae_vto}
 
-    # Rechazado — recopilar observaciones
+    # Rechazado — recopilar observaciones y errores de todo el XML
     msgs = []
-    for elem in det.iter():
-        if elem.tag.endswith("Obs") or elem.tag.endswith("Err"):
-            cod = next((c.text for c in elem if c.tag.endswith("Code") or c.tag.endswith("Codigo")), "")
-            msg = next((c.text for c in elem if c.tag.endswith("Msg")), "")
+    for elem in root.iter():
+        local = elem.tag.split("}")[-1] if "}" in elem.tag else elem.tag
+        if local in ("Obs", "Err"):
+            cod = ""
+            msg = ""
+            for c in elem:
+                cl = c.tag.split("}")[-1] if "}" in c.tag else c.tag
+                if cl in ("Code", "Codigo"):
+                    cod = c.text or ""
+                elif cl == "Msg":
+                    msg = c.text or ""
             if msg:
                 msgs.append(f"[{cod}] {msg}" if cod else msg)
 
-    raise RuntimeError("WSFE rechazó el comprobante: " + ("; ".join(msgs) or resultado))
+    if not msgs:
+        # fallback: include raw XML snippet for debugging
+        raw = ET.tostring(root, encoding="unicode")[:800]
+        raise RuntimeError(f"WSFE rechazó el comprobante (resultado={resultado}). XML: {raw}")
+
+    raise RuntimeError("WSFE rechazó el comprobante: " + "; ".join(msgs))
