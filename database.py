@@ -1755,9 +1755,9 @@ def get_reporte_productos_top(desde: str = "", hasta: str = "", limit: int = 20)
     w = ("WHERE " + " AND ".join(where)) if where else ""
     sql = f"""
         SELECT ji.value->>'$.nombre' AS nombre,
-               ROUND(SUM(CAST(ji.value->>'$.cantidad' AS REAL)), 2) AS cantidad,
-               ROUND(SUM(CAST(ji.value->>'$.cantidad' AS REAL) *
-                         CAST(ji.value->>'$.precio_unitario' AS REAL)), 2) AS total
+               ROUND(SUM(CAST(ji.value->>'$.qty' AS REAL)), 2) AS cantidad,
+               ROUND(SUM(CAST(ji.value->>'$.qty' AS REAL) *
+                         CAST(ji.value->>'$.precio' AS REAL)), 2) AS total
         FROM ventas v, json_each(v.items) ji {w}
         GROUP BY nombre ORDER BY cantidad DESC LIMIT ?
     """
