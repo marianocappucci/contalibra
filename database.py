@@ -160,6 +160,19 @@ def init_db():
                 created_at   TEXT DEFAULT (datetime('now'))
             );
 
+            CREATE TABLE IF NOT EXISTS turnos_caja (
+                id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+                usuario_id             INTEGER NOT NULL REFERENCES usuarios(id),
+                apertura               TEXT NOT NULL,
+                cierre                 TEXT,
+                monto_inicial          REAL NOT NULL DEFAULT 0,
+                monto_declarado_cierre REAL,
+                monto_esperado_cierre  REAL,
+                estado                 TEXT NOT NULL DEFAULT 'abierto',
+                notas                  TEXT DEFAULT '',
+                created_at             TEXT DEFAULT (datetime('now'))
+            );
+
             CREATE TABLE IF NOT EXISTS movimientos_stock (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
                 producto_id INTEGER NOT NULL REFERENCES productos(id) ON DELETE CASCADE,
@@ -222,6 +235,9 @@ def init_db():
         prod_cols = [r[1] for r in conn.execute("PRAGMA table_info(productos)").fetchall()]
         if "stock_minimo" not in prod_cols:
             conn.execute("ALTER TABLE productos ADD COLUMN stock_minimo REAL NOT NULL DEFAULT 0")
+        ventas_cols = [r[1] for r in conn.execute("PRAGMA table_info(ventas)").fetchall()]
+        if ventas_cols and "turno_id" not in ventas_cols:
+            conn.execute("ALTER TABLE ventas ADD COLUMN turno_id INTEGER REFERENCES turnos_caja(id) ON DELETE SET NULL")
 
         # Seed de módulos: inserta sólo los que no existen aún
         _MODULOS_DEFAULT = [
@@ -1130,6 +1146,120 @@ def update_producto(pid: int, nombre: str, codigo: str, descripcion: str,
 def delete_producto(pid: int):
     with get_connection() as conn:
         conn.execute("DELETE FROM productos WHERE id=?", (pid,))
+
+
+# ── Turnos de caja ────────────────────────────────────────────────────────────
+
+def create_turno(usuario_id: int, monto_inicial: float, notas: str = "") -> int:
+    from datetime import datetime as _dt
+    apertura = _dt.now().strftime("%Y-%m-%d %H:%M:%S")
+    with get_connection() as conn:
+        cur = conn.execute(
+            """INSERT INTO turnos_caja (usuario_id, apertura, monto_inicial, notas)
+               VALUES (?,?,?,?)""",
+            (usuario_id, apertura, monto_inicial, notas),
+        )
+        return cur.lastrowid
+
+
+def get_turno_activo(usuario_id: int) -> dict | None:
+    with get_connection() as conn:
+        row = conn.execute(
+            """SELECT t.*, u.nombre AS usuario_nombre
+               FROM turnos_caja t JOIN usuarios u ON u.id = t.usuario_id
+               WHERE t.usuario_id=? AND t.estado='abierto'
+               ORDER BY t.id DESC LIMIT 1""",
+            (usuario_id,),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def get_turno_activo_any() -> dict | None:
+    """Devuelve el primer turno abierto (para cajero sin usuario_id explícito)."""
+    with get_connection() as conn:
+        row = conn.execute(
+            """SELECT t.*, u.nombre AS usuario_nombre
+               FROM turnos_caja t JOIN usuarios u ON u.id = t.usuario_id
+               WHERE t.estado='abierto' ORDER BY t.id DESC LIMIT 1"""
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def get_all_turnos(usuario_id: int | None = None, limit: int = 50) -> list[dict]:
+    with get_connection() as conn:
+        if usuario_id:
+            rows = conn.execute(
+                """SELECT t.*, u.nombre AS usuario_nombre
+                   FROM turnos_caja t JOIN usuarios u ON u.id = t.usuario_id
+                   WHERE t.usuario_id=? ORDER BY t.id DESC LIMIT ?""",
+                (usuario_id, limit),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """SELECT t.*, u.nombre AS usuario_nombre
+                   FROM turnos_caja t JOIN usuarios u ON u.id = t.usuario_id
+                   ORDER BY t.id DESC LIMIT ?""",
+                (limit,),
+            ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_turno(tid: int) -> dict | None:
+    with get_connection() as conn:
+        row = conn.execute(
+            """SELECT t.*, u.nombre AS usuario_nombre
+               FROM turnos_caja t JOIN usuarios u ON u.id = t.usuario_id
+               WHERE t.id=?""",
+            (tid,),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def get_resumen_turno(tid: int) -> dict:
+    """Devuelve ventas y totales por medio de pago del turno."""
+    with get_connection() as conn:
+        ventas = conn.execute(
+            """SELECT v.id, v.numero, v.fecha, v.cliente_nombre, v.total, v.estado
+               FROM ventas v WHERE v.turno_id=? ORDER BY v.id""",
+            (tid,),
+        ).fetchall()
+        pagos = conn.execute(
+            """SELECT vp.medio, SUM(vp.monto) AS total
+               FROM ventas_pagos vp
+               JOIN ventas v ON v.id = vp.venta_id
+               WHERE v.turno_id=? AND v.estado='cobrada'
+               GROUP BY vp.medio""",
+            (tid,),
+        ).fetchall()
+    return {
+        "ventas": [dict(v) for v in ventas],
+        "pagos_por_medio": {r["medio"]: r["total"] for r in pagos},
+        "total_ventas": sum(r["total"] for r in pagos),
+        "efectivo_ventas": next((r["total"] for r in pagos if r["medio"] == "efectivo"), 0.0),
+    }
+
+
+def cerrar_turno(tid: int, monto_declarado: float, notas: str = ""):
+    from datetime import datetime as _dt
+    turno = get_turno(tid)
+    if not turno:
+        return
+    resumen = get_resumen_turno(tid)
+    monto_esperado = round(turno["monto_inicial"] + resumen["efectivo_ventas"], 2)
+    cierre = _dt.now().strftime("%Y-%m-%d %H:%M:%S")
+    with get_connection() as conn:
+        conn.execute(
+            """UPDATE turnos_caja
+               SET estado='cerrado', cierre=?, monto_declarado_cierre=?,
+                   monto_esperado_cierre=?, notas=?
+               WHERE id=?""",
+            (cierre, monto_declarado, monto_esperado, notas, tid),
+        )
+
+
+def vincular_venta_turno(venta_id: int, turno_id: int):
+    with get_connection() as conn:
+        conn.execute("UPDATE ventas SET turno_id=? WHERE id=?", (turno_id, venta_id))
 
 
 # ── Stock ─────────────────────────────────────────────────────────────────────

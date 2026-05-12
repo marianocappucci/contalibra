@@ -154,6 +154,12 @@ async def venta_nueva_post(request: Request, user: Auth):
     if mods.get("stock"):
         db.descontar_stock_venta(venta_id, items, fecha=fecha, usuario_id=usuario_id)
 
+    # — vincular al turno activo del usuario —
+    if usuario_id:
+        turno = db.get_turno_activo(usuario_id)
+        if turno:
+            db.vincular_venta_turno(venta_id, turno["id"])
+
     return RedirectResponse(f"/ventas/{venta_id}", status_code=303)
 
 
