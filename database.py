@@ -146,6 +146,19 @@ def init_db():
                 habilitado INTEGER NOT NULL DEFAULT 1,
                 plan       TEXT NOT NULL DEFAULT 'estandar'
             );
+
+            CREATE TABLE IF NOT EXISTS productos (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                codigo       TEXT UNIQUE,
+                nombre       TEXT NOT NULL,
+                descripcion  TEXT DEFAULT '',
+                precio_venta REAL NOT NULL DEFAULT 0,
+                precio_costo REAL NOT NULL DEFAULT 0,
+                unidad       TEXT NOT NULL DEFAULT 'u',
+                categoria    TEXT DEFAULT '',
+                activo       INTEGER NOT NULL DEFAULT 1,
+                created_at   TEXT DEFAULT (datetime('now'))
+            );
         """)
         # Migración: columnas faltantes
         cols = [r[1] for r in conn.execute("PRAGMA table_info(clients)").fetchall()]
@@ -1006,6 +1019,69 @@ def ensure_admin_user():
         print(f"[WARN] ADMIN_PASSWORD no configurado. Contraseña generada: {password}")
     create_usuario(username=username, nombre=nombre, email="", password=password, role="admin")
     print(f"[INFO] Usuario admin '{username}' creado.")
+
+
+# ── Productos ─────────────────────────────────────────────────────────────────
+
+def create_producto(nombre: str, codigo: str = "", descripcion: str = "",
+                    precio_venta: float = 0, precio_costo: float = 0,
+                    unidad: str = "u", categoria: str = "") -> int:
+    with get_connection() as conn:
+        cur = conn.execute(
+            """INSERT INTO productos
+               (codigo, nombre, descripcion, precio_venta, precio_costo, unidad, categoria)
+               VALUES (?,?,?,?,?,?,?)""",
+            (codigo or None, nombre, descripcion, precio_venta, precio_costo, unidad, categoria),
+        )
+        return cur.lastrowid
+
+
+def get_all_productos(solo_activos: bool = False, q: str = "") -> list[dict]:
+    with get_connection() as conn:
+        where = []
+        params = []
+        if solo_activos:
+            where.append("activo=1")
+        if q:
+            where.append("(nombre LIKE ? OR codigo LIKE ? OR categoria LIKE ?)")
+            params += [f"%{q}%", f"%{q}%", f"%{q}%"]
+        sql = "SELECT * FROM productos"
+        if where:
+            sql += " WHERE " + " AND ".join(where)
+        sql += " ORDER BY nombre"
+        return [dict(r) for r in conn.execute(sql, params).fetchall()]
+
+
+def get_producto(pid: int) -> dict | None:
+    with get_connection() as conn:
+        row = conn.execute("SELECT * FROM productos WHERE id=?", (pid,)).fetchone()
+        return dict(row) if row else None
+
+
+def get_producto_by_codigo(codigo: str) -> dict | None:
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT * FROM productos WHERE codigo=? AND activo=1", (codigo,)
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def update_producto(pid: int, nombre: str, codigo: str, descripcion: str,
+                    precio_venta: float, precio_costo: float,
+                    unidad: str, categoria: str, activo: int):
+    with get_connection() as conn:
+        conn.execute(
+            """UPDATE productos SET nombre=?, codigo=?, descripcion=?,
+               precio_venta=?, precio_costo=?, unidad=?, categoria=?, activo=?
+               WHERE id=?""",
+            (nombre, codigo or None, descripcion, precio_venta, precio_costo,
+             unidad, categoria, activo, pid),
+        )
+
+
+def delete_producto(pid: int):
+    with get_connection() as conn:
+        conn.execute("DELETE FROM productos WHERE id=?", (pid,))
 
 
 # ── Módulos ────────────────────────────────────────────────────────────────────
