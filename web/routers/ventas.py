@@ -149,6 +149,11 @@ async def venta_nueva_post(request: Request, user: Auth):
             referencia=p.get("referencia", ""),
         )
 
+    # — descuento de stock (si el módulo está activo) —
+    mods = db.get_modulos()
+    if mods.get("stock"):
+        db.descontar_stock_venta(venta_id, items, fecha=fecha, usuario_id=usuario_id)
+
     return RedirectResponse(f"/ventas/{venta_id}", status_code=303)
 
 

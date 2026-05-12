@@ -56,6 +56,16 @@
                     placeholder="Descripción opcional del producto">{{ producto.descripcion if producto else '' }}</textarea>
         </div>
 
+        <!-- Stock mínimo -->
+        <div class="col-md-3">
+          <label class="form-label fw-semibold">Stock mínimo</label>
+          <input type="number" name="stock_minimo" class="form-control"
+                 step="0.001" min="0"
+                 value="{{ producto.stock_minimo if producto else '0' }}"
+                 placeholder="0">
+          <div class="form-text">Alerta de reposición.</div>
+        </div>
+
         <!-- Precios -->
         <div class="col-md-6">
           <label class="form-label fw-semibold">Precio de venta</label>
