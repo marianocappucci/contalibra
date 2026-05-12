@@ -16,7 +16,8 @@ desplegar actualizaciones del sistema.
 7. [Backup y restauración](#backup-y-restauración)
 8. [Proxy y SSL (Nginx Proxy Manager)](#proxy-y-ssl-nginx-proxy-manager)
 9. [Gestión del estado del servicio](#gestión-del-estado-del-servicio)
-10. [Estructura de directorios](#estructura-de-directorios)
+10. [Website de marketing (contalibra.com.ar)](#website-de-marketing-contalibracomar)
+11. [Estructura de directorios](#estructura-de-directorios)
 
 ---
 
@@ -355,6 +356,128 @@ También se puede gestionar desde dentro del sistema web en `/config` → pesta�
 
 ---
 
+## Website de marketing (contalibra.com.ar)
+
+El website de marketing es un contenedor nginx estático independiente del sistema de clientes.
+Se encuentra en `website/` dentro del repositorio.
+
+### Estructura del website
+
+```
+website/
+├── Dockerfile              ← FROM nginx:1.27-alpine
+├── nginx.conf              ← configuración del servidor web
+├── docker-compose.yml      ← definición del contenedor
+└── public/
+    ├── index.html          ← landing page principal
+    ├── css/
+    │   └── style.css       ← estilos compartidos
+    └── docs/               ← documentación pública
+        ├── index.html
+        ├── primeros-pasos.html
+        ├── empresa.html
+        ├── usuarios.html
+        ├── configuracion.html
+        ├── ventas.html
+        ├── caja-turnos.html
+        ├── facturacion.html
+        ├── productos-stock.html
+        └── reportes.html
+```
+
+### Deploy inicial (primera vez)
+
+```bash
+cd /root/contalibra/website
+
+# Construir la imagen
+docker build -t contalibra-web:latest .
+
+# Levantar el contenedor
+docker compose up -d
+
+# Verificar que está corriendo
+docker ps | grep contalibra-web
+```
+
+El contenedor escucha en el puerto **8069** y se conecta a la red `stack_stack-net` para que NPM pueda hacer proxy.
+
+### Configurar proxy en Nginx Proxy Manager
+
+1. En NPM, crear un nuevo Proxy Host:
+   - **Domain Names:** `contalibra.com.ar`, `www.contalibra.com.ar`
+   - **Forward Hostname/IP:** `contalibra-web` (nombre del contenedor)
+   - **Forward Port:** `80`
+   - **SSL:** habilitar con Let's Encrypt
+
+2. Configurar también el subdominio `docs.contalibra.com.ar` si se desea separar la documentación (opcional — actualmente está bajo `/docs/` en el mismo dominio).
+
+### Actualizar el website
+
+El website es completamente estático. Cualquier cambio de HTML/CSS requiere **reconstruir la imagen**:
+
+```bash
+cd /root/contalibra/website
+
+# Traer los últimos cambios del repo
+git pull
+
+# Reconstruir y reiniciar
+docker compose build
+docker compose up -d
+
+# Verificar
+docker logs contalibra-web --tail 20
+```
+
+No hay reinicio en caliente — siempre se reconstruye porque el contenido se copia durante el `docker build`.
+
+### Rollback del website
+
+Si la nueva versión tiene problemas:
+
+```bash
+cd /root/contalibra/website
+
+# Ver historial de imágenes
+docker images | grep contalibra-web
+
+# Si tenés una imagen anterior con otro tag:
+docker compose down
+docker tag contalibra-web:<tag-anterior> contalibra-web:latest
+docker compose up -d
+```
+
+Para evitar problemas, antes de reconstruir en producción podés hacer:
+
+```bash
+docker tag contalibra-web:latest contalibra-web:backup
+docker compose build
+docker compose up -d
+```
+
+Así si algo falla, hacés `docker tag contalibra-web:backup contalibra-web:latest` y levantás la versión anterior.
+
+### Agregar o editar páginas de documentación
+
+1. Editá o creá el archivo HTML en `website/public/docs/`.
+2. Si es una página nueva, agregá el link en el sidebar de todas las otras páginas de docs.
+3. Reconstruí el contenedor como se indica en "Actualizar el website".
+
+### Verificar que el website está funcionando
+
+```bash
+# Desde el VPS
+curl -I http://localhost:8069/
+
+# Respuesta esperada: HTTP/1.1 200 OK
+
+# Ver logs de nginx
+docker logs contalibra-web --tail 50
+```
+
+---
+
 ## Estructura de directorios
 
 ```
@@ -387,5 +510,13 @@ También se puede gestionar desde dentro del sistema web en `/config` → pesta�
 ├── ticket_generator.py         ← PDFs angostos para ticketeadoras
 ├── Dockerfile
 ├── requirements.txt
-└── OPERACIONES.md              ← este archivo
+├── OPERACIONES.md              ← este archivo
+└── website/                    ← website de marketing (contalibra.com.ar)
+    ├── Dockerfile
+    ├── nginx.conf
+    ├── docker-compose.yml
+    └── public/
+        ├── index.html          ← landing page
+        ├── css/style.css
+        └── docs/               ← documentación pública
 ```

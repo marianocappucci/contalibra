@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contalibra — Sistema de gestión para comercios y PyMEs argentinas</title>
+  <meta name="description" content="Facturación electrónica ARCA, ventas, caja, stock y reportes. Todo en un sistema simple, sin complicaciones.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<!-- ── Navbar ─────────────────────────────────────────────── -->
+<nav class="navbar">
+  <a href="/" class="navbar-brand" style="text-decoration:none">
+    <div class="logo-icon">C</div>
+    Contalibra
+  </a>
+  <div class="navbar-links">
+    <a href="#funciones">Funciones</a>
+    <a href="#planes">Planes</a>
+    <a href="/docs/">Documentación</a>
+    <a href="#acceso" class="btn-nav">Ingresar al sistema</a>
+  </div>
+</nav>
+
+<!-- ── Hero ──────────────────────────────────────────────── -->
+<section class="hero">
+  <div class="hero-content">
+    <div class="hero-badge">Sistema para PyMEs argentinas</div>
+    <h1>Gestioná tu comercio.<br><span>Sin complicaciones.</span></h1>
+    <p>Facturación electrónica ARCA, ventas, caja con turnos, stock e inventario — todo en un solo sistema web, por cliente, sin instalaciones.</p>
+
+    <div class="login-box" id="acceso">
+      <p><i class="bi bi-box-arrow-in-right"></i> &nbsp;¿Ya sos cliente? Ingresá a tu sistema</p>
+      <div class="login-input-row">
+        <input type="text" id="subdomain-input" placeholder="tu-comercio"
+               autocomplete="off" spellcheck="false"
+               onkeydown="if(event.key==='Enter') goToSystem()">
+        <span class="domain-suffix">.contalibra.com.ar</span>
+        <button onclick="goToSystem()">Ingresar &nbsp;→</button>
+      </div>
+      <p class="login-note">¿No sabés tu subdominio? Contactanos por <a href="https://wa.me/5491100000000" target="_blank" style="color:#60a5fa">WhatsApp</a></p>
+    </div>
+  </div>
+</section>
+
+<!-- ── Funciones ──────────────────────────────────────────── -->
+<section id="funciones">
+  <div class="container">
+    <div class="section-label">Módulos disponibles</div>
+    <h2 class="section-title">Todo lo que tu comercio necesita</h2>
+    <p class="section-sub">Activá solo los módulos que usás. Podés ampliar tu plan en cualquier momento.</p>
+
+    <div class="features-grid">
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:#dbeafe">
+          <i class="bi bi-cart3" style="color:#1d4ed8"></i>
+        </div>
+        <h3>Ventas <span class="feature-badge badge-basico">Básico</span></h3>
+        <p>Punto de venta ágil con múltiples medios de pago: efectivo, transferencia, Mercado Pago, Cuenta DNI y billeteras digitales.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:#dcfce7">
+          <i class="bi bi-people" style="color:#166534"></i>
+        </div>
+        <h3>Clientes <span class="feature-badge badge-basico">Básico</span></h3>
+        <p>Registro de clientes con CUIT/DNI, historial de ventas, facturas y presupuestos. Búsqueda rápida desde cualquier módulo.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:#fef9c3">
+          <i class="bi bi-cash-stack" style="color:#854d0e"></i>
+        </div>
+        <h3>Caja y Turnos <span class="feature-badge badge-basico">Básico</span></h3>
+        <p>Control de caja con apertura y cierre de turno por cajero. Resumen de efectivo, diferencias y movimientos del día.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:#ede9fe">
+          <i class="bi bi-receipt" style="color:#6d28d9"></i>
+        </div>
+        <h3>Facturación electrónica <span class="feature-badge badge-estandar">Estándar</span></h3>
+        <p>Emisión de Facturas A, B y C vía ARCA (ex-AFIP). CAE en tiempo real, PDF con código QR y soporte para notas de crédito y débito.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:#e0f2fe">
+          <i class="bi bi-file-earmark-text" style="color:#0369a1"></i>
+        </div>
+        <h3>Remitos <span class="feature-badge badge-estandar">Estándar</span></h3>
+        <p>Generación de remitos numerados con PDF. Conversión directa desde presupuesto aceptado.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:#fce7f3">
+          <i class="bi bi-calculator" style="color:#9d174d"></i>
+        </div>
+        <h3>Presupuestos <span class="feature-badge badge-estandar">Estándar</span></h3>
+        <p>Presupuestos con fecha de validez y estados (pendiente / aceptado / rechazado). PDF descargable para enviar al cliente.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:#ecfdf5">
+          <i class="bi bi-box-seam" style="color:#065f46"></i>
+        </div>
+        <h3>Productos <span class="feature-badge badge-estandar">Estándar</span></h3>
+        <p>Catálogo de productos con precios de venta y costo, unidades y categorías. Búsqueda rápida al cargar ventas.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:#f3e8ff">
+          <i class="bi bi-archive" style="color:#7e22ce"></i>
+        </div>
+        <h3>Stock <span class="feature-badge badge-premium">Premium</span></h3>
+        <p>Control de inventario en tiempo real. Ajustes manuales, descuento automático por venta y alertas de stock mínimo.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:#fff7ed">
+          <i class="bi bi-bar-chart-line" style="color:#c2410c"></i>
+        </div>
+        <h3>Reportes <span class="feature-badge badge-estandar">Estándar</span></h3>
+        <p>Ventas por período, medios de pago, productos más vendidos y movimientos de caja. Exportación CSV incluida.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:#f0fdf4">
+          <i class="bi bi-printer" style="color:#15803d"></i>
+        </div>
+        <h3>Impresora de tickets</h3>
+        <p>Generación de tickets en PDF para impresoras térmicas de rollo (58 y 80 mm). Compatible con Epson TM, Star, Bixolon.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:#fef2f2">
+          <i class="bi bi-person-badge" style="color:#b91c1c"></i>
+        </div>
+        <h3>Roles de usuario</h3>
+        <p>Administrador, operador y cajero. Cada rol ve solo lo que necesita. Usuarios ilimitados por instancia.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:#f8fafc">
+          <i class="bi bi-shield-lock" style="color:#475569"></i>
+        </div>
+        <h3>Base de datos propia</h3>
+        <p>Cada cliente tiene su propia base de datos aislada en el servidor. Backup descargable en un clic desde el sistema.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── Cómo funciona ──────────────────────────────────────── -->
+<section class="alt">
+  <div class="container">
+    <div class="section-label">Así de simple</div>
+    <h2 class="section-title">Empezá en minutos</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>Contactanos</h3>
+        <p>Elegís el plan que mejor se adapta a tu negocio y te damos de alta en el sistema.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>Configurás tu empresa</h3>
+        <p>Cargás los datos de tu negocio, logo y condición de IVA. Si tenés ARCA, conectás los certificados.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>Empezás a operar</h3>
+        <p>Creás clientes, cargás ventas y emitís facturas electrónicas desde el navegador. Sin instalaciones.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Planes ─────────────────────────────────────────────── -->
+<section id="planes">
+  <div class="container">
+    <div class="section-label">Planes y precios</div>
+    <h2 class="section-title">Simple y transparente</h2>
+    <p class="section-sub">Sin costos ocultos. Podés cambiar de plan cuando quieras.</p>
+
+    <div class="pricing-grid">
+
+      <!-- Básico -->
+      <div class="plan-card">
+        <div class="plan-name">Básico</div>
+        <div class="plan-price">$XXXX <span>/ mes</span></div>
+        <p class="plan-desc">Para pequeños comercios que necesitan llevar sus ventas y caja en orden.</p>
+        <ul class="plan-features">
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Ventas y punto de cobro</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Clientes</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Caja y turnos de cajero</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Múltiples medios de pago</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Usuarios ilimitados</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Backup de base de datos</li>
+          <li class="muted"><i class="bi bi-x-circle icon-x"></i> Facturación electrónica</li>
+          <li class="muted"><i class="bi bi-x-circle icon-x"></i> Remitos y presupuestos</li>
+          <li class="muted"><i class="bi bi-x-circle icon-x"></i> Stock</li>
+        </ul>
+        <a href="https://wa.me/5491100000000?text=Hola,%20quiero%20el%20plan%20Básico%20de%20Contalibra"
+           target="_blank" class="btn btn-outline plan-cta">Contratar</a>
+      </div>
+
+      <!-- Estándar -->
+      <div class="plan-card featured">
+        <div class="plan-featured-tag">Más popular</div>
+        <div class="plan-name">Estándar</div>
+        <div class="plan-price">$XXXX <span>/ mes</span></div>
+        <p class="plan-desc">Para negocios que emiten comprobantes y necesitan gestionar presupuestos y remitos.</p>
+        <ul class="plan-features">
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Todo lo del plan Básico</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Facturación electrónica A/B/C</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Notas de crédito y débito</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Remitos con PDF</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Presupuestos</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Catálogo de productos</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Reportes y exportación CSV</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Impresora de tickets térmica</li>
+          <li class="muted"><i class="bi bi-x-circle icon-x"></i> Control de stock</li>
+        </ul>
+        <a href="https://wa.me/5491100000000?text=Hola,%20quiero%20el%20plan%20Estándar%20de%20Contalibra"
+           target="_blank" class="btn btn-primary plan-cta">Contratar</a>
+      </div>
+
+      <!-- Premium -->
+      <div class="plan-card">
+        <div class="plan-name">Premium</div>
+        <div class="plan-price">$XXXX <span>/ mes</span></div>
+        <p class="plan-desc">Para negocios con inventario que necesitan control de stock en tiempo real.</p>
+        <ul class="plan-features">
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Todo lo del plan Estándar</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Control de inventario</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Ajustes de stock manuales</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Descuento automático por venta</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Alertas de stock mínimo</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Movimientos de inventario</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Soporte prioritario</li>
+        </ul>
+        <a href="https://wa.me/5491100000000?text=Hola,%20quiero%20el%20plan%20Premium%20de%20Contalibra"
+           target="_blank" class="btn btn-outline plan-cta">Contratar</a>
+      </div>
+
+    </div>
+    <p style="text-align:center;color:var(--muted);margin-top:1.5rem;font-size:.88rem">
+      Los precios son en pesos argentinos e incluyen IVA. &nbsp;·&nbsp;
+      ¿Necesitás algo personalizado? <a href="https://wa.me/5491100000000">Consultanos</a>
+    </p>
+  </div>
+</section>
+
+<!-- ── CTA final ──────────────────────────────────────────── -->
+<section class="cta-section">
+  <h2>¿Listo para ordenar tu negocio?</h2>
+  <p>Empezá hoy. Sin contratos, sin instalaciones, sin complicaciones.</p>
+  <a href="https://wa.me/5491100000000?text=Hola,%20quiero%20info%20sobre%20Contalibra"
+     target="_blank" class="btn btn-white btn-lg">
+    <i class="bi bi-whatsapp"></i> Contactar por WhatsApp
+  </a>
+</section>
+
+<!-- ── Footer ─────────────────────────────────────────────── -->
+<footer>
+  <div class="footer-inner">
+    <div>
+      <div class="footer-brand">
+        <div class="logo-icon" style="width:28px;height:28px;border-radius:6px;background:var(--brand);display:inline-flex;align-items:center;justify-content:center;color:white;font-weight:900;font-size:.8rem">C</div>
+        Contalibra
+      </div>
+      <div class="footer-tagline">Sistema de gestión para comercios y PyMEs argentinas</div>
+    </div>
+    <div style="display:flex;gap:3rem;flex-wrap:wrap">
+      <div>
+        <div style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#475569;margin-bottom:.75rem">Sistema</div>
+        <div style="display:flex;flex-direction:column;gap:.4rem">
+          <a href="#funciones" style="color:#94a3b8;font-size:.9rem">Funciones</a>
+          <a href="#planes" style="color:#94a3b8;font-size:.9rem">Planes</a>
+          <a href="#acceso" style="color:#94a3b8;font-size:.9rem">Ingresar</a>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#475569;margin-bottom:.75rem">Recursos</div>
+        <div style="display:flex;flex-direction:column;gap:.4rem">
+          <a href="/docs/" style="color:#94a3b8;font-size:.9rem">Documentación</a>
+          <a href="/docs/primeros-pasos.html" style="color:#94a3b8;font-size:.9rem">Primeros pasos</a>
+          <a href="/docs/facturacion.html" style="color:#94a3b8;font-size:.9rem">Facturación ARCA</a>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#475569;margin-bottom:.75rem">Contacto</div>
+        <div style="display:flex;flex-direction:column;gap:.4rem">
+          <a href="https://wa.me/5491100000000" target="_blank" style="color:#94a3b8;font-size:.9rem"><i class="bi bi-whatsapp me-1"></i>WhatsApp</a>
+          <a href="mailto:soporte@contalibra.com.ar" style="color:#94a3b8;font-size:.9rem"><i class="bi bi-envelope me-1"></i>Email</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="footer-copy">
+    © 2025 Contalibra · Todos los derechos reservados
+  </div>
+</footer>
+
+<script>
+function goToSystem() {
+  const val = document.getElementById('subdomain-input').value.trim().toLowerCase();
+  if (!val) {
+    document.getElementById('subdomain-input').focus();
+    return;
+  }
+  const clean = val.replace(/[^a-z0-9\-]/g, '');
+  if (!clean) return;
+  window.location.href = 'https://' + clean + '.contalibra.com.ar';
+}
+</script>
+
+</body>
+</html>
