@@ -4,9 +4,10 @@ import base64
 from fpdf import FPDF
 import config_manager
 
-PDF_DIR              = os.path.join(os.path.dirname(__file__), "remitos_pdf")
-PRESUPUESTOS_PDF_DIR = os.path.join(os.path.dirname(__file__), "presupuestos_pdf")
-FACTURAS_PDF_DIR     = os.path.join(os.path.dirname(__file__), "facturas_pdf")
+_DATA_DIR            = os.environ.get("DATA_DIR", os.path.dirname(__file__))
+PDF_DIR              = os.path.join(_DATA_DIR, "remitos_pdf")
+PRESUPUESTOS_PDF_DIR = os.path.join(_DATA_DIR, "presupuestos_pdf")
+FACTURAS_PDF_DIR     = os.path.join(_DATA_DIR, "facturas_pdf")
 
 _TIPO_LABELS    = {1: "FACTURA A",      6: "FACTURA B",      11: "FACTURA C",
                    3: "NOTA CREDITO A", 8: "NOTA CREDITO B", 13: "NOTA CREDITO C",

@@ -1,8 +1,11 @@
 import sqlite3
 import json
 import os
+import hashlib
+import secrets
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "contalibra.db")
+_DATA_DIR = os.environ.get("DATA_DIR", os.path.dirname(__file__))
+DB_PATH   = os.path.join(_DATA_DIR, "contalibra.db")
 
 
 def get_connection():
@@ -124,6 +127,17 @@ def init_db():
                 alias           TEXT,
                 created_at      TEXT DEFAULT (datetime('now')),
                 updated_at      TEXT DEFAULT (datetime('now'))
+            );
+
+            CREATE TABLE IF NOT EXISTS usuarios (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                username      TEXT NOT NULL UNIQUE,
+                nombre        TEXT NOT NULL,
+                email         TEXT DEFAULT '',
+                password_hash TEXT NOT NULL,
+                role          TEXT NOT NULL DEFAULT 'operador',
+                activo        INTEGER NOT NULL DEFAULT 1,
+                created_at    TEXT DEFAULT (datetime('now'))
             );
         """)
         # Migración: columnas faltantes
@@ -872,3 +886,99 @@ def get_dashboard_data(mes_desde: str, mes_hasta: str) -> dict:
         "presupuestos_pendientes": presupuestos_pendientes,
         "ultimos_movimientos":  ultimos_movimientos,
     }
+
+
+# ── Usuarios ──────────────────────────────────────────────────────────────────
+
+def _hash_password(password: str) -> str:
+    salt = secrets.token_hex(32)
+    dk   = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 260_000)
+    return f"pbkdf2:sha256:{salt}:{dk.hex()}"
+
+
+def _verify_password(stored: str, provided: str) -> bool:
+    try:
+        _, algo, salt, stored_hash = stored.split(":")
+        dk = hashlib.pbkdf2_hmac(algo, provided.encode(), salt.encode(), 260_000)
+        return dk.hex() == stored_hash
+    except Exception:
+        return False
+
+
+def create_usuario(username: str, nombre: str, email: str,
+                   password: str, role: str = "operador") -> int:
+    with get_connection() as conn:
+        cur = conn.execute(
+            "INSERT INTO usuarios (username, nombre, email, password_hash, role) VALUES (?,?,?,?,?)",
+            (username.strip(), nombre.strip(), email.strip(),
+             _hash_password(password), role),
+        )
+        return cur.lastrowid
+
+
+def get_usuario_by_username(username: str) -> dict | None:
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT * FROM usuarios WHERE username=? AND activo=1", (username,)
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def get_usuario_by_id(uid: int) -> dict | None:
+    with get_connection() as conn:
+        row = conn.execute("SELECT * FROM usuarios WHERE id=?", (uid,)).fetchone()
+        return dict(row) if row else None
+
+
+def get_all_usuarios() -> list:
+    with get_connection() as conn:
+        return [dict(r) for r in conn.execute(
+            "SELECT * FROM usuarios ORDER BY role DESC, username"
+        ).fetchall()]
+
+
+def update_usuario(uid: int, nombre: str, email: str, role: str, activo: int):
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE usuarios SET nombre=?, email=?, role=?, activo=? WHERE id=?",
+            (nombre.strip(), email.strip(), role, activo, uid),
+        )
+
+
+def update_usuario_password(uid: int, new_password: str):
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE usuarios SET password_hash=? WHERE id=?",
+            (_hash_password(new_password), uid),
+        )
+
+
+def delete_usuario(uid: int):
+    with get_connection() as conn:
+        conn.execute("DELETE FROM usuarios WHERE id=?", (uid,))
+
+
+def check_usuario_credentials(username: str, password: str) -> dict | None:
+    """Devuelve el usuario si las credenciales son válidas, None si no."""
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT * FROM usuarios WHERE username=? AND activo=1", (username,)
+        ).fetchone()
+    if not row:
+        return None
+    user = dict(row)
+    return user if _verify_password(user["password_hash"], password) else None
+
+
+def ensure_admin_user():
+    """Crea el usuario admin por defecto si no existe ningún usuario."""
+    if get_all_usuarios():
+        return
+    username = os.environ.get("ADMIN_USER", "admin")
+    password = os.environ.get("ADMIN_PASSWORD", "")
+    nombre   = os.environ.get("ADMIN_NOMBRE", "Administrador")
+    if not password:
+        password = secrets.token_urlsafe(12)
+        print(f"[WARN] ADMIN_PASSWORD no configurado. Contraseña generada: {password}")
+    create_usuario(username=username, nombre=nombre, email="", password=password, role="admin")
+    print(f"[INFO] Usuario admin '{username}' creado.")

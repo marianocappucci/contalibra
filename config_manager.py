@@ -1,7 +1,8 @@
 import json
 import os
 
-CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.json")
+_DATA_DIR   = os.environ.get("DATA_DIR", os.path.dirname(__file__))
+CONFIG_PATH = os.path.join(_DATA_DIR, "config.json")
 
 _DEFAULTS = {
     "empresa_nombre":         "",

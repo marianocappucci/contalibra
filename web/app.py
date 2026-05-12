@@ -9,20 +9,32 @@ from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 import httpx
 
 import database as db
 import arca_wsaa
 import arca_wspadron
 from web.auth import (
-    require_auth, check_credentials,
+    require_auth, check_credentials, get_current_user,
     create_session_cookie, clear_session_cookie,
     SECRET_KEY,
 )
 from web.routers import clientes, remitos, presupuestos, facturas, config as config_router, caja, webhooks, dashboard
+from web.routers import usuarios as usuarios_router
 
 app = FastAPI(title="Contalibra")
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
+
+
+class CurrentUserMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        username = get_current_user(request)
+        request.state.current_user = db.get_usuario_by_username(username) if username else None
+        return await call_next(request)
+
+
+app.add_middleware(CurrentUserMiddleware)
 
 TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
@@ -38,11 +50,13 @@ app.include_router(facturas.router)
 app.include_router(config_router.router)
 app.include_router(caja.router)
 app.include_router(webhooks.router)
+app.include_router(usuarios_router.router)
 
 
 @app.on_event("startup")
 def startup():
     db.init_db()
+    db.ensure_admin_user()
     os.makedirs(os.path.join(os.path.dirname(os.path.dirname(__file__)), "remitos_pdf"), exist_ok=True)
     os.makedirs(os.path.join(os.path.dirname(os.path.dirname(__file__)), "presupuestos_pdf"), exist_ok=True)
     os.makedirs(os.path.join(os.path.dirname(os.path.dirname(__file__)), "facturas_pdf"), exist_ok=True)

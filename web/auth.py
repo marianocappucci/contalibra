@@ -3,12 +3,10 @@ from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from fastapi import Request, HTTPException
 from fastapi.responses import RedirectResponse
 
-SECRET_KEY = os.environ.get("SECRET_KEY", "contalibra-secret-change-me")
-APP_USER = os.environ.get("APP_USER", "admin")
-APP_PASSWORD = os.environ.get("APP_PASSWORD", "admin")
+SECRET_KEY  = os.environ.get("SECRET_KEY", "contalibra-secret-change-me")
+COOKIE_NAME = "cl_session"
 
 _signer = URLSafeTimedSerializer(SECRET_KEY)
-COOKIE_NAME = "cl_session"
 
 
 def create_session_cookie(response, username: str):
@@ -37,5 +35,17 @@ def require_auth(request: Request) -> str:
     return user
 
 
+def require_admin(request: Request) -> dict:
+    import database as db
+    username = get_current_user(request)
+    if not username:
+        raise HTTPException(status_code=307, headers={"Location": "/login"})
+    user = db.get_usuario_by_username(username)
+    if not user or user.get("role") != "admin":
+        raise HTTPException(status_code=307, headers={"Location": "/dashboard"})
+    return user
+
+
 def check_credentials(username: str, password: str) -> bool:
-    return username == APP_USER and password == APP_PASSWORD
+    import database as db
+    return db.check_usuario_credentials(username, password) is not None
