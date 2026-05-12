@@ -172,7 +172,14 @@ def cmd_logs(slug: str, lines: int = 50):
         pass
 
 
+def _backups_dir(c: dict) -> Path:
+    d = c["dir"] / "backups"
+    d.mkdir(exist_ok=True)
+    return d
+
+
 def cmd_backup(slug: str):
+    """Backup completo del directorio data (tar.gz) + copia rápida de la DB."""
     c = find_client(slug)
     if not c:
         print(f"[ERROR] Cliente '{slug}' no encontrado.")
@@ -183,11 +190,129 @@ def cmd_backup(slug: str):
         return
     ts       = datetime.now().strftime("%Y%m%d_%H%M%S")
     out_file = CLIENTES_DIR / f"{slug}_backup_{ts}.tar.gz"
-    print(f"[*] Creando backup de {slug} ...")
+    print(f"[*] Creando backup completo de {slug} ...")
     with tarfile.open(out_file, "w:gz") as tar:
         tar.add(data_dir, arcname=f"{slug}/data")
     size_mb = out_file.stat().st_size / 1_048_576
-    print(f"[OK] Backup guardado: {out_file}  ({size_mb:.1f} MB)")
+    print(f"[OK] Backup tar.gz: {out_file}  ({size_mb:.1f} MB)")
+
+    # También copia rápida solo de la DB
+    db_src = data_dir / "contalibra.db"
+    if db_src.exists():
+        bdir   = _backups_dir(c)
+        db_dst = bdir / f"contalibra_{ts}.db"
+        shutil.copy2(db_src, db_dst)
+        print(f"[OK] Copia DB:       {db_dst}  ({db_dst.stat().st_size/1_048_576:.1f} MB)")
+
+
+def cmd_list_backups(slug: str):
+    """Lista los backups de DB disponibles para el cliente."""
+    c = find_client(slug)
+    if not c:
+        print(f"[ERROR] Cliente '{slug}' no encontrado.")
+        return
+    bdir = _backups_dir(c)
+    dbs  = sorted(bdir.glob("*.db"), reverse=True)
+    if not dbs:
+        print(f"  Sin backups de DB en {bdir}")
+        return
+    print(f"\n  Backups disponibles para '{slug}':")
+    print(f"  {'#':<3}  {'ARCHIVO':<35}  {'TAMAÑO':>8}  FECHA")
+    print("  " + "-" * 70)
+    for i, f in enumerate(dbs, 1):
+        mtime = datetime.fromtimestamp(f.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+        size  = f"{f.stat().st_size/1_048_576:.1f} MB"
+        print(f"  {i:<3}  {f.name:<35}  {size:>8}  {mtime}")
+    print()
+
+
+def cmd_restore_db(slug: str, backup_file: str | None = None):
+    """Restaura la DB de un cliente desde un backup. Para el contenedor durante el proceso."""
+    import sqlite3 as _sq3
+    c = find_client(slug)
+    if not c:
+        print(f"[ERROR] Cliente '{slug}' no encontrado.")
+        return
+
+    # Si no se indicó archivo, mostrar lista y pedir selección
+    if not backup_file:
+        bdir = _backups_dir(c)
+        dbs  = sorted(bdir.glob("*.db"), reverse=True)
+        if not dbs:
+            print(f"[ERROR] No hay backups disponibles en {bdir}")
+            print(f"  Creá uno con: python3 scripts/panel_admin.py backup {slug}")
+            return
+        cmd_list_backups(slug)
+        sel = input("Número de backup a restaurar (Enter para cancelar): ").strip()
+        if not sel or not sel.isdigit():
+            print("Cancelado.")
+            return
+        idx = int(sel) - 1
+        if not (0 <= idx < len(dbs)):
+            print("[ERROR] Número fuera de rango.")
+            return
+        backup_path = dbs[idx]
+    else:
+        backup_path = Path(backup_file)
+        if not backup_path.exists():
+            # Buscar por nombre en el directorio de backups
+            backup_path = _backups_dir(c) / backup_file
+        if not backup_path.exists():
+            print(f"[ERROR] No se encontró el archivo: {backup_file}")
+            return
+
+    # Validar que es SQLite
+    try:
+        with open(backup_path, "rb") as f:
+            magic = f.read(16)
+        if not magic.startswith(b"SQLite format 3\x00"):
+            print("[ERROR] El archivo no es una base de datos SQLite válida.")
+            return
+        conn = _sq3.connect(str(backup_path))
+        result = conn.execute("PRAGMA integrity_check").fetchone()[0]
+        conn.close()
+        if result != "ok":
+            print(f"[ERROR] Integridad fallida: {result}")
+            return
+    except Exception as e:
+        print(f"[ERROR] No se pudo validar el backup: {e}")
+        return
+
+    confirm = input(f"¿Restaurar '{backup_path.name}' en '{slug}'? Se reemplazarán TODOS los datos. [S/n]: ").strip().lower()
+    if confirm == "n":
+        print("Cancelado.")
+        return
+
+    db_dest = c["dir"] / "data" / "contalibra.db"
+
+    # Parar contenedor
+    info = container_status(c["container"])
+    was_running = info["status"] == "running"
+    if was_running:
+        print(f"[*] Deteniendo {c['container']} ...")
+        compose(slug, "stop")
+
+    # Backup automático de la DB actual
+    ts   = datetime.now().strftime("%Y%m%d_%H%M%S")
+    bdir = _backups_dir(c)
+    auto = bdir / f"antes_restore_{ts}.db"
+    if db_dest.exists():
+        shutil.copy2(db_dest, auto)
+        print(f"[OK] Backup automático guardado: {auto.name}")
+
+    # Reemplazar DB y limpiar WAL
+    shutil.copy2(backup_path, db_dest)
+    for ext in ("-wal", "-shm"):
+        wal = Path(str(db_dest) + ext)
+        if wal.exists():
+            wal.unlink()
+    print(f"[OK] DB restaurada desde: {backup_path.name}")
+
+    # Reiniciar si estaba corriendo
+    if was_running:
+        print(f"[*] Reiniciando {c['container']} ...")
+        compose(slug, "up", "-d")
+        print(f"[OK] Contenedor reiniciado.")
 
 
 def cmd_actualizar(slugs: list[str] | None = None):
@@ -409,9 +534,12 @@ MENU = """
 ║  4  Detener contenedor       ║
 ║  5  Reiniciar contenedor     ║
 ║  6  Ver logs                 ║
-║  7  Backup de datos          ║
+║  7  Backup completo          ║
 ║  8  Actualizar imagen        ║
 ║  9  Eliminar cliente         ║
+╠══════════════════════════════╣
+║  rb Restaurar DB             ║
+║  lb Listar backups DB        ║
 ╠══════════════════════════════╣
 ║  sa Activar servicio         ║
 ║  sp Pausar servicio          ║
@@ -461,6 +589,14 @@ def interactive():
             slug = pick_client("Backup de")
             if slug:
                 cmd_backup(slug)
+        elif opt == "rb":
+            slug = pick_client("Restaurar DB de")
+            if slug:
+                cmd_restore_db(slug)
+        elif opt == "lb":
+            slug = pick_client("Listar backups de")
+            if slug:
+                cmd_list_backups(slug)
         elif opt == "8":
             slugs_input = input("Slugs a actualizar (Enter = todos): ").strip()
             slugs = slugs_input.split() if slugs_input else None
@@ -519,7 +655,9 @@ def cli():
         "stop":       lambda: cmd_stop(slug) if slug else print("Uso: panel_admin.py stop <slug>"),
         "restart":    lambda: cmd_restart(slug) if slug else print("Uso: panel_admin.py restart <slug>"),
         "logs":       lambda: cmd_logs(slug) if slug else print("Uso: panel_admin.py logs <slug>"),
-        "backup":     lambda: cmd_backup(slug) if slug else print("Uso: panel_admin.py backup <slug>"),
+        "backup":       lambda: cmd_backup(slug) if slug else print("Uso: panel_admin.py backup <slug>"),
+        "list-backups": lambda: cmd_list_backups(slug) if slug else print("Uso: panel_admin.py list-backups <slug>"),
+        "restore-db":   lambda: cmd_restore_db(slug, args[2] if len(args) > 2 else None) if slug else print("Uso: panel_admin.py restore-db <slug> [archivo.db]"),
         "actualizar":  lambda: cmd_actualizar([slug] if slug else None),
         "eliminar":    lambda: cmd_eliminar(slug) if slug else print("Uso: panel_admin.py eliminar <slug>"),
         "npm-listar":  lambda: cmd_npm_listar(),
@@ -537,6 +675,7 @@ def cli():
     else:
         print(f"Comando desconocido: {cmd}")
         print("Comandos: listar | info | start | stop | restart | logs | backup | actualizar | eliminar")
+        print("DB:       list-backups <slug> | restore-db <slug> [archivo.db]")
         print("Servicio: activar <slug> | pausar <slug> | suspender <slug> | estado <slug>")
         print("NPM:      npm-listar | npm-crear <slug> | npm-eliminar <slug>")
         sys.exit(1)

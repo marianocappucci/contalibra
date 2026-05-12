@@ -40,9 +40,14 @@
       <i class="bi bi-printer me-1"></i>Ticket / Impresora
     </a>
   </li>
+  <li class="nav-item">
+    <a class="nav-link {% if tab == 'datos' %}active{% endif %}" href="/config?tab=datos">
+      <i class="bi bi-database me-1"></i>Datos / Backup
+    </a>
+  </li>
   <li class="nav-item ms-auto">
     <a href="/config/backup-db" class="btn btn-outline-secondary btn-sm mt-1" download>
-      <i class="bi bi-download me-1"></i>Descargar backup
+      <i class="bi bi-download me-1"></i>Backup rápido
     </a>
   </li>
 </ul>
@@ -496,6 +501,96 @@
     </form>
   </div>
 </div>
+{% endif %}
+
+{% if tab == 'datos' %}
+
+{% if saved == 'restore' %}
+<div class="alert alert-success"><i class="bi bi-check-circle me-1"></i>Base de datos restaurada correctamente. Se guardó un backup automático antes de reemplazar.</div>
+{% endif %}
+{% if restore_error %}
+<div class="alert alert-danger"><i class="bi bi-x-circle me-1"></i>{{ restore_error }}</div>
+{% endif %}
+
+<div class="row g-4">
+
+  <!-- Backup manual -->
+  <div class="col-md-5">
+    <div class="card h-100">
+      <div class="card-header"><i class="bi bi-download me-1"></i>Backup manual</div>
+      <div class="card-body">
+        <p class="text-muted small mb-3">
+          Descargá una copia completa de la base de datos en este momento.
+          Guardala en un lugar seguro (PC, nube, etc.).
+        </p>
+        <a href="/config/backup-db" class="btn btn-primary w-100" download>
+          <i class="bi bi-database-down me-1"></i>Descargar backup ahora
+        </a>
+        <div class="form-text mt-2">El archivo <code>.db</code> contiene todos tus datos: clientes, facturas, ventas, caja, etc.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Restaurar -->
+  <div class="col-md-7">
+    <div class="card h-100 border-warning">
+      <div class="card-header text-warning"><i class="bi bi-upload me-1"></i>Restaurar base de datos</div>
+      <div class="card-body">
+        <div class="alert alert-warning py-2 small mb-3">
+          <i class="bi bi-exclamation-triangle me-1"></i>
+          <strong>Atención:</strong> esto reemplaza <em>todos</em> los datos actuales con el backup seleccionado.
+          Se guardará un backup automático de la DB actual antes de restaurar.
+        </div>
+        <form method="post" action="/config/restore-db" enctype="multipart/form-data">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Archivo de backup (.db)</label>
+            <input type="file" name="backup_file" class="form-control" accept=".db" required>
+            <div class="form-text">Solo se aceptan archivos <code>.db</code> exportados desde este sistema.</div>
+          </div>
+          <button type="submit" class="btn btn-warning w-100"
+                  onclick="return confirm('¿Estás seguro? Se reemplazarán TODOS los datos actuales.')">
+            <i class="bi bi-arrow-counterclockwise me-1"></i>Restaurar backup
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Backups automáticos -->
+{% if backups %}
+<div class="card mt-4">
+  <div class="card-header"><i class="bi bi-clock-history me-1"></i>Backups automáticos guardados en el servidor</div>
+  <div class="card-body p-0">
+    <table class="table table-sm mb-0">
+      <thead><tr><th>Archivo</th><th>Fecha</th><th class="text-end">Tamaño</th><th></th></tr></thead>
+      <tbody>
+      {% for b in backups %}
+      <tr>
+        <td class="font-monospace small">{{ b.filename }}</td>
+        <td class="small">{{ b.mtime }}</td>
+        <td class="text-end small">{{ b.size_mb }} MB</td>
+        <td class="text-end">
+          <a href="/config/backup-db/{{ b.filename }}" class="btn btn-outline-secondary btn-sm" download>
+            <i class="bi bi-download"></i>
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <div class="px-3 py-2 text-muted small">Se conservan los últimos 10 backups automáticos. Se crean automáticamente antes de cada restauración.</div>
+  </div>
+</div>
+{% else %}
+<div class="card mt-4">
+  <div class="card-body text-muted small">
+    <i class="bi bi-info-circle me-1"></i>No hay backups automáticos aún. Se generan automáticamente antes de cada restauración.
+  </div>
+</div>
+{% endif %}
+
 {% endif %}
 
 {% endblock %}

@@ -3,6 +3,9 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 import datetime
+import shutil
+import sqlite3
+import tempfile
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import RedirectResponse, FileResponse
 from fastapi.templating import Jinja2Templates
@@ -17,8 +20,9 @@ templates = Jinja2Templates(directory=os.path.join(os.path.dirname(os.path.dirna
 
 Auth = Annotated[str, Depends(require_auth)]
 
-LOGO_DIR  = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "logos")
-CERTS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "arca_certs")
+LOGO_DIR    = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "logos")
+CERTS_DIR   = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "arca_certs")
+BACKUPS_DIR = os.path.join(os.path.dirname(db.DB_PATH), "backups")
 
 
 def _arca_cfg():
@@ -29,11 +33,13 @@ def _arca_cfg():
 @router.get("/config")
 def config_get(request: Request, user: Auth, tab: str = "empresa"):
     return templates.TemplateResponse(request, "config.html", {
-        "cfg":    config_manager.load(),
-        "arca":   _arca_cfg(),
-        "active": "config",
-        "tab":    tab,
-        "saved":  None,
+        "cfg":           config_manager.load(),
+        "arca":          _arca_cfg(),
+        "active":        "config",
+        "tab":           tab,
+        "saved":         None,
+        "restore_error": None,
+        "backups":       _listar_backups() if tab == "datos" else [],
     })
 
 
@@ -181,10 +187,134 @@ async def config_ticket_post(request: Request, user: Auth):
     })
 
 
+def _listar_backups() -> list[dict]:
+    """Devuelve los backups automáticos disponibles, ordenados del más reciente al más antiguo."""
+    if not os.path.exists(BACKUPS_DIR):
+        return []
+    result = []
+    for f in sorted(os.listdir(BACKUPS_DIR), reverse=True):
+        if not f.endswith(".db"):
+            continue
+        path = os.path.join(BACKUPS_DIR, f)
+        stat = os.stat(path)
+        result.append({
+            "filename": f,
+            "size_mb":  round(stat.st_size / 1_048_576, 2),
+            "mtime":    datetime.datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
+        })
+    return result
+
+
+def _hacer_backup_automatico(motivo: str = "auto") -> str:
+    """Hace checkpoint WAL y guarda copia de la DB actual. Retorna la ruta del backup."""
+    os.makedirs(BACKUPS_DIR, exist_ok=True)
+    # Eliminar backups automáticos que superen los 10 más recientes
+    backups = sorted(
+        [f for f in os.listdir(BACKUPS_DIR) if f.endswith(".db")],
+        reverse=True,
+    )
+    for old in backups[9:]:
+        try:
+            os.unlink(os.path.join(BACKUPS_DIR, old))
+        except OSError:
+            pass
+    # Checkpoint WAL antes de copiar
+    try:
+        with db.get_connection() as conn:
+            conn.execute("PRAGMA wal_checkpoint(FULL)")
+    except Exception:
+        pass
+    ts   = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    dest = os.path.join(BACKUPS_DIR, f"backup_{motivo}_{ts}.db")
+    shutil.copy2(db.DB_PATH, dest)
+    return dest
+
+
 @router.get("/config/backup-db")
 def config_backup_db(user: Auth):
-    import database as _db
     hoy      = datetime.date.today().strftime("%Y%m%d")
     filename = f"contalibra_backup_{hoy}.db"
-    return FileResponse(_db.DB_PATH, media_type="application/octet-stream",
+    # Checkpoint WAL antes de servir el archivo
+    try:
+        with db.get_connection() as conn:
+            conn.execute("PRAGMA wal_checkpoint(FULL)")
+    except Exception:
+        pass
+    return FileResponse(db.DB_PATH, media_type="application/octet-stream",
                         filename=filename)
+
+
+@router.get("/config/backup-db/{filename}")
+def config_download_autobackup(filename: str, user: Auth):
+    """Descarga un backup automático específico."""
+    if ".." in filename or "/" in filename:
+        from fastapi import HTTPException
+        raise HTTPException(400)
+    path = os.path.join(BACKUPS_DIR, filename)
+    if not os.path.exists(path):
+        from fastapi import HTTPException
+        raise HTTPException(404)
+    return FileResponse(path, media_type="application/octet-stream", filename=filename)
+
+
+@router.post("/config/restore-db")
+async def config_restore_db(request: Request, user: Auth):
+    form    = await request.form()
+    archivo = form.get("backup_file")
+
+    def _err(msg):
+        return templates.TemplateResponse(request, "config.html", {
+            "cfg": config_manager.load(), "arca": _arca_cfg(),
+            "active": "config", "tab": "datos",
+            "saved": None, "restore_error": msg,
+            "backups": _listar_backups(),
+        }, status_code=422)
+
+    if not archivo or not hasattr(archivo, "filename") or not archivo.filename:
+        return _err("Seleccioná un archivo .db para restaurar.")
+
+    content = await archivo.read()
+
+    # Validar magic bytes SQLite
+    if not content.startswith(b"SQLite format 3\x00"):
+        return _err("El archivo no es una base de datos SQLite válida.")
+
+    # Escribir a archivo temporal y verificar integridad
+    tmp_fd, tmp_path = tempfile.mkstemp(suffix=".db")
+    try:
+        os.write(tmp_fd, content)
+        os.close(tmp_fd)
+        test = sqlite3.connect(tmp_path)
+        result = test.execute("PRAGMA integrity_check").fetchone()[0]
+        test.close()
+        if result != "ok":
+            return _err(f"La base de datos tiene errores de integridad: {result}")
+    except Exception as e:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        return _err(f"No se pudo validar el archivo: {e}")
+
+    # Backup automático de la DB actual antes de reemplazar
+    try:
+        _hacer_backup_automatico("antes_restore")
+    except Exception:
+        pass
+
+    # Reemplazar DB y limpiar WAL de la DB vieja
+    shutil.move(tmp_path, db.DB_PATH)
+    for ext in ("-wal", "-shm"):
+        wal = db.DB_PATH + ext
+        if os.path.exists(wal):
+            try:
+                os.unlink(wal)
+            except OSError:
+                pass
+
+    return templates.TemplateResponse(request, "config.html", {
+        "cfg": config_manager.load(), "arca": _arca_cfg(),
+        "active": "config", "tab": "datos",
+        "saved": "restore", "restore_error": None,
+        "backups": _listar_backups(),
+    })
