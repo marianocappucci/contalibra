@@ -356,52 +356,6 @@
 </div>
 {% endif %}
 
-{% endblock %}
-
-{% block scripts %}
-{% if tab == 'arca' and arca and arca.certificado_path and arca.clave_path %}
-<script>
-async function probarArca() {
-  const btn = document.getElementById('btn-probar');
-  const res = document.getElementById('arca-resultado');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Probando…';
-  res.style.display = 'none';
-
-  try {
-    const r = await fetch('/api/arca/probar');
-    const d = await r.json();
-
-    if (d.ok) {
-      res.innerHTML = `
-        <div class="alert alert-success mb-0">
-          <i class="bi bi-check-circle-fill me-2"></i>
-          <strong>Conexion exitosa con WSAA (${d.ambiente})</strong><br>
-          <span class="small">
-            Ticket valido hasta: <strong>${d.expiracion}</strong><br>
-            Certificado vence: <strong>${d.cert_vencimiento}</strong>
-            (${d.cert_dias_restantes} dias restantes)
-          </span>
-        </div>`;
-    } else {
-      res.innerHTML = `
-        <div class="alert alert-danger mb-0">
-          <i class="bi bi-x-circle-fill me-2"></i>
-          <strong>Error al conectar con ARCA</strong><br>
-          <span class="small">${d.error}</span>
-        </div>`;
-    }
-  } catch(e) {
-    res.innerHTML = `<div class="alert alert-danger mb-0">Error inesperado: ${e}</div>`;
-  }
-
-  res.style.display = 'block';
-  btn.disabled = false;
-  btn.innerHTML = '<i class="bi bi-send me-1"></i>Probar conexion';
-}
-</script>
-{% endif %}
-
 {% if tab == 'servicio' %}
 {% if saved == 'servicio' %}
 <div class="alert alert-success">Estado del servicio actualizado.</div>
@@ -465,6 +419,52 @@ async function probarArca() {
     </form>
   </div>
 </div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+{% if tab == 'arca' and arca and arca.certificado_path and arca.clave_path %}
+<script>
+async function probarArca() {
+  const btn = document.getElementById('btn-probar');
+  const res = document.getElementById('arca-resultado');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Probando…';
+  res.style.display = 'none';
+
+  try {
+    const r = await fetch('/api/arca/probar');
+    const d = await r.json();
+
+    if (d.ok) {
+      res.innerHTML = `
+        <div class="alert alert-success mb-0">
+          <i class="bi bi-check-circle-fill me-2"></i>
+          <strong>Conexion exitosa con WSAA (${d.ambiente})</strong><br>
+          <span class="small">
+            Ticket valido hasta: <strong>${d.expiracion}</strong><br>
+            Certificado vence: <strong>${d.cert_vencimiento}</strong>
+            (${d.cert_dias_restantes} dias restantes)
+          </span>
+        </div>`;
+    } else {
+      res.innerHTML = `
+        <div class="alert alert-danger mb-0">
+          <i class="bi bi-x-circle-fill me-2"></i>
+          <strong>Error al conectar con ARCA</strong><br>
+          <span class="small">${d.error}</span>
+        </div>`;
+    }
+  } catch(e) {
+    res.innerHTML = `<div class="alert alert-danger mb-0">Error inesperado: ${e}</div>`;
+  }
+
+  res.style.display = 'block';
+  btn.disabled = false;
+  btn.innerHTML = '<i class="bi bi-send me-1"></i>Probar conexion';
+}
+</script>
 {% endif %}
 
 {% endblock %}
