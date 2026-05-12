@@ -66,6 +66,19 @@
       color: #fff;
     }
     .sidebar .nav-link i { margin-right: 8px; font-size: 1.05rem; }
+    .sidebar-section {
+      font-size: 0.67rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #4a5270;
+      padding: 0.65rem 1.2rem 0.2rem;
+      margin-top: 0.25rem;
+    }
+    .sidebar-divider {
+      border-top: 1px solid #2d2d4e;
+      margin: 0.5rem 1rem 0.25rem;
+    }
     .main-content { flex: 1; min-width: 0; padding: 2rem; margin-left: 220px; }
     .page-header {
       display: flex;
@@ -97,13 +110,20 @@
       {% endif %}
     </div>
     {% set mods = request.state.modulos if request.state.modulos is defined else set() %}
+    {% set is_admin = request.state.current_user and request.state.current_user.role == 'admin' %}
+    {% set has_comercial = 'ventas' in mods or 'clientes' in mods or 'presupuestos' in mods or 'remitos' in mods or 'facturacion' in mods %}
+    {% set has_inventario = 'productos' in mods or 'stock' in mods %}
     <div class="sidebar-nav">
     <ul class="nav flex-column mt-2">
+
       <li class="nav-item">
         <a class="nav-link {% if active == 'dashboard' %}active{% endif %}" href="/dashboard">
           <i class="bi bi-speedometer2"></i>Dashboard
         </a>
       </li>
+
+      {% if has_comercial %}
+      <li><div class="sidebar-section">Comercial</div></li>
       {% if 'ventas' in mods %}
       <li class="nav-item">
         <a class="nav-link {% if active == 'ventas' %}active{% endif %}" href="/ventas">
@@ -118,6 +138,31 @@
         </a>
       </li>
       {% endif %}
+      {% if 'presupuestos' in mods %}
+      <li class="nav-item">
+        <a class="nav-link {% if active == 'presupuestos' %}active{% endif %}" href="/presupuestos">
+          <i class="bi bi-calculator"></i>Presupuestos
+        </a>
+      </li>
+      {% endif %}
+      {% if 'remitos' in mods %}
+      <li class="nav-item">
+        <a class="nav-link {% if active == 'remitos' %}active{% endif %}" href="/remitos">
+          <i class="bi bi-file-earmark-text"></i>Remitos
+        </a>
+      </li>
+      {% endif %}
+      {% if 'facturacion' in mods %}
+      <li class="nav-item">
+        <a class="nav-link {% if active == 'facturas' %}active{% endif %}" href="/facturas">
+          <i class="bi bi-receipt"></i>Facturas
+        </a>
+      </li>
+      {% endif %}
+      {% endif %}
+
+      {% if has_inventario %}
+      <li><div class="sidebar-section">Inventario</div></li>
       {% if 'productos' in mods %}
       <li class="nav-item">
         <a class="nav-link {% if active == 'productos' %}active{% endif %}" href="/productos">
@@ -132,28 +177,10 @@
         </a>
       </li>
       {% endif %}
-      {% if 'facturacion' in mods %}
-      <li class="nav-item">
-        <a class="nav-link {% if active == 'facturas' %}active{% endif %}" href="/facturas">
-          <i class="bi bi-receipt"></i>Facturas
-        </a>
-      </li>
       {% endif %}
-      {% if 'remitos' in mods %}
-      <li class="nav-item">
-        <a class="nav-link {% if active == 'remitos' %}active{% endif %}" href="/remitos">
-          <i class="bi bi-file-earmark-text"></i>Remitos
-        </a>
-      </li>
-      {% endif %}
-      {% if 'presupuestos' in mods %}
-      <li class="nav-item">
-        <a class="nav-link {% if active == 'presupuestos' %}active{% endif %}" href="/presupuestos">
-          <i class="bi bi-calculator"></i>Presupuestos
-        </a>
-      </li>
-      {% endif %}
+
       {% if 'caja' in mods %}
+      <li><div class="sidebar-section">Caja</div></li>
       <li class="nav-item">
         <a class="nav-link {% if active == 'caja' %}active{% endif %}" href="/caja">
           <i class="bi bi-cash-stack"></i>Caja
@@ -165,19 +192,25 @@
         </a>
       </li>
       {% endif %}
+
       {% if 'reportes' in mods %}
+      <li><div class="sidebar-section">Análisis</div></li>
       <li class="nav-item">
         <a class="nav-link {% if active == 'reportes' %}active{% endif %}" href="/reportes">
           <i class="bi bi-bar-chart-line"></i>Reportes
         </a>
       </li>
       {% endif %}
-      <li class="nav-item mt-3">
+
+      <li><div class="sidebar-divider"></div></li>
+      <li class="nav-item">
         <a class="nav-link {% if active == 'config' %}active{% endif %}" href="/config">
           <i class="bi bi-gear"></i>Configuración
         </a>
       </li>
-      {% if request.state.current_user and request.state.current_user.role == 'admin' %}
+
+      {% if is_admin %}
+      <li><div class="sidebar-section">Administración</div></li>
       <li class="nav-item">
         <a class="nav-link {% if active == 'usuarios' %}active{% endif %}" href="/usuarios">
           <i class="bi bi-person-gear"></i>Usuarios
@@ -194,6 +227,7 @@
         </a>
       </li>
       {% endif %}
+
     </ul>
     </div><!-- /sidebar-nav -->
     {% set cu = request.state.current_user %}
