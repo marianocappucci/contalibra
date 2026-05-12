@@ -31,12 +31,13 @@ def _arca_cfg():
 
 
 @router.get("/config")
-def config_get(request: Request, user: Auth, tab: str = "empresa"):
+def config_get(request: Request, user: Auth, tab: str = "empresa", seccion: str = "mp"):
     return templates.TemplateResponse(request, "config.html", {
         "cfg":           config_manager.load(),
         "arca":          _arca_cfg(),
         "active":        "config",
         "tab":           tab,
+        "seccion":       seccion,
         "saved":         None,
         "restore_error": None,
         "backups":       _listar_backups() if tab == "datos" else [],
@@ -81,31 +82,48 @@ async def config_post_compat(request: Request, user: Auth):
     return await config_empresa_post(request, user)
 
 
-@router.post("/config/integraciones")
-async def config_integraciones_post(request: Request, user: Auth):
+@router.post("/config/mp")
+async def config_mp_post(request: Request, user: Auth):
     form = await request.form()
-    existing = config_manager.load()
-    cfg = {**existing}
-    cfg["mp_access_token"]        = str(form.get("mp_access_token", "")).strip()
-    cfg["mp_webhook_secret"]      = str(form.get("mp_webhook_secret", "")).strip()
+    cfg = config_manager.load()
+    cfg["mp_access_token"]         = str(form.get("mp_access_token", "")).strip()
+    cfg["mp_webhook_secret"]       = str(form.get("mp_webhook_secret", "")).strip()
     cfg["mp_concepto_descripcion"] = str(form.get("mp_concepto_descripcion", "")).strip()
-    cfg["mp_iva_rate"]            = str(form.get("mp_iva_rate", "0")).strip()
-    cfg["mp_user_id"]             = str(form.get("mp_user_id", "")).strip()
-    cfg["mp_pos_id"]              = str(form.get("mp_pos_id", "")).strip()
-    cfg["email_smtp_host"]        = str(form.get("email_smtp_host", "")).strip()
-    cfg["email_smtp_port"]        = str(form.get("email_smtp_port", "587")).strip()
-    cfg["email_smtp_user"]        = str(form.get("email_smtp_user", "")).strip()
-    cfg["email_from"]             = str(form.get("email_from", "")).strip()
-    cfg["email_from_name"]        = str(form.get("email_from_name", "")).strip()
-    # Solo sobreescribir password si se ingresó uno nuevo
+    cfg["mp_iva_rate"]             = str(form.get("mp_iva_rate", "0")).strip()
+    cfg["mp_user_id"]              = str(form.get("mp_user_id", "")).strip()
+    cfg["mp_pos_id"]               = str(form.get("mp_pos_id", "")).strip()
+    config_manager.save(cfg)
+    return templates.TemplateResponse(request, "config.html", {
+        "cfg": cfg, "arca": _arca_cfg(), "active": "config",
+        "tab": "integraciones", "seccion": "mp", "saved": "mp",
+        "restore_error": None, "backups": [],
+    })
+
+
+@router.post("/config/email")
+async def config_email_post(request: Request, user: Auth):
+    form = await request.form()
+    cfg = config_manager.load()
+    cfg["email_smtp_host"] = str(form.get("email_smtp_host", "")).strip()
+    cfg["email_smtp_port"] = str(form.get("email_smtp_port", "587")).strip()
+    cfg["email_smtp_user"] = str(form.get("email_smtp_user", "")).strip()
+    cfg["email_from"]      = str(form.get("email_from", "")).strip()
+    cfg["email_from_name"] = str(form.get("email_from_name", "")).strip()
     new_pass = str(form.get("email_smtp_password", "")).strip()
     if new_pass:
         cfg["email_smtp_password"] = new_pass
     config_manager.save(cfg)
     return templates.TemplateResponse(request, "config.html", {
-        "cfg": cfg, "arca": _arca_cfg(),
-        "active": "config", "tab": "integraciones", "saved": "integraciones",
+        "cfg": cfg, "arca": _arca_cfg(), "active": "config",
+        "tab": "integraciones", "seccion": "mail", "saved": "mail",
+        "restore_error": None, "backups": [],
     })
+
+
+# Compatibilidad con el form anterior (si quedara algún link)
+@router.post("/config/integraciones")
+async def config_integraciones_compat(request: Request, user: Auth):
+    return await config_mp_post(request, user)
 
 
 @router.post("/config/arca")
@@ -152,7 +170,8 @@ async def config_arca_post(request: Request, user: Auth):
 
     return templates.TemplateResponse(request, "config.html", {
         "cfg": config_manager.load(), "arca": _arca_cfg(),
-        "active": "config", "tab": "arca", "saved": "arca",
+        "active": "config", "tab": "integraciones", "seccion": "arca",
+        "saved": "arca", "restore_error": None, "backups": [],
     })
 
 

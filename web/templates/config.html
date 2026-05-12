@@ -9,6 +9,10 @@
 <div class="alert alert-success"><i class="bi bi-check-circle me-1"></i>Datos de empresa guardados.</div>
 {% elif saved == 'arca' %}
 <div class="alert alert-success"><i class="bi bi-check-circle me-1"></i>Configuración ARCA guardada.</div>
+{% elif saved == 'mp' %}
+<div class="alert alert-success"><i class="bi bi-check-circle me-1"></i>Configuración de MercadoPago guardada.</div>
+{% elif saved == 'mail' %}
+<div class="alert alert-success"><i class="bi bi-check-circle me-1"></i>Configuración de email guardada.</div>
 {% elif saved == 'integraciones' %}
 <div class="alert alert-success"><i class="bi bi-check-circle me-1"></i>Configuración de integraciones guardada.</div>
 {% endif %}
@@ -18,11 +22,6 @@
   <li class="nav-item">
     <a class="nav-link {% if tab == 'empresa' %}active{% endif %}" href="/config?tab=empresa">
       <i class="bi bi-building me-1"></i>Empresa
-    </a>
-  </li>
-  <li class="nav-item">
-    <a class="nav-link {% if tab == 'arca' %}active{% endif %}" href="/config?tab=arca">
-      <i class="bi bi-shield-lock me-1"></i>ARCA / Facturación electrónica
     </a>
   </li>
   <li class="nav-item">
@@ -120,269 +119,223 @@
 </div>
 {% endif %}
 
-<!-- ── TAB ARCA ────────────────────────────────────────────────────────── -->
-{% if tab == 'arca' %}
-<div style="max-width: 680px;">
-
-  <!-- Estado actual -->
-  {% if arca %}
-  <div class="alert alert-info d-flex align-items-start gap-3 mb-4">
-    <i class="bi bi-info-circle-fill fs-5 mt-1"></i>
-    <div>
-      <strong>Configuración activa</strong><br>
-      CUIT: <code>{{ arca.cuit }}</code> &nbsp;·&nbsp;
-      Punto de venta: <code>{{ arca.punto_venta }}</code> &nbsp;·&nbsp;
-      Ambiente: <span class="badge {% if arca.ambiente == 'produccion' %}bg-danger{% else %}bg-warning text-dark{% endif %}">
-        {{ arca.ambiente | capitalize }}
-      </span><br>
-      <span class="small mt-1 d-block">
-        Certificado:
-        {% if arca.certificado_path %}
-          <i class="bi bi-check-circle text-success"></i> {{ arca.certificado_path | replace('/app/', '') }}
-        {% else %}
-          <i class="bi bi-x-circle text-danger"></i> No cargado
-        {% endif %}
-        &nbsp;·&nbsp;
-        Clave privada:
-        {% if arca.clave_path %}
-          <i class="bi bi-check-circle text-success"></i> {{ arca.clave_path | replace('/app/', '') }}
-        {% else %}
-          <i class="bi bi-x-circle text-danger"></i> No cargada
-        {% endif %}
-      </span>
-    </div>
-  </div>
-  {% else %}
-  <div class="alert alert-warning mb-4">
-    <i class="bi bi-exclamation-triangle me-2"></i>
-    ARCA no está configurado. Completá el formulario para habilitar la facturación electrónica y la consulta de CUIT.
-  </div>
-  {% endif %}
-
-  <div class="card">
-    <div class="card-header fw-semibold">Datos de conexión ARCA</div>
-    <div class="card-body">
-      <form method="post" action="/config/arca" enctype="multipart/form-data">
-
-        <div class="row g-3 mb-3">
-          <div class="col-md-5">
-            <label class="form-label fw-semibold">CUIT de la empresa <span class="text-danger">*</span></label>
-            <input type="text" class="form-control" name="cuit"
-                   value="{{ arca.cuit if arca else cfg.empresa_cuit }}"
-                   placeholder="20-12345678-9" required>
-          </div>
-          <div class="col-md-3">
-            <label class="form-label fw-semibold">Punto de venta <span class="text-danger">*</span></label>
-            <input type="number" class="form-control" name="punto_venta"
-                   value="{{ arca.punto_venta if arca else 1 }}" min="1" required>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label fw-semibold">Ambiente</label>
-            <select class="form-select" name="ambiente">
-              <option value="homologacion" {% if not arca or arca.ambiente == 'homologacion' %}selected{% endif %}>
-                Homologación (pruebas)
-              </option>
-              <option value="produccion" {% if arca and arca.ambiente == 'produccion' %}selected{% endif %}>
-                Producción
-              </option>
-            </select>
-          </div>
-        </div>
-
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Alias / Descripción</label>
-          <input type="text" class="form-control" name="alias"
-                 value="{{ arca.alias if arca else '' }}"
-                 placeholder="Ej: Mi empresa SRL">
-        </div>
-
-        <input type="hidden" name="empresa" value="{{ arca.empresa if arca else 'default' }}">
-
-        <hr class="my-4">
-        <p class="fw-semibold mb-3">
-          <i class="bi bi-file-lock2 me-1"></i>Certificados digitales
-          <span class="text-muted fw-normal small ms-2">
-            Ambos archivos se obtienen desde el portal de ARCA. El mismo par se usa para facturación y consulta de CUIT.
-          </span>
-        </p>
-
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Certificado (.crt / .pem)</label>
-          {% if arca and arca.certificado_path %}
-          <div class="mb-1">
-            <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Cargado</span>
-            <span class="text-muted small ms-1">{{ arca.certificado_path | replace('/app/', '') }}</span>
-          </div>
-          {% endif %}
-          <input type="file" class="form-control" name="certificado" accept=".crt,.pem,.cer">
-          <div class="form-text">Dejalo vacío para mantener el certificado actual.</div>
-        </div>
-
-        <div class="mb-4">
-          <label class="form-label fw-semibold">Clave privada (.key / .pem)</label>
-          {% if arca and arca.clave_path %}
-          <div class="mb-1">
-            <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Cargada</span>
-            <span class="text-muted small ms-1">{{ arca.clave_path | replace('/app/', '') }}</span>
-          </div>
-          {% endif %}
-          <input type="file" class="form-control" name="clave_privada" accept=".key,.pem">
-          <div class="form-text">Dejalo vacío para mantener la clave actual.</div>
-        </div>
-
-        <div class="p-3 bg-light rounded mb-4 small text-muted">
-          <i class="bi bi-info-circle me-1"></i>
-          Los archivos se guardan en el servidor en una carpeta no accesible desde la web (<code>arca_certs/</code>).
-          El mismo certificado se usa para facturación electrónica (WSFE) y consulta de datos de contribuyentes (WSPadron).
-        </div>
-
-        <button type="submit" class="btn btn-primary fw-semibold px-4">
-          <i class="bi bi-save me-1"></i>Guardar configuración ARCA
-        </button>
-      </form>
-    </div>
-  </div>
-
-  <!-- Probar conexión -->
-  {% if arca and arca.certificado_path and arca.clave_path %}
-  <div class="card mt-3">
-    <div class="card-header fw-semibold"><i class="bi bi-plug me-1"></i>Probar conexión con ARCA</div>
-    <div class="card-body">
-      <p class="text-muted small mb-3">
-        Valida los certificados localmente y autentica contra el servicio WSAA de ARCA
-        (ambiente: <strong>{{ arca.ambiente }}</strong>). Si el ticket se obtiene correctamente, la facturación electrónica está lista.
-      </p>
-      <button class="btn btn-outline-primary" id="btn-probar" onclick="probarArca()">
-        <i class="bi bi-send me-1"></i>Probar conexión
-      </button>
-      <div id="arca-resultado" class="mt-3" style="display:none"></div>
-    </div>
-  </div>
-  {% endif %}
-
-</div>
-{% endif %}
-
 <!-- ── TAB INTEGRACIONES ────────────────────────────────────────────── -->
 {% if tab == 'integraciones' %}
-<div style="max-width: 680px;">
+<div class="d-flex gap-0" style="min-height:500px">
 
-  <!-- MercadoPago -->
-  <div class="card mb-4">
-    <div class="card-header fw-semibold"><i class="bi bi-credit-card me-2 text-primary"></i>MercadoPago</div>
-    <div class="card-body">
-      <form method="post" action="/config/integraciones">
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Access Token</label>
-          <input type="password" class="form-control font-monospace" name="mp_access_token"
-                 value="{{ cfg.mp_access_token }}"
-                 placeholder="APP_USR-...">
-          <div class="form-text">Token de producción de tu aplicación en MercadoPago.</div>
-        </div>
-        <div class="row g-3 mb-3">
-          <div class="col-md-6">
-            <label class="form-label fw-semibold">User ID del vendedor</label>
-            <input type="text" class="form-control font-monospace" name="mp_user_id"
-                   value="{{ cfg.mp_user_id }}" placeholder="123456789">
-            <div class="form-text">ID numérico de tu cuenta MP vendedor. Lo encontrás en <em>Tu cuenta → Datos de tu cuenta</em>.</div>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label fw-semibold">POS ID (External ID)</label>
-            <input type="text" class="form-control font-monospace" name="mp_pos_id"
-                   value="{{ cfg.mp_pos_id }}" placeholder="CAJA01">
-            <div class="form-text">External ID del punto de venta creado en MP. Crealo en <em>Tu negocio → Puntos de venta</em>.</div>
-          </div>
-        </div>
-        <div class="alert alert-light border small mb-3">
-          <i class="bi bi-info-circle me-1 text-primary"></i>
-          <strong>QR Dinámico:</strong> Con el User ID y POS ID configurados, cada venta pagada con
-          Mercado Pago o billetera virtual mostrará un botón <strong>Cobrar con QR</strong> desde el
-          que el cliente puede escanear y pagar directamente desde su app.
-        </div>
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Webhook Secret</label>
-          <input type="password" class="form-control font-monospace" name="mp_webhook_secret"
-                 value="{{ cfg.mp_webhook_secret }}"
-                 placeholder="Secret para verificar firmas HMAC">
-          <div class="form-text">
-            Clave secreta configurada en MercadoPago → Tus integraciones → Webhooks.
-          </div>
-        </div>
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Descripción del servicio</label>
-          <input type="text" class="form-control" name="mp_concepto_descripcion"
-                 value="{{ cfg.mp_concepto_descripcion }}"
-                 placeholder="Suscripcion mensual">
-          <div class="form-text">Aparece como descripción del ítem en la factura generada.</div>
-        </div>
-        <div class="mb-4">
-          <label class="form-label fw-semibold">Alícuota IVA sobre el monto cobrado</label>
-          <select class="form-select" name="mp_iva_rate" style="max-width: 220px;">
-            {% set rate = cfg.mp_iva_rate | string %}
-            <option value="0"    {% if rate in ('0', '0.0', '') %}selected{% endif %}>Sin IVA (Monotributista / Exento)</option>
-            <option value="0.21" {% if rate == '0.21' %}selected{% endif %}>21% IVA incluido en el precio</option>
-            <option value="0.105"{% if rate == '0.105'%}selected{% endif %}>10.5% IVA incluido en el precio</option>
-          </select>
-          <div class="form-text">Para monotributistas dejá en "Sin IVA".</div>
-        </div>
-
-        <hr class="my-4">
-        <p class="fw-semibold mb-3"><i class="bi bi-envelope me-1"></i>Envío de comprobantes por email</p>
-        <div class="row g-3 mb-3">
-          <div class="col-md-8">
-            <label class="form-label fw-semibold">Servidor SMTP</label>
-            <input type="text" class="form-control" name="email_smtp_host"
-                   value="{{ cfg.email_smtp_host }}" placeholder="smtp.gmail.com">
-          </div>
-          <div class="col-md-4">
-            <label class="form-label fw-semibold">Puerto</label>
-            <input type="number" class="form-control" name="email_smtp_port"
-                   value="{{ cfg.email_smtp_port }}" placeholder="587">
-          </div>
-        </div>
-        <div class="row g-3 mb-3">
-          <div class="col-md-6">
-            <label class="form-label fw-semibold">Usuario SMTP</label>
-            <input type="text" class="form-control" name="email_smtp_user"
-                   value="{{ cfg.email_smtp_user }}" placeholder="tu@gmail.com">
-          </div>
-          <div class="col-md-6">
-            <label class="form-label fw-semibold">Contraseña SMTP</label>
-            <input type="password" class="form-control" name="email_smtp_password"
-                   value="" placeholder="Dejar vacío para no cambiar">
-            <div class="form-text">
-              {% if cfg.email_smtp_password %}
-                <span class="text-success"><i class="bi bi-check-circle me-1"></i>Contraseña guardada.</span>
-              {% endif %}
-            </div>
-          </div>
-        </div>
-        <div class="row g-3 mb-4">
-          <div class="col-md-6">
-            <label class="form-label fw-semibold">Email del remitente</label>
-            <input type="email" class="form-control" name="email_from"
-                   value="{{ cfg.email_from }}" placeholder="tu@gmail.com">
-          </div>
-          <div class="col-md-6">
-            <label class="form-label fw-semibold">Nombre del remitente</label>
-            <input type="text" class="form-control" name="email_from_name"
-                   value="{{ cfg.email_from_name }}" placeholder="Mi Empresa">
-          </div>
-        </div>
-
-        <div class="p-3 bg-light rounded mb-4 small text-muted">
-          <i class="bi bi-info-circle me-1"></i>
-          La URL del webhook a configurar en MercadoPago es:
-          <code id="webhook-url">https://tu-dominio/webhooks/mercadopago</code><br>
-          Eventos a suscribir: <strong>Pagos</strong> (payment).
-        </div>
-
-        <button type="submit" class="btn btn-primary fw-semibold px-4">
-          <i class="bi bi-save me-1"></i>Guardar integraciones
-        </button>
-      </form>
-    </div>
+  <!-- Sub-sidebar -->
+  <div style="width:200px;flex-shrink:0;border-right:1px solid #dee2e6;padding-top:.25rem">
+    <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#64748b;padding:.75rem 1rem .3rem">Integraciones</div>
+    <a href="/config?tab=integraciones&seccion=mp"
+       class="d-flex align-items-center gap-2 px-3 py-2 text-decoration-none rounded-0"
+       style="font-size:.9rem;border-left:3px solid {% if seccion == 'mp' %}var(--bs-primary){% else %}transparent{% endif %};background:{% if seccion == 'mp' %}#eff6ff{% else %}transparent{% endif %};color:{% if seccion == 'mp' %}var(--bs-primary){% else %}#1e293b{% endif %};font-weight:{% if seccion == 'mp' %}600{% else %}400{% endif %}">
+      <i class="bi bi-phone"></i> MercadoPago
+    </a>
+    <a href="/config?tab=integraciones&seccion=arca"
+       class="d-flex align-items-center gap-2 px-3 py-2 text-decoration-none rounded-0"
+       style="font-size:.9rem;border-left:3px solid {% if seccion == 'arca' %}var(--bs-primary){% else %}transparent{% endif %};background:{% if seccion == 'arca' %}#eff6ff{% else %}transparent{% endif %};color:{% if seccion == 'arca' %}var(--bs-primary){% else %}#1e293b{% endif %};font-weight:{% if seccion == 'arca' %}600{% else %}400{% endif %}">
+      <i class="bi bi-shield-lock"></i> ARCA / AFIP
+    </a>
+    <a href="/config?tab=integraciones&seccion=mail"
+       class="d-flex align-items-center gap-2 px-3 py-2 text-decoration-none rounded-0"
+       style="font-size:.9rem;border-left:3px solid {% if seccion == 'mail' %}var(--bs-primary){% else %}transparent{% endif %};background:{% if seccion == 'mail' %}#eff6ff{% else %}transparent{% endif %};color:{% if seccion == 'mail' %}var(--bs-primary){% else %}#1e293b{% endif %};font-weight:{% if seccion == 'mail' %}600{% else %}400{% endif %}">
+      <i class="bi bi-envelope"></i> Email / SMTP
+    </a>
   </div>
+
+  <!-- Contenido -->
+  <div class="flex-grow-1 ps-4" style="max-width:660px">
+
+    {# ── SECCIÓN MERCADOPAGO ── #}
+    {% if seccion == 'mp' %}
+    <h5 class="fw-bold mb-1"><i class="bi bi-phone me-2 text-primary"></i>MercadoPago</h5>
+    <p class="text-muted small mb-4">Configurá la integración para cobros por QR y pagos online.</p>
+    <form method="post" action="/config/mp">
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Access Token</label>
+        <input type="password" class="form-control font-monospace" name="mp_access_token"
+               value="{{ cfg.mp_access_token }}" placeholder="APP_USR-...">
+        <div class="form-text">Token de producción de tu aplicación en MercadoPago.</div>
+      </div>
+      <div class="row g-3 mb-3">
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">User ID del vendedor</label>
+          <input type="text" class="form-control font-monospace" name="mp_user_id"
+                 value="{{ cfg.mp_user_id }}" placeholder="123456789">
+          <div class="form-text">ID numérico de tu cuenta MP. Lo encontrás en <em>Tu cuenta → Datos</em>.</div>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">POS ID (External ID)</label>
+          <input type="text" class="form-control font-monospace" name="mp_pos_id"
+                 value="{{ cfg.mp_pos_id }}" placeholder="CAJA01">
+          <div class="form-text">External ID del POS. Crealo en <em>Tu negocio → Puntos de venta</em>.</div>
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Webhook Secret</label>
+        <input type="password" class="form-control font-monospace" name="mp_webhook_secret"
+               value="{{ cfg.mp_webhook_secret }}" placeholder="Secret HMAC">
+        <div class="form-text">En MercadoPago → Tus integraciones → Webhooks.</div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Descripción del servicio</label>
+        <input type="text" class="form-control" name="mp_concepto_descripcion"
+               value="{{ cfg.mp_concepto_descripcion }}" placeholder="Suscripcion mensual">
+        <div class="form-text">Aparece en la factura generada automáticamente.</div>
+      </div>
+      <div class="mb-4">
+        <label class="form-label fw-semibold">Alícuota IVA</label>
+        <select class="form-select" name="mp_iva_rate" style="max-width:240px">
+          {% set rate = cfg.mp_iva_rate | string %}
+          <option value="0"     {% if rate in ('0','0.0','') %}selected{% endif %}>Sin IVA (Monotributista / Exento)</option>
+          <option value="0.21"  {% if rate == '0.21'  %}selected{% endif %}>21%</option>
+          <option value="0.105" {% if rate == '0.105' %}selected{% endif %}>10,5%</option>
+        </select>
+      </div>
+      <div class="p-3 bg-light rounded mb-4 small text-muted">
+        <i class="bi bi-info-circle me-1"></i>
+        URL del webhook a registrar en MP: <code>https://tu-dominio/webhooks/mercadopago</code><br>
+        Eventos: <strong>Pagos (payment)</strong>.
+      </div>
+      <button type="submit" class="btn btn-primary fw-semibold px-4">
+        <i class="bi bi-save me-1"></i>Guardar MercadoPago
+      </button>
+    </form>
+    {% endif %}
+
+    {# ── SECCIÓN ARCA ── #}
+    {% if seccion == 'arca' %}
+    <h5 class="fw-bold mb-1"><i class="bi bi-shield-lock me-2 text-primary"></i>ARCA / Facturación electrónica</h5>
+    <p class="text-muted small mb-4">Certificados y punto de venta para emitir facturas ante AFIP/ARCA.</p>
+
+    {% if arca %}
+    <div class="alert alert-info d-flex align-items-start gap-3 mb-4 py-2">
+      <i class="bi bi-info-circle-fill mt-1"></i>
+      <div class="small">
+        CUIT: <code>{{ arca.cuit }}</code> &nbsp;·&nbsp;
+        PV: <code>{{ arca.punto_venta }}</code> &nbsp;·&nbsp;
+        <span class="badge {% if arca.ambiente == 'produccion' %}bg-danger{% else %}bg-warning text-dark{% endif %}">{{ arca.ambiente | capitalize }}</span><br>
+        Cert: {% if arca.certificado_path %}<i class="bi bi-check-circle text-success"></i>{% else %}<i class="bi bi-x-circle text-danger"></i>{% endif %}
+        &nbsp; Clave: {% if arca.clave_path %}<i class="bi bi-check-circle text-success"></i>{% else %}<i class="bi bi-x-circle text-danger"></i>{% endif %}
+      </div>
+    </div>
+    {% else %}
+    <div class="alert alert-warning mb-4 small">
+      <i class="bi bi-exclamation-triangle me-2"></i>ARCA no configurado. Completá el formulario para habilitar la facturación electrónica.
+    </div>
+    {% endif %}
+
+    <form method="post" action="/config/arca" enctype="multipart/form-data">
+      <div class="row g-3 mb-3">
+        <div class="col-md-5">
+          <label class="form-label fw-semibold">CUIT <span class="text-danger">*</span></label>
+          <input type="text" class="form-control" name="cuit"
+                 value="{{ arca.cuit if arca else cfg.empresa_cuit }}" placeholder="20-12345678-9" required>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-semibold">Punto de venta <span class="text-danger">*</span></label>
+          <input type="number" class="form-control" name="punto_venta"
+                 value="{{ arca.punto_venta if arca else 1 }}" min="1" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Ambiente</label>
+          <select class="form-select" name="ambiente">
+            <option value="homologacion" {% if not arca or arca.ambiente == 'homologacion' %}selected{% endif %}>Homologación (pruebas)</option>
+            <option value="produccion"   {% if arca and arca.ambiente == 'produccion'    %}selected{% endif %}>Producción</option>
+          </select>
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Alias / Descripción</label>
+        <input type="text" class="form-control" name="alias"
+               value="{{ arca.alias if arca else '' }}" placeholder="Ej: Mi empresa SRL">
+      </div>
+      <input type="hidden" name="empresa" value="{{ arca.empresa if arca else 'default' }}">
+      <hr class="my-3">
+      <p class="fw-semibold mb-3 small"><i class="bi bi-file-lock2 me-1"></i>Certificados digitales — ambos archivos se obtienen desde el portal ARCA.</p>
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Certificado (.crt / .pem)</label>
+        {% if arca and arca.certificado_path %}
+        <div class="mb-1"><span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Cargado</span> <span class="text-muted small">{{ arca.certificado_path | replace('/app/', '') }}</span></div>
+        {% endif %}
+        <input type="file" class="form-control" name="certificado" accept=".crt,.pem,.cer">
+        <div class="form-text">Dejalo vacío para mantener el actual.</div>
+      </div>
+      <div class="mb-4">
+        <label class="form-label fw-semibold">Clave privada (.key / .pem)</label>
+        {% if arca and arca.clave_path %}
+        <div class="mb-1"><span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Cargada</span> <span class="text-muted small">{{ arca.clave_path | replace('/app/', '') }}</span></div>
+        {% endif %}
+        <input type="file" class="form-control" name="clave_privada" accept=".key,.pem">
+        <div class="form-text">Dejalo vacío para mantener la actual.</div>
+      </div>
+      <div class="d-flex gap-2 align-items-center">
+        <button type="submit" class="btn btn-primary fw-semibold px-4">
+          <i class="bi bi-save me-1"></i>Guardar ARCA
+        </button>
+        {% if arca and arca.certificado_path and arca.clave_path %}
+        <button type="button" class="btn btn-outline-secondary" id="btn-probar" onclick="probarArca()">
+          <i class="bi bi-send me-1"></i>Probar conexión
+        </button>
+        {% endif %}
+      </div>
+    </form>
+    {% if arca and arca.certificado_path and arca.clave_path %}
+    <div id="arca-resultado" class="mt-3" style="display:none"></div>
+    {% endif %}
+    {% endif %}
+
+    {# ── SECCIÓN EMAIL ── #}
+    {% if seccion == 'mail' %}
+    <h5 class="fw-bold mb-1"><i class="bi bi-envelope me-2 text-primary"></i>Email / SMTP</h5>
+    <p class="text-muted small mb-4">Configurá el servidor de email para enviar comprobantes a los clientes.</p>
+    <form method="post" action="/config/email">
+      <div class="row g-3 mb-3">
+        <div class="col-md-8">
+          <label class="form-label fw-semibold">Servidor SMTP</label>
+          <input type="text" class="form-control" name="email_smtp_host"
+                 value="{{ cfg.email_smtp_host }}" placeholder="smtp.gmail.com">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Puerto</label>
+          <input type="number" class="form-control" name="email_smtp_port"
+                 value="{{ cfg.email_smtp_port }}" placeholder="587">
+        </div>
+      </div>
+      <div class="row g-3 mb-3">
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Usuario SMTP</label>
+          <input type="text" class="form-control" name="email_smtp_user"
+                 value="{{ cfg.email_smtp_user }}" placeholder="tu@gmail.com">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Contraseña</label>
+          <input type="password" class="form-control" name="email_smtp_password"
+                 value="" placeholder="Dejar vacío para no cambiar">
+          <div class="form-text">
+            {% if cfg.email_smtp_password %}<span class="text-success"><i class="bi bi-check-circle me-1"></i>Contraseña guardada.</span>{% endif %}
+          </div>
+        </div>
+      </div>
+      <div class="row g-3 mb-4">
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Email del remitente</label>
+          <input type="email" class="form-control" name="email_from"
+                 value="{{ cfg.email_from }}" placeholder="tu@gmail.com">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Nombre del remitente</label>
+          <input type="text" class="form-control" name="email_from_name"
+                 value="{{ cfg.email_from_name }}" placeholder="Mi Empresa">
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary fw-semibold px-4">
+        <i class="bi bi-save me-1"></i>Guardar email
+      </button>
+    </form>
+    {% endif %}
+
+  </div>{# /contenido #}
 </div>
 {% endif %}
 
