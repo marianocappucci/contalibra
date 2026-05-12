@@ -9,11 +9,16 @@
   <style>
     body { background: #f4f6fb; }
     .sidebar {
-      min-height: 100vh;
+      position: fixed;
+      top: 0; left: 0;
+      height: 100vh;
       background: #1a1a2e;
       color: #e0e0e0;
       width: 220px;
       flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
     }
     .sidebar .brand {
       font-size: 1.3rem;
@@ -23,6 +28,7 @@
       letter-spacing: 0.03em;
       border-bottom: 1px solid #2d2d4e;
       line-height: 1.2;
+      flex-shrink: 0;
     }
     .sidebar .brand-sub {
       display: block;
@@ -34,6 +40,19 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+    .sidebar-nav {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding-bottom: 0.5rem;
+    }
+    .sidebar-nav::-webkit-scrollbar { width: 4px; }
+    .sidebar-nav::-webkit-scrollbar-track { background: transparent; }
+    .sidebar-nav::-webkit-scrollbar-thumb { background: #2d2d4e; border-radius: 4px; }
+    .sidebar .sidebar-footer {
+      flex-shrink: 0;
+      border-top: 1px solid #2d2d4e;
     }
     .sidebar .nav-link {
       color: #b0b8d4;
@@ -47,7 +66,7 @@
       color: #fff;
     }
     .sidebar .nav-link i { margin-right: 8px; font-size: 1.05rem; }
-    .main-content { flex: 1; min-width: 0; padding: 2rem; }
+    .main-content { flex: 1; min-width: 0; padding: 2rem; margin-left: 220px; }
     .page-header {
       display: flex;
       align-items: center;
@@ -70,7 +89,7 @@
 </head>
 <body>
 <div class="d-flex">
-  <nav class="sidebar d-flex flex-column">
+  <nav class="sidebar">
     <div class="brand">
       <i class="bi bi-journal-bookmark-fill me-2"></i>Contalibra
       {% if request.state.empresa_nombre %}
@@ -78,7 +97,8 @@
       {% endif %}
     </div>
     {% set mods = request.state.modulos if request.state.modulos is defined else set() %}
-    <ul class="nav flex-column mt-2 flex-grow-1">
+    <div class="sidebar-nav">
+    <ul class="nav flex-column mt-2">
       <li class="nav-item">
         <a class="nav-link {% if active == 'dashboard' %}active{% endif %}" href="/dashboard">
           <i class="bi bi-speedometer2"></i>Dashboard
@@ -168,16 +188,19 @@
       </li>
       {% endif %}
     </ul>
+    </div><!-- /sidebar-nav -->
     {% set cu = request.state.current_user %}
-    {% if cu %}
-    <div style="padding: 0.5rem 1.2rem; font-size: 0.8rem; color: #7a85a8; border-top: 1px solid #2d2d4e;">
-      <a href="/mi-cuenta" style="color:#b0b8d4; text-decoration:none;">
-        <i class="bi bi-person-circle me-1"></i>{{ cu.nombre }}
-      </a>
-      <span class="ms-1" style="font-size:0.72rem; opacity:.7;">({{ cu.role }})</span>
+    <div class="sidebar-footer">
+      {% if cu %}
+      <div style="padding: 0.6rem 1.2rem 0.3rem; font-size: 0.8rem; color: #7a85a8;">
+        <a href="/mi-cuenta" style="color:#b0b8d4; text-decoration:none;">
+          <i class="bi bi-person-circle me-1"></i>{{ cu.nombre }}
+        </a>
+        <span class="ms-1" style="font-size:0.72rem; opacity:.7;">({{ cu.role }})</span>
+      </div>
+      {% endif %}
+      <a href="/logout" class="logout-link mb-2"><i class="bi bi-box-arrow-left me-1"></i>Cerrar sesión</a>
     </div>
-    {% endif %}
-    <a href="/logout" class="logout-link mb-3"><i class="bi bi-box-arrow-left me-1"></i>Cerrar sesión</a>
   </nav>
   <div class="main-content">
     {% with messages = [] %}
