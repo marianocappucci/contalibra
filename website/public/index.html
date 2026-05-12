@@ -32,17 +32,6 @@
     <h1>Gestioná tu comercio.<br><span>Sin complicaciones.</span></h1>
     <p>Facturación electrónica ARCA, ventas, caja con turnos, stock e inventario — todo en un solo sistema web, por cliente, sin instalaciones.</p>
 
-    <div class="login-box" id="acceso">
-      <p><i class="bi bi-box-arrow-in-right"></i> &nbsp;¿Ya sos cliente? Ingresá a tu sistema</p>
-      <div class="login-input-row">
-        <input type="text" id="subdomain-input" placeholder="tu-comercio"
-               autocomplete="off" spellcheck="false"
-               onkeydown="if(event.key==='Enter') goToSystem()">
-        <span class="domain-suffix">.contalibra.com.ar</span>
-        <button onclick="goToSystem()">Ingresar &nbsp;→</button>
-      </div>
-      <p class="login-note">¿No sabés tu subdominio? Contactanos por <a href="https://wa.me/5491100000000" target="_blank" style="color:#60a5fa">WhatsApp</a></p>
-    </div>
   </div>
 </section>
 
@@ -306,18 +295,6 @@
   </div>
 </footer>
 
-<script>
-function goToSystem() {
-  const val = document.getElementById('subdomain-input').value.trim().toLowerCase();
-  if (!val) {
-    document.getElementById('subdomain-input').focus();
-    return;
-  }
-  const clean = val.replace(/[^a-z0-9\-]/g, '');
-  if (!clean) return;
-  window.location.href = 'https://' + clean + '.contalibra.com.ar';
-}
-</script>
 
 </body>
 </html>
