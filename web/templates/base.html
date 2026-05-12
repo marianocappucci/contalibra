@@ -161,6 +161,11 @@
           <i class="bi bi-puzzle"></i>Módulos
         </a>
       </li>
+      <li class="nav-item">
+        <a class="nav-link {% if active == 'logs' %}active{% endif %}" href="/admin/logs">
+          <i class="bi bi-journal-text"></i>Logs
+        </a>
+      </li>
       {% endif %}
     </ul>
     {% set cu = request.state.current_user %}

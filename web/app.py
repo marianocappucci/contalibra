@@ -28,6 +28,7 @@ from web.routers import productos as productos_router
 from web.routers import ventas as ventas_router
 from web.routers import stock as stock_router
 from web.routers import turnos as turnos_router
+from web.routers import logs as logs_router
 
 app = FastAPI(title="Contalibra")
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
@@ -71,6 +72,7 @@ app.include_router(productos_router.router)
 app.include_router(ventas_router.router)
 app.include_router(stock_router.router)
 app.include_router(turnos_router.router)
+app.include_router(logs_router.router)
 
 
 @app.on_event("startup")
