@@ -1,105 +1,69 @@
 # Contalibra
 
-Sistema de gestión contable para PyMEs argentinas. Permite emitir remitos, presupuestos y facturas electrónicas integradas con ARCA (ex-AFIP), con generación de PDFs y base de datos local.
+Sistema de gestión para comercios y PyMEs argentinas. Facturación electrónica
+ARCA (ex-AFIP), ventas, caja, stock, reportes y más. Arquitectura multi-tenant:
+cada cliente corre en su propio contenedor Docker con base de datos aislada.
 
-## Funcionalidades
+## Módulos disponibles
 
-### Remitos
-- Creación, edición y eliminación de remitos numerados automáticamente
-- Carga de ítems con cantidad, descripción, precio unitario e IVA configurable
-- Generación de PDF con logo, datos del cliente y detalle de productos
-- Búsqueda y listado con filtros
-- Conversión de presupuesto aceptado a remito en un clic
-
-### Presupuestos
-- Creación de presupuestos con fecha de validez
-- Estados: pendiente / aceptado / rechazado
-- Generación de PDF
-- Conversión directa a remito cuando el cliente acepta
-
-### Facturación electrónica (ARCA)
-- Emisión de Facturas A y B vía WSAA + WSFEv1 (webservices de ARCA)
-- Obtención de CAE en línea
-- Generación de PDF con formato legal: encabezado, tabla de ítems, caja CAE y código QR
-- Soporte multi-empresa con configuración de certificados y punto de venta por empresa
-
-### Clientes
-- ABM de clientes con nombre, domicilio, CUIT/DNI, email y teléfono
-- Historial de remitos y presupuestos por cliente
-
-## Interfaz
-
-La aplicación cuenta con dos modos de uso:
-
-- **GUI** (`gui.py`) — Interfaz gráfica con PyQt5, sidebar de navegación, tablas y formularios
-- **CLI** (`main.py`) — Menú interactivo en terminal usando `rich`
+| Módulo | Plan | Descripción |
+|--------|------|-------------|
+| Clientes | Básico | ABM de clientes con historial |
+| Ventas | Básico | Punto de venta con múltiples medios de pago |
+| Caja | Básico | Movimientos de caja y turnos de cajero |
+| Facturación | Estándar | Facturas electrónicas A/B/C vía ARCA (WSAA + WSFEv1) |
+| Remitos | Estándar | Remitos con PDF |
+| Presupuestos | Estándar | Presupuestos con conversión a remito/factura |
+| Productos | Estándar | Catálogo de productos con precios |
+| Stock | Premium | Control de inventario con alertas de mínimo |
+| Reportes | Estándar | Ventas, medios de pago, top productos, caja |
 
 ## Stack técnico
 
 | Componente | Tecnología |
 |------------|------------|
-| Lenguaje | Python 3.9+ |
-| Base de datos | SQLite (`contalibra.db`) |
-| GUI | PyQt5 |
-| CLI | rich |
-| PDFs | fpdf2 |
-| Facturación ARCA | pyafipws (WSAA + WSFEv1) |
+| Backend | Python 3.12 + FastAPI |
+| Base de datos | SQLite (WAL mode) — una DB por cliente |
+| Templates | Jinja2 |
+| PDFs | fpdf2 (A4 y formato ticket 58/80mm) |
+| Facturación ARCA | WSAA + WSFEv1 (certificado digital) |
+| Infraestructura | Docker + Nginx Proxy Manager |
+| Auth | Cookies firmadas con itsdangerous + PBKDF2-SHA256 |
 
-## Instalación
+## Inicio rápido
 
-```bash
-# Clonar el repositorio
-git clone https://github.com/marianocappucci/contalibra.git
-cd contalibra
+Ver **[OPERACIONES.md](OPERACIONES.md)** para la guía completa de:
 
-# Crear entorno virtual e instalar dependencias base
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-
-# Para facturación electrónica (requiere Python 3.9)
-pip install pyafipws pyqt5 qrcode pillow
-```
-
-## Uso
-
-```bash
-# Interfaz gráfica
-python3 gui.py
-
-# Menú de consola
-python3 main.py
-```
-
-La base de datos se crea automáticamente al primer inicio.
-
-## Configuración ARCA
-
-Para habilitar la facturación electrónica se necesita:
-
-1. Certificado digital emitido por ARCA (ver `GUIA_CERTIFICADO_ARCA.md`)
-2. Clave privada asociada al certificado
-3. Punto de venta habilitado en ARCA para el CUIT correspondiente
-
-La configuración se carga desde la sección **ARCA Config** dentro de la GUI.
+- Setup inicial del servidor
+- Alta de un cliente nuevo (`nuevo_cliente.py`)
+- Despliegue de actualizaciones
+- Backup y restauración
+- Gestión del estado del servicio (pausar/suspender por no pago)
 
 ## Estructura del proyecto
 
 ```
 contalibra/
-├── gui.py                  # Interfaz gráfica principal (PyQt5)
-├── gui_facturas.py         # Módulo GUI de facturas electrónicas
-├── arca_gui.py             # Módulo GUI de configuración ARCA
-├── main.py                 # Interfaz CLI
-├── database.py             # Capa de acceso a datos (SQLite)
-├── pdf_generator.py        # Generador de PDF para remitos
-├── pdf_factura.py          # Generador de PDF para facturas (formato ARCA)
-├── facturacion_arca.py     # Integración WSAA + WSFEv1
-├── requirements.txt        # Dependencias base
-├── GUIA_CERTIFICADO_ARCA.md
-└── GUIA_RAPIDA_FACTURACION.md
+├── web/                    ← aplicación FastAPI
+│   ├── app.py              ← entry point y middleware
+│   ├── auth.py             ← autenticación
+│   ├── routers/            ← un router por módulo
+│   └── templates/          ← Jinja2 (base.html + por módulo)
+├── scripts/
+│   ├── nuevo_cliente.py    ← onboarding de cliente nuevo
+│   ├── panel_admin.py      ← gestión de todos los clientes
+│   ├── npm_setup.py        ← configuración de Nginx Proxy Manager
+│   └── npm_api.py          ← cliente HTTP para NPM
+├── database.py             ← capa de datos SQLite
+├── config_manager.py       ← gestión de config.json por cliente
+├── pdf_generator.py        ← PDFs A4
+├── ticket_generator.py     ← PDFs para ticketeadoras térmicas
+├── Dockerfile
+├── requirements.txt
+├── OPERACIONES.md          ← guía de operaciones del servidor
+└── GUIA_CERTIFICADO_ARCA.md
 ```
 
 ## Licencia
 
-Uso privado — Compulibra.
+Uso privado — Mariano Cappucci.

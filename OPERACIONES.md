@@ -1,0 +1,391 @@
+# Contalibra — Guía de Operaciones
+
+Guía de referencia para gestionar el servidor, dar de alta clientes nuevos y
+desplegar actualizaciones del sistema.
+
+---
+
+## Índice
+
+1. [Arquitectura](#arquitectura)
+2. [Setup inicial del servidor](#setup-inicial-del-servidor)
+3. [Alta de un cliente nuevo](#alta-de-un-cliente-nuevo)
+4. [Gestión diaria con panel_admin.py](#gestión-diaria-con-panel_adminpy)
+5. [Desplegar una actualización](#desplegar-una-actualización)
+6. [Cuándo reconstruir la imagen vs solo reiniciar](#cuándo-reconstruir-la-imagen-vs-solo-reiniciar)
+7. [Backup y restauración](#backup-y-restauración)
+8. [Proxy y SSL (Nginx Proxy Manager)](#proxy-y-ssl-nginx-proxy-manager)
+9. [Gestión del estado del servicio](#gestión-del-estado-del-servicio)
+10. [Estructura de directorios](#estructura-de-directorios)
+
+---
+
+## Arquitectura
+
+```
+VPS
+├── /root/contalibra/          ← código fuente del sistema (este repo)
+│   ├── web/                   ← aplicación FastAPI
+│   ├── scripts/               ← herramientas de administración
+│   └── clientes/              ← un subdirectorio por cliente
+│       ├── mitienda/
+│       │   ├── docker-compose.yml
+│       │   ├── cliente.json   ← metadatos del cliente
+│       │   ├── backups/       ← backups automáticos de la DB
+│       │   └── data/          ← montado en /app/data dentro del contenedor
+│       │       ├── contalibra.db
+│       │       ├── config.json
+│       │       ├── logos/
+│       │       └── arca_certs/
+│       └── otrocomercio/
+│           └── ...
+└── nginx-proxy-manager        ← proxy inverso con SSL automático
+```
+
+**Principio clave**: el directorio `/root/contalibra` completo se monta como
+volumen en `/app` dentro de cada contenedor. Esto significa que **los cambios
+de código se aplican sin reconstruir la imagen** — solo se necesita reiniciar
+el contenedor. La imagen Docker solo necesita reconstruirse cuando cambian las
+dependencias Python (`requirements.txt`).
+
+Cada cliente tiene su propia base de datos SQLite aislada, sin ningún
+componente compartido entre instancias.
+
+---
+
+## Setup inicial del servidor
+
+Solo se hace una vez cuando se instala el sistema en un VPS nuevo.
+
+### 1. Clonar el repositorio
+
+```bash
+cd /root
+git clone <url-del-repo> contalibra
+cd contalibra
+```
+
+### 2. Construir la imagen Docker
+
+```bash
+docker build -t contalibra:latest .
+```
+
+Esto tarda 2-3 minutos la primera vez (descarga Python 3.12-slim e instala
+dependencias). Las siguientes veces es mucho más rápido por caché.
+
+### 3. Configurar Nginx Proxy Manager (opcional pero recomendado)
+
+Si vas a usar dominios con SSL automático:
+
+```bash
+python3 scripts/npm_setup.py
+```
+
+El script pregunta la URL de NPM (típicamente `http://localhost:81`), las
+credenciales de su panel admin, y el `forward_host` (normalmente `172.17.0.1`
+que es el gateway Docker). Guarda la config en `scripts/.npm_config.json`
+(excluido del repo).
+
+---
+
+## Alta de un cliente nuevo
+
+```bash
+cd /root/contalibra
+python3 scripts/nuevo_cliente.py
+```
+
+El script es interactivo y guía paso a paso:
+
+```
+============================================================
+  CONTALIBRA — Alta de nuevo cliente
+============================================================
+Nombre del comercio / empresa: La Panadería del Centro
+Identificador (slug) [la-panaderia-del-centro]:        ← Enter para aceptar
+Dominio (ej: mitienda.com, Enter para omitir): panaderia.midominio.com
+Puerto HTTP [8071]:                                    ← autodetecta el siguiente libre
+Usuario admin [admin]:
+Contraseña admin (Enter = generar):                    ← deja vacío para generar una segura
+Nombre completo del admin [La Panadería del Centro]:
+```
+
+Luego muestra un resumen y pide confirmación:
+
+```
+------------------------------------------------------------
+  Comercio:    La Panadería del Centro
+  Slug:        la-panaderia-del-centro
+  Contenedor:  contalibra-la-panaderia-del-centro
+  Puerto:      8071
+  Dominio:     panaderia.midominio.com
+  Admin:       admin / xK9mP2nQrT4w
+------------------------------------------------------------
+¿Confirmar? [S/n]:
+```
+
+Al confirmar:
+1. Crea `clientes/la-panaderia-del-centro/` con toda la estructura de directorios
+2. Genera `docker-compose.yml` con el puerto asignado y las credenciales
+3. Crea `data/config.json` inicial
+4. Levanta el contenedor (`docker compose up -d`)
+5. Si NPM está configurado, ofrece crear el proxy con SSL automáticamente
+
+**Al finalizar muestra las credenciales — guardalas, no se vuelven a mostrar.**
+
+### Acceso inmediato
+
+```
+URL local:  http://localhost:8071
+Dominio:    https://panaderia.midominio.com   (si configuraste el proxy)
+```
+
+El cliente ya puede entrar y completar los datos de su empresa en
+`/config` → pestaña "Empresa".
+
+### Habilitar módulos
+
+Por defecto los módulos básicos están habilitados. Para activar facturación
+electrónica, stock, u otros módulos premium, entrá como admin al sistema del
+cliente y andá a `/config/modulos`, o usá el panel admin:
+
+```bash
+python3 scripts/panel_admin.py
+# → opción 2 (info) para ver el slug exacto
+# Luego dentro del sistema del cliente: /config/modulos
+```
+
+---
+
+## Gestión diaria con panel_admin.py
+
+```bash
+cd /root/contalibra
+python3 scripts/panel_admin.py           # menú interactivo
+python3 scripts/panel_admin.py listar    # lista rápida desde CLI
+```
+
+### Menú disponible
+
+| Opción | Comando CLI | Descripción |
+|--------|-------------|-------------|
+| `1` | `listar` | Lista todos los clientes con estado del contenedor |
+| `2` | `info <slug>` | Detalle de un cliente: URL, puerto, credenciales |
+| `3` | `start <slug>` | Inicia el contenedor |
+| `4` | `stop <slug>` | Detiene el contenedor |
+| `5` | `restart <slug>` | Reinicia el contenedor |
+| `6` | `logs <slug>` | Muestra logs en tiempo real (Ctrl+C para salir) |
+| `7` | `backup <slug>` | Backup completo (tar.gz) + copia de la DB |
+| `rb` | `restore-db <slug>` | Restaura la DB desde un backup |
+| `lb` | `list-backups <slug>` | Lista backups de DB disponibles |
+| `sa` | `activar <slug>` | Activa el servicio (acceso normal) |
+| `sp` | `pausar <slug>` | Pausa (muestra banner de aviso, sin cortar acceso) |
+| `ss` | `suspender <slug>` | Suspende (bloquea el acceso completamente) |
+| `se` | `estado <slug>` | Muestra el estado actual del servicio |
+
+---
+
+## Desplegar una actualización
+
+### Flujo normal (cambios de código o templates)
+
+Cuando modificás Python, HTML, CSS o cualquier archivo del sistema y lo
+verificaste localmente:
+
+```bash
+cd /root/contalibra
+
+# 1. Traer los cambios del repo
+git pull
+
+# 2. Reiniciar todos los contenedores activos
+python3 scripts/panel_admin.py actualizar
+```
+
+**¿Por qué funciona sin reconstruir la imagen?**
+El directorio `/root/contalibra` está montado como volumen en `/app` dentro
+de cada contenedor. Al reiniciar, uvicorn levanta con el código nuevo que
+ya está en disco.
+
+### Si cambiaron las dependencias (requirements.txt)
+
+Cuando agregaste o actualizaste paquetes Python:
+
+```bash
+cd /root/contalibra
+
+# 1. Traer los cambios
+git pull
+
+# 2. Reconstruir la imagen (instala las nuevas dependencias)
+docker build -t contalibra:latest .
+
+# 3. Reiniciar todos los contenedores con la nueva imagen
+python3 scripts/panel_admin.py actualizar
+```
+
+### Actualizar un solo cliente (sin afectar a los demás)
+
+```bash
+python3 scripts/panel_admin.py restart mitienda
+
+# O con docker directamente:
+docker compose -f clientes/mitienda/docker-compose.yml restart
+```
+
+### Verificar que todo quedó bien
+
+```bash
+# Ver estado de todos los contenedores
+python3 scripts/panel_admin.py listar
+
+# Ver logs de un cliente específico si hay problemas
+python3 scripts/panel_admin.py logs mitienda
+```
+
+---
+
+## Cuándo reconstruir la imagen vs solo reiniciar
+
+| Cambio realizado | ¿Reconstruir imagen? | ¿Reiniciar contenedores? |
+|------------------|----------------------|--------------------------|
+| Código Python (`.py`) | No | Sí |
+| Templates HTML (`.html`) | No | Sí |
+| CSS / JS | No | Sí |
+| `requirements.txt` (nuevas dependencias) | **Sí** | Sí (después del build) |
+| `Dockerfile` | **Sí** | Sí (después del build) |
+| Variables de entorno en `docker-compose.yml` | No | Sí |
+
+---
+
+## Backup y restauración
+
+### Backup manual desde el panel admin
+
+```bash
+python3 scripts/panel_admin.py backup mitienda
+```
+
+Genera dos archivos:
+- `clientes/mitienda_backup_YYYYMMDD_HHMMSS.tar.gz` — todo el directorio `data/`
+- `clientes/mitienda/backups/contalibra_YYYYMMDD_HHMMSS.db` — solo la DB
+
+### Restaurar la DB de un cliente
+
+```bash
+# Interactivo (muestra lista de backups disponibles):
+python3 scripts/panel_admin.py restore-db mitienda
+
+# Pasando el archivo directamente:
+python3 scripts/panel_admin.py restore-db mitienda contalibra_20260512_143022.db
+```
+
+El proceso: para el contenedor → backup automático del estado actual → restaura → reinicia.
+
+### Ver backups disponibles
+
+```bash
+python3 scripts/panel_admin.py list-backups mitienda
+```
+
+### El cliente también puede hacer backup/restore
+
+Desde el sistema web: `/config` → pestaña **Datos / Backup**. Puede descargar
+la DB y restaurar desde un archivo `.db` previo. Siempre se hace backup
+automático antes de cualquier restauración.
+
+---
+
+## Proxy y SSL (Nginx Proxy Manager)
+
+### Setup inicial (una sola vez)
+
+```bash
+python3 scripts/npm_setup.py
+```
+
+### Al crear un cliente nuevo
+
+Si NPM está configurado, `nuevo_cliente.py` ofrece crear el proxy
+automáticamente al final del proceso.
+
+### Crear proxy manualmente para un cliente existente
+
+```bash
+python3 scripts/panel_admin.py
+# → opción pa (crear proxy NPM)
+```
+
+O desde CLI:
+```bash
+python3 scripts/panel_admin.py npm-crear mitienda
+```
+
+### Prerequisito de DNS
+
+Antes de crear el proxy SSL, el dominio del cliente debe apuntar a la IP del
+VPS (registro A en su proveedor DNS). Si el dominio no resuelve todavía,
+Let's Encrypt fallará al emitir el certificado.
+
+---
+
+## Gestión del estado del servicio
+
+Para corte por falta de pago u otras situaciones:
+
+```bash
+# Mostrar estado actual
+python3 scripts/panel_admin.py estado mitienda
+
+# Poner en modo aviso (acceso con banner amarillo)
+python3 scripts/panel_admin.py pausar mitienda
+→ Mensaje para el cliente: Regularizá tu suscripción para evitar la suspensión.
+
+# Suspender acceso completo
+python3 scripts/panel_admin.py suspender mitienda
+→ Mensaje para el cliente: Servicio suspendido por falta de pago. Contactar a soporte.
+
+# Reactivar
+python3 scripts/panel_admin.py activar mitienda
+```
+
+El cambio de estado es inmediato — no requiere reiniciar el contenedor.
+También se puede gestionar desde dentro del sistema web en `/config` → pestaña **Servicio**.
+
+---
+
+## Estructura de directorios
+
+```
+/root/contalibra/
+├── web/                        ← aplicación FastAPI
+│   ├── app.py                  ← entry point, middleware, rutas
+│   ├── auth.py                 ← autenticación con cookies
+│   ├── routers/                ← un archivo por módulo
+│   └── templates/              ← templates Jinja2
+├── scripts/
+│   ├── nuevo_cliente.py        ← alta de cliente nuevo
+│   ├── panel_admin.py          ← gestión de todos los clientes
+│   ├── npm_api.py              ← cliente HTTP para NPM
+│   ├── npm_setup.py            ← configuración de NPM
+│   └── .npm_config.json        ← credenciales NPM (excluido del repo)
+├── clientes/                   ← datos de clientes (excluido del repo)
+│   └── <slug>/
+│       ├── docker-compose.yml
+│       ├── cliente.json        ← nombre, puerto, credenciales admin
+│       ├── backups/            ← backups de DB
+│       └── data/               ← montado en /app/data
+│           ├── contalibra.db   ← base de datos SQLite
+│           ├── config.json     ← configuración de la empresa
+│           ├── logos/
+│           ├── arca_certs/
+│           └── backups/        ← backups automáticos (web)
+├── database.py                 ← capa de datos
+├── config_manager.py           ← lectura/escritura de config.json
+├── pdf_generator.py            ← PDFs A4 (facturas, remitos, etc.)
+├── ticket_generator.py         ← PDFs angostos para ticketeadoras
+├── Dockerfile
+├── requirements.txt
+└── OPERACIONES.md              ← este archivo
+```
