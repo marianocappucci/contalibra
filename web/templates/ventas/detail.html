@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Venta {{ venta.numero }} — Contalibra{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>
+    <i class="bi bi-receipt me-2 text-primary"></i>
+    Venta {{ venta.numero }}
+    {% if venta.estado == 'cobrada' %}
+    <span class="badge ms-2" style="background:#d1e7dd;color:#0f5132;font-size:.6em;vertical-align:middle">Cobrada</span>
+    {% elif venta.estado == 'anulada' %}
+    <span class="badge ms-2" style="background:#f8d7da;color:#842029;font-size:.6em;vertical-align:middle">Anulada</span>
+    {% endif %}
+  </h1>
+  <a href="/ventas" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Volver</a>
+</div>
+
+<div class="row g-4">
+  <!-- Items -->
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header">Artículos vendidos</div>
+      <div class="card-body p-0">
+        <table class="table table-sm align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Descripción</th>
+              <th class="text-center">Cant.</th>
+              <th class="text-end">Precio unit.</th>
+              <th class="text-end">Subtotal</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for it in venta.items %}
+            <tr>
+              <td>{{ it.nombre }}</td>
+              <td class="text-center">{{ it.qty }}</td>
+              <td class="text-end">$ {{ "%.2f"|format(it.precio) }}</td>
+              <td class="text-end fw-semibold">$ {{ "%.2f"|format(it.subtotal) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot class="table-light">
+            <tr>
+              <td colspan="3" class="text-end text-muted small">Subtotal</td>
+              <td class="text-end">$ {{ "%.2f"|format(venta.subtotal) }}</td>
+            </tr>
+            {% if venta.descuento > 0 %}
+            <tr>
+              <td colspan="3" class="text-end text-muted small">Descuento</td>
+              <td class="text-end text-danger">− $ {{ "%.2f"|format(venta.descuento) }}</td>
+            </tr>
+            {% endif %}
+            <tr>
+              <td colspan="3" class="text-end fw-bold">Total</td>
+              <td class="text-end fw-bold fs-5">$ {{ "%.2f"|format(venta.total) }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lateral: cliente + pagos + acciones -->
+  <div class="col-lg-4">
+
+    <!-- Info -->
+    <div class="card mb-3">
+      <div class="card-body">
+        <dl class="row mb-0 small">
+          <dt class="col-5 text-muted">Fecha</dt>
+          <dd class="col-7">{{ venta.fecha }}</dd>
+          <dt class="col-5 text-muted">Cliente</dt>
+          <dd class="col-7">{{ venta.cliente_nombre or '— Consumidor final —' }}</dd>
+          {% if venta.observaciones %}
+          <dt class="col-5 text-muted">Obs.</dt>
+          <dd class="col-7">{{ venta.observaciones }}</dd>
+          {% endif %}
+        </dl>
+      </div>
+    </div>
+
+    <!-- Medios de pago -->
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-credit-card me-1"></i>Pagos recibidos</div>
+      <div class="card-body pb-2">
+        {% for p in venta.pagos %}
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="badge bg-light text-dark border">
+            {{ medio_labels.get(p.medio, p.medio) }}
+          </span>
+          <span class="fw-semibold">$ {{ "%.2f"|format(p.monto) }}</span>
+        </div>
+        {% if p.referencia %}
+        <div class="text-muted small mb-2 ps-1">Ref: {{ p.referencia }}</div>
+        {% endif %}
+        {% endfor %}
+        <hr class="my-2">
+        <div class="d-flex justify-content-between fw-bold">
+          <span>Total cobrado</span>
+          <span>$ {{ "%.2f"|format(venta.pagos|sum(attribute='monto')) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Acciones -->
+    {% if venta.estado == 'cobrada' %}
+    <div class="card mb-3">
+      <div class="card-header">Acciones</div>
+      <div class="card-body d-grid gap-2">
+        {% if request.state.modulos and 'facturacion' in request.state.modulos %}
+        <a href="/facturas/nueva?from_venta={{ venta.id }}" class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-receipt me-1"></i>Generar factura
+        </a>
+        {% endif %}
+        {% if request.state.modulos and 'remitos' in request.state.modulos %}
+        <a href="/remitos/nuevo?from_venta={{ venta.id }}" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-file-earmark-text me-1"></i>Generar remito
+        </a>
+        {% endif %}
+        <form method="post" action="/ventas/{{ venta.id }}/anular"
+              onsubmit="return confirm('¿Anular esta venta? Los movimientos de caja asociados quedarán registrados.')">
+          <button type="submit" class="btn btn-outline-danger btn-sm w-100">
+            <i class="bi bi-x-circle me-1"></i>Anular venta
+          </button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if venta.factura_id %}
+    <div class="alert alert-light border small">
+      <i class="bi bi-receipt me-1"></i>
+      Factura generada: <a href="/facturas/{{ venta.factura_id }}" class="fw-semibold">ver factura</a>
+    </div>
+    {% endif %}
+    {% if venta.remito_id %}
+    <div class="alert alert-light border small">
+      <i class="bi bi-file-earmark-text me-1"></i>
+      Remito generado: <a href="/remitos/{{ venta.remito_id }}" class="fw-semibold">ver remito</a>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}

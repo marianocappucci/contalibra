@@ -25,6 +25,7 @@ from web.routers import clientes, remitos, presupuestos, facturas, config as con
 from web.routers import usuarios as usuarios_router
 from web.routers import modulos as modulos_router
 from web.routers import productos as productos_router
+from web.routers import ventas as ventas_router
 
 app = FastAPI(title="Contalibra")
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
@@ -65,6 +66,7 @@ app.include_router(webhooks.router)
 app.include_router(usuarios_router.router)
 app.include_router(modulos_router.router)
 app.include_router(productos_router.router)
+app.include_router(ventas_router.router)
 
 
 @app.on_event("startup")

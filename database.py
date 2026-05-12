@@ -159,6 +159,33 @@ def init_db():
                 activo       INTEGER NOT NULL DEFAULT 1,
                 created_at   TEXT DEFAULT (datetime('now'))
             );
+
+            CREATE TABLE IF NOT EXISTS ventas (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                numero          TEXT NOT NULL UNIQUE,
+                fecha           TEXT NOT NULL,
+                cliente_id      INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+                cliente_nombre  TEXT DEFAULT '',
+                items           TEXT NOT NULL,
+                subtotal        REAL NOT NULL DEFAULT 0,
+                descuento       REAL NOT NULL DEFAULT 0,
+                total           REAL NOT NULL DEFAULT 0,
+                estado          TEXT NOT NULL DEFAULT 'cobrada',
+                factura_id      INTEGER REFERENCES facturas(id) ON DELETE SET NULL,
+                remito_id       INTEGER REFERENCES remitos(id) ON DELETE SET NULL,
+                usuario_id      INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+                observaciones   TEXT DEFAULT '',
+                created_at      TEXT DEFAULT (datetime('now'))
+            );
+
+            CREATE TABLE IF NOT EXISTS ventas_pagos (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                venta_id   INTEGER NOT NULL REFERENCES ventas(id) ON DELETE CASCADE,
+                medio      TEXT NOT NULL,
+                monto      REAL NOT NULL,
+                referencia TEXT DEFAULT '',
+                created_at TEXT DEFAULT (datetime('now'))
+            );
         """)
         # Migración: columnas faltantes
         cols = [r[1] for r in conn.execute("PRAGMA table_info(clients)").fetchall()]
@@ -1082,6 +1109,117 @@ def update_producto(pid: int, nombre: str, codigo: str, descripcion: str,
 def delete_producto(pid: int):
     with get_connection() as conn:
         conn.execute("DELETE FROM productos WHERE id=?", (pid,))
+
+
+# ── Ventas ────────────────────────────────────────────────────────────────────
+
+def get_next_venta_numero() -> str:
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT numero FROM ventas ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+    if row:
+        try:
+            n = int(row["numero"].split("-")[-1]) + 1
+        except (ValueError, IndexError):
+            n = 1
+    else:
+        n = 1
+    return f"V-{n:05d}"
+
+
+def create_venta(numero: str, fecha: str, items: list, subtotal: float,
+                 descuento: float, total: float, cliente_id: int | None,
+                 cliente_nombre: str, usuario_id: int | None,
+                 observaciones: str = "") -> int:
+    with get_connection() as conn:
+        cur = conn.execute(
+            """INSERT INTO ventas
+               (numero, fecha, items, subtotal, descuento, total,
+                cliente_id, cliente_nombre, usuario_id, observaciones)
+               VALUES (?,?,?,?,?,?,?,?,?,?)""",
+            (numero, fecha, json.dumps(items, ensure_ascii=False),
+             subtotal, descuento, total,
+             cliente_id, cliente_nombre, usuario_id, observaciones),
+        )
+        return cur.lastrowid
+
+
+def add_venta_pago(venta_id: int, medio: str, monto: float, referencia: str = ""):
+    with get_connection() as conn:
+        conn.execute(
+            "INSERT INTO ventas_pagos (venta_id, medio, monto, referencia) VALUES (?,?,?,?)",
+            (venta_id, medio, monto, referencia),
+        )
+
+
+def get_all_ventas(desde: str = "", hasta: str = "", q: str = "",
+                   limit: int = 100, offset: int = 0) -> list[dict]:
+    with get_connection() as conn:
+        where, params = [], []
+        if desde:
+            where.append("v.fecha >= ?"); params.append(desde)
+        if hasta:
+            where.append("v.fecha <= ?"); params.append(hasta)
+        if q:
+            where.append("(v.numero LIKE ? OR v.cliente_nombre LIKE ?)")
+            params += [f"%{q}%", f"%{q}%"]
+        sql = """SELECT v.*, GROUP_CONCAT(p.medio || ':' || p.monto, '|') AS pagos_raw
+                 FROM ventas v
+                 LEFT JOIN ventas_pagos p ON p.venta_id = v.id"""
+        if where:
+            sql += " WHERE " + " AND ".join(where)
+        sql += " GROUP BY v.id ORDER BY v.fecha DESC, v.id DESC LIMIT ? OFFSET ?"
+        params += [limit, offset]
+        rows = conn.execute(sql, params).fetchall()
+    result = []
+    for r in rows:
+        d = dict(r)
+        d["items"] = json.loads(d["items"])
+        d["pagos"] = _parse_pagos_raw(d.pop("pagos_raw", "") or "")
+        result.append(d)
+    return result
+
+
+def get_venta(vid: int) -> dict | None:
+    with get_connection() as conn:
+        row = conn.execute("SELECT * FROM ventas WHERE id=?", (vid,)).fetchone()
+        if not row:
+            return None
+        d = dict(row)
+        d["items"] = json.loads(d["items"])
+        pagos = conn.execute(
+            "SELECT * FROM ventas_pagos WHERE venta_id=? ORDER BY id", (vid,)
+        ).fetchall()
+        d["pagos"] = [dict(p) for p in pagos]
+    return d
+
+
+def _parse_pagos_raw(raw: str) -> list[dict]:
+    pagos = []
+    for part in raw.split("|"):
+        if ":" in part:
+            medio, monto = part.split(":", 1)
+            try:
+                pagos.append({"medio": medio, "monto": float(monto)})
+            except ValueError:
+                pass
+    return pagos
+
+
+def anular_venta(vid: int):
+    with get_connection() as conn:
+        conn.execute("UPDATE ventas SET estado='anulada' WHERE id=?", (vid,))
+
+
+def vincular_venta_factura(vid: int, factura_id: int):
+    with get_connection() as conn:
+        conn.execute("UPDATE ventas SET factura_id=? WHERE id=?", (factura_id, vid))
+
+
+def vincular_venta_remito(vid: int, remito_id: int):
+    with get_connection() as conn:
+        conn.execute("UPDATE ventas SET remito_id=? WHERE id=?", (remito_id, vid))
 
 
 # ── Módulos ────────────────────────────────────────────────────────────────────
