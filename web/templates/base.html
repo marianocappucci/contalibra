@@ -22,6 +22,18 @@
       padding: 1.5rem 1.2rem 1rem;
       letter-spacing: 0.03em;
       border-bottom: 1px solid #2d2d4e;
+      line-height: 1.2;
+    }
+    .sidebar .brand-sub {
+      display: block;
+      font-size: 0.7rem;
+      font-weight: 400;
+      color: #8892aa;
+      letter-spacing: 0.01em;
+      margin-top: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .sidebar .nav-link {
       color: #b0b8d4;
@@ -59,38 +71,75 @@
 <body>
 <div class="d-flex">
   <nav class="sidebar d-flex flex-column">
-    <div class="brand"><i class="bi bi-journal-bookmark-fill me-2"></i>Contalibra</div>
+    <div class="brand">
+      <i class="bi bi-journal-bookmark-fill me-2"></i>Contalibra
+      {% if request.state.empresa_nombre %}
+      <span class="brand-sub">{{ request.state.empresa_nombre }}</span>
+      {% endif %}
+    </div>
+    {% set mods = request.state.modulos if request.state.modulos is defined else set() %}
     <ul class="nav flex-column mt-2 flex-grow-1">
       <li class="nav-item">
         <a class="nav-link {% if active == 'dashboard' %}active{% endif %}" href="/dashboard">
           <i class="bi bi-speedometer2"></i>Dashboard
         </a>
       </li>
+      {% if 'ventas' in mods %}
       <li class="nav-item">
-        <a class="nav-link {% if active == 'remitos' %}active{% endif %}" href="/remitos">
-          <i class="bi bi-file-earmark-text"></i>Remitos
+        <a class="nav-link {% if active == 'ventas' %}active{% endif %}" href="/ventas">
+          <i class="bi bi-cart3"></i>Ventas
         </a>
       </li>
-      <li class="nav-item">
-        <a class="nav-link {% if active == 'presupuestos' %}active{% endif %}" href="/presupuestos">
-          <i class="bi bi-calculator"></i>Presupuestos
-        </a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link {% if active == 'facturas' %}active{% endif %}" href="/facturas">
-          <i class="bi bi-receipt"></i>Facturas
-        </a>
-      </li>
+      {% endif %}
+      {% if 'clientes' in mods %}
       <li class="nav-item">
         <a class="nav-link {% if active == 'clientes' %}active{% endif %}" href="/clientes">
           <i class="bi bi-people"></i>Clientes
         </a>
       </li>
+      {% endif %}
+      {% if 'productos' in mods %}
+      <li class="nav-item">
+        <a class="nav-link {% if active == 'productos' %}active{% endif %}" href="/productos">
+          <i class="bi bi-box-seam"></i>Productos
+        </a>
+      </li>
+      {% endif %}
+      {% if 'stock' in mods %}
+      <li class="nav-item">
+        <a class="nav-link {% if active == 'stock' %}active{% endif %}" href="/stock">
+          <i class="bi bi-archive"></i>Stock
+        </a>
+      </li>
+      {% endif %}
+      {% if 'facturacion' in mods %}
+      <li class="nav-item">
+        <a class="nav-link {% if active == 'facturas' %}active{% endif %}" href="/facturas">
+          <i class="bi bi-receipt"></i>Facturas
+        </a>
+      </li>
+      {% endif %}
+      {% if 'remitos' in mods %}
+      <li class="nav-item">
+        <a class="nav-link {% if active == 'remitos' %}active{% endif %}" href="/remitos">
+          <i class="bi bi-file-earmark-text"></i>Remitos
+        </a>
+      </li>
+      {% endif %}
+      {% if 'presupuestos' in mods %}
+      <li class="nav-item">
+        <a class="nav-link {% if active == 'presupuestos' %}active{% endif %}" href="/presupuestos">
+          <i class="bi bi-calculator"></i>Presupuestos
+        </a>
+      </li>
+      {% endif %}
+      {% if 'caja' in mods %}
       <li class="nav-item">
         <a class="nav-link {% if active == 'caja' %}active{% endif %}" href="/caja">
           <i class="bi bi-cash-stack"></i>Caja
         </a>
       </li>
+      {% endif %}
       <li class="nav-item mt-3">
         <a class="nav-link {% if active == 'config' %}active{% endif %}" href="/config">
           <i class="bi bi-gear"></i>Configuración
@@ -100,6 +149,11 @@
       <li class="nav-item">
         <a class="nav-link {% if active == 'usuarios' %}active{% endif %}" href="/usuarios">
           <i class="bi bi-person-gear"></i>Usuarios
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if active == 'modulos' %}active{% endif %}" href="/config/modulos">
+          <i class="bi bi-puzzle"></i>Módulos
         </a>
       </li>
       {% endif %}

@@ -13,6 +13,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 import httpx
 
 import database as db
+import config_manager
 import arca_wsaa
 import arca_wspadron
 from web.auth import (
@@ -22,6 +23,7 @@ from web.auth import (
 )
 from web.routers import clientes, remitos, presupuestos, facturas, config as config_router, caja, webhooks, dashboard
 from web.routers import usuarios as usuarios_router
+from web.routers import modulos as modulos_router
 
 app = FastAPI(title="Contalibra")
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
@@ -31,6 +33,15 @@ class CurrentUserMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         username = get_current_user(request)
         request.state.current_user = db.get_usuario_by_username(username) if username else None
+        try:
+            request.state.empresa_nombre = config_manager.load().get("empresa_nombre", "")
+        except Exception:
+            request.state.empresa_nombre = ""
+        try:
+            mods = db.get_modulos()
+            request.state.modulos = {m for m, on in mods.items() if on}
+        except Exception:
+            request.state.modulos = set()
         return await call_next(request)
 
 
@@ -51,6 +62,7 @@ app.include_router(config_router.router)
 app.include_router(caja.router)
 app.include_router(webhooks.router)
 app.include_router(usuarios_router.router)
+app.include_router(modulos_router.router)
 
 
 @app.on_event("startup")

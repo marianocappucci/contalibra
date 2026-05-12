@@ -211,20 +211,14 @@ def _draw_header_block(pdf, letra, titulo, codigo, info_fields, empresa):
     tx = _LX + logo_sz + 4
     tw = _LEFT_W - logo_sz - 4
 
-    # Título grande (tipo de comprobante)
-    pdf.set_font("Helvetica", "B", 18)
-    pdf.set_text_color(*_INK)
-    pdf.set_xy(tx, y0 - 0.5)
-    pdf.cell(tw, 11, titulo.title(), ln=False)
-
-    # Subtítulo: nombre empresa sólo si no hay logo
+    # Sin logo → nombre de empresa como texto; con logo → nada de texto
     if not has_logo:
         nombre = empresa.get("nombre", "")
         if nombre:
-            pdf.set_font("Helvetica", "", 8)
-            pdf.set_text_color(*_MUTED)
-            pdf.set_xy(tx, y0 + 11)
-            pdf.cell(tw, 5, nombre[:52], ln=False)
+            pdf.set_font("Helvetica", "B", 14)
+            pdf.set_text_color(*_INK)
+            pdf.set_xy(tx, y0 + 1)
+            pdf.multi_cell(tw, 6, nombre[:52], align="L")
 
     # ── Derecha: voucher box ──────────────────────────────────────────────
     vx = _RIGHT_X

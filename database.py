@@ -139,6 +139,13 @@ def init_db():
                 activo        INTEGER NOT NULL DEFAULT 1,
                 created_at    TEXT DEFAULT (datetime('now'))
             );
+
+            CREATE TABLE IF NOT EXISTS modulos (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                modulo     TEXT NOT NULL UNIQUE,
+                habilitado INTEGER NOT NULL DEFAULT 1,
+                plan       TEXT NOT NULL DEFAULT 'estandar'
+            );
         """)
         # Migración: columnas faltantes
         cols = [r[1] for r in conn.execute("PRAGMA table_info(clients)").fetchall()]
@@ -159,6 +166,23 @@ def init_db():
             conn.execute("ALTER TABLE facturas ADD COLUMN cbte_asoc_pv INTEGER DEFAULT 0")
         if "cbte_asoc_nro" not in fact_cols:
             conn.execute("ALTER TABLE facturas ADD COLUMN cbte_asoc_nro INTEGER DEFAULT 0")
+
+        # Seed de módulos: inserta sólo los que no existen aún
+        _MODULOS_DEFAULT = [
+            ("clientes",      1, "basico"),
+            ("caja",          1, "basico"),
+            ("ventas",        1, "basico"),
+            ("facturacion",   1, "estandar"),
+            ("remitos",       1, "estandar"),
+            ("presupuestos",  1, "estandar"),
+            ("productos",     1, "estandar"),
+            ("stock",         1, "premium"),
+        ]
+        for modulo, habilitado, plan in _MODULOS_DEFAULT:
+            conn.execute(
+                "INSERT OR IGNORE INTO modulos (modulo, habilitado, plan) VALUES (?,?,?)",
+                (modulo, habilitado, plan),
+            )
 
 
 # ── Clients ────────────────────────────────────────────────────────────────────
@@ -982,3 +1006,45 @@ def ensure_admin_user():
         print(f"[WARN] ADMIN_PASSWORD no configurado. Contraseña generada: {password}")
     create_usuario(username=username, nombre=nombre, email="", password=password, role="admin")
     print(f"[INFO] Usuario admin '{username}' creado.")
+
+
+# ── Módulos ────────────────────────────────────────────────────────────────────
+
+def get_modulos() -> dict[str, bool]:
+    """Devuelve {modulo: habilitado} para todos los módulos registrados."""
+    with get_connection() as conn:
+        rows = conn.execute("SELECT modulo, habilitado FROM modulos").fetchall()
+    return {r["modulo"]: bool(r["habilitado"]) for r in rows}
+
+
+def get_modulos_completo() -> list[dict]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT id, modulo, habilitado, plan FROM modulos ORDER BY plan, modulo"
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def set_modulo(modulo: str, habilitado: bool):
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE modulos SET habilitado=? WHERE modulo=?",
+            (1 if habilitado else 0, modulo),
+        )
+
+
+def apply_plan(plan: str):
+    """Habilita/deshabilita módulos según el plan elegido."""
+    _PLANES = {
+        "basico":    {"clientes", "caja", "ventas"},
+        "estandar":  {"clientes", "caja", "ventas", "facturacion", "remitos", "presupuestos", "productos"},
+        "premium":   {"clientes", "caja", "ventas", "facturacion", "remitos", "presupuestos", "productos", "stock"},
+    }
+    activos = _PLANES.get(plan, set())
+    with get_connection() as conn:
+        rows = conn.execute("SELECT modulo FROM modulos").fetchall()
+        for r in rows:
+            conn.execute(
+                "UPDATE modulos SET habilitado=?, plan=? WHERE modulo=?",
+                (1 if r["modulo"] in activos else 0, plan, r["modulo"]),
+            )
