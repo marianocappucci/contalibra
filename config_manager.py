@@ -29,6 +29,12 @@ _DEFAULTS = {
     "email_smtp_password":    "",
     "email_from":             "",
     "email_from_name":        "",
+    # Impresora de tickets (ticketeadora térmica)
+    "ticket_ancho_mm":        "80",      # 58 | 80
+    "ticket_fuente_size":     "9",       # puntos
+    "ticket_mostrar_logo":    "0",       # 0 | 1
+    "ticket_linea_corte":     "1",       # imprimir línea de corte al final
+    "ticket_pie":             "",        # texto libre al pie (ej: "¡Gracias por su compra!")
 }
 
 

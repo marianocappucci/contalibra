@@ -165,6 +165,13 @@
         </a>
       </li>
       {% endif %}
+      {% if 'reportes' in mods %}
+      <li class="nav-item">
+        <a class="nav-link {% if active == 'reportes' %}active{% endif %}" href="/reportes">
+          <i class="bi bi-bar-chart-line"></i>Reportes
+        </a>
+      </li>
+      {% endif %}
       <li class="nav-item mt-3">
         <a class="nav-link {% if active == 'config' %}active{% endif %}" href="/config">
           <i class="bi bi-gear"></i>Configuración

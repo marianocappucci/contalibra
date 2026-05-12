@@ -165,6 +165,22 @@ async def config_servicio_post(request: Request, user: Auth):
     })
 
 
+@router.post("/config/ticket")
+async def config_ticket_post(request: Request, user: Auth):
+    form = await request.form()
+    existing = config_manager.load()
+    existing["ticket_ancho_mm"]    = str(form.get("ticket_ancho_mm", "80")).strip()
+    existing["ticket_fuente_size"] = str(form.get("ticket_fuente_size", "9")).strip()
+    existing["ticket_mostrar_logo"]= "1" if form.get("ticket_mostrar_logo") else "0"
+    existing["ticket_linea_corte"] = "1" if form.get("ticket_linea_corte") else "0"
+    existing["ticket_pie"]         = str(form.get("ticket_pie", "")).strip()[:80]
+    config_manager.save(existing)
+    return templates.TemplateResponse(request, "config.html", {
+        "cfg": existing, "arca": _arca_cfg(),
+        "active": "config", "tab": "ticket", "saved": "ticket",
+    })
+
+
 @router.get("/config/backup-db")
 def config_backup_db(user: Auth):
     import database as _db

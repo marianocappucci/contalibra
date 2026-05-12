@@ -653,3 +653,17 @@ async def factura_cobrar(request: Request, factura_id: int, user: Auth):
         factura_id=factura_id,
     )
     return RedirectResponse(f"/facturas/{factura_id}", status_code=303)
+
+@router.get("/facturas/{factura_id}/ticket")
+def factura_ticket(factura_id: int, user: Auth):
+    import ticket_generator
+    from fastapi.responses import Response as _Resp
+    factura = db.get_factura(factura_id)
+    if not factura:
+        raise HTTPException(404)
+    pdf_bytes = ticket_generator.generar_ticket_factura(factura)
+    return _Resp(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="ticket_factura_{factura_id}.pdf"'},
+    )

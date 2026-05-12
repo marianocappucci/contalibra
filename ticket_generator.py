@@ -1,0 +1,253 @@
+"""
+Generador de tickets de impresión para ticketeadoras térmicas.
+Produce un PDF angosto (58 mm ó 80 mm) que puede imprimirse directamente
+en impresoras de rollo tipo Epson TM, Star, Bixolon, etc.
+"""
+import sys
+import os
+sys.path.insert(0, os.path.dirname(__file__))
+
+import datetime
+import io
+from fpdf import FPDF
+
+import config_manager
+
+# ── Constantes ─────────────────────────────────────────────────────────────────
+
+_MM_TO_PT = 2.8346
+
+_ANCHOS = {
+    "58": 58,
+    "80": 80,
+}
+
+_MEDIOS_LABEL = {
+    "efectivo":      "Efectivo",
+    "transferencia": "Transferencia",
+    "mercadopago":   "Mercado Pago",
+    "cuenta_dni":    "Cuenta DNI",
+    "billetera":     "Billetera",
+}
+
+_TIPO_FACTURA = {
+    1:  "FACTURA A",   2:  "NOTA DÉBITO A",   3:  "NOTA CRÉDITO A",
+    6:  "FACTURA B",   7:  "NOTA DÉBITO B",   8:  "NOTA CRÉDITO B",
+    11: "FACTURA C",   12: "NOTA DÉBITO C",   13: "NOTA CRÉDITO C",
+}
+
+
+# ── PDF base ───────────────────────────────────────────────────────────────────
+
+class _TicketPDF(FPDF):
+    def __init__(self, ancho_mm: int, fuente_size: int):
+        # Márgenes laterales 3 mm; altura de página dinámica (se extiende sola)
+        super().__init__(orientation="P", unit="mm", format=(ancho_mm, 2000))
+        self.set_margins(3, 3, 3)
+        self.set_auto_page_break(auto=True, margin=3)
+        self._ancho = ancho_mm
+        self._fs = fuente_size          # tamaño base
+        self._w = ancho_mm - 6         # ancho útil
+        self.add_page()
+        self.set_font("Courier", size=fuente_size)
+
+    # helpers
+    def _line_h(self):
+        return self._fs * 0.35 + 0.5   # aprox mm por línea de texto
+
+    def _separador(self, char="-"):
+        cols = int(self._w / (self._fs * 0.21))  # caracteres en el ancho
+        self.set_font("Courier", size=self._fs)
+        self.cell(self._w, self._line_h(), char * cols, ln=True)
+
+    def _row(self, izq: str, der: str, bold_izq=False, bold_der=False):
+        lh = self._line_h()
+        ancho_der = self._w * 0.38
+        ancho_izq = self._w - ancho_der
+        self.set_font("Courier", "B" if bold_izq else "", self._fs)
+        self.cell(ancho_izq, lh, izq, ln=False)
+        self.set_font("Courier", "B" if bold_der else "", self._fs)
+        self.cell(ancho_der, lh, der, align="R", ln=True)
+
+    def _centrado(self, txt: str, size: int = 0, bold: bool = False):
+        s = size or self._fs
+        self.set_font("Courier", "B" if bold else "", s)
+        self.cell(self._w, s * 0.35 + 0.5, txt, align="C", ln=True)
+
+    def _texto(self, txt: str, bold: bool = False):
+        self.set_font("Courier", "B" if bold else "", self._fs)
+        self.multi_cell(self._w, self._line_h(), txt)
+
+
+def _cfg_ticket():
+    cfg = config_manager.load()
+    ancho_mm = int(_ANCHOS.get(str(cfg.get("ticket_ancho_mm", "80")), 80))
+    fuente   = max(6, min(14, int(cfg.get("ticket_fuente_size", "9") or "9")))
+    logo     = str(cfg.get("ticket_mostrar_logo", "0")) == "1"
+    corte    = str(cfg.get("ticket_linea_corte", "1")) == "1"
+    pie      = str(cfg.get("ticket_pie", "")).strip()
+    return ancho_mm, fuente, logo, corte, pie, cfg
+
+
+def _empresa_header(pdf: _TicketPDF, cfg: dict, logo: bool):
+    nombre = cfg.get("empresa_nombre", "") or ""
+    dir_   = cfg.get("empresa_direccion", "") or ""
+    cuit   = cfg.get("empresa_cuit", "") or ""
+    tel    = cfg.get("empresa_telefono", "") or ""
+
+    if logo:
+        logo_path = cfg.get("logo_path", "")
+        if logo_path and os.path.exists(logo_path):
+            logo_w = min(pdf._w * 0.5, 30)
+            pdf.image(logo_path, x=(pdf._ancho - logo_w) / 2, w=logo_w)
+            pdf.ln(1)
+
+    if nombre:
+        pdf._centrado(nombre[:40], bold=True)
+    if dir_:
+        pdf._centrado(dir_[:48])
+    if cuit:
+        pdf._centrado(f"CUIT: {cuit}")
+    if tel:
+        pdf._centrado(f"Tel: {tel}")
+
+
+def _pie_ticket(pdf: _TicketPDF, pie: str, corte: bool):
+    pdf.ln(2)
+    if pie:
+        pdf._separador()
+        pdf._centrado(pie[:80])
+    pdf.ln(2)
+    if corte:
+        pdf._separador("=")
+        pdf._centrado("- - - - CORTE - - - -")
+        pdf._separador("=")
+    pdf.ln(1)
+
+
+def _recortar_pdf_a_contenido(pdf: _TicketPDF) -> bytes:
+    """Recorta la altura del PDF al contenido real generado."""
+    alto_real = pdf.get_y() + 5
+    pdf.pages[1]["height"] = alto_real * _MM_TO_PT
+    return bytes(pdf.output())
+
+
+# ── Ticket de VENTA ────────────────────────────────────────────────────────────
+
+def generar_ticket_venta(venta: dict) -> bytes:
+    ancho_mm, fuente, logo, corte, pie, cfg = _cfg_ticket()
+    pdf = _TicketPDF(ancho_mm, fuente)
+
+    _empresa_header(pdf, cfg, logo)
+    pdf._separador()
+
+    # Encabezado de la venta
+    fecha = (venta.get("fecha") or "")[:16]
+    pdf._centrado(f"TICKET DE VENTA", bold=True)
+    pdf._centrado(f"N° {venta.get('id', '')}")
+    pdf._centrado(fecha)
+    pdf._separador()
+
+    cliente = venta.get("cliente_nombre") or "Consumidor final"
+    if cliente and cliente != "Consumidor final":
+        pdf._texto(f"Cliente: {cliente[:36]}")
+        cuit_c = venta.get("cliente_cuit") or ""
+        if cuit_c:
+            pdf._texto(f"CUIT: {cuit_c}")
+        pdf._separador("-")
+
+    # Ítems
+    pdf._row("PRODUCTO", "TOTAL", bold_izq=True, bold_der=True)
+    pdf._separador()
+    items = venta.get("items", [])
+    for it in items:
+        nombre = str(it.get("nombre", ""))[:28]
+        cant   = float(it.get("cantidad", 0))
+        precio = float(it.get("precio_unitario", 0))
+        subtot = cant * precio
+        cant_s = f"{cant:g}" if cant != int(cant) else str(int(cant))
+        pdf._texto(f"{nombre}")
+        pdf._row(f"  {cant_s} x ${precio:,.2f}", f"${subtot:,.2f}")
+
+    pdf._separador()
+    descuento = float(venta.get("descuento", 0) or 0)
+    if descuento:
+        pdf._row("Descuento:", f"-${descuento:,.2f}")
+    pdf._row("TOTAL:", f"${float(venta.get('total', 0)):,.2f}", bold_der=True)
+
+    # Medios de pago
+    pagos = venta.get("pagos", [])
+    if pagos:
+        pdf._separador("-")
+        for p in pagos:
+            label = _MEDIOS_LABEL.get(p.get("medio", ""), p.get("medio", ""))
+            pdf._row(label + ":", f"${float(p.get('monto', 0)):,.2f}")
+
+    _pie_ticket(pdf, pie, corte)
+    return _recortar_pdf_a_contenido(pdf)
+
+
+# ── Ticket de FACTURA ELECTRÓNICA ──────────────────────────────────────────────
+
+def generar_ticket_factura(factura: dict) -> bytes:
+    ancho_mm, fuente, logo, corte, pie, cfg = _cfg_ticket()
+    pdf = _TicketPDF(ancho_mm, fuente)
+
+    _empresa_header(pdf, cfg, logo)
+    pdf._separador()
+
+    tipo_label = _TIPO_FACTURA.get(int(factura.get("tipo", 11)), "COMPROBANTE")
+    pv   = str(factura.get("punto_venta", "")).zfill(4)
+    num  = str(factura.get("numero", "")).zfill(8)
+    fecha = (factura.get("fecha") or "")[:10]
+
+    pdf._centrado(tipo_label, bold=True)
+    pdf._centrado(f"N° {pv}-{num}")
+    pdf._centrado(fecha)
+    pdf._separador()
+
+    razon = factura.get("cliente_razon") or "Consumidor final"
+    cuit  = factura.get("cliente_cuit") or ""
+    if razon:
+        pdf._texto(f"Cliente: {razon[:36]}")
+    if cuit:
+        pdf._texto(f"CUIT: {cuit}")
+    if razon or cuit:
+        pdf._separador("-")
+
+    # Ítems
+    pdf._row("PRODUCTO", "TOTAL", bold_izq=True, bold_der=True)
+    pdf._separador()
+    items = factura.get("items", [])
+    if isinstance(items, str):
+        import json
+        items = json.loads(items)
+    for it in items:
+        nombre = str(it.get("descripcion", it.get("nombre", "")))[:28]
+        cant   = float(it.get("cantidad", 1))
+        precio = float(it.get("precio_unitario", it.get("precio", 0)))
+        subtot = cant * precio
+        cant_s = f"{cant:g}" if cant != int(cant) else str(int(cant))
+        pdf._texto(f"{nombre}")
+        pdf._row(f"  {cant_s} x ${precio:,.2f}", f"${subtot:,.2f}")
+
+    pdf._separador()
+    subtotal = float(factura.get("subtotal", 0))
+    iva      = float(factura.get("iva_amount", 0))
+    total    = float(factura.get("total", 0))
+    if iva:
+        pdf._row("Neto:", f"${subtotal:,.2f}")
+        pdf._row("IVA:", f"${iva:,.2f}")
+    pdf._row("TOTAL:", f"${total:,.2f}", bold_der=True)
+
+    # CAE
+    cae     = factura.get("cae") or ""
+    cae_vto = factura.get("cae_vto") or ""
+    if cae:
+        pdf._separador("-")
+        pdf._texto(f"CAE: {cae}")
+        if cae_vto:
+            pdf._texto(f"Vto CAE: {cae_vto}")
+
+    _pie_ticket(pdf, pie, corte)
+    return _recortar_pdf_a_contenido(pdf)

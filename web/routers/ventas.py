@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from typing import Annotated
 from datetime import date
 from fastapi import APIRouter, Request, Depends, HTTPException
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
 import database as db
@@ -181,3 +181,17 @@ def venta_anular(request: Request, vid: int, user: Auth):
         raise HTTPException(404)
     db.anular_venta(vid)
     return RedirectResponse(f"/ventas/{vid}", status_code=303)
+
+
+@router.get("/ventas/{vid}/ticket")
+def venta_ticket(vid: int, user: Auth):
+    import ticket_generator
+    venta = db.get_venta(vid)
+    if not venta:
+        raise HTTPException(404)
+    pdf_bytes = ticket_generator.generar_ticket_venta(venta)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="ticket_venta_{vid}.pdf"'},
+    )
