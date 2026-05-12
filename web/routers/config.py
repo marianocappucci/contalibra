@@ -90,6 +90,8 @@ async def config_integraciones_post(request: Request, user: Auth):
     cfg["mp_webhook_secret"]      = str(form.get("mp_webhook_secret", "")).strip()
     cfg["mp_concepto_descripcion"] = str(form.get("mp_concepto_descripcion", "")).strip()
     cfg["mp_iva_rate"]            = str(form.get("mp_iva_rate", "0")).strip()
+    cfg["mp_user_id"]             = str(form.get("mp_user_id", "")).strip()
+    cfg["mp_pos_id"]              = str(form.get("mp_pos_id", "")).strip()
     cfg["email_smtp_host"]        = str(form.get("email_smtp_host", "")).strip()
     cfg["email_smtp_port"]        = str(form.get("email_smtp_port", "587")).strip()
     cfg["email_smtp_user"]        = str(form.get("email_smtp_user", "")).strip()

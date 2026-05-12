@@ -240,6 +240,10 @@ def init_db():
         ventas_cols = [r[1] for r in conn.execute("PRAGMA table_info(ventas)").fetchall()]
         if ventas_cols and "turno_id" not in ventas_cols:
             conn.execute("ALTER TABLE ventas ADD COLUMN turno_id INTEGER REFERENCES turnos_caja(id) ON DELETE SET NULL")
+        if ventas_cols and "mp_order_id" not in ventas_cols:
+            conn.execute("ALTER TABLE ventas ADD COLUMN mp_order_id TEXT DEFAULT ''")
+        if ventas_cols and "mp_payment_id" not in ventas_cols:
+            conn.execute("ALTER TABLE ventas ADD COLUMN mp_payment_id TEXT DEFAULT ''")
 
         # Seed de módulos: inserta sólo los que no existen aún
         _MODULOS_DEFAULT = [
@@ -1824,3 +1828,42 @@ def get_reporte_resumen(desde: str = "", hasta: str = "") -> dict:
         "facturas_cantidad": f_row["cnt"] or 0,
         "caja_saldo":      caja["saldo"] or 0.0,
     }
+
+
+def set_venta_mp_order(venta_id: int, mp_order_id: str) -> None:
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE ventas SET mp_order_id=? WHERE id=?",
+            (mp_order_id, venta_id),
+        )
+        conn.commit()
+
+
+def set_venta_mp_payment(venta_id: int, mp_payment_id: str) -> None:
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE ventas SET mp_payment_id=? WHERE id=?",
+            (mp_payment_id, venta_id),
+        )
+        conn.commit()
+
+
+def get_venta_by_mp_order(mp_order_id: str) -> dict | None:
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT * FROM ventas WHERE mp_order_id=?", (mp_order_id,)
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def add_venta_pago_referencia_mp(venta_id: int, payment_id: str) -> None:
+    """Actualiza la referencia del pago MP/billetera de la venta con el payment_id."""
+    with get_connection() as conn:
+        # Actualizar referencia en el pago existente de medio mercadopago/billetera/cuenta_dni
+        conn.execute(
+            """UPDATE ventas_pagos SET referencia=?
+               WHERE venta_id=? AND medio IN ('mercadopago','billetera','cuenta_dni','qr')
+               AND (referencia IS NULL OR referencia='')""",
+            (f"MP#{payment_id}", venta_id),
+        )
+        conn.commit()

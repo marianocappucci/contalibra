@@ -279,6 +279,26 @@
                  placeholder="APP_USR-...">
           <div class="form-text">Token de producción de tu aplicación en MercadoPago.</div>
         </div>
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">User ID del vendedor</label>
+            <input type="text" class="form-control font-monospace" name="mp_user_id"
+                   value="{{ cfg.mp_user_id }}" placeholder="123456789">
+            <div class="form-text">ID numérico de tu cuenta MP vendedor. Lo encontrás en <em>Tu cuenta → Datos de tu cuenta</em>.</div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">POS ID (External ID)</label>
+            <input type="text" class="form-control font-monospace" name="mp_pos_id"
+                   value="{{ cfg.mp_pos_id }}" placeholder="CAJA01">
+            <div class="form-text">External ID del punto de venta creado en MP. Crealo en <em>Tu negocio → Puntos de venta</em>.</div>
+          </div>
+        </div>
+        <div class="alert alert-light border small mb-3">
+          <i class="bi bi-info-circle me-1 text-primary"></i>
+          <strong>QR Dinámico:</strong> Con el User ID y POS ID configurados, cada venta pagada con
+          Mercado Pago o billetera virtual mostrará un botón <strong>Cobrar con QR</strong> desde el
+          que el cliente puede escanear y pagar directamente desde su app.
+        </div>
         <div class="mb-3">
           <label class="form-label fw-semibold">Webhook Secret</label>
           <input type="password" class="form-control font-monospace" name="mp_webhook_secret"

@@ -22,6 +22,9 @@ _DEFAULTS = {
     "mp_webhook_secret":      "",
     "mp_concepto_descripcion": "Suscripcion mensual",
     "mp_iva_rate":            "0",
+    # MercadoPago QR Dinámico (punto de venta presencial)
+    "mp_user_id":             "",   # ID numérico del vendedor en MP
+    "mp_pos_id":              "",   # External ID del POS creado en MP
     # Email / SMTP
     "email_smtp_host":        "",
     "email_smtp_port":        "587",

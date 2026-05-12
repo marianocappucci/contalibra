@@ -101,6 +101,29 @@ async def webhook_mercadopago(request: Request):
         return JSONResponse({"ok": False, "error": str(e)}, status_code=200)
 
     status = pago.get("status", "")
+
+    # ── Pago de venta presencial (QR Dinámico) ───────────────────────────────
+    external_ref = pago.get("external_reference", "") or ""
+    if external_ref.startswith("venta-"):
+        try:
+            venta_id = int(external_ref.split("-", 1)[1])
+        except (ValueError, IndexError):
+            venta_id = None
+
+        if venta_id:
+            if status == "approved":
+                db.set_venta_mp_payment(venta_id, payment_id)
+                db.add_venta_pago_referencia_mp(venta_id, payment_id)
+                logger.info("Venta %s pagada vía QR MP, payment_id=%s", venta_id, payment_id)
+            db.create_mp_pago(
+                mp_payment_id=payment_id, status=status,
+                monto=pago.get("transaction_amount", 0),
+                payer_email=pago.get("payer", {}).get("email", ""),
+                payer_name="", factura_id=None,
+            )
+            return JSONResponse({"ok": True, "msg": f"venta {venta_id} {status}"}, status_code=200)
+    # ────────────────────────────────────────────────────────────────────────
+
     if status != "approved":
         db.create_mp_pago(
             mp_payment_id=payment_id, status=status,
