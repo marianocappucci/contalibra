@@ -6,11 +6,13 @@ services:
     ports:
       - "8070:8000"
     volumes:
-      - ./:/app
+      - ./:/app         # mount completo para desarrollo (hot-reload)
     environment:
-      - APP_USER=${APP_USER:-admin}
-      - APP_PASSWORD=${APP_PASSWORD:-cambiar_esta_clave}
       - SECRET_KEY=${SECRET_KEY:-contalibra-secret-change-in-production}
+      # Solo se usan en el primer arranque si la tabla usuarios está vacía:
+      - ADMIN_USER=${ADMIN_USER:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
+      - ADMIN_NOMBRE=${ADMIN_NOMBRE:-Administrador}
     networks:
       - stack-net
 

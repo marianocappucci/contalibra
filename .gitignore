@@ -54,3 +54,6 @@ logos/
 
 # Claude Code
 .claude/
+
+# Datos por cliente (generados por scripts/nuevo_cliente.py)
+clientes/
