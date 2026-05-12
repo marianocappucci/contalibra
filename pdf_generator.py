@@ -24,6 +24,10 @@ PDF_DIR              = os.path.join(_DATA_DIR, "remitos_pdf")
 PRESUPUESTOS_PDF_DIR = os.path.join(_DATA_DIR, "presupuestos_pdf")
 FACTURAS_PDF_DIR     = os.path.join(_DATA_DIR, "facturas_pdf")
 
+_TIPO_LABELS     = {1:"FACTURA A",       6:"FACTURA B",       11:"FACTURA C",
+                    3:"NOTA CREDITO A", 8:"NOTA CREDITO B", 13:"NOTA CREDITO C",
+                    2:"NOTA DEBITO A",  7:"NOTA DEBITO B",  12:"NOTA DEBITO C"}
+_CONCEPTO_LABELS = {1:"Productos", 2:"Servicios", 3:"Productos y Servicios"}
 _TIPO_LETRA      = {1:"A", 6:"B", 11:"C", 3:"A", 8:"B", 13:"C", 2:"A", 7:"B", 12:"C"}
 _TIPO_COD        = {1:"001", 6:"006", 11:"011", 3:"003", 8:"008", 13:"013",
                     2:"002", 7:"007", 12:"012"}
