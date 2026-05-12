@@ -34,19 +34,36 @@ app = FastAPI(title="Contalibra")
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 
 
+_BYPASS_PATHS = {"/suspendido", "/login", "/logout", "/favicon.ico"}
+
 class CurrentUserMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         username = get_current_user(request)
         request.state.current_user = db.get_usuario_by_username(username) if username else None
         try:
-            request.state.empresa_nombre = config_manager.load().get("empresa_nombre", "")
+            cfg = config_manager.load()
+            request.state.empresa_nombre   = cfg.get("empresa_nombre", "")
+            request.state.servicio_estado  = cfg.get("servicio_estado", "activo")
+            request.state.servicio_mensaje = cfg.get("servicio_mensaje", "")
         except Exception:
-            request.state.empresa_nombre = ""
+            request.state.empresa_nombre   = ""
+            request.state.servicio_estado  = "activo"
+            request.state.servicio_mensaje = ""
         try:
             mods = db.get_modulos()
             request.state.modulos = {m for m, on in mods.items() if on}
         except Exception:
             request.state.modulos = set()
+
+        # Corte de servicio: redirigir todo excepto rutas de bypass y archivos estáticos
+        estado = request.state.servicio_estado
+        path   = request.url.path
+        if (estado == "suspendido"
+                and path not in _BYPASS_PATHS
+                and not path.startswith("/static")):
+            from fastapi.responses import RedirectResponse as _RR
+            return _RR("/suspendido")
+
         return await call_next(request)
 
 
@@ -57,6 +74,15 @@ templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+@app.get("/suspendido")
+def servicio_suspendido(request: Request):
+    return templates.TemplateResponse(request, "suspendido.html", {
+        "mensaje": request.state.servicio_mensaje,
+        "empresa": request.state.empresa_nombre,
+    })
+
 
 app.include_router(dashboard.router)
 app.include_router(clientes.router)

@@ -30,6 +30,11 @@
       <i class="bi bi-plug me-1"></i>Integraciones
     </a>
   </li>
+  <li class="nav-item">
+    <a class="nav-link {% if tab == 'servicio' %}active{% endif %}" href="/config?tab=servicio">
+      <i class="bi bi-toggle-on me-1"></i>Servicio
+    </a>
+  </li>
   <li class="nav-item ms-auto">
     <a href="/config/backup-db" class="btn btn-outline-secondary btn-sm mt-1" download>
       <i class="bi bi-download me-1"></i>Descargar backup
@@ -396,4 +401,70 @@ async function probarArca() {
 }
 </script>
 {% endif %}
+
+{% if tab == 'servicio' %}
+{% if saved == 'servicio' %}
+<div class="alert alert-success">Estado del servicio actualizado.</div>
+{% endif %}
+
+<div class="card" style="max-width:560px">
+  <div class="card-header"><i class="bi bi-toggle-on me-1"></i>Estado del servicio</div>
+  <div class="card-body">
+    <p class="text-muted small mb-4">
+      Controlá el acceso al sistema para esta instancia.
+      Este ajuste también puede cambiarse desde <code>panel_admin.py</code> en el servidor.
+    </p>
+    <form method="post" action="/config/servicio">
+
+      <div class="mb-4">
+        <label class="form-label fw-semibold">Estado actual</label>
+        <div class="d-flex flex-column gap-2">
+
+          <div class="form-check p-3 border rounded {% if cfg.servicio_estado == 'activo' %}border-success bg-light{% endif %}">
+            <input class="form-check-input" type="radio" name="servicio_estado" id="est-activo"
+                   value="activo" {% if cfg.servicio_estado == 'activo' %}checked{% endif %}>
+            <label class="form-check-label" for="est-activo">
+              <span class="fw-semibold text-success"><i class="bi bi-check-circle me-1"></i>Activo</span>
+              <span class="text-muted small d-block mt-1">Operación normal. Todos los usuarios tienen acceso completo.</span>
+            </label>
+          </div>
+
+          <div class="form-check p-3 border rounded {% if cfg.servicio_estado == 'pausado' %}border-warning bg-light{% endif %}">
+            <input class="form-check-input" type="radio" name="servicio_estado" id="est-pausado"
+                   value="pausado" {% if cfg.servicio_estado == 'pausado' %}checked{% endif %}>
+            <label class="form-check-label" for="est-pausado">
+              <span class="fw-semibold text-warning"><i class="bi bi-pause-circle me-1"></i>Pausado</span>
+              <span class="text-muted small d-block mt-1">Los usuarios pueden ingresar pero ven un banner de aviso. Útil para avisar antes de un corte.</span>
+            </label>
+          </div>
+
+          <div class="form-check p-3 border rounded {% if cfg.servicio_estado == 'suspendido' %}border-danger bg-light{% endif %}">
+            <input class="form-check-input" type="radio" name="servicio_estado" id="est-suspendido"
+                   value="suspendido" {% if cfg.servicio_estado == 'suspendido' %}checked{% endif %}>
+            <label class="form-check-label" for="est-suspendido">
+              <span class="fw-semibold text-danger"><i class="bi bi-slash-circle me-1"></i>Suspendido</span>
+              <span class="text-muted small d-block mt-1">Acceso bloqueado completamente. Se muestra la página de suspensión. Reactivar desde el panel admin del servidor o cambiando a Activo antes de guardar.</span>
+            </label>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="mb-4">
+        <label class="form-label fw-semibold" for="servicio_mensaje">
+          Mensaje personalizado <span class="text-muted fw-normal small">(opcional)</span>
+        </label>
+        <textarea name="servicio_mensaje" id="servicio_mensaje" class="form-control" rows="2"
+                  placeholder="Ej: Servicio suspendido por falta de pago. Contactar a soporte@contalibra.com">{{ cfg.servicio_mensaje or '' }}</textarea>
+        <div class="form-text">Se muestra en el banner (pausado) o en la página de suspensión.</div>
+      </div>
+
+      <button type="submit" class="btn btn-primary">
+        <i class="bi bi-check-lg me-1"></i>Guardar estado
+      </button>
+    </form>
+  </div>
+</div>
+{% endif %}
+
 {% endblock %}

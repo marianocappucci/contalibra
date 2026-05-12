@@ -214,6 +214,63 @@ def cmd_actualizar(slugs: list[str] | None = None):
     print("[OK] Actualización completa.")
 
 
+def _set_servicio_estado(slug: str, estado: str, mensaje: str = ""):
+    c = find_client(slug)
+    if not c:
+        print(f"[ERROR] Cliente '{slug}' no encontrado.")
+        return False
+    config_path = c["dir"] / "data" / "config.json"
+    if not config_path.exists():
+        print(f"[ERROR] No existe {config_path}. ¿El contenedor fue iniciado alguna vez?")
+        return False
+    cfg = json.loads(config_path.read_text(encoding="utf-8"))
+    cfg["servicio_estado"]   = estado
+    cfg["servicio_mensaje"]  = mensaje
+    config_path.write_text(json.dumps(cfg, indent=2, ensure_ascii=False), encoding="utf-8")
+    return True
+
+
+def cmd_activar(slug: str):
+    if _set_servicio_estado(slug, "activo", ""):
+        print(f"[OK] Servicio de '{slug}' → ACTIVO.")
+
+
+def cmd_pausar(slug: str):
+    mensaje = input("Mensaje para el cliente (Enter para omitir): ").strip()
+    if _set_servicio_estado(slug, "pausado", mensaje):
+        print(f"[OK] Servicio de '{slug}' → PAUSADO (banner de aviso visible).")
+
+
+def cmd_suspender(slug: str):
+    mensaje = input("Mensaje para el cliente (Enter para usar el predeterminado): ").strip()
+    confirm = input(f"¿Suspender acceso completo a '{slug}'? [S/n]: ").strip().lower()
+    if confirm == "n":
+        print("Cancelado.")
+        return
+    if _set_servicio_estado(slug, "suspendido", mensaje):
+        print(f"[OK] Servicio de '{slug}' → SUSPENDIDO (sin acceso al sistema).")
+
+
+def cmd_estado_servicio(slug: str):
+    c = find_client(slug)
+    if not c:
+        print(f"[ERROR] Cliente '{slug}' no encontrado.")
+        return
+    config_path = c["dir"] / "data" / "config.json"
+    if not config_path.exists():
+        print(f"  Estado: desconocido (config.json no encontrado)")
+        return
+    cfg    = json.loads(config_path.read_text(encoding="utf-8"))
+    estado = cfg.get("servicio_estado", "activo")
+    msg    = cfg.get("servicio_mensaje", "")
+    color  = {"activo": "\033[32m", "pausado": "\033[33m", "suspendido": "\033[31m"}.get(estado, "")
+    reset  = "\033[0m"
+    print(f"\n  Estado del servicio:  {color}{estado.upper()}{reset}")
+    if msg:
+        print(f"  Mensaje:              {msg}")
+    print()
+
+
 def cmd_eliminar(slug: str):
     c = find_client(slug)
     if not c:
@@ -356,6 +413,11 @@ MENU = """
 ║  8  Actualizar imagen        ║
 ║  9  Eliminar cliente         ║
 ╠══════════════════════════════╣
+║  sa Activar servicio         ║
+║  sp Pausar servicio          ║
+║  ss Suspender servicio       ║
+║  se Estado del servicio      ║
+╠══════════════════════════════╣
 ║  p  Proxies NPM (listar)     ║
 ║  pa Crear proxy NPM          ║
 ║  pd Eliminar proxy NPM       ║
@@ -407,6 +469,22 @@ def interactive():
             slug = pick_client("Eliminar cliente")
             if slug:
                 cmd_eliminar(slug)
+        elif opt == "sa":
+            slug = pick_client("Activar servicio de")
+            if slug:
+                cmd_activar(slug)
+        elif opt == "sp":
+            slug = pick_client("Pausar servicio de")
+            if slug:
+                cmd_pausar(slug)
+        elif opt == "ss":
+            slug = pick_client("Suspender servicio de")
+            if slug:
+                cmd_suspender(slug)
+        elif opt == "se":
+            slug = pick_client("Ver estado de")
+            if slug:
+                cmd_estado_servicio(slug)
         elif opt == "p":
             cmd_npm_listar()
         elif opt == "pa":
@@ -447,6 +525,10 @@ def cli():
         "npm-listar":  lambda: cmd_npm_listar(),
         "npm-crear":   lambda: cmd_npm_crear(slug) if slug else print("Uso: panel_admin.py npm-crear <slug>"),
         "npm-eliminar":lambda: cmd_npm_eliminar(slug) if slug else print("Uso: panel_admin.py npm-eliminar <slug>"),
+        "activar":     lambda: cmd_activar(slug) if slug else print("Uso: panel_admin.py activar <slug>"),
+        "pausar":      lambda: cmd_pausar(slug) if slug else print("Uso: panel_admin.py pausar <slug>"),
+        "suspender":   lambda: cmd_suspender(slug) if slug else print("Uso: panel_admin.py suspender <slug>"),
+        "estado":      lambda: cmd_estado_servicio(slug) if slug else print("Uso: panel_admin.py estado <slug>"),
     }
 
     fn = dispatch.get(cmd)
@@ -455,6 +537,7 @@ def cli():
     else:
         print(f"Comando desconocido: {cmd}")
         print("Comandos: listar | info | start | stop | restart | logs | backup | actualizar | eliminar")
+        print("Servicio: activar <slug> | pausar <slug> | suspender <slug> | estado <slug>")
         print("NPM:      npm-listar | npm-crear <slug> | npm-eliminar <slug>")
         sys.exit(1)
 

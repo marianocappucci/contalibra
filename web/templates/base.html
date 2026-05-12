@@ -203,8 +203,23 @@
     </div>
   </nav>
   <div class="main-content">
-    {% with messages = [] %}
-    {% endwith %}
+    {% if request.state.servicio_estado == 'pausado' %}
+    <div class="alert alert-warning d-flex align-items-center gap-2 mb-4 py-2 px-3" role="alert"
+         style="border-radius:8px;border-left:4px solid #ffc107">
+      <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+      <div>
+        <strong>Servicio pausado.</strong>
+        {% if request.state.servicio_mensaje %}
+        {{ request.state.servicio_mensaje }}
+        {% else %}
+        El servicio está pendiente de regularización. Contactá al administrador.
+        {% endif %}
+        {% if request.state.current_user and request.state.current_user.role == 'admin' %}
+        <a href="/config?tab=servicio" class="ms-2 fw-semibold">Gestionar estado</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
     {% block content %}{% endblock %}
   </div>
 </div>

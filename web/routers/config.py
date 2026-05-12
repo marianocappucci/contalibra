@@ -148,6 +148,23 @@ async def config_arca_post(request: Request, user: Auth):
     })
 
 
+@router.post("/config/servicio")
+async def config_servicio_post(request: Request, user: Auth):
+    form    = await request.form()
+    estado  = str(form.get("servicio_estado", "activo"))
+    mensaje = str(form.get("servicio_mensaje", "")).strip()
+    if estado not in ("activo", "pausado", "suspendido"):
+        estado = "activo"
+    existing = config_manager.load()
+    existing["servicio_estado"]  = estado
+    existing["servicio_mensaje"] = mensaje
+    config_manager.save(existing)
+    return templates.TemplateResponse(request, "config.html", {
+        "cfg": config_manager.load(), "arca": _arca_cfg(),
+        "active": "config", "tab": "servicio", "saved": "servicio",
+    })
+
+
 @router.get("/config/backup-db")
 def config_backup_db(user: Auth):
     import database as _db

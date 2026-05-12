@@ -5,6 +5,9 @@ _DATA_DIR   = os.environ.get("DATA_DIR", os.path.dirname(__file__))
 CONFIG_PATH = os.path.join(_DATA_DIR, "config.json")
 
 _DEFAULTS = {
+    # Estado del servicio (gestionado desde panel_admin.py o config web)
+    "servicio_estado":        "activo",   # activo | pausado | suspendido
+    "servicio_mensaje":       "",         # mensaje personalizado opcional
     "empresa_nombre":         "",
     "empresa_direccion":      "",
     "empresa_cuit":           "",
