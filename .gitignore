@@ -57,3 +57,6 @@ logos/
 
 # Datos por cliente (generados por scripts/nuevo_cliente.py)
 clientes/
+
+# Config privada de Nginx Proxy Manager (credenciales)
+scripts/.npm_config.json

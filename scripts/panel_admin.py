@@ -16,6 +16,13 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent))
+try:
+    from npm_api import client_from_config, forward_host_from_config, le_email_from_config, NPMError
+    _NPM_AVAILABLE = True
+except Exception:
+    _NPM_AVAILABLE = False
+
 REPO_ROOT    = Path(__file__).parent.parent.resolve()
 CLIENTES_DIR = REPO_ROOT / "clientes"
 IMAGE_NAME   = "contalibra:latest"
@@ -222,6 +229,96 @@ def cmd_eliminar(slug: str):
     print(f"[OK] Cliente '{slug}' eliminado.")
 
 
+# ── NPM proxy ─────────────────────────────────────────────────────────────────
+
+def _npm_client():
+    if not _NPM_AVAILABLE:
+        print("[ERROR] npm_api.py no disponible.")
+        return None
+    npm = client_from_config()
+    if not npm:
+        print("[ERROR] NPM no configurado. Ejecutá: python3 scripts/npm_setup.py")
+        return None
+    return npm
+
+
+def cmd_npm_crear(slug: str):
+    c = find_client(slug)
+    if not c:
+        print(f"[ERROR] Cliente '{slug}' no encontrado.")
+        return
+    domain = c.get("domain", "")
+    if not domain:
+        domain = input("Dominio para este cliente: ").strip()
+        if not domain:
+            print("Cancelado.")
+            return
+    npm = _npm_client()
+    if not npm:
+        return
+    fwd_host = forward_host_from_config()
+    port     = c.get("port", 8071)
+    le_email = le_email_from_config()
+    print(f"[*] Creando proxy: {domain} → {fwd_host}:{port} ...")
+    try:
+        existing = npm.get_proxy_host_by_domain(domain)
+        if existing:
+            print(f"[WARN] Ya existe proxy para {domain} (id={existing['id']}).")
+            return
+        host = npm.create_proxy_host(
+            domain=domain, forward_host=fwd_host,
+            forward_port=port, ssl=True, le_email=le_email,
+        )
+        print(f"[OK] Proxy creado (id={host['id']}) con SSL Let's Encrypt.")
+    except NPMError as e:
+        print(f"[ERROR] {e}")
+
+
+def cmd_npm_eliminar(slug: str):
+    c = find_client(slug)
+    if not c:
+        print(f"[ERROR] Cliente '{slug}' no encontrado.")
+        return
+    domain = c.get("domain", "")
+    if not domain:
+        print("[INFO] Este cliente no tiene dominio registrado.")
+        return
+    npm = _npm_client()
+    if not npm:
+        return
+    try:
+        host = npm.get_proxy_host_by_domain(domain)
+        if not host:
+            print(f"[INFO] No se encontró proxy para {domain} en NPM.")
+            return
+        ok = npm.delete_proxy_host(host["id"])
+        print(f"[OK] Proxy eliminado (id={host['id']})." if ok else "[ERROR] No se pudo eliminar.")
+    except NPMError as e:
+        print(f"[ERROR] {e}")
+
+
+def cmd_npm_listar():
+    npm = _npm_client()
+    if not npm:
+        return
+    try:
+        hosts = npm.list_proxy_hosts()
+        if not hosts:
+            print("No hay proxy hosts en NPM.")
+            return
+        fmt = "{:<5}  {:<35}  {:>6}  {}"
+        print(fmt.format("ID", "DOMINIO", "PORT", "SSL"))
+        print("-" * 60)
+        for h in hosts:
+            domains   = ", ".join(h.get("domain_names", []))
+            port      = h.get("forward_port", "")
+            ssl_id    = h.get("certificate_id", 0)
+            ssl_label = "✓" if ssl_id and ssl_id != 0 else "—"
+            print(fmt.format(h["id"], domains[:35], port, ssl_label))
+    except NPMError as e:
+        print(f"[ERROR] {e}")
+
+
 # ── menú interactivo ──────────────────────────────────────────────────────────
 
 def pick_client(prompt: str) -> str | None:
@@ -258,6 +355,11 @@ MENU = """
 ║  7  Backup de datos          ║
 ║  8  Actualizar imagen        ║
 ║  9  Eliminar cliente         ║
+╠══════════════════════════════╣
+║  p  Proxies NPM (listar)     ║
+║  pa Crear proxy NPM          ║
+║  pd Eliminar proxy NPM       ║
+╠══════════════════════════════╣
 ║  0  Salir                    ║
 ╚══════════════════════════════╝"""
 
@@ -305,6 +407,16 @@ def interactive():
             slug = pick_client("Eliminar cliente")
             if slug:
                 cmd_eliminar(slug)
+        elif opt == "p":
+            cmd_npm_listar()
+        elif opt == "pa":
+            slug = pick_client("Crear proxy para cliente")
+            if slug:
+                cmd_npm_crear(slug)
+        elif opt == "pd":
+            slug = pick_client("Eliminar proxy de cliente")
+            if slug:
+                cmd_npm_eliminar(slug)
         else:
             print("Opción no válida.")
 
@@ -330,8 +442,11 @@ def cli():
         "restart":    lambda: cmd_restart(slug) if slug else print("Uso: panel_admin.py restart <slug>"),
         "logs":       lambda: cmd_logs(slug) if slug else print("Uso: panel_admin.py logs <slug>"),
         "backup":     lambda: cmd_backup(slug) if slug else print("Uso: panel_admin.py backup <slug>"),
-        "actualizar": lambda: cmd_actualizar([slug] if slug else None),
-        "eliminar":   lambda: cmd_eliminar(slug) if slug else print("Uso: panel_admin.py eliminar <slug>"),
+        "actualizar":  lambda: cmd_actualizar([slug] if slug else None),
+        "eliminar":    lambda: cmd_eliminar(slug) if slug else print("Uso: panel_admin.py eliminar <slug>"),
+        "npm-listar":  lambda: cmd_npm_listar(),
+        "npm-crear":   lambda: cmd_npm_crear(slug) if slug else print("Uso: panel_admin.py npm-crear <slug>"),
+        "npm-eliminar":lambda: cmd_npm_eliminar(slug) if slug else print("Uso: panel_admin.py npm-eliminar <slug>"),
     }
 
     fn = dispatch.get(cmd)
@@ -340,6 +455,7 @@ def cli():
     else:
         print(f"Comando desconocido: {cmd}")
         print("Comandos: listar | info | start | stop | restart | logs | backup | actualizar | eliminar")
+        print("NPM:      npm-listar | npm-crear <slug> | npm-eliminar <slug>")
         sys.exit(1)
 
 

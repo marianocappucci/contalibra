@@ -13,6 +13,13 @@ import subprocess
 import json
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent))
+try:
+    from npm_api import client_from_config, forward_host_from_config, le_email_from_config, NPMError
+    _NPM_AVAILABLE = True
+except Exception:
+    _NPM_AVAILABLE = False
+
 REPO_ROOT    = Path(__file__).parent.parent.resolve()
 CLIENTES_DIR = REPO_ROOT / "clientes"
 IMAGE_NAME   = "contalibra:latest"
@@ -66,6 +73,28 @@ def image_exists() -> bool:
 def network_exists(name: str) -> bool:
     return subprocess.run(["docker","network","inspect",name],
                           capture_output=True).returncode == 0
+
+
+def _setup_npm_proxy(npm, domain: str, port: int):
+    fwd_host = forward_host_from_config()
+    le_email = le_email_from_config()
+    print(f"\n[*] Creando proxy en NPM: {domain} → {fwd_host}:{port} (SSL Let's Encrypt) ...")
+    try:
+        existing = npm.get_proxy_host_by_domain(domain)
+        if existing:
+            print(f"[WARN] Ya existe un proxy para {domain} (id={existing['id']}). Omitiendo.")
+            return
+        host = npm.create_proxy_host(
+            domain=domain,
+            forward_host=fwd_host,
+            forward_port=port,
+            ssl=True,
+            le_email=le_email,
+        )
+        print(f"[OK]  Proxy creado en NPM (id={host['id']}) con certificado SSL.")
+    except NPMError as e:
+        print(f"[ERROR] NPM: {e}")
+        print(f"[!]    Configurá el proxy manualmente: {domain} → {fwd_host}:{port}")
 
 
 def main():
@@ -200,7 +229,18 @@ services:
     print(f"  Logs:        docker logs contalibra-{slug}")
     print("=" * 60)
     print("\n[!] Guardá las credenciales — no se volverán a mostrar.")
-    if domain:
+
+    # — proxy NPM (opcional) —
+    if domain and _NPM_AVAILABLE:
+        npm = client_from_config()
+        if npm:
+            cfg_ok = ask("¿Configurar proxy + SSL en Nginx Proxy Manager? [S/n]", "s").lower()
+            if cfg_ok != "n":
+                _setup_npm_proxy(npm, domain, port)
+        else:
+            print(f"[INFO] NPM no configurado. Ejecutá npm_setup.py para habilitar el proxy automático.")
+            print(f"[!]    Apuntá {domain} → localhost:{port} en tu proxy inverso manualmente.")
+    elif domain:
         print(f"[!] Apuntá {domain} → localhost:{port} en tu proxy inverso.")
 
 
