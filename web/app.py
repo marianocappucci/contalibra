@@ -194,6 +194,57 @@ async def arca_probar(user: str = Depends(require_auth)):
         return JSONResponse({"ok": False, "error": str(e), "cert": info}, status_code=502)
 
 
+@app.get("/api/email/probar", include_in_schema=False)
+async def email_probar(user: str = Depends(require_auth)):
+    import smtplib
+    cfg = config_manager.load()
+    host     = cfg.get("email_smtp_host", "").strip()
+    port     = int(cfg.get("email_smtp_port", 587) or 587)
+    smtp_user = cfg.get("email_smtp_user", "").strip()
+    password = cfg.get("email_smtp_password", "").strip()
+    if not host or not smtp_user or not password:
+        return JSONResponse({"ok": False, "error": "Completá host, usuario y contraseña antes de probar."}, status_code=400)
+    try:
+        with smtplib.SMTP(host, port, timeout=10) as server:
+            server.ehlo()
+            server.starttls()
+            server.login(smtp_user, password)
+        return JSONResponse({"ok": True, "host": host, "port": port, "user": smtp_user})
+    except smtplib.SMTPAuthenticationError:
+        return JSONResponse({"ok": False, "error": "Autenticación fallida. Verificá el usuario y la contraseña de aplicación."}, status_code=401)
+    except smtplib.SMTPConnectError as e:
+        return JSONResponse({"ok": False, "error": f"No se pudo conectar al servidor: {e}"}, status_code=502)
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=502)
+
+
+@app.get("/api/mp/probar", include_in_schema=False)
+async def mp_probar(user: str = Depends(require_auth)):
+    cfg = config_manager.load()
+    token = cfg.get("mp_access_token", "").strip()
+    if not token:
+        return JSONResponse({"ok": False, "error": "No hay Access Token configurado."}, status_code=400)
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(
+                "https://api.mercadopago.com/users/me",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+        if r.status_code != 200:
+            return JSONResponse({"ok": False, "error": f"MP respondió {r.status_code}: {r.text[:200]}"}, status_code=502)
+        data = r.json()
+        return JSONResponse({
+            "ok":        True,
+            "user_id":   data.get("id"),
+            "nickname":  data.get("nickname"),
+            "email":     data.get("email"),
+            "site_id":   data.get("site_id"),
+            "pais":      data.get("country_id"),
+        })
+    except httpx.RequestError as e:
+        return JSONResponse({"ok": False, "error": f"Sin conexión con MercadoPago: {e}"}, status_code=502)
+
+
 @app.get("/api/arca/certificado-info", include_in_schema=False)
 def arca_cert_info(user: str = Depends(require_auth)):
     configs = db.obtener_todas_arca_configs()

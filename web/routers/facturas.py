@@ -631,11 +631,12 @@ async def nd_crear(factura_id: int, user: Auth):
 @router.post("/facturas/{factura_id}/cobrar")
 async def factura_cobrar(request: Request, factura_id: int, user: Auth):
     """Registra el cobro de una factura creando un ingreso en caja."""
+    next_url = request.query_params.get("next", f"/facturas/{factura_id}")
     factura = db.get_factura(factura_id)
     if not factura:
         raise HTTPException(404)
     if db.get_cobro_factura(factura_id):
-        return RedirectResponse(f"/facturas/{factura_id}", status_code=303)
+        return RedirectResponse(next_url, status_code=303)
 
     from pdf_generator import _TIPO_LABELS
     tipo_label = _TIPO_LABELS.get(factura["tipo"], "Factura")
@@ -652,7 +653,7 @@ async def factura_cobrar(request: Request, factura_id: int, user: Auth):
         referencia=referencia,
         factura_id=factura_id,
     )
-    return RedirectResponse(f"/facturas/{factura_id}", status_code=303)
+    return RedirectResponse(next_url, status_code=303)
 
 @router.get("/facturas/{factura_id}/ticket")
 def factura_ticket(factura_id: int, user: Auth):

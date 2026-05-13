@@ -41,6 +41,8 @@
     <a href="/docs/facturacion.html">Facturación electrónica</a>
     <a href="/docs/productos-stock.html">Productos y Stock</a>
     <a href="/docs/reportes.html">Reportes</a>
+    <a href="/docs/clientes.html">Clientes</a>
+    <a href="/docs/integraciones.html">Integraciones</a>
   </nav>
 
   <main class="docs-content">
@@ -56,13 +58,51 @@
       </thead>
       <tbody>
         <tr><td><strong>Empresa</strong></td><td>Razón social, CUIT, dirección, logo</td></tr>
-        <tr><td><strong>ARCA</strong></td><td>Certificado digital para facturación electrónica</td></tr>
-        <tr><td><strong>Integraciones</strong></td><td>Conexiones con sistemas externos</td></tr>
-        <tr><td><strong>Servicio</strong></td><td>Tipo de negocio, nombre del sistema, moneda</td></tr>
+        <tr><td><strong>Integraciones → MercadoPago</strong></td><td>Access Token, User ID, POS ID, Webhook Secret</td></tr>
+        <tr><td><strong>Integraciones → ARCA / AFIP</strong></td><td>Certificado digital y clave privada para facturación electrónica</td></tr>
+        <tr><td><strong>Integraciones → Email / SMTP</strong></td><td>Servidor de correo para envío de comprobantes</td></tr>
+        <tr><td><strong>Servicio</strong></td><td>Estado del servicio (activo / pausado / suspendido)</td></tr>
         <tr><td><strong>Ticket / Impresora</strong></td><td>Configuración de ticketera térmica</td></tr>
         <tr><td><strong>Datos / Backup</strong></td><td>Backup y restauración de la base de datos</td></tr>
+        <tr><td><strong>Módulos</strong></td><td>Activar o desactivar módulos según el plan</td></tr>
       </tbody>
     </table>
+
+    <h2>Integraciones</h2>
+    <p>La pestaña <strong>Integraciones</strong> tiene tres subsecciones accesibles desde el menú lateral: MercadoPago, ARCA y Email. Cada una tiene un botón <strong>Probar conexión</strong> que verifica que los datos sean correctos antes de usar la integración.</p>
+
+    <h3>MercadoPago</h3>
+    <p>Permite cobrar con QR dinámico en ventas presenciales. Los campos requeridos son:</p>
+    <table class="docs-table">
+      <thead><tr><th>Campo</th><th>Descripción</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Access Token</strong></td><td>Token de producción de tu app en MP (empieza con <code>APP_USR-</code>)</td></tr>
+        <tr><td><strong>User ID</strong></td><td>ID numérico de tu cuenta MercadoPago</td></tr>
+        <tr><td><strong>POS ID (External ID)</strong></td><td>Identificador del punto de venta creado en Tu negocio → Puntos de venta</td></tr>
+        <tr><td><strong>Webhook Secret</strong></td><td>Firma secreta del webhook para validar notificaciones de pago</td></tr>
+      </tbody>
+    </table>
+    <p>Para obtener cada credencial, consultá la guía en <a href="/docs/integraciones.html">Integraciones</a>.</p>
+
+    <h3>ARCA / Facturación electrónica</h3>
+    <p>Configuración del certificado digital para emitir facturas ante AFIP. Requiere:</p>
+    <ul>
+      <li>Clave privada (<kbd>.key</kbd>) generada con OpenSSL</li>
+      <li>Certificado digital (<kbd>.crt</kbd>) obtenido desde el portal ARCA/AFIP</li>
+      <li>CUIT, punto de venta y ambiente (homologación o producción)</li>
+    </ul>
+    <p>Podés verificar la conexión con el botón <strong>Probar conexión</strong>, que autentica contra el servicio WSAA de AFIP y muestra la vigencia del certificado.</p>
+    <p>Guía paso a paso completa en <a href="/docs/facturacion.html">Facturación electrónica</a>.</p>
+
+    <h3>Email / SMTP</h3>
+    <p>Configurá el servidor de correo para enviar facturas, presupuestos y remitos por email. Para Gmail necesitás una <strong>contraseña de aplicación</strong> (no tu contraseña normal):</p>
+    <ol class="step-list">
+      <li>Activá la verificación en dos pasos en tu cuenta de Google.</li>
+      <li>Ingresá a <strong>myaccount.google.com/apppasswords</strong> y creá una contraseña para "Contalibra".</li>
+      <li>Usá esa contraseña de 16 caracteres en el campo Contraseña del formulario.</li>
+      <li>Servidor: <code>smtp.gmail.com</code> · Puerto: <code>587</code> · Usuario: tu email completo.</li>
+    </ol>
+    <p>Una vez configurado, usá el botón <strong>Probar conexión</strong> para confirmar que el servidor acepta tus credenciales.</p>
 
     <h2>Configuración de servicio</h2>
     <p>En la pestaña <strong>Servicio</strong> podés personalizar cómo se comporta el sistema:</p>
@@ -120,7 +160,7 @@
 
     <div class="docs-nav-footer">
       <a href="/docs/usuarios.html">← Usuarios y permisos</a>
-      <a href="/docs/ventas.html">Ventas →</a>
+      <a href="/docs/integraciones.html">Integraciones →</a>
     </div>
   </main>
 

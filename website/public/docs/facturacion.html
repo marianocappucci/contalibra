@@ -41,6 +41,8 @@
     <a href="/docs/facturacion.html" class="active">Facturación electrónica</a>
     <a href="/docs/productos-stock.html">Productos y Stock</a>
     <a href="/docs/reportes.html">Reportes</a>
+    <a href="/docs/clientes.html">Clientes</a>
+    <a href="/docs/integraciones.html">Integraciones</a>
   </nav>
 
   <main class="docs-content">
@@ -112,6 +114,18 @@
       <li><strong>Ticket:</strong> versión compacta para impresora térmica</li>
     </ul>
 
+    <h2>Enviar factura por email</h2>
+    <p>Desde el detalle de cualquier factura emitida podés enviarla por email al cliente:</p>
+    <ol class="step-list">
+      <li>Abrí el detalle de la factura.</li>
+      <li>Hacé clic en <strong>Enviar por email</strong>.</li>
+      <li>El sistema usa el email registrado en la ficha del cliente (o podés ingresar uno manualmente).</li>
+      <li>El PDF de la factura se adjunta automáticamente al correo.</li>
+    </ol>
+    <div class="callout">
+      <p><strong>Requisito:</strong> El servidor de correo debe estar configurado en <a href="/docs/integraciones.html">Integraciones → Email / SMTP</a>.</p>
+    </div>
+
     <h2>Notas de crédito</h2>
     <p>Para anular total o parcialmente una factura ya emitida:</p>
     <ol class="step-list">
@@ -142,6 +156,16 @@
           <td>Servicio no disponible</td>
           <td>AFIP tiene mantenimiento o está caído</td>
           <td>Esperar y reintentar. AFIP publica sus ventanas de mantenimiento.</td>
+        </tr>
+        <tr>
+          <td>Token de acceso expirado</td>
+          <td>El ticket de autenticación WSAA dura 12 horas</td>
+          <td>El sistema lo renueva automáticamente; si falla, usá "Probar conexión" en Config → ARCA</td>
+        </tr>
+        <tr>
+          <td>Punto de venta inactivo</td>
+          <td>El PV fue dado de baja en AFIP</td>
+          <td>Verificar en AFIP que el PV esté activo y configurado para Web Services</td>
         </tr>
       </tbody>
     </table>

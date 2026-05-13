@@ -61,6 +61,22 @@
       </div>
 
       <div class="feature-card">
+        <div class="feature-icon" style="background:#e0f2fe">
+          <i class="bi bi-qr-code" style="color:#0369a1"></i>
+        </div>
+        <h3>Cobro con QR <span class="feature-badge badge-basico">Básico</span></h3>
+        <p>Generá un QR dinámico de MercadoPago para cada venta. El cliente paga desde su billetera y el sistema confirma el pago en tiempo real.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:#ecfdf5">
+          <i class="bi bi-envelope-check" style="color:#065f46"></i>
+        </div>
+        <h3>Envío por email <span class="feature-badge badge-estandar">Estándar</span></h3>
+        <p>Enviá facturas, presupuestos y remitos por email directamente desde el sistema, con el PDF adjunto. Configuración SMTP propia.</p>
+      </div>
+
+      <div class="feature-card">
         <div class="feature-icon" style="background:#fef9c3">
           <i class="bi bi-cash-stack" style="color:#854d0e"></i>
         </div>
@@ -144,6 +160,49 @@
   </div>
 </section>
 
+<!-- ── Banner MercadoPago ─────────────────────────────────── -->
+<section style="padding:5rem 2rem;background:linear-gradient(rgba(10,18,35,.72) 0%,rgba(10,18,35,.68) 100%),url('/img/mercadopago.jpg') center/cover no-repeat;text-align:center;color:white">
+  <div style="max-width:700px;margin:0 auto">
+
+    <div style="display:inline-flex;align-items:center;gap:.5rem;background:rgba(0,158,227,.2);border:1px solid rgba(0,158,227,.4);border-radius:999px;padding:.3rem .9rem;margin-bottom:1.5rem">
+      <span style="width:8px;height:8px;background:#009ee3;border-radius:50%;display:inline-block;flex-shrink:0"></span>
+      <span style="font-size:.75rem;font-weight:700;color:#7dd3fc;letter-spacing:.06em;text-transform:uppercase">Integración nativa</span>
+    </div>
+
+    <h2 style="font-size:clamp(1.8rem,4vw,2.6rem);font-weight:900;margin:0 0 1rem;line-height:1.15;letter-spacing:-.02em">
+      Cobrá con MercadoPago<br>
+      <span style="color:#38bdf8">directo desde el sistema</span>
+    </h2>
+
+    <p style="color:#cbd5e1;font-size:1.05rem;margin:0 auto 2rem;max-width:520px;line-height:1.65">
+      Generá un QR dinámico por cada venta y confirmá el pago en tiempo real. Sin apps externas, sin pasos extras — todo desde el mismo panel donde registrás tus ventas.
+    </p>
+
+    <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:.6rem;margin-bottom:2.5rem">
+      <span style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);color:#e2e8f0;font-size:.85rem;font-weight:600;padding:.4rem 1rem;border-radius:999px">
+        <i class="bi bi-qr-code" style="margin-right:.35rem"></i>QR Dinámico
+      </span>
+      <span style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);color:#e2e8f0;font-size:.85rem;font-weight:600;padding:.4rem 1rem;border-radius:999px">
+        <i class="bi bi-check-circle" style="margin-right:.35rem;color:#34d399"></i>Confirmación automática
+      </span>
+      <span style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);color:#e2e8f0;font-size:.85rem;font-weight:600;padding:.4rem 1rem;border-radius:999px">
+        <i class="bi bi-phone" style="margin-right:.35rem"></i>Cuenta DNI y billeteras
+      </span>
+      <span style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);color:#e2e8f0;font-size:.85rem;font-weight:600;padding:.4rem 1rem;border-radius:999px">
+        <i class="bi bi-credit-card" style="margin-right:.35rem"></i>Tarjetas débito y crédito
+      </span>
+    </div>
+
+    <a href="https://wa.me/5491127752983?text=Hola,%20quiero%20info%20sobre%20el%20cobro%20con%20MercadoPago%20en%20Contalibra"
+       target="_blank"
+       style="display:inline-flex;align-items:center;gap:.5rem;background:#009ee3;color:white;font-weight:700;font-size:.95rem;padding:.8rem 1.8rem;border-radius:10px;text-decoration:none"
+       onmouseover="this.style.background='#0284c7'" onmouseout="this.style.background='#009ee3'">
+      <i class="bi bi-whatsapp"></i> Consultá cómo activarlo
+    </a>
+
+  </div>
+</section>
+
 <!-- ── Cómo funciona ──────────────────────────────────────── -->
 <section class="alt">
   <div class="container">
@@ -181,10 +240,11 @@
       <!-- Básico -->
       <div class="plan-card">
         <div class="plan-name">Básico</div>
-        <div class="plan-price">$XXXX <span>/ mes</span></div>
+        <div class="plan-price" style="font-size:1.4rem;padding:1rem 0">Consultá el precio</div>
         <p class="plan-desc">Para pequeños comercios que necesitan llevar sus ventas y caja en orden.</p>
         <ul class="plan-features">
           <li><i class="bi bi-check-circle-fill icon-check"></i> Ventas y punto de cobro</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Cobro con QR MercadoPago</li>
           <li><i class="bi bi-check-circle-fill icon-check"></i> Clientes</li>
           <li><i class="bi bi-check-circle-fill icon-check"></i> Caja y turnos de cajero</li>
           <li><i class="bi bi-check-circle-fill icon-check"></i> Múltiples medios de pago</li>
@@ -194,15 +254,15 @@
           <li class="muted"><i class="bi bi-x-circle icon-x"></i> Remitos y presupuestos</li>
           <li class="muted"><i class="bi bi-x-circle icon-x"></i> Stock</li>
         </ul>
-        <a href="https://wa.me/5491127752983?text=Hola,%20quiero%20el%20plan%20Básico%20de%20Contalibra"
-           target="_blank" class="btn btn-outline plan-cta">Contratar</a>
+        <a href="https://wa.me/5491127752983?text=Hola,%20quiero%20info%20sobre%20el%20plan%20B%C3%A1sico%20de%20Contalibra"
+           target="_blank" class="btn btn-outline plan-cta">Consultar</a>
       </div>
 
       <!-- Estándar -->
       <div class="plan-card featured">
         <div class="plan-featured-tag">Más popular</div>
         <div class="plan-name">Estándar</div>
-        <div class="plan-price">$XXXX <span>/ mes</span></div>
+        <div class="plan-price" style="font-size:1.4rem;padding:1rem 0">Consultá el precio</div>
         <p class="plan-desc">Para negocios que emiten comprobantes y necesitan gestionar presupuestos y remitos.</p>
         <ul class="plan-features">
           <li><i class="bi bi-check-circle-fill icon-check"></i> Todo lo del plan Básico</li>
@@ -211,18 +271,19 @@
           <li><i class="bi bi-check-circle-fill icon-check"></i> Remitos con PDF</li>
           <li><i class="bi bi-check-circle-fill icon-check"></i> Presupuestos</li>
           <li><i class="bi bi-check-circle-fill icon-check"></i> Catálogo de productos</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Envío de comprobantes por email</li>
           <li><i class="bi bi-check-circle-fill icon-check"></i> Reportes y exportación CSV</li>
           <li><i class="bi bi-check-circle-fill icon-check"></i> Impresora de tickets térmica</li>
           <li class="muted"><i class="bi bi-x-circle icon-x"></i> Control de stock</li>
         </ul>
-        <a href="https://wa.me/5491127752983?text=Hola,%20quiero%20el%20plan%20Estándar%20de%20Contalibra"
-           target="_blank" class="btn btn-primary plan-cta">Contratar</a>
+        <a href="https://wa.me/5491127752983?text=Hola,%20quiero%20info%20sobre%20el%20plan%20Est%C3%A1ndar%20de%20Contalibra"
+           target="_blank" class="btn btn-primary plan-cta">Consultar</a>
       </div>
 
       <!-- Premium -->
       <div class="plan-card">
         <div class="plan-name">Premium</div>
-        <div class="plan-price">$XXXX <span>/ mes</span></div>
+        <div class="plan-price" style="font-size:1.4rem;padding:1rem 0">Consultá el precio</div>
         <p class="plan-desc">Para negocios con inventario que necesitan control de stock en tiempo real.</p>
         <ul class="plan-features">
           <li><i class="bi bi-check-circle-fill icon-check"></i> Todo lo del plan Estándar</li>
@@ -233,14 +294,14 @@
           <li><i class="bi bi-check-circle-fill icon-check"></i> Movimientos de inventario</li>
           <li><i class="bi bi-check-circle-fill icon-check"></i> Soporte prioritario</li>
         </ul>
-        <a href="https://wa.me/5491127752983?text=Hola,%20quiero%20el%20plan%20Premium%20de%20Contalibra"
-           target="_blank" class="btn btn-outline plan-cta">Contratar</a>
+        <a href="https://wa.me/5491127752983?text=Hola,%20quiero%20info%20sobre%20el%20plan%20Premium%20de%20Contalibra"
+           target="_blank" class="btn btn-outline plan-cta">Consultar</a>
       </div>
 
     </div>
     <p style="text-align:center;color:var(--muted);margin-top:1.5rem;font-size:.88rem">
-      Los precios son en pesos argentinos e incluyen IVA. &nbsp;·&nbsp;
-      ¿Necesitás algo personalizado? <a href="https://wa.me/5491127752983">Consultanos</a>
+      Cada instancia es independiente y tiene su propia base de datos. &nbsp;·&nbsp;
+      <a href="https://wa.me/5491127752983">Consultanos por precio y plan</a>
     </p>
   </div>
 </section>
@@ -291,7 +352,7 @@
     </div>
   </div>
   <div class="footer-copy">
-    © 2025 Contalibra · Todos los derechos reservados
+    © 2026 Contalibra · Todos los derechos reservados
   </div>
 </footer>
 

@@ -41,6 +41,8 @@
     <a href="/docs/facturacion.html">Facturación electrónica</a>
     <a href="/docs/productos-stock.html">Productos y Stock</a>
     <a href="/docs/reportes.html">Reportes</a>
+    <a href="/docs/clientes.html">Clientes</a>
+    <a href="/docs/integraciones.html">Integraciones</a>
   </nav>
 
   <main class="docs-content">
@@ -79,6 +81,19 @@
       </tbody>
     </table>
 
+    <h2>Cobro con QR de MercadoPago</h2>
+    <p>Si tenés configurada la integración con MercadoPago, podés generar un QR dinámico para cobrar una venta directamente desde el sistema:</p>
+    <ol class="step-list">
+      <li>Registrá la venta normalmente y seleccioná <strong>QR / billetera virtual</strong> como medio de pago.</li>
+      <li>En el detalle de la venta, hacé clic en <strong>Cobrar con QR</strong>.</li>
+      <li>El sistema genera un QR dinámico vinculado al monto exacto de la venta.</li>
+      <li>El cliente escanea el QR con MercadoPago, Cuenta DNI u otra billetera compatible.</li>
+      <li>El sistema verifica el pago automáticamente y marca la venta como cobrada.</li>
+    </ol>
+    <div class="callout">
+      <p><strong>Requisito:</strong> La integración con MercadoPago debe estar configurada en <a href="/docs/integraciones.html">Integraciones</a> antes de usar esta función.</p>
+    </div>
+
     <h2>Ticket de venta</h2>
     <p>Desde el detalle de una venta podés imprimir un ticket térmico. Hacé clic en el botón <strong>Ticket</strong> para abrir el PDF optimizado para tu impresora. Asegurate de haber configurado la impresora primero en <a href="/docs/configuracion.html">Configuración → Ticket</a>.</p>
 
@@ -90,6 +105,7 @@
       <li>Convertirlo en remito</li>
     </ul>
     <p>Para crear un presupuesto, andá a <strong>Ventas → Presupuestos → Nuevo presupuesto</strong>. El proceso es igual a una venta.</p>
+    <p>Desde el detalle de un presupuesto también podés <strong>enviarlo por email</strong> al cliente haciendo clic en <strong>Enviar por email</strong>. El sistema adjunta el PDF automáticamente. Requiere tener configurado el servidor de correo en <a href="/docs/integraciones.html">Integraciones → Email</a>.</p>
 
     <h2>Remitos</h2>
     <p>Los remitos documentan la entrega de mercadería sin implicar necesariamente el cobro. Se usan cuando entregás mercadería y la facturación es posterior. El stock se descuenta al confirmar el remito.</p>

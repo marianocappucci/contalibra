@@ -692,22 +692,27 @@ def get_all_facturas(limit=100, vista="facturas"):
 
 def get_facturas_filtradas(desde="", hasta="", q="", vista="facturas", limit=50, offset=0):
     """Listado de facturas con filtros de fecha, búsqueda y paginación."""
-    tipos = _VISTA_TIPOS.get(vista, _TIPOS_FACTURA)
+    solo_sin_cobrar = (vista == "sin_cobrar")
+    tipos = _VISTA_TIPOS.get("facturas" if solo_sin_cobrar else vista, _TIPOS_FACTURA)
     ph = ",".join("?" * len(tipos))
-    conds = [f"tipo IN ({ph})"]
+    conds = [f"f.tipo IN ({ph})"]
     params = list(tipos)
     if desde:
-        conds.append("fecha >= ?"); params.append(desde)
+        conds.append("f.fecha >= ?"); params.append(desde)
     if hasta:
-        conds.append("fecha <= ?"); params.append(hasta)
+        conds.append("f.fecha <= ?"); params.append(hasta)
     if q:
-        conds.append("(CAST(numero AS TEXT) LIKE ? OR cliente_razon LIKE ? OR observaciones LIKE ?)")
+        conds.append("(CAST(f.numero AS TEXT) LIKE ? OR f.cliente_razon LIKE ? OR f.observaciones LIKE ?)")
         params += [f"%{q}%", f"%{q}%", f"%{q}%"]
+    if solo_sin_cobrar:
+        conds.append("f.cae != '' AND f.cae IS NOT NULL AND f.cae != 'PENDIENTE'")
+        conds.append("NOT EXISTS(SELECT 1 FROM caja_movimientos cm WHERE cm.factura_id=f.id AND cm.tipo='ingreso')")
     where = " AND ".join(conds)
+    cobrada_col = "EXISTS(SELECT 1 FROM caja_movimientos cm WHERE cm.factura_id=f.id AND cm.tipo='ingreso') AS cobrada"
     with get_connection() as conn:
-        total = conn.execute(f"SELECT COUNT(*) FROM facturas WHERE {where}", params).fetchone()[0]
+        total = conn.execute(f"SELECT COUNT(*) FROM facturas f WHERE {where}", params).fetchone()[0]
         rows = conn.execute(
-            f"SELECT * FROM facturas WHERE {where} ORDER BY id DESC LIMIT ? OFFSET ?",
+            f"SELECT f.*, {cobrada_col} FROM facturas f WHERE {where} ORDER BY f.id DESC LIMIT ? OFFSET ?",
             params + [limit, offset],
         ).fetchall()
     result = []

@@ -150,6 +150,56 @@
     {% if seccion == 'mp' %}
     <h5 class="fw-bold mb-1"><i class="bi bi-phone me-2 text-primary"></i>MercadoPago</h5>
     <p class="text-muted small mb-4">Configurá la integración para cobros por QR y pagos online.</p>
+
+    {# Tutorial MP #}
+    <div class="card border-0 bg-light mb-4">
+      <div class="card-body py-3 px-4">
+        <div class="d-flex align-items-center gap-2 mb-2" data-bs-toggle="collapse" data-bs-target="#tutorialMP" style="cursor:pointer">
+          <span class="badge text-white" style="background:#009ee3;font-size:.7rem"><i class="bi bi-credit-card me-1"></i>MercadoPago</span>
+          <span class="fw-semibold small">¿Cómo obtener el Access Token, User ID, POS ID y Webhook Secret?</span>
+          <i class="bi bi-chevron-down ms-auto text-muted"></i>
+        </div>
+        <div class="collapse" id="tutorialMP">
+          <hr class="my-2">
+
+          <p class="small fw-semibold mb-1 mt-2">1 — Access Token (token de producción)</p>
+          <ol class="small mb-3" style="line-height:1.9">
+            <li>Ingresá a <a href="https://www.mercadopago.com.ar/developers/panel/app" target="_blank" class="text-decoration-none fw-semibold">mercadopago.com.ar/developers/panel/app <i class="bi bi-box-arrow-up-right" style="font-size:.65rem"></i></a></li>
+            <li>Creá una nueva aplicación (o seleccioná una existente)</li>
+            <li>En la aplicación, andá a la pestaña <strong>Credenciales de producción</strong></li>
+            <li>Copiá el <strong>Access token</strong> (empieza con <code>APP_USR-</code>) y pegalo abajo</li>
+          </ol>
+
+          <p class="small fw-semibold mb-1">2 — User ID del vendedor</p>
+          <ol class="small mb-3" style="line-height:1.9">
+            <li>Iniciá sesión en <a href="https://www.mercadopago.com.ar" target="_blank" class="text-decoration-none fw-semibold">mercadopago.com.ar <i class="bi bi-box-arrow-up-right" style="font-size:.65rem"></i></a></li>
+            <li>Hacé clic en tu avatar (arriba a la derecha) → <strong>Tu perfil</strong></li>
+            <li>El <strong>User ID</strong> es el número que aparece abajo de tu nombre (ej: <code>123456789</code>)</li>
+            <li>También lo encontrás en el panel de desarrolladores al ver las credenciales de tu app</li>
+          </ol>
+
+          <p class="small fw-semibold mb-1">3 — POS ID (External ID del punto de venta)</p>
+          <ol class="small mb-3" style="line-height:1.9">
+            <li>En <a href="https://www.mercadopago.com.ar/stores" target="_blank" class="text-decoration-none fw-semibold">mercadopago.com.ar/stores <i class="bi bi-box-arrow-up-right" style="font-size:.65rem"></i></a> creá o seleccioná una <strong>Sucursal</strong></li>
+            <li>Dentro de la sucursal, creá un <strong>Punto de venta</strong> (tipo: <em>PDV</em>)</li>
+            <li>Al crearlo, completá el campo <strong>External ID</strong> con un código propio (ej: <code>CAJA01</code>) — ese valor es el que va acá</li>
+          </ol>
+
+          <p class="small fw-semibold mb-1">4 — Webhook Secret</p>
+          <ol class="small mb-3" style="line-height:1.9">
+            <li>En el panel de desarrolladores, entrá a tu aplicación y luego a <strong>Webhooks</strong></li>
+            <li>Registrá la URL: <code>https://tu-dominio/webhooks/mercadopago</code> y seleccioná el evento <strong>Pagos (payment)</strong></li>
+            <li>MercadoPago te mostrará una <strong>firma secreta (secret)</strong> — copiala y pegala en el campo Webhook Secret</li>
+          </ol>
+
+          <div class="alert alert-warning py-2 px-3 mb-0 small">
+            <i class="bi bi-exclamation-triangle me-1"></i>
+            Usá siempre las credenciales de <strong>producción</strong>, no las de prueba, para cobros reales.
+          </div>
+        </div>
+      </div>
+    </div>
+
     <form method="post" action="/config/mp">
       <div class="mb-3">
         <label class="form-label fw-semibold">Access Token</label>
@@ -197,16 +247,78 @@
         URL del webhook a registrar en MP: <code>https://tu-dominio/webhooks/mercadopago</code><br>
         Eventos: <strong>Pagos (payment)</strong>.
       </div>
-      <button type="submit" class="btn btn-primary fw-semibold px-4">
-        <i class="bi bi-save me-1"></i>Guardar MercadoPago
-      </button>
+      <div class="d-flex gap-2 align-items-center">
+        <button type="submit" class="btn btn-primary fw-semibold px-4">
+          <i class="bi bi-save me-1"></i>Guardar MercadoPago
+        </button>
+        {% if cfg.mp_access_token %}
+        <button type="button" class="btn btn-outline-secondary" id="btn-probar-mp" onclick="probarMP()">
+          <i class="bi bi-send me-1"></i>Probar conexión
+        </button>
+        {% endif %}
+      </div>
     </form>
+    {% if cfg.mp_access_token %}
+    <div id="mp-resultado" class="mt-3" style="display:none"></div>
+    {% endif %}
     {% endif %}
 
     {# ── SECCIÓN ARCA ── #}
     {% if seccion == 'arca' %}
     <h5 class="fw-bold mb-1"><i class="bi bi-shield-lock me-2 text-primary"></i>ARCA / Facturación electrónica</h5>
     <p class="text-muted small mb-4">Certificados y punto de venta para emitir facturas ante AFIP/ARCA.</p>
+
+    {# Tutorial ARCA #}
+    <div class="card border-0 bg-light mb-4">
+      <div class="card-body py-3 px-4">
+        <div class="d-flex align-items-center gap-2 mb-2" data-bs-toggle="collapse" data-bs-target="#tutorialArca" style="cursor:pointer">
+          <span class="badge text-white" style="background:#1a3a5c;font-size:.7rem"><i class="bi bi-shield-lock me-1"></i>ARCA / AFIP</span>
+          <span class="fw-semibold small">¿Cómo obtener el certificado digital y la clave privada?</span>
+          <i class="bi bi-chevron-down ms-auto text-muted"></i>
+        </div>
+        <div class="collapse" id="tutorialArca">
+          <hr class="my-2">
+
+          <p class="small fw-semibold mb-1 mt-2">1 — Generar la clave privada y el CSR (en tu PC)</p>
+          <ol class="small mb-3" style="line-height:1.9">
+            <li>Instalá <strong>OpenSSL</strong> (en Windows podés usar Git Bash o WSL; en Linux/Mac ya viene incluido)</li>
+            <li>Abrí una terminal y ejecutá:<br>
+              <code class="d-block bg-white border rounded px-2 py-1 mt-1 mb-1" style="font-size:.78rem">openssl genrsa -out clave_privada.key 2048</code>
+            </li>
+            <li>Luego generá el CSR (pedido de certificado):<br>
+              <code class="d-block bg-white border rounded px-2 py-1 mt-1 mb-1" style="font-size:.78rem">openssl req -new -key clave_privada.key -subj "/C=AR/O=Mi Empresa/CN=CUIT 20123456789" -out mi_empresa.csr</code>
+              Reemplazá <em>CUIT 20123456789</em> con tu CUIT sin guiones.
+            </li>
+            <li>Guardá bien el archivo <strong>clave_privada.key</strong> — es el que subís al campo <em>Clave privada</em> de abajo</li>
+          </ol>
+
+          <p class="small fw-semibold mb-1">2 — Obtener el certificado desde el portal ARCA</p>
+          <ol class="small mb-3" style="line-height:1.9">
+            <li>Ingresá con CUIT y Clave Fiscal (nivel 3 o superior) a <a href="https://auth.afip.gob.ar" target="_blank" class="text-decoration-none fw-semibold">auth.afip.gob.ar <i class="bi bi-box-arrow-up-right" style="font-size:.65rem"></i></a></li>
+            <li>Buscá el servicio <strong>"Administración de Certificados Digitales"</strong> en el listado de servicios habilitados</li>
+            <li>Hacé clic en <strong>Nueva solicitud de certificado</strong></li>
+            <li>Pegá el contenido del archivo <code>mi_empresa.csr</code> generado en el paso anterior</li>
+            <li>Descargá el certificado resultante (<code>.crt</code> o <code>.pem</code>) — ese archivo es el que subís al campo <em>Certificado</em> de abajo</li>
+          </ol>
+
+          <p class="small fw-semibold mb-1">3 — Punto de venta</p>
+          <ol class="small mb-3" style="line-height:1.9">
+            <li>En el portal ARCA / AFIP, buscá el servicio <strong>"ABM de Puntos de Venta"</strong></li>
+            <li>Creá un punto de venta de tipo <strong>Facturación electrónica — Web Services</strong></li>
+            <li>El número asignado es el que ingresás en el campo <em>Punto de venta</em> de abajo (ej: <code>5</code>)</li>
+          </ol>
+
+          <div class="alert alert-info py-2 px-3 mb-1 small">
+            <i class="bi bi-info-circle me-1"></i>
+            Usá el ambiente <strong>Homologación</strong> para hacer pruebas sin emitir comprobantes reales. Cambiá a <strong>Producción</strong> recién cuando todo funcione correctamente.
+          </div>
+          <div class="alert alert-warning py-2 px-3 mb-0 small">
+            <i class="bi bi-exclamation-triangle me-1"></i>
+            La <strong>clave privada</strong> nunca se comparte ni se sube a ningún sitio externo. Solo la subís una vez a este servidor, que es tuyo.
+          </div>
+        </div>
+      </div>
+    </div>
 
     {% if arca %}
     <div class="alert alert-info d-flex align-items-start gap-3 mb-4 py-2">
@@ -289,6 +401,35 @@
     {% if seccion == 'mail' %}
     <h5 class="fw-bold mb-1"><i class="bi bi-envelope me-2 text-primary"></i>Email / SMTP</h5>
     <p class="text-muted small mb-4">Configurá el servidor de email para enviar comprobantes a los clientes.</p>
+
+    {# Tutorial Gmail #}
+    <div class="card border-0 bg-light mb-4">
+      <div class="card-body py-3 px-4">
+        <div class="d-flex align-items-center gap-2 mb-2" data-bs-toggle="collapse" data-bs-target="#tutorialGmail" style="cursor:pointer">
+          <span class="badge bg-danger" style="font-size:.7rem"><i class="bi bi-google me-1"></i>Gmail</span>
+          <span class="fw-semibold small">¿Cómo configurar Gmail con una contraseña de aplicación?</span>
+          <i class="bi bi-chevron-down ms-auto text-muted"></i>
+        </div>
+        <div class="collapse" id="tutorialGmail">
+          <hr class="my-2">
+          <p class="small text-muted mb-2">Gmail <strong>no permite usar tu contraseña normal</strong> para enviar emails desde apps externas. Necesitás generar una <strong>contraseña de aplicación</strong> de 16 caracteres. Seguí estos pasos:</p>
+          <ol class="small mb-3" style="line-height:1.9">
+            <li>Ingresá a tu cuenta de Google en <a href="https://myaccount.google.com" target="_blank" class="text-decoration-none fw-semibold">myaccount.google.com <i class="bi bi-box-arrow-up-right" style="font-size:.65rem"></i></a></li>
+            <li>En el menú izquierdo hacé clic en <strong>Seguridad</strong></li>
+            <li>Asegurate de tener activada la <strong>Verificación en dos pasos</strong> (es un requisito de Google)</li>
+            <li>Buscá <em>"contraseñas de aplicación"</em> en el buscador de configuración de Google o ingresá directamente a <a href="https://myaccount.google.com/apppasswords" target="_blank" class="text-decoration-none fw-semibold">myaccount.google.com/apppasswords <i class="bi bi-box-arrow-up-right" style="font-size:.65rem"></i></a></li>
+            <li>En el campo <strong>Nombre de la app</strong> escribí <em>Contalibra</em> y hacé clic en <strong>Crear</strong></li>
+            <li>Google te mostrará una contraseña de <strong>16 caracteres</strong> — copiala en ese momento (no se vuelve a mostrar)</li>
+            <li>Pegá esa contraseña en el campo <strong>Contraseña</strong> del formulario de abajo y guardá</li>
+          </ol>
+          <div class="alert alert-info py-2 px-3 mb-0 small">
+            <i class="bi bi-info-circle me-1"></i>
+            <strong>Valores recomendados para Gmail:</strong>&nbsp; Servidor: <code>smtp.gmail.com</code> &nbsp;·&nbsp; Puerto: <code>587</code> &nbsp;·&nbsp; Usuario: tu dirección de Gmail completa
+          </div>
+        </div>
+      </div>
+    </div>
+
     <form method="post" action="/config/email">
       <div class="row g-3 mb-3">
         <div class="col-md-8">
@@ -329,10 +470,20 @@
                  value="{{ cfg.email_from_name }}" placeholder="Mi Empresa">
         </div>
       </div>
-      <button type="submit" class="btn btn-primary fw-semibold px-4">
-        <i class="bi bi-save me-1"></i>Guardar email
-      </button>
+      <div class="d-flex gap-2 align-items-center">
+        <button type="submit" class="btn btn-primary fw-semibold px-4">
+          <i class="bi bi-save me-1"></i>Guardar email
+        </button>
+        {% if cfg.email_smtp_host and cfg.email_smtp_user and cfg.email_smtp_password %}
+        <button type="button" class="btn btn-outline-secondary" id="btn-probar-email" onclick="probarEmail()">
+          <i class="bi bi-send me-1"></i>Probar conexión
+        </button>
+        {% endif %}
+      </div>
     </form>
+    {% if cfg.email_smtp_host and cfg.email_smtp_user and cfg.email_smtp_password %}
+    <div id="email-resultado" class="mt-3" style="display:none"></div>
+    {% endif %}
     {% endif %}
 
   </div>{# /contenido #}
@@ -569,6 +720,91 @@
 {% endblock %}
 
 {% block scripts %}
+{% if tab == 'integraciones' and seccion == 'mail' and cfg.email_smtp_host and cfg.email_smtp_user and cfg.email_smtp_password %}
+<script>
+async function probarEmail() {
+  const btn = document.getElementById('btn-probar-email');
+  const res = document.getElementById('email-resultado');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Probando…';
+  res.style.display = 'none';
+
+  try {
+    const r = await fetch('/api/email/probar');
+    const d = await r.json();
+
+    if (d.ok) {
+      res.innerHTML = `
+        <div class="alert alert-success mb-0">
+          <i class="bi bi-check-circle-fill me-2"></i>
+          <strong>Conexión SMTP exitosa</strong><br>
+          <span class="small">
+            Servidor: <strong>${d.host}:${d.port}</strong> &nbsp;·&nbsp;
+            Usuario: <strong>${d.user}</strong>
+          </span>
+        </div>`;
+    } else {
+      res.innerHTML = `
+        <div class="alert alert-danger mb-0">
+          <i class="bi bi-x-circle-fill me-2"></i>
+          <strong>Error al conectar</strong><br>
+          <span class="small">${d.error}</span>
+        </div>`;
+    }
+  } catch(e) {
+    res.innerHTML = `<div class="alert alert-danger mb-0">Error inesperado: ${e}</div>`;
+  }
+
+  res.style.display = 'block';
+  btn.disabled = false;
+  btn.innerHTML = '<i class="bi bi-send me-1"></i>Probar conexión';
+}
+</script>
+{% endif %}
+{% if tab == 'integraciones' and seccion == 'mp' and cfg.mp_access_token %}
+<script>
+async function probarMP() {
+  const btn = document.getElementById('btn-probar-mp');
+  const res = document.getElementById('mp-resultado');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Probando…';
+  res.style.display = 'none';
+
+  try {
+    const r = await fetch('/api/mp/probar');
+    const d = await r.json();
+
+    if (d.ok) {
+      res.innerHTML = `
+        <div class="alert alert-success mb-0">
+          <i class="bi bi-check-circle-fill me-2"></i>
+          <strong>Conexión exitosa con MercadoPago</strong><br>
+          <span class="small">
+            Usuario: <strong>${d.nickname}</strong> &nbsp;·&nbsp;
+            ID: <code>${d.user_id}</code> &nbsp;·&nbsp;
+            Email: <strong>${d.email}</strong><br>
+            Sitio: <strong>${d.site_id}</strong> &nbsp;·&nbsp;
+            País: <strong>${d.pais}</strong>
+          </span>
+        </div>`;
+    } else {
+      res.innerHTML = `
+        <div class="alert alert-danger mb-0">
+          <i class="bi bi-x-circle-fill me-2"></i>
+          <strong>Error al conectar con MercadoPago</strong><br>
+          <span class="small">${d.error}</span>
+        </div>`;
+    }
+  } catch(e) {
+    res.innerHTML = `<div class="alert alert-danger mb-0">Error inesperado: ${e}</div>`;
+  }
+
+  res.style.display = 'block';
+  btn.disabled = false;
+  btn.innerHTML = '<i class="bi bi-send me-1"></i>Probar conexión';
+}
+</script>
+{% endif %}
 {% if tab == 'arca' and arca and arca.certificado_path and arca.clave_path %}
 <script>
 async function probarArca() {

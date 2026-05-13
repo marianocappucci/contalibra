@@ -11,8 +11,14 @@
 <!-- Tabs -->
 <ul class="nav nav-tabs mb-3">
   <li class="nav-item">
-    <a class="nav-link {% if vista == 'facturas' or vista not in ('nc','nd') %}active{% endif %}" href="/facturas?vista=facturas">
+    <a class="nav-link {% if vista == 'facturas' %}active{% endif %}" href="/facturas?vista=facturas">
       <i class="bi bi-receipt me-1"></i>Facturas
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if vista == 'sin_cobrar' %}active{% endif %}" href="/facturas?vista=sin_cobrar">
+      <i class="bi bi-clock me-1"></i>Sin cobrar
+      {% if vista == 'sin_cobrar' and total_items %}<span class="badge bg-warning text-dark ms-1">{{ total_items }}</span>{% endif %}
     </a>
   </li>
   <li class="nav-item">
@@ -109,12 +115,26 @@
             </td>
             <td>
               {% if f.cae %}
-              <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Autorizada</span>
+                {% if vista in ('facturas', 'sin_cobrar') %}
+                  {% if f.cobrada %}
+                  <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Cobrada</span>
+                  {% else %}
+                  <span class="badge bg-warning text-dark"><i class="bi bi-clock me-1"></i>Sin cobrar</span>
+                  {% endif %}
+                {% else %}
+                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Autorizada</span>
+                {% endif %}
               {% else %}
-              <span class="badge bg-warning text-dark">Pendiente</span>
+              <span class="badge bg-secondary">Sin CAE</span>
               {% endif %}
             </td>
             <td class="text-end">
+              {% if vista in ('facturas', 'sin_cobrar') and f.cae and not f.cobrada %}
+              <form method="post" action="/facturas/{{ f.id }}/cobrar?next=/facturas?vista={{ vista }}" class="d-inline"
+                    onsubmit="return confirm('¿Registrar cobro de ${{ '{:,.2f}'.format(f.total) }} para {{ f.cliente_razon }}?')">
+                <button class="btn btn-sm btn-success" title="Registrar cobro"><i class="bi bi-cash-coin"></i></button>
+              </form>
+              {% endif %}
               <a href="/facturas/{{ f.id }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i></a>
               <a href="/facturas/{{ f.id }}/pdf" class="btn btn-sm btn-outline-primary" target="_blank"><i class="bi bi-file-pdf"></i></a>
             </td>
