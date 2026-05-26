@@ -53,7 +53,7 @@
 
     <!-- ── MERCADOPAGO ── -->
     <h2>MercadoPago</h2>
-    <p>La integración con MercadoPago permite generar un QR dinámico por venta para cobrar desde cualquier billetera virtual (MercadoPago, Cuenta DNI, etc.). El sistema confirma el pago en tiempo real.</p>
+    <p>La integración con MercadoPago tiene dos usos principales: cobrar con QR dinámico en ventas presenciales, y recibir pagos de suscripciones o links de cobro que aparecen en la <strong>Bandeja de pagos</strong> para facturarlos desde ahí.</p>
 
     <h3>Credenciales necesarias</h3>
     <table class="docs-table">
@@ -69,11 +69,11 @@
         </tr>
         <tr>
           <td><strong>POS ID (External ID)</strong></td>
-          <td>En <em>Tu negocio → Puntos de venta</em>, creá un PDV y definí su <em>External ID</em> (ej: <code>CAJA01</code>).</td>
+          <td>En <em>Tu negocio → Puntos de venta</em>, creá un PDV y definí su <em>External ID</em> (ej: <code>CAJA01</code>). Solo necesario para cobros QR presenciales.</td>
         </tr>
         <tr>
           <td><strong>Webhook Secret</strong></td>
-          <td>En la app de desarrolladores → <em>Webhooks</em>, registrá la URL y copiá la firma secreta que MP genera.</td>
+          <td>En la app de desarrolladores → <em>Webhooks</em>, registrá la URL y copiá la firma secreta que MP genera. Recomendado para mayor seguridad.</td>
         </tr>
       </tbody>
     </table>
@@ -93,7 +93,7 @@
       <li>El User ID es el número que aparece debajo de tu nombre.</li>
     </ol>
 
-    <h3>Cómo crear el POS ID</h3>
+    <h3>Cómo crear el POS ID (para cobros presenciales)</h3>
     <ol class="step-list">
       <li>En el panel de MercadoPago, andá a <strong>Tu negocio → Puntos de venta</strong>.</li>
       <li>Creá una sucursal si no tenés una.</li>
@@ -102,12 +102,17 @@
     </ol>
 
     <h3>Configurar el Webhook</h3>
+    <p>El webhook permite que MercadoPago avise automáticamente a Contalibra cuando entra un pago. La URL se genera automáticamente en <strong>Configuración → Integraciones → MercadoPago</strong> — solo tenés que copiarla con el botón.</p>
     <ol class="step-list">
       <li>En el panel de desarrolladores, entrá a tu aplicación y luego a <strong>Webhooks</strong>.</li>
-      <li>Registrá la URL: <code>https://tu-dominio/webhooks/mercadopago</code>.</li>
+      <li>Copiá la URL que muestra Contalibra en Configuración y pegala en el campo URL de MP.</li>
       <li>Seleccioná el evento <strong>Pagos (payment)</strong>.</li>
-      <li>Copiá la <strong>firma secreta</strong> que MercadoPago muestra y pegala en el campo <em>Webhook Secret</em>.</li>
+      <li>Copiá la <strong>firma secreta</strong> que MercadoPago genera y pegala en el campo <em>Webhook Secret</em> en Contalibra.</li>
     </ol>
+
+    <div class="callout">
+      <p><strong>Tip:</strong> El Webhook Secret es opcional pero muy recomendado. Cuando está configurado, el sistema verifica la firma criptográfica de cada notificación y rechaza las falsas.</p>
+    </div>
 
     <div class="callout warn">
       <p><strong>Importante:</strong> Usá siempre las credenciales de <strong>producción</strong>, no las de prueba, para procesar cobros reales.</p>
@@ -115,6 +120,51 @@
 
     <h3>Probar la conexión</h3>
     <p>Una vez guardadas las credenciales, hacé clic en <strong>Probar conexión</strong>. El sistema consulta la API de MercadoPago y muestra tu nickname, User ID, email y país de la cuenta. Si ves un error, verificá que el Access Token sea el de producción y que esté completo.</p>
+
+    <!-- ── BANDEJA DE PAGOS ── -->
+    <h2 id="bandeja">Bandeja de pagos MercadoPago</h2>
+    <p>Todos los pagos que entran a tu cuenta de MercadoPago (por links de cobro, suscripciones o transferencias) se muestran en <strong>Integraciones → Pagos MercadoPago</strong>. Desde ahí podés generar facturas, dar de alta clientes y ver el historial.</p>
+
+    <div class="callout">
+      <p>El número de pagos pendientes aparece como un badge rojo en el menú lateral para que no se te pase ninguno.</p>
+    </div>
+
+    <h3>Pagos vía webhook</h3>
+    <p>Cuando alguien te paga por un link de cobro, suscripción u otro método digital de MP, el pago aparece automáticamente en la sección <strong>Pagos pendientes de factura</strong>. Para cada pago podés:</p>
+    <ul>
+      <li><strong>Generar factura</strong> — abre un diálogo donde podés editar el concepto antes de emitir. Si hay ARCA configurado, se obtiene el CAE automáticamente. Si hay email configurado, la factura se envía al cliente.</li>
+      <li><strong>Ignorar</strong> — marca el pago como ignorado y lo mueve al historial.</li>
+      <li><strong>Dar de alta el cliente</strong> — si el pagador no está registrado en Clientes, podés darlo de alta con sus datos pre-llenados desde el pago.</li>
+    </ul>
+
+    <h3>Transferencias bancarias y de billeteras</h3>
+    <p>Las transferencias que entran desde bancos (CBU) o billeteras externas (CVU) no llegan por webhook — hay que traerlas manualmente con el botón <strong>Sincronizar</strong>.</p>
+    <ol class="step-list">
+      <li>En la sección <strong>Transferencias recibidas</strong>, elegí el rango de días (últimos 7, 15, 30 o 60 días).</li>
+      <li>Hacé clic en <strong>Sincronizar</strong>. El sistema consulta tu cuenta MP y trae las transferencias nuevas.</li>
+      <li>Para cada transferencia podés ver el nombre del emisor, banco de origen y CBU.</li>
+      <li>Como el sistema bancario no provee el email del emisor, podés cargarlo manualmente con el botón <em>Cargar email</em> y así poder enviar la factura.</li>
+      <li>Una vez cargado el email, podés dar de alta el emisor como cliente o directamente generar la factura.</li>
+    </ol>
+
+    <div class="callout">
+      <p><strong>Tip:</strong> Si la transferencia es de alguien que ya tenés registrado como cliente, no hace falta cargar el email — podés generar la factura igual (sin envío por email).</p>
+    </div>
+
+    <h3>Generar una factura desde la bandeja</h3>
+    <ol class="step-list">
+      <li>Hacé clic en el botón <strong>Factura</strong> del pago o transferencia pendiente.</li>
+      <li>En el diálogo que se abre, podés modificar el <strong>Concepto</strong> de la factura (ej: cambiar "Suscripcion mensual" por algo más específico).</li>
+      <li>Confirmá con <strong>Generar factura</strong>.</li>
+      <li>El sistema crea la factura, obtiene el CAE de ARCA (si está configurado), genera el PDF y lo envía por email al cliente.</li>
+      <li>El pago pasa al historial con estado <em>Facturado</em> y un link a la factura.</li>
+    </ol>
+
+    <h3>Reenviar email desde el historial</h3>
+    <p>Si el email falló al emitir la factura (o el cliente perdió el correo), podés reenviarlo desde el historial. Hacé clic en el ícono de sobre (<i class="bi bi-envelope-arrow-up" style="font-size:.9em"></i>) en la columna Factura de cualquier fila del historial.</p>
+
+    <h3>Concepto y configuración de facturación</h3>
+    <p>El concepto por defecto de las facturas generadas desde la bandeja se configura en <strong>Configuración → Integraciones → MercadoPago → Concepto en facturas</strong>. Podés sobreescribirlo para cada factura individual desde el diálogo de confirmación.</p>
 
     <!-- ── ARCA ── -->
     <h2>ARCA / Facturación electrónica</h2>
