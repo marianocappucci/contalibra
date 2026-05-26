@@ -40,25 +40,25 @@
             <tr>
               <td>{{ it.nombre }}</td>
               <td class="text-center">{{ it.qty }}</td>
-              <td class="text-end">$ {{ "%.2f"|format(it.precio) }}</td>
-              <td class="text-end fw-semibold">$ {{ "%.2f"|format(it.subtotal) }}</td>
+              <td class="text-end">$ {{ it.precio|moneda }}</td>
+              <td class="text-end fw-semibold">$ {{ it.subtotal|moneda }}</td>
             </tr>
             {% endfor %}
           </tbody>
           <tfoot class="table-light">
             <tr>
               <td colspan="3" class="text-end text-muted small">Subtotal</td>
-              <td class="text-end">$ {{ "%.2f"|format(venta.subtotal) }}</td>
+              <td class="text-end">$ {{ venta.subtotal|moneda }}</td>
             </tr>
             {% if venta.descuento > 0 %}
             <tr>
               <td colspan="3" class="text-end text-muted small">Descuento</td>
-              <td class="text-end text-danger">− $ {{ "%.2f"|format(venta.descuento) }}</td>
+              <td class="text-end text-danger">− $ {{ venta.descuento|moneda }}</td>
             </tr>
             {% endif %}
             <tr>
               <td colspan="3" class="text-end fw-bold">Total</td>
-              <td class="text-end fw-bold fs-5">$ {{ "%.2f"|format(venta.total) }}</td>
+              <td class="text-end fw-bold fs-5">$ {{ venta.total|moneda }}</td>
             </tr>
           </tfoot>
         </table>
@@ -94,7 +94,7 @@
           <span class="badge bg-light text-dark border">
             {{ medio_labels.get(p.medio, p.medio) }}
           </span>
-          <span class="fw-semibold">$ {{ "%.2f"|format(p.monto) }}</span>
+          <span class="fw-semibold">$ {{ p.monto|moneda }}</span>
         </div>
         {% if p.referencia %}
         <div class="text-muted small mb-2 ps-1">
@@ -105,7 +105,7 @@
         <hr class="my-2">
         <div class="d-flex justify-content-between fw-bold">
           <span>Total cobrado</span>
-          <span>$ {{ "%.2f"|format(venta.pagos|sum(attribute='monto')) }}</span>
+          <span>$ {{ venta.pagos|sum(attribute='monto'|moneda) }}</span>
         </div>
 
         {% set tiene_qr = venta.pagos | selectattr('medio', 'in', ['mercadopago','billetera','cuenta_dni']) | list %}
@@ -191,7 +191,7 @@
             <div class="spinner-border spinner-border-sm" role="status"></div>
             Esperando pago...
           </div>
-          <span class="fw-bold fs-5 text-dark">$ {{ "%.2f"|format(venta.total) }}</span>
+          <span class="fw-bold fs-5 text-dark">$ {{ venta.total|moneda }}</span>
         </div>
 
         <div id="qr-approved" style="display:none">

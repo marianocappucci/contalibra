@@ -53,11 +53,11 @@
             <td class="small">
               {% for p in v.pagos %}
               <span class="badge bg-light text-dark border me-1">
-                {{ medio_labels.get(p.medio, p.medio) }}: ${{ "%.0f"|format(p.monto) }}
+                {{ medio_labels.get(p.medio, p.medio) }}: ${{ p.monto|moneda0 }}
               </span>
               {% endfor %}
             </td>
-            <td class="text-end fw-semibold">$ {{ "%.2f"|format(v.total) }}</td>
+            <td class="text-end fw-semibold">$ {{ v.total|moneda }}</td>
             <td class="text-center">
               {% if v.estado == 'cobrada' %}
               <span class="badge" style="background:#d1e7dd;color:#0f5132">Cobrada</span>

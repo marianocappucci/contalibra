@@ -7,15 +7,14 @@ from typing import Annotated
 from datetime import date
 from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import RedirectResponse, Response
-from fastapi.templating import Jinja2Templates
 
 import database as db
 import config_manager
 import mp_api
 from web.auth import require_auth
+from web.templates_config import templates
 
 router = APIRouter()
-templates = Jinja2Templates(directory=os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates"))
 Auth = Annotated[str, Depends(require_auth)]
 
 MEDIOS_PAGO = [

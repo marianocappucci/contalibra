@@ -13,7 +13,7 @@
       <div class="card-body py-3">
         <div class="text-muted small mb-1">Saldo actual</div>
         <div class="fw-bold fs-4 {% if resumen.saldo_total >= 0 %}text-success{% else %}text-danger{% endif %}">
-          $ {{ "{:,.2f}".format(resumen.saldo_total) }}
+          $ {{ resumen.saldo_total|moneda }}
         </div>
       </div>
     </div>
@@ -22,7 +22,7 @@
     <div class="card text-center">
       <div class="card-body py-3">
         <div class="text-muted small mb-1">Ingresos del período</div>
-        <div class="fw-bold fs-5 text-success">+ $ {{ "{:,.2f}".format(resumen.ingresos) }}</div>
+        <div class="fw-bold fs-5 text-success">+ $ {{ resumen.ingresos|moneda }}</div>
       </div>
     </div>
   </div>
@@ -30,7 +30,7 @@
     <div class="card text-center">
       <div class="card-body py-3">
         <div class="text-muted small mb-1">Egresos del período</div>
-        <div class="fw-bold fs-5 text-danger">- $ {{ "{:,.2f}".format(resumen.egresos) }}</div>
+        <div class="fw-bold fs-5 text-danger">- $ {{ resumen.egresos|moneda }}</div>
       </div>
     </div>
   </div>
@@ -39,7 +39,7 @@
       <div class="card-body py-3">
         <div class="text-muted small mb-1">Resultado del período</div>
         <div class="fw-bold fs-5 {% if resumen.saldo_periodo >= 0 %}text-success{% else %}text-danger{% endif %}">
-          {% if resumen.saldo_periodo >= 0 %}+{% endif %}$ {{ "{:,.2f}".format(resumen.saldo_periodo) }}
+          {% if resumen.saldo_periodo >= 0 %}+{% endif %}$ {{ resumen.saldo_periodo|moneda }}
         </div>
       </div>
     </div>
@@ -97,7 +97,7 @@
             </td>
             <td class="text-muted small">{{ m.referencia }}</td>
             <td class="text-end fw-semibold {% if m.tipo == 'ingreso' %}text-success{% else %}text-danger{% endif %}">
-              {% if m.tipo == 'ingreso' %}+{% else %}-{% endif %}$ {{ "{:,.2f}".format(m.monto) }}
+              {% if m.tipo == 'ingreso' %}+{% else %}-{% endif %}$ {{ m.monto|moneda }}
             </td>
             <td class="text-end">
               <form method="post" action="/caja/{{ m.id }}/eliminar"

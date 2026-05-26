@@ -13,6 +13,16 @@ from fpdf import FPDF
 
 import config_manager
 
+
+def _ar(value, decimals=2):
+    """Formato monetario argentino: punto miles, coma decimal."""
+    try:
+        s = f"{float(value):,.{decimals}f}"
+        return s.replace(",", "X").replace(".", ",").replace("X", ".")
+    except (ValueError, TypeError):
+        return str(value)
+
+
 # ── Constantes ─────────────────────────────────────────────────────────────────
 
 _MM_TO_PT = 2.8346
@@ -167,13 +177,13 @@ def generar_ticket_venta(venta: dict) -> bytes:
         subtot = cant * precio
         cant_s = f"{cant:g}" if cant != int(cant) else str(int(cant))
         pdf._texto(f"{nombre}")
-        pdf._row(f"  {cant_s} x ${precio:,.2f}", f"${subtot:,.2f}")
+        pdf._row(f"  {cant_s} x $" + _ar(precio), "$" + _ar(subtot))
 
     pdf._separador()
     descuento = float(venta.get("descuento", 0) or 0)
     if descuento:
-        pdf._row("Descuento:", f"-${descuento:,.2f}")
-    pdf._row("TOTAL:", f"${float(venta.get('total', 0)):,.2f}", bold_der=True)
+        pdf._row("Descuento:", "-$" + _ar(descuento))
+    pdf._row("TOTAL:", "$" + _ar(float(venta.get('total', 0))), bold_der=True)
 
     # Medios de pago
     pagos = venta.get("pagos", [])
@@ -181,7 +191,7 @@ def generar_ticket_venta(venta: dict) -> bytes:
         pdf._separador("-")
         for p in pagos:
             label = _MEDIOS_LABEL.get(p.get("medio", ""), p.get("medio", ""))
-            pdf._row(label + ":", f"${float(p.get('monto', 0)):,.2f}")
+            pdf._row(label + ":", "$" + _ar(float(p.get('monto', 0))))
 
     _pie_ticket(pdf, pie, corte)
     return _recortar_pdf_a_contenido(pdf)
@@ -229,16 +239,16 @@ def generar_ticket_factura(factura: dict) -> bytes:
         subtot = cant * precio
         cant_s = f"{cant:g}" if cant != int(cant) else str(int(cant))
         pdf._texto(f"{nombre}")
-        pdf._row(f"  {cant_s} x ${precio:,.2f}", f"${subtot:,.2f}")
+        pdf._row(f"  {cant_s} x $" + _ar(precio), "$" + _ar(subtot))
 
     pdf._separador()
     subtotal = float(factura.get("subtotal", 0))
     iva      = float(factura.get("iva_amount", 0))
     total    = float(factura.get("total", 0))
     if iva:
-        pdf._row("Neto:", f"${subtotal:,.2f}")
-        pdf._row("IVA:", f"${iva:,.2f}")
-    pdf._row("TOTAL:", f"${total:,.2f}", bold_der=True)
+        pdf._row("Neto:", "$" + _ar(subtotal))
+        pdf._row("IVA:", "$" + _ar(iva))
+    pdf._row("TOTAL:", "$" + _ar(total), bold_der=True)
 
     # CAE
     cae     = factura.get("cae") or ""

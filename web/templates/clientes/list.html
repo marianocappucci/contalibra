@@ -27,11 +27,14 @@
         <tbody>
           {% for c in clientes %}
           <tr>
-            <td class="fw-semibold">{{ c.name }}</td>
+            <td class="fw-semibold">
+              <a href="/clientes/{{ c.id }}" class="text-decoration-none">{{ c.name }}</a>
+            </td>
             <td>{{ c.cuit_dni or '—' }}</td>
             <td><span class="text-muted small">{{ c.iva_condition or '—' }}</span></td>
             <td>{{ c.phone or '—' }}</td>
             <td class="text-end">
+              <a href="/clientes/{{ c.id }}" class="btn btn-sm btn-outline-primary" title="Ver ficha"><i class="bi bi-eye"></i></a>
               <a href="/clientes/{{ c.id }}/editar" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
               <form class="d-inline" method="post" action="/clientes/{{ c.id }}/eliminar"
                     onsubmit="return confirm('¿Eliminar a {{ c.name }}?')">

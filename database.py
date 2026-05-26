@@ -252,6 +252,8 @@ def init_db():
             conn.execute("ALTER TABLE facturas ADD COLUMN cbte_asoc_pv INTEGER DEFAULT 0")
         if "cbte_asoc_nro" not in fact_cols:
             conn.execute("ALTER TABLE facturas ADD COLUMN cbte_asoc_nro INTEGER DEFAULT 0")
+        if "condicion_venta" not in fact_cols:
+            conn.execute("ALTER TABLE facturas ADD COLUMN condicion_venta TEXT DEFAULT ''")
 
         prod_cols = [r[1] for r in conn.execute("PRAGMA table_info(productos)").fetchall()]
         if "stock_minimo" not in prod_cols:
@@ -317,6 +319,31 @@ def get_client(client_id):
     with get_connection() as conn:
         row = conn.execute("SELECT * FROM clients WHERE id=?", (client_id,)).fetchone()
         return dict(row) if row else None
+
+
+def get_facturas_by_client(cuit_dni: str, name: str, limit: int = 100) -> list:
+    """Facturas asociadas a un cliente, buscando por CUIT o razón social."""
+    with get_connection() as conn:
+        conds, params = [], []
+        if cuit_dni:
+            conds.append("cliente_cuit = ?")
+            params.append(cuit_dni)
+        if name:
+            conds.append("cliente_razon = ?")
+            params.append(name)
+        if not conds:
+            return []
+        where = " OR ".join(conds)
+        rows = conn.execute(
+            f"SELECT * FROM facturas WHERE {where} ORDER BY id DESC LIMIT ?",
+            (*params, limit),
+        ).fetchall()
+        result = []
+        for r in rows:
+            d = dict(r)
+            d["items"] = json.loads(d["items"])
+            result.append(d)
+        return result
 
 
 def update_client(client_id, name=None, address=None, cuit_dni=None, email=None, phone=None, iva_condition=None):
@@ -675,7 +702,8 @@ def create_factura(tipo, punto_venta, numero, fecha, cliente_cuit, cliente_razon
                    cliente_iva_cond, items, subtotal, iva_amount, total,
                    concepto=1, cae="", cae_vto="", observaciones="", pdf_path="",
                    cliente_domicilio="", fch_serv_desde="", fch_serv_hasta="",
-                   fch_vto_pago="", cbte_asoc_tipo=0, cbte_asoc_pv=0, cbte_asoc_nro=0):
+                   fch_vto_pago="", cbte_asoc_tipo=0, cbte_asoc_pv=0, cbte_asoc_nro=0,
+                   condicion_venta=""):
     """Crea una nueva factura electrónica."""
     with get_connection() as conn:
         cur = conn.execute(
@@ -684,13 +712,13 @@ def create_factura(tipo, punto_venta, numero, fecha, cliente_cuit, cliente_razon
                 cliente_iva_cond, items, subtotal, iva_amount, total, concepto,
                 cae, cae_vto, observaciones, pdf_path, cliente_domicilio,
                 fch_serv_desde, fch_serv_hasta, fch_vto_pago,
-                cbte_asoc_tipo, cbte_asoc_pv, cbte_asoc_nro)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                cbte_asoc_tipo, cbte_asoc_pv, cbte_asoc_nro, condicion_venta)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (tipo, punto_venta, numero, fecha, cliente_cuit, cliente_razon,
              cliente_iva_cond, json.dumps(items, ensure_ascii=False), subtotal,
              iva_amount, total, concepto, cae, cae_vto, observaciones, pdf_path,
              cliente_domicilio, fch_serv_desde, fch_serv_hasta, fch_vto_pago,
-             cbte_asoc_tipo, cbte_asoc_pv, cbte_asoc_nro),
+             cbte_asoc_tipo, cbte_asoc_pv, cbte_asoc_nro, condicion_venta),
         )
         return cur.lastrowid
 

@@ -1,6 +1,44 @@
 {% extends "base.html" %}
 {% block title %}Bandeja MercadoPago — Contalibra{% endblock %}
 
+{# ── Macros de traducción de tags de la API de MercadoPago ── #}
+{% macro label_metodo(metodo) %}{{ {
+  'cvu':            'CVU',
+  'cbu':            'CBU',
+  'visa':           'VISA',
+  'debvisa':        'VISA Débito',
+  'master':         'Mastercard',
+  'debmaster':      'Mastercard Débito',
+  'amex':           'AMEX',
+  'cabal':          'Cabal',
+  'debcabal':       'Cabal Débito',
+  'naranja':        'Naranja',
+  'pagofacil':      'Pago Fácil',
+  'rapipago':       'Rapipago',
+  'mercadopago':    'MercadoPago',
+  'account_money':  'Cuenta MP',
+  'bank_transfer':  'Transf. bancaria',
+  'digital_wallet': 'Billetera digital',
+  'cencosud':       'Cencosud',
+  'tarshop':        'Tarjeta Shopping',
+  'argencard':      'Argencard',
+  'cordial':        'Cordial',
+  'cordobesa':      'Cordobesa',
+}.get(metodo|lower, (metodo or '')|upper) }}{% endmacro %}
+
+{% macro label_tipo(tipo) %}{{ {
+  'bank_transfer':   'Transf. bancaria',
+  'account_money':   'Cuenta MP',
+  'credit_card':     'Tarjeta de crédito',
+  'debit_card':      'Tarjeta de débito',
+  'ticket':          'Efectivo',
+  'atm':             'Cajero automático',
+  'digital_wallet':  'Billetera digital',
+  'digital_currency':'Billetera digital',
+  'prepaid_card':    'Tarjeta prepaga',
+  'voucher_card':    'Voucher',
+}.get(tipo|lower, tipo or '—') }}{% endmacro %}
+
 {# ── Macro: etiqueta origen de pago MP ── #}
 {% macro origen_badge(payment_type, payment_method, descripcion_mp) %}
   {% set tipo = payment_type or '' %}
@@ -8,15 +46,15 @@
   {% if tipo == 'account_money' %}
     <span class="badge rounded-pill" style="background:#009ee3;font-size:.78rem"><i class="bi bi-wallet2 me-1"></i>Cuenta MP</span>
   {% elif tipo == 'credit_card' %}
-    <span class="badge rounded-pill bg-success" style="font-size:.78rem"><i class="bi bi-credit-card me-1"></i>Crédito{% if metodo and metodo != 'mercadopago' %} ({{ metodo|upper }}){% endif %}</span>
+    <span class="badge rounded-pill bg-success" style="font-size:.78rem"><i class="bi bi-credit-card me-1"></i>Tarjeta de crédito{% if metodo and metodo != 'mercadopago' %} ({{ label_metodo(metodo) }}){% endif %}</span>
   {% elif tipo == 'debit_card' %}
-    <span class="badge rounded-pill bg-info text-dark" style="font-size:.78rem"><i class="bi bi-credit-card-2-back me-1"></i>Débito{% if metodo and metodo != 'mercadopago' %} ({{ metodo|upper }}){% endif %}</span>
+    <span class="badge rounded-pill bg-info text-dark" style="font-size:.78rem"><i class="bi bi-credit-card-2-back me-1"></i>Tarjeta de débito{% if metodo and metodo != 'mercadopago' %} ({{ label_metodo(metodo) }}){% endif %}</span>
   {% elif tipo == 'ticket' %}
-    <span class="badge rounded-pill bg-warning text-dark" style="font-size:.78rem"><i class="bi bi-cash me-1"></i>Efectivo</span>
+    <span class="badge rounded-pill bg-warning text-dark" style="font-size:.78rem"><i class="bi bi-cash me-1"></i>Efectivo{% if metodo and metodo not in ('pagofacil','rapipago') == False %} ({{ label_metodo(metodo) }}){% endif %}</span>
   {% elif tipo == 'bank_transfer' %}
-    <span class="badge rounded-pill bg-secondary" style="font-size:.78rem"><i class="bi bi-bank me-1"></i>Transf. bancaria</span>
+    <span class="badge rounded-pill bg-secondary" style="font-size:.78rem"><i class="bi bi-bank me-1"></i>Transf. bancaria{% if metodo and metodo != 'mercadopago' %} ({{ label_metodo(metodo) }}){% endif %}</span>
   {% elif tipo %}
-    <span class="badge rounded-pill bg-light text-dark border" style="font-size:.78rem">{{ tipo }}</span>
+    <span class="badge rounded-pill bg-light text-dark border" style="font-size:.78rem">{{ label_tipo(tipo) }}</span>
   {% else %}
     <span class="text-muted" style="font-size:.85rem">—</span>
   {% endif %}
@@ -207,10 +245,10 @@
             </td>
             <td>{{ origen_badge(p.payment_type, p.payment_method, p.descripcion_mp) }}</td>
             <td>{{ col_cliente(p, 'Pago') }}</td>
-            <td class="text-end fw-semibold">${{ "%.2f"|format(p.monto) }}</td>
+            <td class="text-end fw-semibold">${{ p.monto|moneda }}</td>
             <td class="text-center" style="white-space:nowrap">
               <button type="button" class="btn btn-sm btn-primary me-1"
-                      onclick="abrirFacturar('/integraciones/mp/pago/{{ p.id }}/facturar', '${{ '%.2f'|format(p.monto) }}')">
+                      onclick="abrirFacturar('/integraciones/mp/pago/{{ p.id }}/facturar', '${{ p.monto|moneda }}')">
                 <i class="bi bi-receipt me-1"></i>Factura
               </button>
               <form method="post" action="/integraciones/mp/pago/{{ p.id }}/ignorar" class="d-inline"
@@ -237,9 +275,9 @@
 <div class="card mb-4">
   <div class="card-header d-flex align-items-center justify-content-between">
     <div>
-      <i class="bi bi-bank me-2 text-secondary"></i>
-      <span class="fw-semibold">Transferencias recibidas</span>
-      <small class="text-muted ms-2">(bancos y billeteras externas)</small>
+      <i class="bi bi-arrow-down-circle me-2 text-secondary"></i>
+      <span class="fw-semibold">Cobros sincronizados</span>
+      <small class="text-muted ms-2">(pagos aprobados no capturados por webhook)</small>
     </div>
     <div class="d-flex align-items-center gap-2">
       <span class="badge bg-secondary">{{ transferencias|length }}</span>
@@ -282,11 +320,11 @@
             </td>
             <td>
               {% if t.origen_banco %}
-                <span class="badge bg-light text-dark border" style="font-size:.8rem">{{ t.origen_banco }}</span>
+                <span class="badge bg-light text-dark border" style="font-size:.8rem">{{ label_metodo(t.origen_banco) }}</span>
               {% else %}
                 <span class="text-muted">—</span>
               {% endif %}
-              {% if t.descripcion %}<br><small class="text-muted">{{ t.descripcion }}</small>{% endif %}
+              {% if t.descripcion and t.descripcion|lower not in ('bank transfer', 'account money', 'bank_transfer', 'account_money', 'var', '') %}<br><small class="text-muted">{{ t.descripcion }}</small>{% endif %}
             </td>
             <td>
               {% if t.origen_cbu %}
@@ -324,10 +362,10 @@
                 {% endif %}
               {% endif %}
             </td>
-            <td class="text-end fw-semibold">${{ "%.2f"|format(t.monto) }}</td>
+            <td class="text-end fw-semibold">${{ t.monto|moneda }}</td>
             <td class="text-center" style="white-space:nowrap">
               <button type="button" class="btn btn-sm btn-primary me-1"
-                      onclick="abrirFacturar('/integraciones/mp/movimiento/{{ t.id }}/facturar', '${{ '%.2f'|format(t.monto) }}')">
+                      onclick="abrirFacturar('/integraciones/mp/movimiento/{{ t.id }}/facturar', '${{ t.monto|moneda }}')">
                 <i class="bi bi-receipt me-1"></i>Factura
               </button>
               <form method="post" action="/integraciones/mp/movimiento/{{ t.id }}/ignorar" class="d-inline"
@@ -378,7 +416,7 @@
             <td>{{ origen_badge(p.payment_type, p.payment_method, '') }}</td>
             <td>{{ p.payer_name or p.payer_email or '—' }}</td>
             <td>{% if p.cliente %}<a href="/clientes/{{ p.cliente.id }}">{{ p.cliente.name }}</a>{% else %}—{% endif %}</td>
-            <td class="text-end">${{ "%.2f"|format(p.monto) }}</td>
+            <td class="text-end">${{ p.monto|moneda }}</td>
             <td class="text-center">
               <span class="badge bg-{{ 'success' if p.estado_factura == 'facturado' else 'secondary' }}">
                 {{ 'Facturado' if p.estado_factura == 'facturado' else 'Ignorado' }}
@@ -397,13 +435,13 @@
           {% for t in transferencias_hist %}
           <tr>
             <td class="text-muted">{{ t.fecha or t.created_at[:10] }}</td>
-            <td><span class="badge rounded-pill bg-secondary" style="font-size:.78rem"><i class="bi bi-bank me-1"></i>Transf.</span></td>
+            <td><span class="badge rounded-pill bg-secondary" style="font-size:.78rem"><i class="bi bi-bank me-1"></i>{{ label_tipo(t.tipo) }}{% if t.origen_banco %} · {{ label_metodo(t.origen_banco) }}{% endif %}</span></td>
             <td>
               {{ t.origen_nombre or t.payer_name or '—' }}
-              {% if t.origen_banco %}<br><small class="text-muted">{{ t.origen_banco }}</small>{% endif %}
+              {% if t.origen_banco %}<br><small class="text-muted">{{ label_metodo(t.origen_banco) }}</small>{% endif %}
             </td>
             <td>{% if t.cliente %}<a href="/clientes/{{ t.cliente.id }}">{{ t.cliente.name }}</a>{% else %}—{% endif %}</td>
-            <td class="text-end">${{ "%.2f"|format(t.monto) }}</td>
+            <td class="text-end">${{ t.monto|moneda }}</td>
             <td class="text-center">
               <span class="badge bg-{{ 'success' if t.estado_factura == 'facturado' else 'secondary' }}">
                 {{ 'Facturado' if t.estado_factura == 'facturado' else 'Ignorado' }}
@@ -457,7 +495,7 @@
           {% if t.origen_nombre %}
           <div class="alert alert-light py-2 mb-3" style="font-size:.88rem">
             <i class="bi bi-info-circle me-1"></i>
-            Banco informa: <strong>{{ t.origen_nombre }}</strong>{% if t.origen_banco %} desde <strong>{{ t.origen_banco }}</strong>{% endif %}
+            Banco informa: <strong>{{ t.origen_nombre }}</strong>{% if t.origen_banco %} desde <strong>{{ label_metodo(t.origen_banco) }}</strong>{% endif %}
           </div>
           {% endif %}
           <div class="mb-3">

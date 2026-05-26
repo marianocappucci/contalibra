@@ -4,7 +4,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import RedirectResponse, FileResponse, Response
-from fastapi.templating import Jinja2Templates
 from typing import Annotated
 
 import datetime
@@ -16,9 +15,9 @@ import arca_wsfe
 import config_manager
 import email_sender
 from web.auth import require_auth
+from web.templates_config import templates
 
 router = APIRouter()
-templates = Jinja2Templates(directory=os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates"))
 
 Auth = Annotated[str, Depends(require_auth)]
 
@@ -56,6 +55,17 @@ CONCEPTOS = [
     {"value": 1, "label": "Productos"},
     {"value": 2, "label": "Servicios"},
     {"value": 3, "label": "Productos y Servicios"},
+]
+
+CONDICIONES_VENTA = [
+    "Contado",
+    "Tarjeta de Débito",
+    "Tarjeta de Crédito",
+    "Cuenta Corriente",
+    "Cheque",
+    "Transferencia Bancaria",
+    "Otros medios de pago electrónico",
+    "Otra",
 ]
 
 IVA_CODES = {
@@ -221,15 +231,16 @@ def factura_nueva_get(request: Request, user: Auth, from_presupuesto: int = 0):
                 "items":          pres["items"],
             }
     return templates.TemplateResponse(request, "facturas/form.html", {
-        "clientes":          db.get_all_clients(),
-        "tipos":             tipos,
-        "conceptos":         CONCEPTOS,
-        "punto_venta":       _arca_punto_venta(),
-        "active":            "facturas",
-        "factura":           None,
-        "error":             None,
-        "es_monotributista": es_monotributista,
-        "prefill":           prefill,
+        "clientes":            db.get_all_clients(),
+        "tipos":               tipos,
+        "conceptos":           CONCEPTOS,
+        "condiciones_venta":   CONDICIONES_VENTA,
+        "punto_venta":         _arca_punto_venta(),
+        "active":              "facturas",
+        "factura":             None,
+        "error":               None,
+        "es_monotributista":   es_monotributista,
+        "prefill":             prefill,
     })
 
 
@@ -241,9 +252,10 @@ async def factura_nueva_post(request: Request, user: Auth):
     try:
         tipo        = int(form.get("tipo", 6))
         punto_venta = int(form.get("punto_venta", 1) or 1)
-        concepto    = int(form.get("concepto", 1))
-        fecha_str       = str(form.get("fecha", "")).strip()
-        observations    = str(form.get("observations", "")).strip()
+        concepto         = int(form.get("concepto", 1))
+        condicion_venta  = str(form.get("condicion_venta", "")).strip()
+        fecha_str        = str(form.get("fecha", "")).strip()
+        observations     = str(form.get("observations", "")).strip()
         fch_serv_desde  = str(form.get("fch_serv_desde", "")).strip()
         fch_serv_hasta  = str(form.get("fch_serv_hasta", "")).strip()
         fch_vto_pago    = str(form.get("fch_vto_pago",   "")).strip()
@@ -326,6 +338,7 @@ async def factura_nueva_post(request: Request, user: Auth):
             fch_serv_desde=fch_serv_desde,
             fch_serv_hasta=fch_serv_hasta,
             fch_vto_pago=fch_vto_pago,
+            condicion_venta=condicion_venta,
         )
         factura = db.get_factura(factura_id)
 
@@ -348,6 +361,7 @@ async def factura_nueva_post(request: Request, user: Auth):
         tipos = _tipos_emisor()
         return templates.TemplateResponse(request, "facturas/form.html", {
             "clientes": clientes, "tipos": tipos, "conceptos": CONCEPTOS,
+            "condiciones_venta": CONDICIONES_VENTA,
             "punto_venta": _arca_punto_venta(),
             "active": "facturas", "factura": None, "error": str(e),
             "es_monotributista": len(tipos) == 1 and tipos[0]["value"] == 11,
@@ -626,6 +640,71 @@ async def nd_crear(factura_id: int, user: Auth):
         raise HTTPException(400, "Tipo de comprobante no admite nota de débito")
     nota_id = await _crear_nota(orig, nd_tipo, "Referencia")
     return RedirectResponse(f"/facturas/{nota_id}", status_code=303)
+
+
+@router.post("/facturas/{factura_id}/duplicar")
+async def factura_duplicar(factura_id: int, user: Auth):
+    orig = db.get_factura(factura_id)
+    if not orig:
+        raise HTTPException(404)
+
+    tipo        = orig["tipo"]
+    punto_venta = orig["punto_venta"]
+    fecha_hoy   = datetime.date.today().isoformat()
+
+    arca_cfg = db.obtener_todas_arca_configs()
+    arca     = arca_cfg[0] if arca_cfg else None
+    ta       = None
+
+    if arca and arca.get("certificado_path") and arca.get("clave_path"):
+        try:
+            ta = await arca_wsaa.autenticar(
+                arca["certificado_path"], arca["clave_path"], arca["ambiente"]
+            )
+            ultimo = await arca_wsfe.ultimo_numero_autorizado(
+                punto_venta, tipo, arca["cuit"],
+                ta["token"], ta["sign"], arca["ambiente"],
+            )
+            numero = ultimo + 1
+        except Exception:
+            ta     = None
+            numero = db.get_next_factura_numero(punto_venta, tipo)
+    else:
+        numero = db.get_next_factura_numero(punto_venta, tipo)
+
+    nueva_id = db.create_factura(
+        tipo=tipo, punto_venta=punto_venta, numero=numero,
+        fecha=fecha_hoy,
+        cliente_cuit=orig["cliente_cuit"],
+        cliente_razon=orig["cliente_razon"],
+        cliente_iva_cond=orig.get("cliente_iva_cond") or 0,
+        items=orig["items"],
+        subtotal=orig["subtotal"],
+        iva_amount=orig["iva_amount"],
+        total=orig["total"],
+        concepto=orig.get("concepto", 1),
+        observaciones=orig.get("observaciones", ""),
+        cliente_domicilio=orig.get("cliente_domicilio", ""),
+        fch_serv_desde=orig.get("fch_serv_desde", ""),
+        fch_serv_hasta=orig.get("fch_serv_hasta", ""),
+        fch_vto_pago=fecha_hoy,
+        condicion_venta=orig.get("condicion_venta", ""),
+    )
+    nueva = db.get_factura(nueva_id)
+
+    if ta and arca:
+        try:
+            cae_data = await arca_wsfe.solicitar_cae(
+                nueva, arca["cuit"], ta["token"], ta["sign"], arca["ambiente"]
+            )
+            db.update_factura_cae(nueva_id, cae_data["cae"], cae_data["cae_vto"])
+            nueva = db.get_factura(nueva_id)
+        except Exception:
+            pass
+
+    pdf_path = pdf_gen.generate_pdf_factura(nueva)
+    db.update_factura_pdf_path(nueva_id, pdf_path)
+    return RedirectResponse(f"/facturas/{nueva_id}", status_code=303)
 
 
 @router.post("/facturas/{factura_id}/cobrar")

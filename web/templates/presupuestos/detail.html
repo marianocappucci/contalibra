@@ -82,23 +82,23 @@
               <tr>
                 <td>{{ item.description }}</td>
                 <td class="text-end">{{ item.qty }}</td>
-                <td class="text-end">$ {{ "{:,.2f}".format(item.unit_price) }}</td>
-                <td class="text-end">$ {{ "{:,.2f}".format(item.subtotal) }}</td>
+                <td class="text-end">$ {{ item.unit_price|moneda }}</td>
+                <td class="text-end">$ {{ item.subtotal|moneda }}</td>
               </tr>
               {% endfor %}
             </tbody>
             <tfoot class="table-light fw-semibold">
               <tr>
                 <td colspan="3" class="text-end">Subtotal</td>
-                <td class="text-end">$ {{ "{:,.2f}".format(presupuesto.subtotal) }}</td>
+                <td class="text-end">$ {{ presupuesto.subtotal|moneda }}</td>
               </tr>
               <tr>
                 <td colspan="3" class="text-end">IVA {{ (presupuesto.tax_rate * 100)|int }}%</td>
-                <td class="text-end">$ {{ "{:,.2f}".format(presupuesto.tax_amount) }}</td>
+                <td class="text-end">$ {{ presupuesto.tax_amount|moneda }}</td>
               </tr>
               <tr class="fs-5">
                 <td colspan="3" class="text-end fw-bold">TOTAL</td>
-                <td class="text-end fw-bold text-primary">$ {{ "{:,.2f}".format(presupuesto.total) }}</td>
+                <td class="text-end fw-bold text-primary">$ {{ presupuesto.total|moneda }}</td>
               </tr>
             </tfoot>
           </table>

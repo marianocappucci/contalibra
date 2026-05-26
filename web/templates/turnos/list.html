@@ -16,7 +16,7 @@
   <i class="bi bi-circle-fill" style="color:#198754;font-size:1.1rem"></i>
   <div>
     <strong>Turno abierto</strong> desde {{ turno_activo.apertura }}
-    — Fondo inicial: <strong>$ {{ "%.2f"|format(turno_activo.monto_inicial) }}</strong>
+    — Fondo inicial: <strong>$ {{ turno_activo.monto_inicial|moneda }}</strong>
   </div>
   <div class="ms-auto d-flex gap-2">
     <a href="/turnos/{{ turno_activo.id }}" class="btn btn-sm btn-outline-success">Ver detalle</a>
@@ -56,24 +56,24 @@
             {% if es_admin %}<td class="fw-semibold">{{ t.usuario_nombre }}</td>{% endif %}
             <td class="small">{{ t.apertura }}</td>
             <td class="small text-muted">{{ t.cierre or '—' }}</td>
-            <td class="text-end">$ {{ "%.2f"|format(t.monto_inicial) }}</td>
+            <td class="text-end">$ {{ t.monto_inicial|moneda }}</td>
             <td class="text-end">
               {% if t.monto_esperado_cierre is not none %}
-              $ {{ "%.2f"|format(t.monto_esperado_cierre) }}
+              $ {{ t.monto_esperado_cierre|moneda }}
               {% else %}—{% endif %}
             </td>
             <td class="text-end">
               {% if t.monto_declarado_cierre is not none %}
-              $ {{ "%.2f"|format(t.monto_declarado_cierre) }}
+              $ {{ t.monto_declarado_cierre|moneda }}
               {% else %}—{% endif %}
             </td>
             <td class="text-center fw-semibold">
               {% if t.monto_declarado_cierre is not none and t.monto_esperado_cierre is not none %}
                 {% set dif = t.monto_declarado_cierre - t.monto_esperado_cierre %}
                 {% if dif > 0.01 %}
-                <span class="text-success">+$ {{ "%.2f"|format(dif) }}</span>
+                <span class="text-success">+$ {{ dif|moneda }}</span>
                 {% elif dif < -0.01 %}
-                <span class="text-danger">−$ {{ "%.2f"|format(dif|abs) }}</span>
+                <span class="text-danger">−$ {{ dif|abs|moneda }}</span>
                 {% else %}
                 <span class="text-muted">OK</span>
                 {% endif %}

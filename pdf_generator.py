@@ -5,6 +5,15 @@ from fpdf import FPDF  # fpdf2 >= 2.8
 from fpdf.enums import RenderStyle as _RS, Corner as _Cor
 import config_manager
 
+
+def _ar(value, decimals=2):
+    """Formato monetario argentino: punto miles, coma decimal."""
+    try:
+        s = f"{float(value):,.{decimals}f}"
+        return s.replace(",", "X").replace(".", ",").replace("X", ".")
+    except (ValueError, TypeError):
+        return str(value)
+
 # Alias de corners para uso interno (la API de fpdf2 2.8.x usa nombres
 # que corresponden a la posición VISUAL inversa al eje x)
 _C_ALL  = (_Cor.TOP_RIGHT, _Cor.TOP_LEFT, _Cor.BOTTOM_RIGHT, _Cor.BOTTOM_LEFT)
@@ -427,13 +436,13 @@ def _draw_items_table(pdf, items, show_iva_col=False):
 
         pdf.set_xy(cx, vc); pdf.cell(widths[1], LINE_H, f"{qty:g}", align="C", ln=False)
         cx += widths[1]
-        pdf.set_xy(cx, vc); pdf.cell(widths[2], LINE_H, f"$ {price:,.2f}", align="R", ln=False)
+        pdf.set_xy(cx, vc); pdf.cell(widths[2], LINE_H, "$ " + _ar(price), align="R", ln=False)
         cx += widths[2]
         if show_iva_col:
             iva_pct = item.get("iva_pct", 0)
             pdf.set_xy(cx, vc); pdf.cell(widths[3], LINE_H, f"{iva_pct:.0f}%", align="C", ln=False)
             cx += widths[3]
-        pdf.set_xy(cx, vc); pdf.cell(widths[-1], LINE_H, f"$ {sub:,.2f}", align="R", ln=False)
+        pdf.set_xy(cx, vc); pdf.cell(widths[-1], LINE_H, "$ " + _ar(sub), align="R", ln=False)
 
         # Separador de fila
         pdf.set_draw_color(*_LINE)
@@ -474,10 +483,10 @@ def _draw_totals_and_notes(pdf, sub, iva_amount, otros, total, tax_pct,
     # Caja de totales (borde _LINE, redondeada)
     tx = _LX + _NOTES_W + _SUM_GAP
     rows_data = [
-        ("Subtotal",              f"$ {sub:,.2f}",        False),
-        (f"IVA {tax_pct:.0f}%",  f"$ {iva_amount:,.2f}", False),
-        ("Otros tributos",        f"$ {otros:,.2f}",      False),
-        ("Total",                 f"$ {total:,.2f}",       True),
+        ("Subtotal",              "$ " + _ar(sub),        False),
+        (f"IVA {tax_pct:.0f}%",  "$ " + _ar(iva_amount), False),
+        ("Otros tributos",        "$ " + _ar(otros),      False),
+        ("Total",                 "$ " + _ar(total),       True),
     ]
 
     pdf.set_fill_color(*_WHITE)

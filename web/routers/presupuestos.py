@@ -4,7 +4,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import RedirectResponse, FileResponse
-from fastapi.templating import Jinja2Templates
 from typing import Annotated
 
 import database as db
@@ -12,9 +11,9 @@ import pdf_generator as pdf_gen
 import config_manager
 import email_sender
 from web.auth import require_auth
+from web.templates_config import templates, _moneda
 
 router = APIRouter()
-templates = Jinja2Templates(directory=os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates"))
 
 Auth = Annotated[str, Depends(require_auth)]
 
@@ -206,7 +205,7 @@ async def presupuesto_enviar_email(request: Request, pres_id: int, user: Auth):
                 f"Estimado/a {pres['client_name']},\n\n"
                 f"Adjuntamos el presupuesto solicitado.\n\n"
                 f"Número: {pres['number']}\n"
-                f"Total: $ {pres['total']:,.2f}\n"
+                f"Total: $ {_moneda(pres['total'])}\n"
                 f"Válido hasta: {pres['valid_until']}\n\n"
                 f"Muchas gracias.\n{cfg.get('empresa_nombre', '')}"
             ),

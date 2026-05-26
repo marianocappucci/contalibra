@@ -86,7 +86,7 @@
 <div class="alert alert-success d-flex align-items-center justify-content-between mb-3">
   <div>
     <i class="bi bi-check-circle-fill me-2"></i>
-    <strong>Cobrada</strong> el {{ cobro.fecha }} — $ {{ "{:,.2f}".format(cobro.monto) }}
+    <strong>Cobrada</strong> el {{ cobro.fecha }} — $ {{ cobro.monto|moneda }}
     {% if cobro.referencia %}<span class="text-muted small ms-1">({{ cobro.referencia }})</span>{% endif %}
   </div>
   <a href="/caja" class="btn btn-sm btn-outline-success">Ver en caja</a>
@@ -166,6 +166,9 @@
           <dt class="col-sm-4">Número</dt><dd class="col-sm-8 font-monospace">{{ pv }}-{{ num }}</dd>
           <dt class="col-sm-4">Fecha</dt><dd class="col-sm-8">{{ factura.fecha }}</dd>
           <dt class="col-sm-4">Concepto</dt><dd class="col-sm-8">{{ concepto_label }}</dd>
+          {% if factura.condicion_venta %}
+          <dt class="col-sm-4">Cond. de venta</dt><dd class="col-sm-8">{{ factura.condicion_venta }}</dd>
+          {% endif %}
           {% if factura_original %}
           <dt class="col-sm-4">Cbte. anulado</dt>
           <dd class="col-sm-8">
@@ -201,8 +204,8 @@
               <tr>
                 <td>{{ item.description }}</td>
                 <td class="text-end">{{ item.qty }}</td>
-                <td class="text-end">$ {{ "{:,.2f}".format(item.unit_price) }}</td>
-                <td class="text-end">$ {{ "{:,.2f}".format(item.subtotal) }}</td>
+                <td class="text-end">$ {{ item.unit_price|moneda }}</td>
+                <td class="text-end">$ {{ item.subtotal|moneda }}</td>
               </tr>
               {% endfor %}
             </tbody>
@@ -211,16 +214,16 @@
               {% set pct = (factura.iva_amount / factura.subtotal * 100)|round|int if factura.subtotal > 0 else 21 %}
               <tr>
                 <td colspan="3" class="text-end">Subtotal</td>
-                <td class="text-end">$ {{ "{:,.2f}".format(factura.subtotal) }}</td>
+                <td class="text-end">$ {{ factura.subtotal|moneda }}</td>
               </tr>
               <tr>
                 <td colspan="3" class="text-end">IVA {{ pct }}%</td>
-                <td class="text-end">$ {{ "{:,.2f}".format(factura.iva_amount) }}</td>
+                <td class="text-end">$ {{ factura.iva_amount|moneda }}</td>
               </tr>
               {% endif %}
               <tr class="fs-5">
                 <td colspan="3" class="text-end fw-bold">TOTAL</td>
-                <td class="text-end fw-bold text-primary">$ {{ "{:,.2f}".format(factura.total) }}</td>
+                <td class="text-end fw-bold text-primary">$ {{ factura.total|moneda }}</td>
               </tr>
             </tfoot>
           </table>
@@ -245,6 +248,10 @@
       <i class="bi bi-file-minus me-1"></i>Nota de Crédito
     </a>
     {% endif %}
+    <form method="post" action="/facturas/{{ factura.id }}/duplicar"
+          onsubmit="return confirm('¿Duplicar este comprobante? Se creará uno nuevo con la misma información, fecha de hoy y número correlativo.')">
+      <button class="btn btn-outline-secondary"><i class="bi bi-copy me-1"></i>Duplicar</button>
+    </form>
     <form method="post" action="/facturas/{{ factura.id }}/eliminar"
           onsubmit="return confirm('¿Eliminar esta factura? Esta acción no se puede deshacer.')">
       <button class="btn btn-outline-danger"><i class="bi bi-trash me-1"></i>Eliminar</button>

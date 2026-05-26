@@ -1,16 +1,13 @@
 from typing import Annotated
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import RedirectResponse
-from fastapi.templating import Jinja2Templates
 import os
 import database as db
 from web.auth import require_admin
+from web.templates_config import templates
 
 router = APIRouter()
 Auth = Annotated[dict, Depends(require_admin)]
-
-TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "..", "templates")
-templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 _PLANES = ["basico", "estandar", "premium"]
 

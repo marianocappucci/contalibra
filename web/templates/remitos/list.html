@@ -36,7 +36,7 @@
             <td><span class="font-monospace small">{{ r.number }}</span></td>
             <td>{{ r.date }}</td>
             <td>{{ r.client_name }}</td>
-            <td class="text-end fw-semibold">$ {{ "{:,.2f}".format(r.total) }}</td>
+            <td class="text-end fw-semibold">$ {{ r.total|moneda }}</td>
             <td class="text-end">
               <a href="/remitos/{{ r.id }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i></a>
               <a href="/remitos/{{ r.id }}/pdf" class="btn btn-sm btn-outline-primary" target="_blank"><i class="bi bi-file-pdf"></i></a>

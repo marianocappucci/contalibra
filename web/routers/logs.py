@@ -5,15 +5,14 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from typing import Annotated
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import StreamingResponse
-from fastapi.templating import Jinja2Templates
 import csv
 import io
 
 import database as db
 from web.auth import require_admin
+from web.templates_config import templates
 
 router = APIRouter()
-templates = Jinja2Templates(directory=os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates"))
 Auth = Annotated[dict, Depends(require_admin)]
 
 PAGE_SIZE = 100

@@ -17,7 +17,7 @@
     Estás por generar una <strong>{{ nota_tipo_label }}</strong>
     {% if es_nc %}que anula{% else %}asociada a{% endif %}
     el comprobante <strong>{{ tipo_label }} {{ pv }}-{{ num }}</strong>
-    ({{ factura.cliente_razon }}) por <strong>$ {{ "{:,.2f}".format(factura.total) }}</strong>.
+    ({{ factura.cliente_razon }}) por <strong>$ {{ factura.total|moneda }}</strong>.
     <br>Esta acción <strong>no se puede deshacer</strong> y enviará el comprobante a ARCA para su autorización.
   </div>
 </div>
@@ -36,7 +36,7 @@
       <dd class="col-sm-7 font-monospace">{{ tipo_label }} {{ pv }}-{{ num }}</dd>
       <dt class="col-sm-5">Importe</dt>
       <dd class="col-sm-7 fw-semibold {% if es_nc %}text-danger{% else %}text-primary{% endif %}">
-        {% if es_nc %}-{% endif %}$ {{ "{:,.2f}".format(factura.total) }}
+        {% if es_nc %}-{% endif %}$ {{ factura.total|moneda }}
       </dd>
     </dl>
   </div>

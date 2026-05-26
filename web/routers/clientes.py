@@ -4,14 +4,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import RedirectResponse
-from fastapi.templating import Jinja2Templates
 from typing import Annotated
 
 import database as db
 from web.auth import require_auth
+from web.templates_config import templates
 
 router = APIRouter()
-templates = Jinja2Templates(directory=os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates"))
 
 Auth = Annotated[str, Depends(require_auth)]
 
@@ -58,6 +57,23 @@ async def cliente_nuevo_post(request: Request, user: Auth):
         str(form.get("iva_condition", "")).strip(),
     )
     return RedirectResponse("/clientes", status_code=303)
+
+
+@router.get("/clientes/{cliente_id}")
+def cliente_detail(request: Request, cliente_id: int, user: Auth):
+    cliente = db.get_client(cliente_id)
+    if not cliente:
+        raise HTTPException(404)
+    facturas    = db.get_facturas_by_client(cliente.get("cuit_dni") or "", cliente.get("name") or "")
+    presupuestos = db.get_presupuestos_by_client(cliente_id)
+    remitos     = db.get_remitos_by_client(cliente_id)
+    return templates.TemplateResponse(request, "clientes/detail.html", {
+        "cliente": cliente,
+        "facturas": facturas,
+        "presupuestos": presupuestos,
+        "remitos": remitos,
+        "active": "clientes",
+    })
 
 
 @router.get("/clientes/{cliente_id}/editar")

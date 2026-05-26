@@ -15,7 +15,7 @@
         <div class="d-flex align-items-start justify-content-between">
           <div>
             <p class="text-muted small mb-1">Facturado este mes</p>
-            <h3 class="fw-bold mb-0 text-primary">$ {{ "{:,.0f}".format(facturado_mes) }}</h3>
+            <h3 class="fw-bold mb-0 text-primary">$ {{ facturado_mes|moneda0 }}</h3>
             <p class="text-muted small mt-1 mb-0">{{ cant_facturas_mes }} factura{% if cant_facturas_mes != 1 %}s{% endif %}</p>
           </div>
           <span class="bg-primary bg-opacity-10 text-primary rounded-3 p-2 fs-4">
@@ -31,7 +31,7 @@
         <div class="d-flex align-items-start justify-content-between">
           <div>
             <p class="text-muted small mb-1">Cobrado este mes</p>
-            <h3 class="fw-bold mb-0 text-success">$ {{ "{:,.0f}".format(cobrado_mes) }}</h3>
+            <h3 class="fw-bold mb-0 text-success">$ {{ cobrado_mes|moneda0 }}</h3>
             <p class="text-muted small mt-1 mb-0">Ingresos en caja</p>
           </div>
           <span class="bg-success bg-opacity-10 text-success rounded-3 p-2 fs-4">
@@ -47,7 +47,7 @@
         <div class="d-flex align-items-start justify-content-between">
           <div>
             <p class="text-muted small mb-1">Egresos este mes</p>
-            <h3 class="fw-bold mb-0 text-danger">$ {{ "{:,.0f}".format(egresos_mes) }}</h3>
+            <h3 class="fw-bold mb-0 text-danger">$ {{ egresos_mes|moneda0 }}</h3>
             <p class="text-muted small mt-1 mb-0">Gastos en caja</p>
           </div>
           <span class="bg-danger bg-opacity-10 text-danger rounded-3 p-2 fs-4">
@@ -64,7 +64,7 @@
           <div>
             <p class="text-muted small mb-1">Saldo total en caja</p>
             <h3 class="fw-bold mb-0 {% if saldo_total >= 0 %}text-success{% else %}text-danger{% endif %}">
-              $ {{ "{:,.0f}".format(saldo_total) }}
+              $ {{ saldo_total|moneda0 }}
             </h3>
             <p class="text-muted small mt-1 mb-0">Histórico acumulado</p>
           </div>
@@ -133,7 +133,7 @@
               </td>
               <td class="small text-muted">{{ f.fecha }}</td>
               <td class="small">{{ f.cliente_razon }}</td>
-              <td class="text-end fw-semibold">$ {{ "{:,.0f}".format(f.total) }}</td>
+              <td class="text-end fw-semibold">$ {{ f.total|moneda0 }}</td>
               <td>
                 <a href="/facturas/{{ f.id }}" class="btn btn-sm btn-outline-primary py-0">Ver</a>
               </td>
@@ -174,7 +174,7 @@
             <tr>
               <td class="font-monospace small">{{ p.number }}</td>
               <td class="small">{{ p.client_name }}</td>
-              <td class="text-end fw-semibold">$ {{ "{:,.0f}".format(p.total) }}</td>
+              <td class="text-end fw-semibold">$ {{ p.total|moneda0 }}</td>
               <td>
                 <a href="/presupuestos/{{ p.id }}" class="btn btn-sm btn-outline-primary py-0">Ver</a>
               </td>
@@ -220,7 +220,7 @@
               <td class="small">{{ m.concepto }}</td>
               <td class="small text-muted font-monospace">{{ m.referencia or '' }}</td>
               <td class="text-end fw-semibold {% if m.tipo == 'ingreso' %}text-success{% else %}text-danger{% endif %}">
-                {% if m.tipo == 'ingreso' %}+{% else %}−{% endif %} $ {{ "{:,.0f}".format(m.monto) }}
+                {% if m.tipo == 'ingreso' %}+{% else %}−{% endif %} $ {{ m.monto|moneda0 }}
               </td>
             </tr>
             {% endfor %}

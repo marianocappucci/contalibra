@@ -180,7 +180,7 @@ function agregarFila(nombre='', qty=1, precio=0, productoId='') {
       <input type="number" name="item_precio" class="form-control form-control-sm text-end item-precio"
              value="${precio}" min="0" step="0.01" required oninput="calcSubtotal(this)">
     </td>
-    <td class="text-end fw-semibold item-sub">$ ${parseFloat(sub).toFixed(2)}</td>
+    <td class="text-end fw-semibold item-sub">${fmt(parseFloat(sub))}</td>
     <td class="text-end">
       <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove(); calcTotales()">
         <i class="bi bi-x"></i>
@@ -194,7 +194,7 @@ function calcSubtotal(el) {
   const tr = el.closest('tr');
   const qty   = parseFloat(tr.querySelector('.item-qty').value) || 0;
   const price = parseFloat(tr.querySelector('.item-precio').value) || 0;
-  tr.querySelector('.item-sub').textContent = '$ ' + (qty * price).toFixed(2);
+  tr.querySelector('.item-sub').textContent = fmt(qty * price);
   calcTotales();
 }
 
@@ -225,8 +225,8 @@ function calcPagado() {
   const msg = document.getElementById('diferencia-msg');
   if (Math.abs(dif) > 0.01) {
     divAlert.style.display = '';
-    if (dif > 0) msg.textContent = `Falta cubrir $ ${dif.toFixed(2)}`;
-    else msg.textContent = `Vuelto: $ ${Math.abs(dif).toFixed(2)}`;
+    if (dif > 0) msg.textContent = 'Falta cubrir ' + fmt(dif);
+    else msg.textContent = 'Vuelto: ' + fmt(Math.abs(dif));
   } else {
     divAlert.style.display = 'none';
   }
@@ -269,7 +269,7 @@ buscador.addEventListener('input', () => {
       const a = document.createElement('a');
       a.href = '#';
       a.className = 'list-group-item list-group-item-action py-1 px-3 small';
-      a.innerHTML = `<strong>${p.nombre}</strong> <span class="text-muted ms-2">$ ${p.precio_venta.toFixed(2)} / ${p.unidad}</span>`;
+      a.innerHTML = `<strong>${p.nombre}</strong> <span class="text-muted ms-2">${fmt(p.precio_venta)} / ${p.unidad}</span>`;
       a.addEventListener('click', e => {
         e.preventDefault();
         agregarFila(p.nombre, 1, p.precio_venta, p.id);

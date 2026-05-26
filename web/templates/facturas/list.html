@@ -111,7 +111,7 @@
             </td>
             {% endif %}
             <td class="text-end fw-semibold {% if vista == 'nc' %}text-danger{% elif vista == 'nd' %}text-primary{% endif %}">
-              {% if vista == 'nc' %}-{% elif vista == 'nd' %}+{% endif %}$ {{ "{:,.2f}".format(f.total) }}
+              {% if vista == 'nc' %}-{% elif vista == 'nd' %}+{% endif %}$ {{ f.total|moneda }}
             </td>
             <td>
               {% if f.cae %}
@@ -131,7 +131,7 @@
             <td class="text-end">
               {% if vista in ('facturas', 'sin_cobrar') and f.cae and not f.cobrada %}
               <form method="post" action="/facturas/{{ f.id }}/cobrar?next=/facturas?vista={{ vista }}" class="d-inline"
-                    onsubmit="return confirm('¿Registrar cobro de ${{ '{:,.2f}'.format(f.total) }} para {{ f.cliente_razon }}?')">
+                    onsubmit="return confirm('¿Registrar cobro de ${{ f.total|moneda }} para {{ f.cliente_razon }}?')">
                 <button class="btn btn-sm btn-success" title="Registrar cobro"><i class="bi bi-cash-coin"></i></button>
               </form>
               {% endif %}

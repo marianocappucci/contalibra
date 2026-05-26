@@ -9,7 +9,6 @@ from typing import Annotated
 
 from fastapi import APIRouter, Request, Depends, Form
 from fastapi.responses import RedirectResponse
-from fastapi.templating import Jinja2Templates
 
 import database as db
 import config_manager
@@ -19,12 +18,10 @@ import arca_wsfe
 import pdf_generator as pdf_gen
 import email_sender
 from web.auth import require_auth
+from web.templates_config import templates
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-templates = Jinja2Templates(
-    directory=os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
-)
 Auth = Annotated[str, Depends(require_auth)]
 
 _TIPO_POR_CONDICION = {
@@ -244,6 +241,16 @@ async def mp_sincronizar(request: Request, _: Auth,
     hasta  = datetime.date.today().isoformat()
     desde  = (datetime.date.today() - datetime.timedelta(days=max(1, min(dias, 90)))).isoformat()
 
+    # Obtener nuestro user_id y email para filtrar ingresos y descartar datos propios
+    mi_user_id = None
+    mi_email   = ""
+    try:
+        info = await mp_api.obtener_usuario_info(access_token)
+        mi_user_id = str(info.get("id", ""))
+        mi_email   = (info.get("email") or "").strip().lower()
+    except Exception:
+        pass
+
     try:
         movimientos = await mp_api.obtener_movimientos(access_token, desde, hasta)
     except Exception as e:
@@ -251,64 +258,61 @@ async def mp_sincronizar(request: Request, _: Auth,
         return RedirectResponse("/integraciones/mp/bandeja?error=sync_error", status_code=303)
 
     nuevos = 0
-    for mov in movimientos:
-        mov_id = str(mov.get("id", "")).strip()
-        if not mov_id:
+    for pago in movimientos:
+        payment_id = str(pago.get("id", "")).strip()
+        if not payment_id:
             continue
 
-        # Saltar si ya está registrado
-        if db.get_mp_movimiento_by_mp_id(mov_id):
+        # Solo ingresos: el cobrador debe ser nuestra cuenta
+        if mi_user_id and str(pago.get("collector_id", "")) != str(mi_user_id):
             continue
 
-        # Solo ingresos (montos positivos)
-        monto = float(mov.get("net_amount") or mov.get("amount") or 0)
+        # Saltar ventas presenciales con QR
+        ext_ref = (pago.get("external_reference") or "").strip()
+        if ext_ref.startswith("venta-"):
+            continue
+
+        # Saltar si ya fue procesado por webhook
+        if db.get_mp_pago(payment_id):
+            continue
+
+        # Saltar si ya fue sincronizado antes
+        if db.get_mp_movimiento_by_mp_id(payment_id):
+            continue
+
+        monto = float(pago.get("transaction_amount") or 0)
         if monto <= 0:
             continue
 
-        # Saltar si ya existe en mp_pagos (pago webhook, no transferencia)
-        ref = mov.get("reference") or {}
-        ref_id = str(ref.get("id", "")) if isinstance(ref, dict) else str(ref or "")
-        if ref_id and db.get_mp_pago(ref_id):
-            continue
-
-        # Extraer datos del origen
-        origin      = mov.get("origin") or {}
-        if not isinstance(origin, dict):
-            origin = {}
-
-        origen_nombre = (origin.get("holder_name") or "").strip()
-        origen_banco  = (
-            origin.get("bank_name") or
-            origin.get("institution_name") or
-            origin.get("entity_name") or ""
-        ).strip()
-        origen_cbu = (
-            origin.get("account_number") or
-            origin.get("reference") or
-            origin.get("cbu") or ""
-        ).strip()
-
-        payer_id_type   = (origin.get("identification_type") or "").strip()
-        payer_id_number = (origin.get("identification_number") or "").strip()
-
-        fecha_mov = (
-            mov.get("date") or
-            mov.get("date_created") or
+        payer  = pago.get("payer") or {}
+        ident  = payer.get("identification") or {}
+        first  = (payer.get("first_name") or "").strip()
+        last   = (payer.get("last_name") or "").strip()
+        raw_email = (payer.get("email") or "").strip()
+        # MP a veces rellena el payer con datos propios en transferencias entrantes
+        payer_email_val = "" if raw_email.lower() == mi_email else raw_email
+        origen_nombre   = f"{first} {last}".strip() or (payer_email_val or "")
+        payer_id_type   = (ident.get("type") or "").strip()
+        payer_id_number = (ident.get("number") or "").strip()
+        origen_banco    = (pago.get("payment_method_id") or "").strip()
+        tipo            = (pago.get("payment_type_id") or "").strip()
+        descripcion     = (pago.get("description") or "").strip()
+        fecha_mov       = (
+            pago.get("date_approved") or pago.get("date_created") or
             datetime.date.today().isoformat()
         )[:10]
 
-        tipo      = mov.get("action") or mov.get("type") or ""
-        descripcion = mov.get("description") or ""
-
         db.create_mp_movimiento(
-            mp_movement_id=mov_id,
+            mp_movement_id=payment_id,
             tipo=tipo,
             monto=monto,
             fecha=fecha_mov,
             descripcion=descripcion,
             origen_nombre=origen_nombre,
             origen_banco=origen_banco,
-            origen_cbu=origen_cbu,
+            origen_cbu="",
+            payer_email=payer_email_val,
+            payer_name=origen_nombre,
             payer_id_type=payer_id_type,
             payer_id_number=payer_id_number,
             estado_factura="pendiente",

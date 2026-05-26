@@ -6,15 +6,18 @@ MP_API_BASE = "https://api.mercadopago.com"
 
 async def obtener_movimientos(access_token: str, begin_date: str, end_date: str) -> list:
     """
-    Consulta movimientos de cuenta (transferencias entrantes desde bancos/billeteras).
+    Busca pagos aprobados en el rango de fechas via /v1/payments/search.
+    Se usa para detectar cobros que no llegaron (o se perdieron) por webhook.
     begin_date y end_date en formato YYYY-MM-DD (horario Argentina UTC-3).
-    Devuelve lista de movimientos, paginando automáticamente.
     """
-    url = f"{MP_API_BASE}/v1/account/movements"
+    url = f"{MP_API_BASE}/v1/payments/search"
     headers = {"Authorization": f"Bearer {access_token}"}
     params = {
+        "sort":       "date_created",
+        "criteria":   "desc",
         "begin_date": f"{begin_date}T00:00:00.000-03:00",
         "end_date":   f"{end_date}T23:59:59.999-03:00",
+        "status":     "approved",
         "limit":      50,
         "offset":     0,
     }
@@ -32,6 +35,17 @@ async def obtener_movimientos(access_token: str, begin_date: str, end_date: str)
                 break
             params["offset"] += len(results)
     return all_results
+
+
+async def obtener_usuario_info(access_token: str) -> dict:
+    """Devuelve el dict de /users/me (incluye id, email, nickname, etc.)."""
+    async with httpx.AsyncClient(timeout=10) as client:
+        r = await client.get(
+            f"{MP_API_BASE}/users/me",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        r.raise_for_status()
+        return r.json()
 
 
 async def obtener_pago(payment_id: str, access_token: str) -> dict:

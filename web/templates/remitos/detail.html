@@ -69,23 +69,23 @@
               <tr>
                 <td>{{ item.description }}</td>
                 <td class="text-end">{{ item.qty }}</td>
-                <td class="text-end">$ {{ "{:,.2f}".format(item.unit_price) }}</td>
-                <td class="text-end">$ {{ "{:,.2f}".format(item.subtotal) }}</td>
+                <td class="text-end">$ {{ item.unit_price|moneda }}</td>
+                <td class="text-end">$ {{ item.subtotal|moneda }}</td>
               </tr>
               {% endfor %}
             </tbody>
             <tfoot class="table-light fw-semibold">
               <tr>
                 <td colspan="3" class="text-end">Subtotal</td>
-                <td class="text-end">$ {{ "{:,.2f}".format(remito.subtotal) }}</td>
+                <td class="text-end">$ {{ remito.subtotal|moneda }}</td>
               </tr>
               <tr>
                 <td colspan="3" class="text-end">IVA {{ (remito.tax_rate * 100)|int }}%</td>
-                <td class="text-end">$ {{ "{:,.2f}".format(remito.tax_amount) }}</td>
+                <td class="text-end">$ {{ remito.tax_amount|moneda }}</td>
               </tr>
               <tr class="fs-5">
                 <td colspan="3" class="text-end fw-bold">TOTAL</td>
-                <td class="text-end fw-bold text-primary">$ {{ "{:,.2f}".format(remito.total) }}</td>
+                <td class="text-end fw-bold text-primary">$ {{ remito.total|moneda }}</td>
               </tr>
             </tfoot>
           </table>

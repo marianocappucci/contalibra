@@ -38,9 +38,9 @@
 <div class="row g-3 mb-4">
   {% set kpis = [
     ("Ventas en período",  resumen.ventas_cantidad, "operaciones", "bi-cart3",        "#0d6efd", "#cfe2ff"),
-    ("Total vendido",      "$" ~ "{:,.2f}".format(resumen.ventas_total), "",  "bi-currency-dollar", "#198754", "#d1e7dd"),
+    ("Total vendido",      "$" ~ resumen.ventas_total|moneda, "",  "bi-currency-dollar", "#198754", "#d1e7dd"),
     ("Facturas emitidas",  resumen.facturas_cantidad, "",            "bi-receipt",      "#6f42c1", "#e8d5ff"),
-    ("Movim. de caja",     "$" ~ "{:,.2f}".format(resumen.caja_saldo), "", "bi-cash-stack",    "#fd7e14", "#ffe5d0"),
+    ("Movim. de caja",     "$" ~ resumen.caja_saldo|moneda, "", "bi-cash-stack",    "#fd7e14", "#ffe5d0"),
   ] %}
   {% for label, val, sub, icon, col, bg in kpis %}
   <div class="col-6 col-md-3">
@@ -81,7 +81,7 @@
           <tr>
             <td>{{ r.periodo }}</td>
             <td class="text-end">{{ r.cantidad }}</td>
-            <td class="text-end fw-semibold">${{ "{:,.2f}".format(r.total) }}</td>
+            <td class="text-end fw-semibold">${{ r.total|moneda }}</td>
           </tr>
           {% endfor %}
           </tbody>
@@ -89,7 +89,7 @@
             <tr>
               <td>Total</td>
               <td class="text-end">{{ ventas_ts | sum(attribute='cantidad') }}</td>
-              <td class="text-end">${{ "{:,.2f}".format(ventas_ts | sum(attribute='total')) }}</td>
+              <td class="text-end">${{ ventas_ts | sum(attribute='total'|moneda) }}</td>
             </tr>
           </tfoot>
         </table>
@@ -127,7 +127,7 @@
             <div class="d-flex justify-content-between mb-1">
               <span><i class="bi {{ _medio_icons.get(m.medio, 'bi-cash') }} me-1"></i>
                 {{ _medio_labels.get(m.medio, m.medio) }}</span>
-              <span class="fw-semibold">${{ "{:,.2f}".format(m.total) }}</span>
+              <span class="fw-semibold">${{ m.total|moneda }}</span>
             </div>
             <div class="progress" style="height:5px">
               <div class="progress-bar bg-success" style="width:{{ pct }}%"></div>
@@ -166,7 +166,7 @@
             <td class="text-muted" style="width:2rem">{{ loop.index }}</td>
             <td>{{ p.nombre or '(sin nombre)' }}</td>
             <td class="text-end">{{ p.cantidad }}</td>
-            <td class="text-end fw-semibold">${{ "{:,.2f}".format(p.total or 0) }}</td>
+            <td class="text-end fw-semibold">${{ p.total or 0|moneda }}</td>
           </tr>
           {% endfor %}
           </tbody>
@@ -195,7 +195,7 @@
             <td>{{ c.tipo | capitalize }}</td>
             <td class="text-end">{{ c.cantidad }}</td>
             <td class="text-end {% if c.tipo == 'ingreso' %}text-success{% else %}text-danger{% endif %} fw-semibold">
-              ${{ "{:,.2f}".format(c.total) }}
+              ${{ c.total|moneda }}
             </td>
           </tr>
           {% endfor %}

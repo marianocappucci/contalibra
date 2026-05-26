@@ -56,6 +56,21 @@
       </div>
     </div>
 
+    <!-- Condición de venta -->
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-header">Condición de venta</div>
+        <div class="card-body">
+          <select class="form-select" name="condicion_venta">
+            <option value="">— Sin especificar —</option>
+            {% for cv in condiciones_venta %}
+            <option value="{{ cv }}" {% if cv == 'Cuenta Corriente' %}selected{% endif %}>{{ cv }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+
     <!-- Fechas de servicio (concepto 2 o 3) -->
     <div class="col-12" id="fechas-servicio" style="display:none">
       <div class="card border-warning">

@@ -39,7 +39,7 @@
           <dd class="col-7">{{ turno.cierre }}</dd>
           {% endif %}
           <dt class="col-5 text-muted">Fondo inicial</dt>
-          <dd class="col-7">$ {{ "%.2f"|format(turno.monto_inicial) }}</dd>
+          <dd class="col-7">$ {{ turno.monto_inicial|moneda }}</dd>
           {% if turno.notas %}
           <dt class="col-5 text-muted">Notas</dt>
           <dd class="col-7">{{ turno.notas }}</dd>
@@ -56,13 +56,13 @@
           {% for medio, total in resumen.pagos_por_medio.items() %}
           <div class="d-flex justify-content-between mb-2">
             <span class="badge bg-light text-dark border">{{ medio_labels.get(medio, medio) }}</span>
-            <span class="fw-semibold">$ {{ "%.2f"|format(total) }}</span>
+            <span class="fw-semibold">$ {{ total|moneda }}</span>
           </div>
           {% endfor %}
           <hr class="my-2">
           <div class="d-flex justify-content-between fw-bold">
             <span>Total</span>
-            <span class="text-primary">$ {{ "%.2f"|format(resumen.total_ventas) }}</span>
+            <span class="text-primary">$ {{ resumen.total_ventas|moneda }}</span>
           </div>
         {% else %}
           <p class="text-muted small mb-0">Sin ventas en este turno.</p>
@@ -78,9 +78,9 @@
         {% set dif = turno.monto_declarado_cierre - turno.monto_esperado_cierre %}
         <dl class="row mb-0 small">
           <dt class="col-7 text-muted">Efectivo esperado</dt>
-          <dd class="col-5 text-end">$ {{ "%.2f"|format(turno.monto_esperado_cierre) }}</dd>
+          <dd class="col-5 text-end">$ {{ turno.monto_esperado_cierre|moneda }}</dd>
           <dt class="col-7 text-muted">Efectivo declarado</dt>
-          <dd class="col-5 text-end fw-semibold">$ {{ "%.2f"|format(turno.monto_declarado_cierre) }}</dd>
+          <dd class="col-5 text-end fw-semibold">$ {{ turno.monto_declarado_cierre|moneda }}</dd>
         </dl>
         <hr class="my-2">
         <div class="d-flex justify-content-between fw-bold
@@ -92,7 +92,7 @@
           </span>
           <span>
             {% if dif > 0.01 %}+{% elif dif < -0.01 %}−{% endif %}
-            $ {{ "%.2f"|format(dif|abs) }}
+            $ {{ dif|abs|moneda }}
           </span>
         </div>
       </div>
@@ -130,7 +130,7 @@
                 </td>
                 <td class="text-muted small">{{ v.fecha }}</td>
                 <td>{{ v.cliente_nombre or '— Consumidor final —' }}</td>
-                <td class="text-end fw-semibold">$ {{ "%.2f"|format(v.total) }}</td>
+                <td class="text-end fw-semibold">$ {{ v.total|moneda }}</td>
                 <td class="text-center">
                   {% if v.estado == 'cobrada' %}
                   <span class="badge" style="background:#d1e7dd;color:#0f5132">Cobrada</span>

@@ -141,7 +141,7 @@
             <td class="small">{{ r.descripcion }}</td>
             <td class="text-end small {% if r.tipo == 'stock' %}text-muted{% else %}fw-semibold{% endif %}">
               {% if r.monto %}
-              {% if r.tipo == 'stock' %}{{ r.monto }}{% else %}$ {{ "%.2f"|format(r.monto) }}{% endif %}
+              {% if r.tipo == 'stock' %}{{ r.monto }}{% else %}$ {{ r.monto|moneda }}{% endif %}
               {% else %}—{% endif %}
             </td>
             <td class="small text-muted">

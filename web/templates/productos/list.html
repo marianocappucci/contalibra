@@ -39,8 +39,8 @@
             <td class="fw-semibold">{{ p.nombre }}</td>
             <td><span class="text-muted small">{{ p.categoria or '—' }}</span></td>
             <td class="text-muted small">{{ p.unidad }}</td>
-            <td class="text-end">$ {{ "%.2f"|format(p.precio_venta) }}</td>
-            <td class="text-end text-muted small">$ {{ "%.2f"|format(p.precio_costo) }}</td>
+            <td class="text-end">$ {{ p.precio_venta|moneda }}</td>
+            <td class="text-end text-muted small">$ {{ p.precio_costo|moneda }}</td>
             <td class="text-center">
               {% if p.activo %}
               <span class="badge" style="background:#d1e7dd;color:#0f5132">Activo</span>

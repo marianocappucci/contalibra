@@ -73,7 +73,7 @@
             <span class="input-group-text">$</span>
             <input type="number" name="precio_venta" class="form-control"
                    step="0.01" min="0"
-                   value="{{ '%.2f'|format(producto.precio_venta) if producto else '0.00' }}">
+                   value="{{ producto.precio_venta|moneda if producto else '0.00' }}">
           </div>
         </div>
         <div class="col-md-6">
@@ -82,7 +82,7 @@
             <span class="input-group-text">$</span>
             <input type="number" name="precio_costo" class="form-control"
                    step="0.01" min="0"
-                   value="{{ '%.2f'|format(producto.precio_costo) if producto else '0.00' }}">
+                   value="{{ producto.precio_costo|moneda if producto else '0.00' }}">
           </div>
         </div>
 

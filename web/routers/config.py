@@ -8,15 +8,14 @@ import sqlite3
 import tempfile
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import RedirectResponse, FileResponse
-from fastapi.templating import Jinja2Templates
 from typing import Annotated
 
 import config_manager
 import database as db
 from web.auth import require_auth
+from web.templates_config import templates
 
 router = APIRouter()
-templates = Jinja2Templates(directory=os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates"))
 
 Auth = Annotated[str, Depends(require_auth)]
 
