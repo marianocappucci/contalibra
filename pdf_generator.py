@@ -21,6 +21,22 @@ _C_TL   = (_Cor.TOP_RIGHT,)                        # solo esquina superior izqui
 _C_BOT  = (_Cor.BOTTOM_RIGHT, _Cor.BOTTOM_LEFT)    # ambas esquinas inferiores visuales
 
 
+def _wrap_text(pdf, txt: str, max_w: float) -> list[str]:
+    """Divide txt en líneas que caben en max_w con la fuente activa."""
+    lines, cur = [], ""
+    for word in txt.split():
+        candidate = (cur + " " + word).strip()
+        if pdf.get_string_width(candidate) <= max_w:
+            cur = candidate
+        else:
+            if cur:
+                lines.append(cur)
+            cur = word
+    if cur:
+        lines.append(cur)
+    return lines or [""]
+
+
 def _rrect(pdf, x, y, w, h, r=None, corners=None, style="DF"):
     """Wrapper limpio para _draw_rounded_rect de fpdf2."""
     _r = r if r is not None else _CR
@@ -409,7 +425,18 @@ def _draw_items_table(pdf, items, show_iva_col=False):
         qty   = item.get("qty", 1)
         price = item.get("unit_price", 0)
         sub   = item.get("subtotal", 0)
-        row_h = LINE_H + (LINE_H if has_detail else 0) + 5
+        desc_w = widths[0] - 4
+
+        # Calcular líneas reales para determinar la altura de la fila
+        pdf.set_font("Helvetica", "B", 8)
+        title_lines = _wrap_text(pdf, title_txt, desc_w)
+        detail_lines: list[str] = []
+        if has_detail:
+            pdf.set_font("Helvetica", "I", 7)
+            detail_lines = _wrap_text(pdf, detail_txt, desc_w)
+
+        n_lines = len(title_lines) + len(detail_lines)
+        row_h   = n_lines * LINE_H + 5
 
         if pdf.get_y() + row_h > pdf.h - 52:
             pdf.add_page()
@@ -417,18 +444,25 @@ def _draw_items_table(pdf, items, show_iva_col=False):
 
         y_row = pdf.get_y()
 
-        # Descripción
-        pdf.set_xy(_LX + 2, y_row + 2)
+        # Descripción (título en negrita, wrap)
         pdf.set_font("Helvetica", "B", 8)
         pdf.set_text_color(*_INK)
-        pdf.cell(widths[0] - 4, LINE_H, title_txt[:70], ln=False)
+        ty = y_row + 2
+        for ln_txt in title_lines:
+            pdf.set_xy(_LX + 2, ty)
+            pdf.cell(desc_w, LINE_H, ln_txt, ln=False)
+            ty += LINE_H
+
+        # Detalle en itálica debajo del título
         if has_detail:
-            pdf.set_xy(_LX + 2, y_row + 2 + LINE_H)
             pdf.set_font("Helvetica", "I", 7)
             pdf.set_text_color(*_MUTED)
-            pdf.cell(widths[0] - 4, LINE_H, detail_txt[:80], ln=False)
+            for ln_txt in detail_lines:
+                pdf.set_xy(_LX + 2, ty)
+                pdf.cell(desc_w, LINE_H, ln_txt, ln=False)
+                ty += LINE_H
 
-        # Celdas numéricas (centradas verticalmente)
+        # Celdas numéricas (centradas verticalmente en la fila)
         vc = y_row + (row_h - LINE_H) / 2
         pdf.set_font("Helvetica", "", 8)
         pdf.set_text_color(*_INK)
