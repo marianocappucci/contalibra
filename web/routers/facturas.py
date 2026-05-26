@@ -328,6 +328,7 @@ async def factura_nueva_post(request: Request, user: Auth):
         else:
             numero = db.get_next_factura_numero(punto_venta, tipo)
 
+        uid = (db.get_usuario_by_username(user) or {}).get("id")
         factura_id = db.create_factura(
             tipo=tipo, punto_venta=punto_venta, numero=numero,
             fecha=fecha_str, cliente_cuit=client_cuit,
@@ -339,6 +340,7 @@ async def factura_nueva_post(request: Request, user: Auth):
             fch_serv_hasta=fch_serv_hasta,
             fch_vto_pago=fch_vto_pago,
             condicion_venta=condicion_venta,
+            usuario_id=uid,
         )
         factura = db.get_factura(factura_id)
 
@@ -521,7 +523,7 @@ def factura_eliminar(factura_id: int, user: Auth):
     return RedirectResponse("/facturas", status_code=303)
 
 
-async def _crear_nota(orig: dict, nuevo_tipo: int, obs_prefijo: str) -> int:
+async def _crear_nota(orig: dict, nuevo_tipo: int, obs_prefijo: str, usuario_id=None) -> int:
     """Helper compartido para crear NC o ND a partir de una factura original."""
     import datetime
     arca_cfg = db.obtener_todas_arca_configs()
@@ -566,6 +568,7 @@ async def _crear_nota(orig: dict, nuevo_tipo: int, obs_prefijo: str) -> int:
         cbte_asoc_tipo=orig["tipo"],
         cbte_asoc_pv=orig["punto_venta"],
         cbte_asoc_nro=orig["numero"],
+        usuario_id=usuario_id,
     )
     nota = db.get_factura(nota_id)
 
@@ -609,7 +612,7 @@ async def nc_crear(factura_id: int, user: Auth):
     nc_tipo = _TIPO_NC.get(orig["tipo"])
     if not nc_tipo:
         raise HTTPException(400, "Tipo de comprobante no admite nota de crédito")
-    nota_id = await _crear_nota(orig, nc_tipo, "Anula")
+    nota_id = await _crear_nota(orig, nc_tipo, "Anula", usuario_id=(db.get_usuario_by_username(user) or {}).get("id"))
     return RedirectResponse(f"/facturas/{nota_id}", status_code=303)
 
 
@@ -638,7 +641,7 @@ async def nd_crear(factura_id: int, user: Auth):
     nd_tipo = _TIPO_ND.get(orig["tipo"])
     if not nd_tipo:
         raise HTTPException(400, "Tipo de comprobante no admite nota de débito")
-    nota_id = await _crear_nota(orig, nd_tipo, "Referencia")
+    nota_id = await _crear_nota(orig, nd_tipo, "Referencia", usuario_id=(db.get_usuario_by_username(user) or {}).get("id"))
     return RedirectResponse(f"/facturas/{nota_id}", status_code=303)
 
 
@@ -689,6 +692,7 @@ async def factura_duplicar(factura_id: int, user: Auth):
         fch_serv_hasta=orig.get("fch_serv_hasta", ""),
         fch_vto_pago=fecha_hoy,
         condicion_venta=orig.get("condicion_venta", ""),
+        usuario_id=(db.get_usuario_by_username(user) or {}).get("id"),
     )
     nueva = db.get_factura(nueva_id)
 
@@ -731,6 +735,7 @@ async def factura_cobrar(request: Request, factura_id: int, user: Auth):
         monto=factura["total"],
         referencia=referencia,
         factura_id=factura_id,
+        usuario_id=(db.get_usuario_by_username(user) or {}).get("id"),
     )
     return RedirectResponse(next_url, status_code=303)
 

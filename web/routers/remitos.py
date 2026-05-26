@@ -83,6 +83,7 @@ async def remito_nuevo_post(request: Request, user: Auth):
         total = round(subtotal + tax_amount, 2)
         number = db.get_next_remito_number()
 
+        uid = (db.get_usuario_by_username(user) or {}).get("id")
         remito_id = db.create_remito(
             number=number, date=date_str,
             client_id=client_id, client_name=client_name,
@@ -91,6 +92,7 @@ async def remito_nuevo_post(request: Request, user: Auth):
             items=items, subtotal=subtotal,
             tax_rate=tax_rate, tax_amount=tax_amount,
             total=total, observations=observations,
+            usuario_id=uid,
         )
         pdf_path = pdf_gen.generate_pdf(db.get_remito(remito_id))
         db.update_remito_pdf_path(remito_id, pdf_path)

@@ -254,6 +254,20 @@ def init_db():
             conn.execute("ALTER TABLE facturas ADD COLUMN cbte_asoc_nro INTEGER DEFAULT 0")
         if "condicion_venta" not in fact_cols:
             conn.execute("ALTER TABLE facturas ADD COLUMN condicion_venta TEXT DEFAULT ''")
+        if "usuario_id" not in fact_cols:
+            conn.execute("ALTER TABLE facturas ADD COLUMN usuario_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL")
+
+        remito_cols = [r[1] for r in conn.execute("PRAGMA table_info(remitos)").fetchall()]
+        if remito_cols and "usuario_id" not in remito_cols:
+            conn.execute("ALTER TABLE remitos ADD COLUMN usuario_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL")
+
+        pres_cols = [r[1] for r in conn.execute("PRAGMA table_info(presupuestos)").fetchall()]
+        if pres_cols and "usuario_id" not in pres_cols:
+            conn.execute("ALTER TABLE presupuestos ADD COLUMN usuario_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL")
+
+        caja_cols = [r[1] for r in conn.execute("PRAGMA table_info(caja_movimientos)").fetchall()]
+        if caja_cols and "usuario_id" not in caja_cols:
+            conn.execute("ALTER TABLE caja_movimientos ADD COLUMN usuario_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL")
 
         prod_cols = [r[1] for r in conn.execute("PRAGMA table_info(productos)").fetchall()]
         if "stock_minimo" not in prod_cols:
@@ -424,18 +438,18 @@ def get_next_remito_number():
 
 def create_remito(number, date, client_id, client_name, client_address, client_cuit,
                   client_email, client_phone, items, subtotal, tax_rate, tax_amount,
-                  total, observations="", pdf_path=""):
+                  total, observations="", pdf_path="", usuario_id=None):
     with get_connection() as conn:
         cur = conn.execute(
             """INSERT INTO remitos
                (number, date, client_id, client_name, client_address, client_cuit,
                 client_email, client_phone, items, subtotal, tax_rate, tax_amount,
-                total, observations, pdf_path)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                total, observations, pdf_path, usuario_id)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 number, date, client_id, client_name, client_address, client_cuit,
                 client_email, client_phone, json.dumps(items, ensure_ascii=False),
-                subtotal, tax_rate, tax_amount, total, observations, pdf_path,
+                subtotal, tax_rate, tax_amount, total, observations, pdf_path, usuario_id,
             ),
         )
         return cur.lastrowid
@@ -510,18 +524,19 @@ def get_next_presupuesto_number():
 
 def create_presupuesto(number, date, valid_until, client_id, client_name, client_address,
                        client_cuit, client_email, client_phone, items, subtotal, tax_rate,
-                       tax_amount, total, observations="", pdf_path="", status="pendiente"):
+                       tax_amount, total, observations="", pdf_path="", status="pendiente",
+                       usuario_id=None):
     with get_connection() as conn:
         cur = conn.execute(
             """INSERT INTO presupuestos
                (number, date, valid_until, status, client_id, client_name, client_address,
                 client_cuit, client_email, client_phone, items, subtotal, tax_rate,
-                tax_amount, total, observations, pdf_path)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                tax_amount, total, observations, pdf_path, usuario_id)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 number, date, valid_until, status, client_id, client_name, client_address,
                 client_cuit, client_email, client_phone, json.dumps(items, ensure_ascii=False),
-                subtotal, tax_rate, tax_amount, total, observations, pdf_path,
+                subtotal, tax_rate, tax_amount, total, observations, pdf_path, usuario_id,
             ),
         )
         return cur.lastrowid
@@ -731,7 +746,7 @@ def create_factura(tipo, punto_venta, numero, fecha, cliente_cuit, cliente_razon
                    concepto=1, cae="", cae_vto="", observaciones="", pdf_path="",
                    cliente_domicilio="", fch_serv_desde="", fch_serv_hasta="",
                    fch_vto_pago="", cbte_asoc_tipo=0, cbte_asoc_pv=0, cbte_asoc_nro=0,
-                   condicion_venta=""):
+                   condicion_venta="", usuario_id=None):
     """Crea una nueva factura electrónica."""
     with get_connection() as conn:
         cur = conn.execute(
@@ -740,13 +755,13 @@ def create_factura(tipo, punto_venta, numero, fecha, cliente_cuit, cliente_razon
                 cliente_iva_cond, items, subtotal, iva_amount, total, concepto,
                 cae, cae_vto, observaciones, pdf_path, cliente_domicilio,
                 fch_serv_desde, fch_serv_hasta, fch_vto_pago,
-                cbte_asoc_tipo, cbte_asoc_pv, cbte_asoc_nro, condicion_venta)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                cbte_asoc_tipo, cbte_asoc_pv, cbte_asoc_nro, condicion_venta, usuario_id)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (tipo, punto_venta, numero, fecha, cliente_cuit, cliente_razon,
              cliente_iva_cond, json.dumps(items, ensure_ascii=False), subtotal,
              iva_amount, total, concepto, cae, cae_vto, observaciones, pdf_path,
              cliente_domicilio, fch_serv_desde, fch_serv_hasta, fch_vto_pago,
-             cbte_asoc_tipo, cbte_asoc_pv, cbte_asoc_nro, condicion_venta),
+             cbte_asoc_tipo, cbte_asoc_pv, cbte_asoc_nro, condicion_venta, usuario_id),
         )
         return cur.lastrowid
 
@@ -913,7 +928,8 @@ def delete_factura(factura_id):
 
 # ── Caja ───────────────────────────────────────────────────────────────────────
 
-def create_caja_movimiento(fecha, tipo, concepto, monto, referencia="", factura_id=None):
+def create_caja_movimiento(fecha, tipo, concepto, monto, referencia="", factura_id=None,
+                           usuario_id=None):
     with get_connection() as conn:
         # Idempotencia: si ya existe un movimiento con la misma referencia, no duplicar
         if referencia:
@@ -923,9 +939,9 @@ def create_caja_movimiento(fecha, tipo, concepto, monto, referencia="", factura_
             if exists:
                 return exists[0]
         cur = conn.execute(
-            """INSERT INTO caja_movimientos (fecha, tipo, concepto, monto, referencia, factura_id)
-               VALUES (?,?,?,?,?,?)""",
-            (fecha, tipo, concepto, float(monto), referencia, factura_id),
+            """INSERT INTO caja_movimientos (fecha, tipo, concepto, monto, referencia, factura_id, usuario_id)
+               VALUES (?,?,?,?,?,?,?)""",
+            (fecha, tipo, concepto, float(monto), referencia, factura_id, usuario_id),
         )
         return cur.lastrowid
 
@@ -1767,11 +1783,12 @@ def get_actividad_log(tipos=None, usuario_id=None, turno_id=None,
             'caja'        AS tipo,
             cm.tipo || ': ' || cm.concepto AS descripcion,
             cm.monto      AS monto,
-            ''            AS usuario,
+            COALESCE(u.nombre, '') AS usuario,
             NULL          AS turno_id,
             cm.id         AS ref_id,
             'caja_movimientos' AS ref_tabla
         FROM caja_movimientos cm
+        LEFT JOIN usuarios u ON u.id = cm.usuario_id
     """)
 
     # — Stock —
@@ -1807,11 +1824,12 @@ def get_actividad_log(tipos=None, usuario_id=None, turno_id=None,
                    THEN ' — ' || f.cliente_razon ELSE '' END
               AS descripcion,
             f.total       AS monto,
-            ''            AS usuario,
+            COALESCE(u.nombre, '') AS usuario,
             NULL          AS turno_id,
             f.id          AS ref_id,
             'facturas'    AS ref_tabla
         FROM facturas f
+        LEFT JOIN usuarios u ON u.id = f.usuario_id
     """)
 
     # — Turnos (apertura y cierre como eventos separados) —
@@ -1842,11 +1860,12 @@ def get_actividad_log(tipos=None, usuario_id=None, turno_id=None,
             'remito'      AS tipo,
             'Remito ' || r.number || ' — ' || r.client_name AS descripcion,
             r.total       AS monto,
-            ''            AS usuario,
+            COALESCE(u.nombre, '') AS usuario,
             NULL          AS turno_id,
             r.id          AS ref_id,
             'remitos'     AS ref_tabla
         FROM remitos r
+        LEFT JOIN usuarios u ON u.id = r.usuario_id
     """)
 
     # — Presupuestos —
@@ -1858,11 +1877,12 @@ def get_actividad_log(tipos=None, usuario_id=None, turno_id=None,
             'Presupuesto ' || p.number || ' — ' || p.client_name ||
               ' (' || p.status || ')' AS descripcion,
             p.total       AS monto,
-            ''            AS usuario,
+            COALESCE(u.nombre, '') AS usuario,
             NULL          AS turno_id,
             p.id          AS ref_id,
             'presupuestos' AS ref_tabla
         FROM presupuestos p
+        LEFT JOIN usuarios u ON u.id = p.usuario_id
     """)
 
     # ── filtros post-UNION ──────────────────────────────────────────────────────

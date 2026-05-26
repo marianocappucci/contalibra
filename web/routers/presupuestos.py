@@ -86,6 +86,7 @@ async def presupuesto_nuevo_post(request: Request, user: Auth):
         total = round(subtotal + tax_amount, 2)
         number = db.get_next_presupuesto_number()
 
+        uid = (db.get_usuario_by_username(user) or {}).get("id")
         pres_id = db.create_presupuesto(
             number=number, date=date_str, valid_until=valid_until,
             client_id=client_id, client_name=client_name,
@@ -94,6 +95,7 @@ async def presupuesto_nuevo_post(request: Request, user: Auth):
             items=items, subtotal=subtotal,
             tax_rate=tax_rate, tax_amount=tax_amount,
             total=total, observations=observations,
+            usuario_id=uid,
         )
         pdf_path = pdf_gen.generate_pdf_presupuesto(db.get_presupuesto(pres_id))
         db.update_presupuesto_pdf_path(pres_id, pdf_path)

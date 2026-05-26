@@ -72,7 +72,8 @@ async def caja_nuevo_post(request: Request, user: Auth):
         if tipo not in ("ingreso", "egreso"):
             raise ValueError("Tipo inválido.")
 
-        db.create_caja_movimiento(fecha, tipo, concepto, monto, referencia, factura_id)
+        uid = (db.get_usuario_by_username(user) or {}).get("id")
+        db.create_caja_movimiento(fecha, tipo, concepto, monto, referencia, factura_id, uid)
 
         # Si viene de una factura, volver a su detalle
         if factura_id:
