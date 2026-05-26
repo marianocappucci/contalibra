@@ -1,6 +1,37 @@
 import httpx
+import datetime
 
 MP_API_BASE = "https://api.mercadopago.com"
+
+
+async def obtener_movimientos(access_token: str, begin_date: str, end_date: str) -> list:
+    """
+    Consulta movimientos de cuenta (transferencias entrantes desde bancos/billeteras).
+    begin_date y end_date en formato YYYY-MM-DD (horario Argentina UTC-3).
+    Devuelve lista de movimientos, paginando automáticamente.
+    """
+    url = f"{MP_API_BASE}/v1/account/movements"
+    headers = {"Authorization": f"Bearer {access_token}"}
+    params = {
+        "begin_date": f"{begin_date}T00:00:00.000-03:00",
+        "end_date":   f"{end_date}T23:59:59.999-03:00",
+        "limit":      50,
+        "offset":     0,
+    }
+    all_results = []
+    max_pages   = 20
+    async with httpx.AsyncClient(timeout=20) as client:
+        for _ in range(max_pages):
+            r = await client.get(url, params=params, headers=headers)
+            r.raise_for_status()
+            data    = r.json()
+            results = data.get("results", [])
+            all_results.extend(results)
+            total = data.get("paging", {}).get("total", 0)
+            if not results or len(all_results) >= total:
+                break
+            params["offset"] += len(results)
+    return all_results
 
 
 async def obtener_pago(payment_id: str, access_token: str) -> dict:

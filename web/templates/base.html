@@ -202,6 +202,19 @@
       </li>
       {% endif %}
 
+      <li><div class="sidebar-section">Integraciones</div></li>
+      <li class="nav-item">
+        <a class="nav-link {% if active == 'mp_bandeja' %}active{% endif %}" href="/integraciones/mp/bandeja"
+           style="display:flex;align-items:center;justify-content:space-between">
+          <span><i class="bi bi-credit-card-2-front" style="color:#009ee3"></i>Pagos MercadoPago</span>
+          {% if request.state.mp_pending_count > 0 %}
+          <span class="badge rounded-pill bg-danger" style="font-size:.7rem;min-width:1.4rem">
+            {{ request.state.mp_pending_count }}
+          </span>
+          {% endif %}
+        </a>
+      </li>
+
       <li><div class="sidebar-divider"></div></li>
       <li class="nav-item">
         <a class="nav-link {% if active == 'config' %}active{% endif %}" href="/config">

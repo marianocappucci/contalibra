@@ -22,6 +22,7 @@ from web.auth import (
     SECRET_KEY,
 )
 from web.routers import clientes, remitos, presupuestos, facturas, config as config_router, caja, webhooks, dashboard
+from web.routers import mp_bandeja as mp_bandeja_router
 from web.routers import usuarios as usuarios_router
 from web.routers import modulos as modulos_router
 from web.routers import productos as productos_router
@@ -39,6 +40,8 @@ _BYPASS_PATHS = {"/suspendido", "/login", "/logout", "/favicon.ico"}
 
 class CurrentUserMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        if request.url.path.startswith("/static"):
+            return await call_next(request)
         username = get_current_user(request)
         request.state.current_user = db.get_usuario_by_username(username) if username else None
         try:
@@ -55,6 +58,10 @@ class CurrentUserMiddleware(BaseHTTPMiddleware):
             request.state.modulos = {m for m, on in mods.items() if on}
         except Exception:
             request.state.modulos = set()
+        try:
+            request.state.mp_pending_count = db.get_mp_pending_count()
+        except Exception:
+            request.state.mp_pending_count = 0
 
         # Corte de servicio: redirigir todo excepto rutas de bypass y archivos estáticos
         estado = request.state.servicio_estado
@@ -101,6 +108,7 @@ app.include_router(stock_router.router)
 app.include_router(turnos_router.router)
 app.include_router(logs_router.router)
 app.include_router(reportes_router.router)
+app.include_router(mp_bandeja_router.router)
 
 
 @app.on_event("startup")
