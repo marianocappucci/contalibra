@@ -203,7 +203,7 @@
               {% for item in factura['items'] %}
               <tr>
                 <td>{{ item.description }}</td>
-                <td class="text-end">{{ item.qty }}</td>
+                <td class="text-end">{{ item.qty|entero }}</td>
                 <td class="text-end">$ {{ item.unit_price|moneda }}</td>
                 <td class="text-end">$ {{ item.subtotal|moneda }}</td>
               </tr>

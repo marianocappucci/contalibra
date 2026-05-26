@@ -82,7 +82,7 @@
             </td>
             <td class="text-center fw-semibold
               {% if m.cantidad > 0 %}text-success{% else %}text-danger{% endif %}">
-              {% if m.cantidad > 0 %}+{% endif %}{{ m.cantidad }}
+              {% if m.cantidad > 0 %}+{% endif %}{{ m.cantidad|entero }}
             </td>
             <td class="text-muted small">{{ m.referencia or '—' }}</td>
           </tr>

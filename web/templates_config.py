@@ -12,6 +12,14 @@ def _moneda(value, decimals=2):
         return str(value)
 
 
+def _entero(value):
+    try:
+        return str(int(round(float(value))))
+    except (ValueError, TypeError):
+        return str(value)
+
+
 templates = Jinja2Templates(directory=_TEMPLATES_DIR)
 templates.env.filters["moneda"]  = lambda v: _moneda(v, 2)
 templates.env.filters["moneda0"] = lambda v: _moneda(v, 0)
+templates.env.filters["entero"]  = _entero

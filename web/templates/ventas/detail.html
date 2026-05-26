@@ -39,7 +39,7 @@
             {% for it in venta['items'] %}
             <tr>
               <td>{{ it.nombre }}</td>
-              <td class="text-center">{{ it.qty }}</td>
+              <td class="text-center">{{ it.qty|entero }}</td>
               <td class="text-end">$ {{ it.precio|moneda }}</td>
               <td class="text-end fw-semibold">$ {{ it.subtotal|moneda }}</td>
             </tr>

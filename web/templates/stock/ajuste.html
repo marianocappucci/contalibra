@@ -23,13 +23,13 @@
         <div class="d-flex gap-3 mt-3">
           <div class="text-center">
             <div class="fs-2 fw-bold {% if stock_actual <= 0 %}text-danger{% elif stock_actual <= producto.stock_minimo and producto.stock_minimo > 0 %}text-warning{% else %}text-success{% endif %}">
-              {{ stock_actual }}
+              {{ stock_actual|entero }}
             </div>
             <div class="text-muted small">Stock actual ({{ producto.unidad }})</div>
           </div>
           {% if producto.stock_minimo > 0 %}
           <div class="text-center">
-            <div class="fs-2 fw-bold text-muted">{{ producto.stock_minimo }}</div>
+            <div class="fs-2 fw-bold text-muted">{{ producto.stock_minimo|entero }}</div>
             <div class="text-muted small">Mínimo</div>
           </div>
           {% endif %}

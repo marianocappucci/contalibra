@@ -15,7 +15,7 @@
   <div>
     <strong>{{ alertas|length }} producto{{ 's' if alertas|length > 1 else '' }} con stock bajo mínimo:</strong>
     {% for a in alertas %}
-    <span class="badge bg-warning text-dark ms-1">{{ a.nombre }} ({{ a.stock_actual }} {{ a.unidad }})</span>
+    <span class="badge bg-warning text-dark ms-1">{{ a.nombre }} ({{ a.stock_actual|entero }} {{ a.unidad }})</span>
     {% endfor %}
   </div>
 </div>
@@ -48,12 +48,12 @@
             </td>
             <td><span class="text-muted small">{{ p.categoria or '—' }}</span></td>
             <td class="text-center text-muted small">{{ p.unidad }}</td>
-            <td class="text-center text-muted">{{ p.stock_minimo if p.stock_minimo > 0 else '—' }}</td>
+            <td class="text-center text-muted">{{ p.stock_minimo|entero if p.stock_minimo > 0 else '—' }}</td>
             <td class="text-center fw-bold fs-5
               {% if critico %}text-danger
               {% elif bajo %}text-warning
               {% else %}text-success{% endif %}">
-              {{ p.stock_actual }}
+              {{ p.stock_actual|entero }}
             </td>
             <td class="text-center">
               {% if critico %}
