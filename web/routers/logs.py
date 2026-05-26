@@ -56,6 +56,8 @@ def logs_get(request: Request, user: Auth,
     usuarios = db.get_all_usuarios()
     turnos   = db.get_all_turnos(limit=200)
 
+    auth_log = db.get_auth_log(limit=100)
+
     return templates.TemplateResponse(request, "admin/logs.html", {
         "actividad":   actividad,
         "tipo_meta":   TIPO_META,
@@ -70,6 +72,7 @@ def logs_get(request: Request, user: Auth,
         "total":       total,
         "usuarios":    usuarios,
         "turnos":      turnos,
+        "auth_log":    auth_log,
         "active":      "logs",
     })
 

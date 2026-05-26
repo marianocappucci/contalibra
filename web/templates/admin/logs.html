@@ -197,6 +197,57 @@
 </div>
 {% endif %}
 
+<!-- Accesos de usuarios -->
+<div class="card mt-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-shield-lock me-1"></i>Accesos de usuarios</span>
+    <span class="text-muted small">Últimos 100 eventos</span>
+  </div>
+  {% if auth_log %}
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle mb-0" style="font-size:.88rem">
+        <thead class="table-light">
+          <tr>
+            <th>Fecha y hora</th>
+            <th>Evento</th>
+            <th>Usuario</th>
+            <th>IP</th>
+            <th>Detalle</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in auth_log %}
+          <tr>
+            <td class="text-muted font-monospace" style="white-space:nowrap">{{ e.ts }}</td>
+            <td>
+              {% if e.evento == 'login' %}
+              <span class="badge bg-success"><i class="bi bi-box-arrow-in-right me-1"></i>Login</span>
+              {% elif e.evento == 'logout' %}
+              <span class="badge bg-secondary"><i class="bi bi-box-arrow-right me-1"></i>Logout</span>
+              {% elif e.evento == 'login_fallido' %}
+              <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Intento fallido</span>
+              {% else %}
+              <span class="badge bg-light text-dark border">{{ e.evento }}</span>
+              {% endif %}
+            </td>
+            <td class="fw-semibold">{{ e.username }}</td>
+            <td class="text-muted font-monospace small">{{ e.ip or '—' }}</td>
+            <td class="text-muted small">{{ e.detalle or '' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% else %}
+  <div class="card-body text-center text-muted py-4">
+    <i class="bi bi-shield-check fs-2 d-block mb-2 opacity-25"></i>
+    Aún no hay eventos de acceso registrados.
+  </div>
+  {% endif %}
+</div>
+
 <script>
 // Sincronizar checkboxes → input hidden antes de submit
 document.getElementById('form-filtros').addEventListener('submit', function() {

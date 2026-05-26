@@ -135,17 +135,24 @@ async def login_post(request: Request):
     form = await request.form()
     username = str(form.get("username", ""))
     password = str(form.get("password", ""))
+    ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "")
     if check_credentials(username, password):
+        db.registrar_auth_event("login", username, ip)
         response = RedirectResponse("/dashboard", status_code=303)
         create_session_cookie(response, username)
         return response
+    db.registrar_auth_event("login_fallido", username, ip)
     return templates.TemplateResponse(
         request, "login.html", {"error": "Usuario o contraseña incorrectos"}, status_code=401
     )
 
 
 @app.get("/logout", include_in_schema=False)
-def logout():
+def logout(request: Request):
+    username = get_current_user(request) or ""
+    ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "")
+    if username:
+        db.registrar_auth_event("logout", username, ip)
     response = RedirectResponse("/login", status_code=303)
     clear_session_cookie(response)
     return response

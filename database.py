@@ -280,6 +280,17 @@ def init_db():
         if mp_cols and "payer_id_number" not in mp_cols:
             conn.execute("ALTER TABLE mp_pagos ADD COLUMN payer_id_number TEXT DEFAULT NULL")
 
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS auth_log (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                ts         TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+                evento     TEXT NOT NULL,
+                username   TEXT NOT NULL,
+                ip         TEXT,
+                detalle    TEXT
+            )
+        """)
+
         # Seed de módulos: inserta sólo los que no existen aún
         _MODULOS_DEFAULT = [
             ("clientes",      1, "basico"),
@@ -1894,6 +1905,27 @@ def get_actividad_count(tipos=None, usuario_id=None, turno_id=None,
     rows = get_actividad_log(tipos=tipos, usuario_id=usuario_id, turno_id=turno_id,
                              desde=desde, hasta=hasta, limit=10000, offset=0)
     return len(rows)
+
+
+# ── Log de autenticación ───────────────────────────────────────────────────────
+
+def registrar_auth_event(evento: str, username: str, ip: str = "", detalle: str = ""):
+    """Registra un evento de login, logout o intento fallido."""
+    with get_connection() as conn:
+        conn.execute(
+            "INSERT INTO auth_log (evento, username, ip, detalle) VALUES (?,?,?,?)",
+            (evento, username, ip or "", detalle or ""),
+        )
+        conn.commit()
+
+
+def get_auth_log(limit: int = 200, offset: int = 0) -> list[dict]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT * FROM auth_log ORDER BY id DESC LIMIT ? OFFSET ?",
+            (limit, offset),
+        ).fetchall()
+        return [dict(r) for r in rows]
 
 
 # ── Módulos ────────────────────────────────────────────────────────────────────
