@@ -490,7 +490,7 @@ def _draw_items_table(pdf, items, show_iva_col=False):
 # ── Totales + Notas ───────────────────────────────────────────────────────────
 
 def _draw_totals_and_notes(pdf, sub, iva_amount, otros, total, tax_pct,
-                           observations=None):
+                           observations=None, condicion_venta=None):
     y     = pdf.get_y()
     row_h = 8
     tot_h = row_h * 4
@@ -500,19 +500,18 @@ def _draw_totals_and_notes(pdf, sub, iva_amount, otros, total, tax_pct,
     pdf.set_fill_color(*_ACCENT_SOFT)
     _rrect(pdf, _LX, y, _NOTES_W, box_h, style="F")
 
+    cond_label = f"Condición de venta: {condicion_venta}" if condicion_venta else "Condición de venta: Contado"
+    pdf.set_xy(_LX + 4, y + 5)
+    pdf.set_font("Helvetica", "", 8)
+    pdf.set_text_color(*_ACCENT_DARK)
+    pdf.cell(_NOTES_W - 8, 5, cond_label, ln=True)
     if observations:
-        pdf.set_xy(_LX + 4, y + 5)
+        pdf.set_x(_LX + 4)
         pdf.set_font("Helvetica", "B", 8)
-        pdf.set_text_color(*_ACCENT_DARK)
         pdf.cell(_NOTES_W - 8, 5, "Notas:", ln=True)
         pdf.set_x(_LX + 4)
         pdf.set_font("Helvetica", "", 7.5)
         pdf.multi_cell(_NOTES_W - 8, 4.5, str(observations)[:400])
-    else:
-        pdf.set_xy(_LX + 4, y + 5)
-        pdf.set_font("Helvetica", "", 8)
-        pdf.set_text_color(*_ACCENT_DARK)
-        pdf.cell(_NOTES_W - 8, 5, "Condición de venta: Contado", ln=False)
 
     # Caja de totales (borde _LINE, redondeada)
     tx = _LX + _NOTES_W + _SUM_GAP
@@ -845,6 +844,7 @@ def generate_pdf_factura(factura, output_dir=None):
         pdf.add_page()
 
     _draw_totals_and_notes(pdf, sub, iva, 0, tot, tax_pct,
-                           factura.get("observaciones", ""))
+                           factura.get("observaciones", ""),
+                           condicion_venta=factura.get("condicion_venta", ""))
     pdf.output(filepath)
     return os.path.abspath(filepath)
