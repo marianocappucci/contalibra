@@ -1,0 +1,28 @@
+services:
+  contalibra:
+    build: .
+    container_name: contalibra
+    restart: unless-stopped
+    ports:
+      - "8070:8000"
+    volumes:
+      - ./contalibra.db:/app/contalibra.db
+      - ./config.json:/app/config.json
+      - ./logos:/app/logos
+      - ./arca_certs:/app/arca_certs
+      - ./facturas_pdf:/app/facturas_pdf
+      - ./remitos_pdf:/app/remitos_pdf
+      - ./presupuestos_pdf:/app/presupuestos_pdf
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-contalibra-secret-change-in-production}
+      - ADMIN_USER=${ADMIN_USER:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
+      - ADMIN_NOMBRE=${ADMIN_NOMBRE:-Administrador}
+      - ENV=production
+    networks:
+      - stack-net
+
+networks:
+  stack-net:
+    external: true
+    name: stack_stack-net

@@ -1,5 +1,6 @@
 import os
 from fastapi.templating import Jinja2Templates
+from version import VERSION
 
 _TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
 
@@ -23,3 +24,5 @@ templates = Jinja2Templates(directory=_TEMPLATES_DIR)
 templates.env.filters["moneda"]  = lambda v: _moneda(v, 2)
 templates.env.filters["moneda0"] = lambda v: _moneda(v, 0)
 templates.env.filters["entero"]  = _entero
+templates.env.globals["app_version"] = VERSION
+templates.env.globals["app_env"]     = os.environ.get("ENV", "development")

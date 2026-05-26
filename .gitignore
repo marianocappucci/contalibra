@@ -58,5 +58,8 @@ logos/
 # Datos por cliente (generados por scripts/nuevo_cliente.py)
 clientes/
 
+# Base de datos y config de entorno de desarrollo
+dev-data/
+
 # Config privada de Nginx Proxy Manager (credenciales)
 scripts/.npm_config.json
