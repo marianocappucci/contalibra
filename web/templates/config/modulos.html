@@ -39,13 +39,12 @@
 <div class="card">
   <div class="card-header">Módulos individuales</div>
   <div class="card-body p-0">
-    <table class="table table-hover mb-0">
+    <table class="table table-hover align-middle mb-0">
       <thead>
         <tr>
-          <th style="width:40%">Módulo</th>
+          <th style="width:45%">Módulo</th>
           <th>Plan base</th>
-          <th>Estado</th>
-          <th class="text-end">Acción</th>
+          <th class="text-end">Habilitado</th>
         </tr>
       </thead>
       <tbody>
@@ -53,17 +52,10 @@
         <tr>
           <td class="fw-semibold">{{ m.label }}</td>
           <td><span class="badge bg-secondary">{{ m.plan_label }}</span></td>
-          <td>
-            {% if m.habilitado %}
-            <span class="badge" style="background:#d1e7dd;color:#0f5132"><i class="bi bi-check-circle me-1"></i>Habilitado</span>
-            {% else %}
-            <span class="badge" style="background:#f8d7da;color:#842029"><i class="bi bi-x-circle me-1"></i>Deshabilitado</span>
-            {% endif %}
-          </td>
           <td class="text-end">
-            <form method="post" action="/config/modulos/toggle/{{ m.modulo }}" class="d-inline">
-              <button type="submit" class="btn btn-sm {{ 'btn-outline-danger' if m.habilitado else 'btn-outline-success' }}">
-                {{ 'Deshabilitar' if m.habilitado else 'Habilitar' }}
+            <form method="post" action="/config/modulos/toggle/{{ m.modulo }}">
+              <button type="submit" class="toggle-switch {{ 'on' if m.habilitado }}" title="{{ 'Deshabilitar' if m.habilitado else 'Habilitar' }}">
+                <span class="toggle-knob"></span>
               </button>
             </form>
           </td>

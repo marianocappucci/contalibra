@@ -98,6 +98,33 @@
     @media (max-width: 768px) {
       .sidebar { display: none; }
     }
+    /* ── Toggle switch CSS3 ── */
+    .toggle-switch {
+      display: inline-flex;
+      align-items: center;
+      width: 48px;
+      height: 26px;
+      border-radius: 13px;
+      background: #dee2e6;
+      border: none;
+      padding: 3px;
+      cursor: pointer;
+      transition: background .25s ease;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,.15);
+      vertical-align: middle;
+    }
+    .toggle-switch.on { background: #198754; }
+    .toggle-knob {
+      display: block;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 1px 4px rgba(0,0,0,.25);
+      transition: transform .25s ease;
+      pointer-events: none;
+    }
+    .toggle-switch.on .toggle-knob { transform: translateX(22px); }
   </style>
 </head>
 <body>
