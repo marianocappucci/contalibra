@@ -15,8 +15,9 @@ error() { echo -e "${RED}✗${NC}  $*"; exit 1; }
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
 [ "$BRANCH" = "develop" ] || error "Ejecutar desde la rama 'develop' (actualmente en '$BRANCH')"
 
-# 1. Verificar estado limpio
-git diff-index --quiet HEAD -- || error "Hay cambios sin commitear. Hacé commit o stash antes de deployar."
+# 1. Verificar estado limpio (ignorar archivos WAL de SQLite)
+DIRTY=$(git status --porcelain | grep -v '\.db-shm\|\.db-wal' || true)
+[ -z "$DIRTY" ] || error "Hay cambios sin commitear. Hacé commit o stash antes de deployar."
 
 # 2. Bump de versión (opcional)
 NEW_VERSION="${1:-}"
