@@ -61,5 +61,9 @@ clientes/
 # Base de datos y config de entorno de desarrollo
 dev-data/
 
+# Archivos de journal WAL de SQLite (temporales, no deben versionarse)
+*.db-shm
+*.db-wal
+
 # Config privada de Nginx Proxy Manager (credenciales)
 scripts/.npm_config.json
