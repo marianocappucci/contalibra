@@ -840,8 +840,13 @@ def generate_pdf_factura(factura, output_dir=None):
     else:
         tax_pct = 0
 
-    if pdf.get_y() + 46 > pdf.h - 46:
+    # Anclar totales al pie: siempre arriba del footer, sin importar cuántos ítems haya
+    _TOTALS_SECTION_H = 38   # box 32mm + gap 6mm
+    target_y = pdf.h - 44 - _TOTALS_SECTION_H
+    if pdf.get_y() > target_y:
         pdf.add_page()
+        target_y = pdf.h - 44 - _TOTALS_SECTION_H
+    pdf.set_y(target_y)
 
     _draw_totals_and_notes(pdf, sub, iva, 0, tot, tax_pct,
                            factura.get("observaciones", ""),
