@@ -266,6 +266,10 @@ def init_db():
         if ventas_cols and "mp_payment_id" not in ventas_cols:
             conn.execute("ALTER TABLE ventas ADD COLUMN mp_payment_id TEXT DEFAULT ''")
 
+        client_cols = [r[1] for r in conn.execute("PRAGMA table_info(clients)").fetchall()]
+        if "auto_facturar" not in client_cols:
+            conn.execute("ALTER TABLE clients ADD COLUMN auto_facturar INTEGER NOT NULL DEFAULT 0")
+
         mp_cols = [r[1] for r in conn.execute("PRAGMA table_info(mp_pagos)").fetchall()]
         if mp_cols and "estado_factura" not in mp_cols:
             conn.execute("ALTER TABLE mp_pagos ADD COLUMN estado_factura TEXT DEFAULT NULL")
@@ -357,14 +361,15 @@ def get_facturas_by_client(cuit_dni: str, name: str, limit: int = 100) -> list:
         return result
 
 
-def update_client(client_id, name=None, address=None, cuit_dni=None, email=None, phone=None, iva_condition=None):
+def update_client(client_id, name=None, address=None, cuit_dni=None, email=None,
+                  phone=None, iva_condition=None, auto_facturar=None):
     client = get_client(client_id)
     if not client:
         return
     with get_connection() as conn:
         conn.execute(
-            """UPDATE clients SET name=?, address=?, cuit_dni=?, email=?, phone=?, iva_condition=?
-               WHERE id=?""",
+            """UPDATE clients SET name=?, address=?, cuit_dni=?, email=?, phone=?,
+               iva_condition=?, auto_facturar=? WHERE id=?""",
             (
                 name          if name          is not None else client["name"],
                 address       if address       is not None else client["address"],
@@ -372,9 +377,21 @@ def update_client(client_id, name=None, address=None, cuit_dni=None, email=None,
                 email         if email         is not None else client["email"],
                 phone         if phone         is not None else client["phone"],
                 iva_condition if iva_condition is not None else client.get("iva_condition", ""),
+                int(auto_facturar) if auto_facturar is not None else int(client.get("auto_facturar", 0)),
                 client_id,
             ),
         )
+
+
+def toggle_auto_facturar(client_id: int) -> bool:
+    """Invierte el flag auto_facturar. Devuelve el nuevo valor."""
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE clients SET auto_facturar = 1 - auto_facturar WHERE id=?",
+            (client_id,),
+        )
+        row = conn.execute("SELECT auto_facturar FROM clients WHERE id=?", (client_id,)).fetchone()
+        return bool(row["auto_facturar"]) if row else False
 
 
 def delete_client(client_id):

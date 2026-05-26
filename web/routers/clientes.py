@@ -107,8 +107,18 @@ async def cliente_editar_post(request: Request, cliente_id: int, user: Auth):
         email=str(form.get("email", "")).strip(),
         phone=str(form.get("phone", "")).strip(),
         iva_condition=str(form.get("iva_condition", "")).strip(),
+        auto_facturar=1 if form.get("auto_facturar") else 0,
     )
     return RedirectResponse("/clientes", status_code=303)
+
+
+@router.post("/clientes/{cliente_id}/toggle-auto-facturar")
+def cliente_toggle_auto_facturar(request: Request, cliente_id: int, user: Auth):
+    cliente = db.get_client(cliente_id)
+    if not cliente:
+        raise HTTPException(404)
+    db.toggle_auto_facturar(cliente_id)
+    return RedirectResponse(f"/clientes/{cliente_id}", status_code=303)
 
 
 @router.post("/clientes/{cliente_id}/eliminar")

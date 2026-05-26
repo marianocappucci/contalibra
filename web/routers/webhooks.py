@@ -19,6 +19,7 @@ import email_sender
 import pdf_generator as pdf_gen
 import arca_wsaa
 import arca_wsfe
+import mp_facturacion
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -155,8 +156,30 @@ async def webhook_mercadopago(request: Request):
 
     if status == "approved":
         logger.info(
-            "Pago MP aprobado payment_id=%s monto=%.2f tipo=%s método=%s — pendiente de factura",
+            "Pago MP aprobado payment_id=%s monto=%.2f tipo=%s método=%s",
             payment_id, monto, payment_type, payment_method,
         )
+        # Auto-facturación: si el cliente tiene habilitada la facturación automática
+        client = db.get_client_by_email(payer_email) if payer_email else None
+        if client and client.get("auto_facturar"):
+            try:
+                factura_id, num_str, tipo_lb, _ = await mp_facturacion.generar_factura_mp(
+                    monto=monto,
+                    payer_email=payer_email,
+                    payer_name=payer_name,
+                    referencia=f"MP#{payment_id}",
+                    cfg=config_manager.load(),
+                    concepto_override=descripcion_mp,
+                )
+                db.update_mp_pago_estado(
+                    db.get_mp_pago(payment_id)["id"],
+                    "facturado", factura_id,
+                )
+                logger.info(
+                    "Auto-factura %s %s generada para payment_id=%s cliente=%s",
+                    tipo_lb, num_str, payment_id, client["name"],
+                )
+            except Exception as e:
+                logger.error("Error auto-factura payment_id=%s: %s", payment_id, e)
 
     return JSONResponse({"ok": True, "msg": f"status={status}"}, status_code=200)
