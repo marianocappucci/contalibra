@@ -30,10 +30,12 @@ MEDIO_LABELS = {m["id"]: m["label"] for m in MEDIOS_PAGO}
 
 @router.get("/ventas")
 def ventas_list(request: Request, user: Auth,
-                desde: str = "", hasta: str = "", q: str = ""):
-    ventas = db.get_all_ventas(desde=desde, hasta=hasta, q=q)
+                desde: str = "", hasta: str = "", q: str = "", tab: str = "todas"):
+    if tab not in ("todas", "sin_facturar", "facturadas"):
+        tab = "todas"
+    ventas = db.get_all_ventas(desde=desde, hasta=hasta, q=q, tab=tab)
     return templates.TemplateResponse(request, "ventas/list.html", {
-        "ventas": ventas, "desde": desde, "hasta": hasta, "q": q,
+        "ventas": ventas, "desde": desde, "hasta": hasta, "q": q, "tab": tab,
         "active": "ventas", "medio_labels": MEDIO_LABELS,
     })
 

@@ -1677,7 +1677,7 @@ def add_venta_pago(venta_id: int, medio: str, monto: float, referencia: str = ""
 
 
 def get_all_ventas(desde: str = "", hasta: str = "", q: str = "",
-                   limit: int = 100, offset: int = 0) -> list[dict]:
+                   tab: str = "todas", limit: int = 100, offset: int = 0) -> list[dict]:
     with get_connection() as conn:
         where, params = [], []
         if desde:
@@ -1687,9 +1687,18 @@ def get_all_ventas(desde: str = "", hasta: str = "", q: str = "",
         if q:
             where.append("(v.numero LIKE ? OR v.cliente_nombre LIKE ?)")
             params += [f"%{q}%", f"%{q}%"]
-        sql = """SELECT v.*, GROUP_CONCAT(p.medio || ':' || p.monto, '|') AS pagos_raw
+        if tab == "sin_facturar":
+            where.append("v.factura_id IS NULL AND v.estado != 'anulada'")
+        elif tab == "facturadas":
+            where.append("v.factura_id IS NOT NULL")
+        sql = """SELECT v.*,
+                        GROUP_CONCAT(p.medio || ':' || p.monto, '|') AS pagos_raw,
+                        f.tipo    AS fac_tipo,
+                        f.punto_venta AS fac_pv,
+                        f.numero  AS fac_numero
                  FROM ventas v
-                 LEFT JOIN ventas_pagos p ON p.venta_id = v.id"""
+                 LEFT JOIN ventas_pagos p ON p.venta_id = v.id
+                 LEFT JOIN facturas f ON f.id = v.factura_id"""
         if where:
             sql += " WHERE " + " AND ".join(where)
         sql += " GROUP BY v.id ORDER BY v.fecha DESC, v.id DESC LIMIT ? OFFSET ?"
@@ -1700,6 +1709,12 @@ def get_all_ventas(desde: str = "", hasta: str = "", q: str = "",
         d = dict(r)
         d["items"] = json.loads(d["items"])
         d["pagos"] = _parse_pagos_raw(d.pop("pagos_raw", "") or "")
+        if d.get("fac_tipo") and d.get("fac_numero"):
+            pv  = str(d.get("fac_pv") or 0).zfill(4)
+            num = str(d["fac_numero"]).zfill(8)
+            d["factura_display"] = f"{d['fac_tipo']} {pv}-{num}"
+        else:
+            d["factura_display"] = None
         result.append(d)
     return result
 
