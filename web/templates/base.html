@@ -195,6 +195,14 @@
         <a class="nav-link {% if active == 'productos' %}active{% endif %}" href="/productos">
           <i class="bi bi-box-seam"></i>Productos
         </a>
+        <ul class="nav flex-column ms-3" style="font-size:.85em">
+          <li class="nav-item">
+            <a class="nav-link py-1 {% if active == 'categorias_producto' %}active{% endif %}"
+               href="/config/categorias-producto">
+              <i class="bi bi-tags me-1"></i>Categorías
+            </a>
+          </li>
+        </ul>
       </li>
       {% endif %}
       {% if 'stock' in mods %}
@@ -266,11 +274,6 @@
       <li class="nav-item">
         <a class="nav-link {% if active == 'modulos' %}active{% endif %}" href="/config/modulos">
           <i class="bi bi-puzzle"></i>Módulos
-        </a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link {% if active == 'categorias_producto' %}active{% endif %}" href="/config/categorias-producto">
-          <i class="bi bi-tags"></i>Categorías
         </a>
       </li>
       <li class="nav-item">
