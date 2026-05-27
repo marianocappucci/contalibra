@@ -39,7 +39,7 @@ def productos_buscar(q: str = "", user: Auth = None):
 def producto_nuevo_get(request: Request, user: Auth):
     return templates.TemplateResponse(request, "productos/form.html", {
         "producto": None, "error": None, "active": "productos",
-        "unidades": UNIDADES,
+        "unidades": UNIDADES, "categorias": db.get_categorias_producto(),
     })
 
 
@@ -51,6 +51,7 @@ async def producto_nuevo_post(request: Request, user: Auth):
         return templates.TemplateResponse(request, "productos/form.html", {
             "producto": None, "error": "El nombre es obligatorio.",
             "active": "productos", "unidades": UNIDADES,
+            "categorias": db.get_categorias_producto(),
         }, status_code=422)
     try:
         db.create_producto(
@@ -67,6 +68,7 @@ async def producto_nuevo_post(request: Request, user: Auth):
         return templates.TemplateResponse(request, "productos/form.html", {
             "producto": None, "error": str(e),
             "active": "productos", "unidades": UNIDADES,
+            "categorias": db.get_categorias_producto(),
         }, status_code=422)
     return RedirectResponse("/productos", status_code=303)
 
@@ -78,7 +80,7 @@ def producto_editar_get(request: Request, pid: int, user: Auth):
         raise HTTPException(404)
     return templates.TemplateResponse(request, "productos/form.html", {
         "producto": producto, "error": None, "active": "productos",
-        "unidades": UNIDADES,
+        "unidades": UNIDADES, "categorias": db.get_categorias_producto(),
     })
 
 
@@ -93,6 +95,7 @@ async def producto_editar_post(request: Request, pid: int, user: Auth):
         return templates.TemplateResponse(request, "productos/form.html", {
             "producto": producto, "error": "El nombre es obligatorio.",
             "active": "productos", "unidades": UNIDADES,
+            "categorias": db.get_categorias_producto(),
         }, status_code=422)
     try:
         db.update_producto(
@@ -111,6 +114,7 @@ async def producto_editar_post(request: Request, pid: int, user: Auth):
         return templates.TemplateResponse(request, "productos/form.html", {
             "producto": producto, "error": str(e),
             "active": "productos", "unidades": UNIDADES,
+            "categorias": db.get_categorias_producto(),
         }, status_code=422)
     return RedirectResponse("/productos", status_code=303)
 

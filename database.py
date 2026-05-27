@@ -181,6 +181,11 @@ def init_db():
                 created_at   TEXT DEFAULT (datetime('now'))
             );
 
+            CREATE TABLE IF NOT EXISTS categorias_producto (
+                id     INTEGER PRIMARY KEY AUTOINCREMENT,
+                nombre TEXT NOT NULL UNIQUE
+            );
+
             CREATE TABLE IF NOT EXISTS turnos_caja (
                 id                     INTEGER PRIMARY KEY AUTOINCREMENT,
                 usuario_id             INTEGER NOT NULL REFERENCES usuarios(id),
@@ -1357,6 +1362,25 @@ def ensure_admin_user():
         print(f"[WARN] ADMIN_PASSWORD no configurado. Contraseña generada: {password}")
     create_usuario(username=username, nombre=nombre, email="", password=password, role="admin")
     print(f"[INFO] Usuario admin '{username}' creado.")
+
+
+# ── Categorías de producto ────────────────────────────────────────────────────
+
+def get_categorias_producto() -> list[dict]:
+    with get_connection() as conn:
+        rows = conn.execute("SELECT id, nombre FROM categorias_producto ORDER BY nombre").fetchall()
+    return [dict(r) for r in rows]
+
+
+def create_categoria_producto(nombre: str) -> int:
+    with get_connection() as conn:
+        cur = conn.execute("INSERT INTO categorias_producto (nombre) VALUES (?)", (nombre,))
+        return cur.lastrowid
+
+
+def delete_categoria_producto(cid: int):
+    with get_connection() as conn:
+        conn.execute("DELETE FROM categorias_producto WHERE id=?", (cid,))
 
 
 # ── Productos ─────────────────────────────────────────────────────────────────

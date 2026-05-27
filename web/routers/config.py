@@ -6,7 +6,7 @@ import datetime
 import shutil
 import sqlite3
 import tempfile
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import RedirectResponse, FileResponse
 from typing import Annotated
 
@@ -338,3 +338,29 @@ async def config_restore_db(request: Request, user: Auth):
         "saved": "restore", "restore_error": None,
         "backups": _listar_backups(),
     })
+
+
+@router.get("/config/categorias-producto")
+def categorias_producto_get(request: Request, user: Auth):
+    return templates.TemplateResponse(request, "config/categorias_producto.html", {
+        "categorias": db.get_categorias_producto(),
+        "active": "config",
+    })
+
+
+@router.post("/config/categorias-producto")
+async def categorias_producto_post(request: Request, user: Auth):
+    form = await request.form()
+    nombre = str(form.get("nombre", "")).strip()
+    if nombre:
+        try:
+            db.create_categoria_producto(nombre)
+        except Exception:
+            pass
+    return RedirectResponse("/config/categorias-producto", status_code=303)
+
+
+@router.post("/config/categorias-producto/{cid}/eliminar")
+def categorias_producto_eliminar(cid: int, user: Auth):
+    db.delete_categoria_producto(cid)
+    return RedirectResponse("/config/categorias-producto", status_code=303)

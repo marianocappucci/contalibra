@@ -36,9 +36,23 @@
         </div>
         <div class="col-md-5">
           <label class="form-label fw-semibold">Categoría</label>
-          <input type="text" name="categoria" class="form-control"
-                 value="{{ producto.categoria if producto else '' }}"
-                 placeholder="Ej: Comidas, Bebidas, Limpieza…">
+          {% if categorias %}
+          <select name="categoria" class="form-select">
+            <option value="">— Sin categoría —</option>
+            {% for cat in categorias %}
+            <option value="{{ cat.nombre }}"
+              {% if producto and producto.categoria == cat.nombre %}selected{% endif %}>
+              {{ cat.nombre }}
+            </option>
+            {% endfor %}
+          </select>
+          {% else %}
+          <div class="form-control-plaintext text-muted small">
+            No hay categorías definidas.
+            <a href="/config/categorias-producto" target="_blank">Crear categorías</a>
+          </div>
+          <input type="hidden" name="categoria" value="">
+          {% endif %}
         </div>
         <div class="col-md-3">
           <label class="form-label fw-semibold">Unidad</label>
