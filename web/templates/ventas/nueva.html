@@ -25,10 +25,6 @@
         </div>
       </div>
 
-      <!-- Sugerencias autocomplete -->
-      <div id="sugerencias" class="list-group position-absolute shadow-sm"
-           style="z-index:1000;display:none;max-width:340px;max-height:220px;overflow-y:auto"></div>
-
       <div class="card-body p-0">
         <table class="table table-sm align-middle mb-0" id="tabla-items">
           <thead class="table-light">
@@ -154,6 +150,10 @@
 </div>
 </form>
 
+<!-- Sugerencias autocomplete — fuera del form para que position:fixed funcione correctamente -->
+<div id="sugerencias" class="list-group shadow"
+     style="position:fixed;z-index:9999;display:none;max-height:220px;overflow-y:auto"></div>
+
 <script>
 let filaIdx = 0;
 
@@ -278,10 +278,10 @@ buscador.addEventListener('input', () => {
       });
       sugs.appendChild(a);
     });
-    // Posicionar bajo el buscador
+    // Posicionar bajo el buscador (fixed = coordenadas relativas al viewport)
     const rect = buscador.getBoundingClientRect();
-    sugs.style.top  = (rect.bottom + window.scrollY) + 'px';
-    sugs.style.left = (rect.left + window.scrollX) + 'px';
+    sugs.style.top   = rect.bottom + 'px';
+    sugs.style.left  = rect.left + 'px';
     sugs.style.width = rect.width + 'px';
     sugs.style.display = '';
   }, 250);
