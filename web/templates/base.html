@@ -204,6 +204,13 @@
         </a>
       </li>
       {% endif %}
+      {% if 'depositos' in mods %}
+      <li class="nav-item">
+        <a class="nav-link {% if active == 'depositos' %}active{% endif %}" href="/depositos">
+          <i class="bi bi-building"></i>Depósitos
+        </a>
+      </li>
+      {% endif %}
       {% endif %}
 
       {% if 'caja' in mods %}
