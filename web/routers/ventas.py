@@ -18,11 +18,12 @@ router = APIRouter()
 Auth = Annotated[str, Depends(require_auth)]
 
 MEDIOS_PAGO = [
-    {"id": "efectivo",      "label": "Efectivo",        "icon": "bi-cash"},
-    {"id": "transferencia", "label": "Transferencia",   "icon": "bi-bank"},
-    {"id": "mercadopago",   "label": "Mercado Pago",    "icon": "bi-phone"},
-    {"id": "cuenta_dni",    "label": "Cuenta DNI",      "icon": "bi-person-vcard"},
-    {"id": "billetera",     "label": "Otras billeteras","icon": "bi-wallet2"},
+    {"id": "efectivo",         "label": "Efectivo",         "icon": "bi-cash"},
+    {"id": "transferencia",    "label": "Transferencia",    "icon": "bi-bank"},
+    {"id": "mercadopago",      "label": "Mercado Pago",     "icon": "bi-phone"},
+    {"id": "cuenta_dni",       "label": "Cuenta DNI",       "icon": "bi-person-vcard"},
+    {"id": "billetera",        "label": "Otras billeteras", "icon": "bi-wallet2"},
+    {"id": "cuenta_corriente", "label": "Cuenta corriente", "icon": "bi-journal-text"},
 ]
 
 MEDIO_LABELS = {m["id"]: m["label"] for m in MEDIOS_PAGO}

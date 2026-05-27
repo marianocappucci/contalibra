@@ -116,7 +116,7 @@
                      class="form-control monto-pago" step="0.01" min="0"
                      placeholder="Monto" oninput="calcPagado()">
             </div>
-            {% if m.id in ['transferencia', 'mercadopago', 'cuenta_dni', 'billetera'] %}
+            {% if m.id in ['transferencia', 'mercadopago', 'cuenta_dni', 'billetera', 'cuenta_corriente'] %}
             <input type="text" name="ref_{{ m.id }}" class="form-control form-control-sm"
                    placeholder="Referencia / N° operación (opcional)">
             {% endif %}
