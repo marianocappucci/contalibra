@@ -91,6 +91,8 @@
             <td class="text-center">
               {% if v.estado == 'cobrada' %}
               <span class="badge" style="background:#d1e7dd;color:#0f5132">Cobrada</span>
+              {% elif v.estado == 'parcial' %}
+              <span class="badge" style="background:#fff3cd;color:#664d03">Pago parcial</span>
               {% elif v.estado == 'anulada' %}
               <span class="badge" style="background:#f8d7da;color:#842029">Anulada</span>
               {% else %}

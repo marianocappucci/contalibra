@@ -129,13 +129,19 @@ async def venta_nueva_post(request: Request, user: Auth):
     usuario_id = usuario["id"] if usuario else None
 
     numero = db.get_next_venta_numero()
+    if total_pagado >= total:
+        estado = "cobrada"
+    elif total_pagado > 0:
+        estado = "parcial"
+    else:
+        estado = "pendiente"
 
     # — guardar —
     venta_id = db.create_venta(
         numero=numero, fecha=fecha, items=items,
         subtotal=subtotal, descuento=descuento, total=total,
         cliente_id=cliente_id, cliente_nombre=cliente_nombre,
-        usuario_id=usuario_id, observaciones=obs,
+        usuario_id=usuario_id, observaciones=obs, estado=estado,
     )
     for p in pagos:
         db.add_venta_pago(venta_id, p["medio"], p["monto"], p.get("referencia", ""))

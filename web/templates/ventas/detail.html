@@ -8,6 +8,8 @@
     Venta {{ venta.numero }}
     {% if venta.estado == 'cobrada' %}
     <span class="badge ms-2" style="background:#d1e7dd;color:#0f5132;font-size:.6em;vertical-align:middle">Cobrada</span>
+    {% elif venta.estado == 'parcial' %}
+    <span class="badge ms-2" style="background:#fff3cd;color:#664d03;font-size:.6em;vertical-align:middle">Pago parcial</span>
     {% elif venta.estado == 'anulada' %}
     <span class="badge ms-2" style="background:#f8d7da;color:#842029;font-size:.6em;vertical-align:middle">Anulada</span>
     {% endif %}
@@ -127,7 +129,7 @@
     </div>
 
     <!-- Acciones -->
-    {% if venta.estado == 'cobrada' %}
+    {% if venta.estado in ('cobrada', 'parcial') %}
     <div class="card mb-3">
       <div class="card-header">Acciones</div>
       <div class="card-body d-grid gap-2">

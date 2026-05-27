@@ -1654,16 +1654,16 @@ def get_next_venta_numero() -> str:
 def create_venta(numero: str, fecha: str, items: list, subtotal: float,
                  descuento: float, total: float, cliente_id: int | None,
                  cliente_nombre: str, usuario_id: int | None,
-                 observaciones: str = "") -> int:
+                 observaciones: str = "", estado: str = "cobrada") -> int:
     with get_connection() as conn:
         cur = conn.execute(
             """INSERT INTO ventas
                (numero, fecha, items, subtotal, descuento, total,
-                cliente_id, cliente_nombre, usuario_id, observaciones)
-               VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                cliente_id, cliente_nombre, usuario_id, observaciones, estado)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
             (numero, fecha, json.dumps(items, ensure_ascii=False),
              subtotal, descuento, total,
-             cliente_id, cliente_nombre, usuario_id, observaciones),
+             cliente_id, cliente_nombre, usuario_id, observaciones, estado),
         )
         return cur.lastrowid
 
