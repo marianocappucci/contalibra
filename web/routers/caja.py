@@ -22,16 +22,20 @@ def _periodo_actual():
 
 
 @router.get("/caja")
-def caja_list(request: Request, user: Auth, desde: str = "", hasta: str = ""):
+def caja_list(request: Request, user: Auth,
+              desde: str = "", hasta: str = "", caja_id: int = 0):
     if not desde or not hasta:
         desde, hasta = _periodo_actual()
-    movimientos = db.get_caja_movimientos(desde, hasta)
-    resumen     = db.get_caja_resumen(desde, hasta)
+    _caja_id = caja_id or None
+    movimientos = db.get_caja_movimientos(desde, hasta, caja_id=_caja_id)
+    resumen     = db.get_caja_resumen(desde, hasta, caja_id=_caja_id)
     return templates.TemplateResponse(request, "caja/list.html", {
         "movimientos": movimientos,
         "resumen":     resumen,
         "desde":       desde,
         "hasta":       hasta,
+        "caja_id":     caja_id,
+        "cajas":       db.get_all_cajas(),
         "active":      "caja",
     })
 
@@ -40,6 +44,7 @@ def caja_list(request: Request, user: Auth, desde: str = "", hasta: str = ""):
 def caja_nuevo_get(request: Request, user: Auth,
                    tipo: str = "ingreso", monto: str = "",
                    concepto: str = "", factura_id: str = ""):
+    cajas = db.get_all_cajas()
     return templates.TemplateResponse(request, "caja/form.html", {
         "active":     "caja",
         "error":      None,
@@ -47,6 +52,8 @@ def caja_nuevo_get(request: Request, user: Auth,
         "monto":      monto,
         "concepto":   concepto,
         "factura_id": factura_id,
+        "cajas":      cajas,
+        "medio_labels": db.MEDIOS_PAGO_LABELS,
     })
 
 
@@ -72,8 +79,11 @@ async def caja_nuevo_post(request: Request, user: Auth):
         if tipo not in ("ingreso", "egreso"):
             raise ValueError("Tipo inválido.")
 
+        caja_id    = int(form.get("caja_id") or 0) or None
+        medio_pago = str(form.get("medio_pago", "")).strip()
         uid = (db.get_usuario_by_username(user) or {}).get("id")
-        db.create_caja_movimiento(fecha, tipo, concepto, monto, referencia, factura_id, uid)
+        db.create_caja_movimiento(fecha, tipo, concepto, monto, referencia,
+                                  factura_id, uid, caja_id=caja_id, medio_pago=medio_pago)
 
         # Si viene de una factura, volver a su detalle
         if factura_id:
@@ -83,10 +93,12 @@ async def caja_nuevo_post(request: Request, user: Auth):
     except Exception as e:
         return templates.TemplateResponse(request, "caja/form.html", {
             "active": "caja", "error": str(e),
-            "tipo": form.get("tipo", "ingreso"),
-            "monto": form.get("monto", ""),
-            "concepto": form.get("concepto", ""),
+            "tipo":       form.get("tipo", "ingreso"),
+            "monto":      form.get("monto", ""),
+            "concepto":   form.get("concepto", ""),
             "factura_id": form.get("factura_id", ""),
+            "cajas":      db.get_all_cajas(),
+            "medio_labels": db.MEDIOS_PAGO_LABELS,
         }, status_code=422)
 
 

@@ -32,6 +32,7 @@ from web.routers import turnos as turnos_router
 from web.routers import logs as logs_router
 from web.routers import reportes as reportes_router
 from web.routers import depositos as depositos_router
+from web.routers import cajas as cajas_router
 
 app = FastAPI(title="Contalibra")
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
@@ -111,6 +112,7 @@ app.include_router(logs_router.router)
 app.include_router(reportes_router.router)
 app.include_router(mp_bandeja_router.router)
 app.include_router(depositos_router.router)
+app.include_router(cajas_router.router)
 
 
 @app.on_event("startup")
