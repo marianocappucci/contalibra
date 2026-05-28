@@ -9,9 +9,17 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 import datetime
 import io
+import json
+import base64
 from fpdf import FPDF
 
 import config_manager
+
+try:
+    import qrcode as _qrlib
+    _HAS_QR = True
+except ImportError:
+    _HAS_QR = False
 
 
 def _ar(value, decimals=2):
@@ -112,12 +120,16 @@ def _empresa_header(pdf: _TicketPDF, cfg: dict, logo: bool):
             pdf.image(logo_path, x=(pdf._ancho - logo_w) / 2, w=logo_w)
             pdf.ln(1)
 
+    iva_cond = cfg.get("empresa_iva_condition", "") or ""
+
     if nombre:
         pdf._centrado(nombre[:40], bold=True)
     if dir_:
         pdf._centrado(dir_[:48])
     if cuit:
         pdf._centrado(f"CUIT: {cuit}")
+    if iva_cond:
+        pdf._centrado(iva_cond[:40])
     if tel:
         pdf._centrado(f"Tel: {tel}")
 
@@ -148,6 +160,55 @@ def _recortar_pdf_a_contenido(pdf: _TicketPDF) -> bytes:
     transform = f"q 1 0 0 1 0 {ty:.3f} cm\n".encode()
     page.contents = bytearray(transform) + page.contents + bytearray(b"\nQ")
     return bytes(pdf.output())
+
+
+# ── QR helpers ────────────────────────────────────────────────────────────────
+
+def _afip_qr_url(factura: dict, empresa_cuit: str) -> str:
+    cuit_rec = (factura.get("cliente_cuit") or "").replace("-", "").strip()
+    tipo_doc = 80 if (len(cuit_rec) == 11 and cuit_rec.isdigit()) else 99
+    nro_doc  = int(cuit_rec) if tipo_doc == 80 else 0
+    cae_s    = (factura.get("cae") or "").strip()
+    cae_int  = int(cae_s) if cae_s.isdigit() else 0
+    cuit_e   = empresa_cuit.replace("-", "").strip()
+    d = {"ver": 1, "fecha": factura.get("fecha", ""),
+         "cuit": int(cuit_e) if cuit_e.isdigit() else 0,
+         "ptoVta": int(factura.get("punto_venta", 1)),
+         "tipoCmp": int(factura.get("tipo", 11)),
+         "nroCmp": int(factura.get("numero", 1)),
+         "importe": round(float(factura.get("total", 0)), 2),
+         "moneda": "PES", "ctz": 1,
+         "tipoDocRec": tipo_doc, "nroDocRec": nro_doc,
+         "tipoCodAut": "E", "codAut": cae_int}
+    enc = base64.b64encode(json.dumps(d, separators=(",", ":")).encode()).decode()
+    return f"https://www.afip.gob.ar/fe/qr/?p={enc}"
+
+
+def _draw_qr_ticket(pdf: _TicketPDF, url: str):
+    if not _HAS_QR:
+        pdf._centrado("[QR ARCA no disponible]")
+        return
+    try:
+        qr = _qrlib.QRCode(version=None,
+                            error_correction=_qrlib.constants.ERROR_CORRECT_M,
+                            box_size=1, border=1)
+        qr.add_data(url)
+        qr.make(fit=True)
+        matrix = qr.get_matrix()
+        n    = len(matrix)
+        size = min(pdf._w, 30)
+        x0   = (pdf._ancho - size) / 2
+        y0   = pdf.get_y()
+        cell = size / n
+        pdf.set_fill_color(0, 0, 0)
+        for ri, row in enumerate(matrix):
+            for ci, dark in enumerate(row):
+                if dark:
+                    pdf.rect(x0 + ci * cell, y0 + ri * cell, cell, cell, style="F")
+        pdf.set_fill_color(255, 255, 255)
+        pdf.set_y(y0 + size + 1)
+    except Exception:
+        pdf._centrado("[QR no disponible]")
 
 
 # ── Ticket de VENTA ────────────────────────────────────────────────────────────
@@ -238,7 +299,6 @@ def generar_ticket_factura(factura: dict) -> bytes:
     pdf._separador()
     items = factura.get("items", [])
     if isinstance(items, str):
-        import json
         items = json.loads(items)
     for it in items:
         nombre = str(it.get("descripcion", it.get("nombre", "")))[:28]
@@ -255,10 +315,32 @@ def generar_ticket_factura(factura: dict) -> bytes:
     total    = float(factura.get("total", 0))
     if iva:
         pdf._row("Neto:", "$" + _ar(subtotal))
-        pdf._row("IVA:", "$" + _ar(iva))
+        # Agrupar IVA por alícuota para mostrar cada tasa por separado
+        iva_por_pct: dict = {}
+        for it in items:
+            pct = float(it.get("iva_pct", 0) or 0)
+            if pct:
+                cant_i  = float(it.get("cantidad", 1))
+                precio_i = float(it.get("precio_unitario", it.get("precio", 0)))
+                neto_i   = cant_i * precio_i / (1 + pct / 100)
+                iva_por_pct[pct] = iva_por_pct.get(pct, 0.0) + neto_i * pct / 100
+        if iva_por_pct:
+            for pct, monto_iva in sorted(iva_por_pct.items()):
+                pdf._row(f"IVA {pct:.0f}%:", "$" + _ar(monto_iva))
+        else:
+            # Fallback: calcular alícuota desde totales si no hay iva_pct en ítems
+            if subtotal > 0:
+                pct_calc = round(iva / subtotal * 100)
+                pdf._row(f"IVA {pct_calc:.0f}%:", "$" + _ar(iva))
+            else:
+                pdf._row("IVA:", "$" + _ar(iva))
     pdf._row("TOTAL:", "$" + _ar(total), bold_der=True)
 
-    # CAE
+    # Condición de venta
+    cond_venta = (factura.get("condicion_venta") or "Contado").strip()
+    pdf._centrado(f"Cond. venta: {cond_venta}")
+
+    # CAE + QR
     cae     = factura.get("cae") or ""
     cae_vto = factura.get("cae_vto") or ""
     if cae:
@@ -266,6 +348,11 @@ def generar_ticket_factura(factura: dict) -> bytes:
         pdf._texto(f"CAE: {cae}")
         if cae_vto:
             pdf._texto(f"Vto CAE: {cae_vto}")
+        empresa_cuit = cfg.get("empresa_cuit", "") or ""
+        if empresa_cuit:
+            pdf.ln(2)
+            _draw_qr_ticket(pdf, _afip_qr_url(factura, empresa_cuit))
+            pdf._centrado("Comprobante autorizado por ARCA")
 
     _pie_ticket(pdf, pie, corte)
     return _recortar_pdf_a_contenido(pdf)

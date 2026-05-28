@@ -25,13 +25,17 @@ def productos_list(request: Request, user: Auth, q: str = ""):
 
 
 @router.get("/productos/buscar")
-def productos_buscar(q: str = "", user: Auth = None):
+def productos_buscar(q: str = "", lista_id: int = 0, user: Auth = None):
     """Endpoint JSON para autocompletar en ventas/facturas."""
     resultados = db.get_all_productos(solo_activos=True, q=q)[:20]
+    precios_lista: dict = db.get_precios_lista_dict(lista_id) if lista_id else {}
     return JSONResponse([{
-        "id": p["id"], "codigo": p["codigo"] or "",
-        "nombre": p["nombre"], "precio_venta": p["precio_venta"],
-        "unidad": p["unidad"],
+        "id":          p["id"],
+        "codigo":      p["codigo"] or "",
+        "nombre":      p["nombre"],
+        "precio_venta": precios_lista.get(p["id"], p["precio_venta"]),
+        "precio_base": p["precio_venta"],
+        "unidad":      p["unidad"],
     } for p in resultados])
 
 

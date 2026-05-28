@@ -83,9 +83,13 @@
       <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
           Ítems
-          <button type="button" class="btn btn-sm btn-outline-primary" id="add-row">
-            <i class="bi bi-plus-lg"></i> Agregar ítem
-          </button>
+          <div class="d-flex gap-2 align-items-center">
+            <input type="text" id="buscador-prod" class="form-control form-control-sm"
+                   placeholder="Buscar producto…" style="width:200px" autocomplete="off">
+            <button type="button" class="btn btn-sm btn-outline-primary" id="add-row">
+              <i class="bi bi-plus-lg me-1"></i>Agregar ítem
+            </button>
+          </div>
         </div>
         <div class="card-body p-0">
           <div class="table-responsive">
@@ -118,10 +122,49 @@
     </div>
   </div>
 </form>
+<div id="sugs-prod" class="list-group shadow"
+     style="position:fixed;z-index:9999;display:none;max-height:220px;overflow-y:auto"></div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+// ── Buscador de productos ──
+(function () {
+  const buscador = document.getElementById('buscador-prod');
+  const sugs     = document.getElementById('sugs-prod');
+  let debT;
+  buscador.addEventListener('input', () => {
+    clearTimeout(debT);
+    const q = buscador.value.trim();
+    if (!q) { sugs.style.display = 'none'; return; }
+    debT = setTimeout(async () => {
+      let data = [];
+      try { const r = await fetch(`/productos/buscar?q=${encodeURIComponent(q)}`); if (r.ok) data = await r.json(); } catch(e) { return; }
+      sugs.innerHTML = '';
+      if (!data.length) { sugs.style.display = 'none'; return; }
+      data.forEach(p => {
+        const a = document.createElement('a');
+        a.href = '#';
+        a.className = 'list-group-item list-group-item-action py-1 px-3 small';
+        a.innerHTML = `<strong>${p.nombre}</strong><span class="text-muted ms-2">${p.unidad}</span>`;
+        a.addEventListener('click', e => { e.preventDefault(); insertar(p); buscador.value = ''; sugs.style.display = 'none'; });
+        sugs.appendChild(a);
+      });
+      const rect = buscador.getBoundingClientRect();
+      sugs.style.top = rect.bottom + 'px'; sugs.style.left = rect.left + 'px';
+      sugs.style.width = Math.max(rect.width, 260) + 'px'; sugs.style.display = '';
+    }, 200);
+  });
+  document.addEventListener('click', e => { if (!sugs.contains(e.target) && e.target !== buscador) sugs.style.display = 'none'; });
+  function insertar(p) {
+    let row = [...document.querySelectorAll('.item-row')].find(r => !r.querySelector('[name="desc[]"]').value.trim());
+    if (!row) { addRow(); const rows = document.querySelectorAll('.item-row'); row = rows[rows.length - 1]; }
+    row.querySelector('[name="desc[]"]').value = p.nombre;
+    row.querySelector('.qty').value            = 1;
+    row.querySelector('[name="desc[]"]').focus();
+  }
+})();
+
 function addRow() {
   const tbody = document.getElementById('items-body');
   const row = tbody.querySelector('.item-row').cloneNode(true);

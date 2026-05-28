@@ -18,11 +18,18 @@ router = APIRouter()
 Auth = Annotated[str, Depends(require_auth)]
 
 
+ESTADOS_VALIDOS = {"borrador", "enviado", "aceptado", "rechazado", "vencido", "facturado"}
+
+
 @router.get("/presupuestos")
-def presupuestos_list(request: Request, user: Auth, q: str = ""):
-    items = db.search_presupuestos(q) if q else db.get_all_presupuestos(200)
+def presupuestos_list(request: Request, user: Auth, q: str = "", estado: str = ""):
+    estado_f = estado if estado in ESTADOS_VALIDOS else None
+    items = (db.search_presupuestos(q, estado_f) if q
+             else db.get_all_presupuestos(200, estado_f))
+    counts = db.get_presupuestos_count_by_estado()
     return templates.TemplateResponse(request, "presupuestos/list.html", {
-        "presupuestos": items, "q": q, "active": "presupuestos",
+        "presupuestos": items, "q": q, "estado": estado_f or "",
+        "counts": counts, "active": "presupuestos",
     })
 
 
@@ -127,12 +134,10 @@ async def presupuesto_estado(request: Request, pres_id: int, user: Auth):
     if not pres:
         raise HTTPException(404)
 
-    if estado == "aceptado":
-        db.update_presupuesto_status(pres_id, "aceptado")
-        if form.get("convertir_remito") == "1":
+    if estado in ESTADOS_VALIDOS:
+        db.update_presupuesto_status(pres_id, estado)
+        if estado == "aceptado" and form.get("convertir_remito") == "1":
             _convertir_a_remito(pres)
-    elif estado == "rechazado":
-        db.update_presupuesto_status(pres_id, "rechazado")
 
     return RedirectResponse(f"/presupuestos/{pres_id}", status_code=303)
 

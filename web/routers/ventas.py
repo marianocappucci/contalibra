@@ -44,9 +44,11 @@ def ventas_list(request: Request, user: Auth,
 @router.get("/ventas/nueva")
 def venta_nueva_get(request: Request, user: Auth):
     clientes = db.get_all_clients()
+    listas   = db.get_all_listas_precio(solo_activas=True)
     return templates.TemplateResponse(request, "ventas/nueva.html", {
         "clientes": clientes, "medios_pago": MEDIOS_PAGO,
         "hoy": date.today().isoformat(), "active": "ventas",
+        "listas_precio": listas,
         "error": None,
     })
 
