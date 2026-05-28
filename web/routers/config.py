@@ -364,3 +364,29 @@ async def categorias_producto_post(request: Request, user: Auth):
 def categorias_producto_eliminar(cid: int, user: Auth):
     db.delete_categoria_producto(cid)
     return RedirectResponse("/config/categorias-producto", status_code=303)
+
+
+@router.get("/config/categorias-egreso")
+def categorias_egreso_get(request: Request, user: Auth):
+    return templates.TemplateResponse(request, "config/categorias_egreso.html", {
+        "categorias": db.get_categorias_egreso(),
+        "active": "config",
+    })
+
+
+@router.post("/config/categorias-egreso")
+async def categorias_egreso_post(request: Request, user: Auth):
+    form = await request.form()
+    nombre = str(form.get("nombre", "")).strip()
+    if nombre:
+        try:
+            db.create_categoria_egreso(nombre)
+        except Exception:
+            pass
+    return RedirectResponse("/config/categorias-egreso", status_code=303)
+
+
+@router.post("/config/categorias-egreso/{cid}/eliminar")
+def categorias_egreso_eliminar(cid: int, user: Auth):
+    db.delete_categoria_egreso(cid)
+    return RedirectResponse("/config/categorias-egreso", status_code=303)

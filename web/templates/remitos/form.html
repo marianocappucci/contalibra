@@ -20,16 +20,15 @@
         <div class="card-body">
           {% if clientes %}
           <div class="mb-3">
-            <label class="form-label">Seleccionar cliente existente</label>
+            <label class="form-label">Seleccionar cliente</label>
             <select class="form-select" id="client-select" name="client_id">
-              <option value="">— Nuevo cliente —</option>
+              <option value="">— Sin cliente —</option>
               {% for c in clientes %}
               <option value="{{ c.id }}"
                 data-address="{{ c.address or '' }}"
                 data-cuit="{{ c.cuit_dni or '' }}"
                 data-email="{{ c.email or '' }}"
-                data-phone="{{ c.phone or '' }}"
-                data-iva="{{ c.iva_condition or '' }}">{{ c.name }}</option>
+                data-phone="{{ c.phone or '' }}">{{ c.name }}</option>
               {% endfor %}
             </select>
           </div>
@@ -44,10 +43,6 @@
               <input type="text" class="form-control" name="client_cuit" id="client_cuit">
             </div>
             <div class="col-md-3">
-              <label class="form-label">Condición IVA</label>
-              <input type="text" class="form-control" name="client_iva" id="client_iva" placeholder="Ej: Responsable Inscripto">
-            </div>
-            <div class="col-md-6">
               <label class="form-label">Domicilio</label>
               <input type="text" class="form-control" name="client_address" id="client_address">
             </div>
@@ -64,7 +59,7 @@
       </div>
     </div>
 
-    <!-- Fecha e IVA -->
+    <!-- Fecha y Observaciones -->
     <div class="col-md-4">
       <div class="card h-100">
         <div class="card-header">Fecha</div>
@@ -74,19 +69,7 @@
         </div>
       </div>
     </div>
-    <div class="col-md-4">
-      <div class="card h-100">
-        <div class="card-header">Tasa de IVA</div>
-        <div class="card-body">
-          <select class="form-select" name="tax_rate" id="tax-rate">
-            <option value="0.21">21%</option>
-            <option value="0.105">10.5%</option>
-            <option value="0.0">0%</option>
-          </select>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-4">
+    <div class="col-md-8">
       <div class="card h-100">
         <div class="card-header">Observaciones</div>
         <div class="card-body">
@@ -110,9 +93,7 @@
               <thead class="table-light">
                 <tr>
                   <th>Descripción</th>
-                  <th style="width:100px">Cantidad</th>
-                  <th style="width:130px">Precio unit.</th>
-                  <th style="width:120px" class="text-end">Subtotal</th>
+                  <th style="width:120px">Cantidad</th>
                   <th style="width:40px"></th>
                 </tr>
               </thead>
@@ -120,28 +101,9 @@
                 <tr class="item-row">
                   <td><input type="text" class="form-control form-control-sm" name="desc[]" required></td>
                   <td><input type="number" class="form-control form-control-sm qty" name="qty[]" min="0.001" step="any" value="1" required></td>
-                  <td><input type="number" class="form-control form-control-sm price" name="price[]" min="0" step="any" required></td>
-                  <td class="text-end subtotal fw-semibold">$ 0,00</td>
                   <td><button type="button" class="btn btn-sm btn-outline-danger remove-row"><i class="bi bi-trash"></i></button></td>
                 </tr>
               </tbody>
-              <tfoot>
-                <tr class="table-light">
-                  <td colspan="3" class="text-end fw-semibold">Subtotal</td>
-                  <td class="text-end" id="footer-subtotal">$ 0,00</td>
-                  <td></td>
-                </tr>
-                <tr class="table-light">
-                  <td colspan="3" class="text-end fw-semibold">IVA (<span id="tax-pct">21</span>%)</td>
-                  <td class="text-end" id="footer-tax">$ 0,00</td>
-                  <td></td>
-                </tr>
-                <tr class="table-light">
-                  <td colspan="3" class="text-end fw-bold fs-5">TOTAL</td>
-                  <td class="text-end fw-bold fs-5 text-primary" id="footer-total">$ 0,00</td>
-                  <td></td>
-                </tr>
-              </tfoot>
             </table>
           </div>
         </div>
@@ -160,65 +122,41 @@
 
 {% block scripts %}
 <script>
-const fmt = n => '$ ' + n.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
-
-function recalc() {
-  let sub = 0;
-  document.querySelectorAll('.item-row').forEach(row => {
-    const qty = parseFloat(row.querySelector('.qty').value) || 0;
-    const price = parseFloat(row.querySelector('.price').value) || 0;
-    const st = Math.round(qty * price * 100) / 100;
-    row.querySelector('.subtotal').textContent = fmt(st);
-    sub += st;
-  });
-  const rate = parseFloat(document.getElementById('tax-rate').value) || 0;
-  const tax = Math.round(sub * rate * 100) / 100;
-  document.getElementById('footer-subtotal').textContent = fmt(sub);
-  document.getElementById('footer-tax').textContent = fmt(tax);
-  document.getElementById('footer-total').textContent = fmt(sub + tax);
-  document.getElementById('tax-pct').textContent = Math.round(rate * 100);
-}
-
 function addRow() {
   const tbody = document.getElementById('items-body');
   const row = tbody.querySelector('.item-row').cloneNode(true);
-  row.querySelectorAll('input').forEach(i => i.value = i.type === 'number' ? (i.classList.contains('qty') ? 1 : '') : '');
-  row.querySelector('.subtotal').textContent = '$ 0,00';
+  row.querySelectorAll('input').forEach(i => {
+    i.value = i.classList.contains('qty') ? 1 : '';
+  });
   tbody.appendChild(row);
   bindRow(row);
 }
 
 function bindRow(row) {
-  row.querySelectorAll('.qty, .price').forEach(i => i.addEventListener('input', recalc));
   row.querySelector('.remove-row').addEventListener('click', () => {
-    if (document.querySelectorAll('.item-row').length > 1) { row.remove(); recalc(); }
+    if (document.querySelectorAll('.item-row').length > 1) row.remove();
   });
 }
 
 document.querySelectorAll('.item-row').forEach(bindRow);
 document.getElementById('add-row').addEventListener('click', addRow);
-document.getElementById('tax-rate').addEventListener('change', recalc);
 
 // Autocompletar datos del cliente
 const sel = document.getElementById('client-select');
 if (sel) {
   sel.addEventListener('change', () => {
     const opt = sel.options[sel.selectedIndex];
-    const fieldsDisabled = opt.value !== '';
+    const locked = opt.value !== '';
     document.getElementById('client_name').value    = opt.value ? opt.text : '';
     document.getElementById('client_address').value = opt.dataset.address || '';
     document.getElementById('client_cuit').value    = opt.dataset.cuit || '';
     document.getElementById('client_email').value   = opt.dataset.email || '';
     document.getElementById('client_phone').value   = opt.dataset.phone || '';
-    document.getElementById('client_iva').value     = opt.dataset.iva || '';
-    document.querySelectorAll('#client-fields input').forEach(i => i.readOnly = fieldsDisabled);
+    document.querySelectorAll('#client-fields input').forEach(i => i.readOnly = locked);
   });
 }
 
-// Fecha de hoy por defecto
 const dateInput = document.querySelector('input[name="date"]');
 if (dateInput && !dateInput.value) dateInput.value = new Date().toISOString().slice(0,10);
-
-recalc();
 </script>
 {% endblock %}

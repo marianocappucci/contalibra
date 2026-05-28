@@ -278,3 +278,39 @@ def venta_ticket(vid: int, user: Auth):
         media_type="application/pdf",
         headers={"Content-Disposition": f'inline; filename="ticket_venta_{vid}.pdf"'},
     )
+
+
+@router.get("/ventas/{vid}/recibo")
+def venta_recibo(vid: int, user: Auth):
+    import pdf_generator as pg
+    venta = db.get_venta(vid)
+    if not venta:
+        raise HTTPException(404)
+    # Adaptar venta al formato que espera generate_pdf_recibo
+    factura_like = {
+        "tipo":            None,
+        "punto_venta":     0,
+        "numero":          venta["id"],
+        "fecha":           venta.get("fecha", ""),
+        "cliente_razon":   venta.get("cliente_nombre") or "Consumidor Final",
+        "cliente_cuit":    venta.get("cliente_cuit", ""),
+        "cliente_domicilio": "",
+        "total":           venta.get("total", 0),
+        "_es_venta":       True,
+        "_venta_numero":   venta.get("numero", venta["id"]),
+    }
+    cobros = [
+        {
+            "fecha":      venta.get("fecha", ""),
+            "medio_pago": p.get("medio", ""),
+            "referencia": p.get("referencia", ""),
+            "monto":      float(p.get("monto", 0)),
+        }
+        for p in venta.get("pagos", [])
+    ]
+    pdf_bytes = pg.generate_pdf_recibo(factura_like, cobros)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="recibo_venta_{vid}.pdf"'},
+    )

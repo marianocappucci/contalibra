@@ -320,6 +320,22 @@ def _draw_header_block(pdf, letra, titulo, codigo, info_fields, empresa):
 
 # ── Cards EMISOR / CLIENTE ────────────────────────────────────────────────────
 
+def _card_field_lines(pdf, val_w, val_str, row_h=6):
+    """Número exacto de líneas que ocupará val_str en multi_cell."""
+    if not val_str:
+        return 0
+    pdf.set_font("Helvetica", "B", 7.5)
+    lines = pdf.multi_cell(val_w, row_h, val_str, split_only=True)
+    return max(1, len(lines))
+
+
+def _measure_card_h(pdf, w, fields, row_h=6):
+    lbl_w = w * 0.42
+    val_w = w - lbl_w - 8
+    total = sum(_card_field_lines(pdf, val_w, str(v), row_h) for _, v in fields if v)
+    return 13 + total * row_h + 4
+
+
 def _draw_card(pdf, x, y, w, h, title, fields):
     pdf.set_fill_color(*_WHITE)
     pdf.set_draw_color(*_LINE)
@@ -339,18 +355,26 @@ def _draw_card(pdf, x, y, w, h, title, fields):
     fy    = y + 13
     row_h = 6
     lbl_w = w * 0.42
+    val_w = w - lbl_w - 8
 
     for lbl, val in fields:
         if not val:
             continue
+        val_str  = str(val)
+        n_lines  = _card_field_lines(pdf, val_w, val_str, row_h)
+        h_row    = n_lines * row_h
+
         pdf.set_xy(x + 4, fy)
         pdf.set_font("Helvetica", "", 7.5)
         pdf.set_text_color(*_MUTED)
-        pdf.cell(lbl_w, row_h, lbl, ln=False)
+        pdf.cell(lbl_w, h_row, lbl, align="L", ln=False)
+
+        pdf.set_xy(x + 4 + lbl_w, fy)
         pdf.set_font("Helvetica", "B", 7.5)
         pdf.set_text_color(*_INK)
-        pdf.cell(w - lbl_w - 8, row_h, str(val or "")[:40], ln=False)
-        fy += row_h
+        pdf.multi_cell(val_w, row_h, val_str, align="L",
+                       new_x="LEFT", new_y="NEXT")
+        fy += h_row
 
 
 def _draw_emisor_cliente(pdf, empresa, client_fields):
@@ -369,12 +393,12 @@ def _draw_emisor_cliente(pdf, empresa, client_fields):
     emisor_fields  = [(l, v) for l, v in emisor_fields if v]
     cliente_fields = [(l, v) for l, v in client_fields if v]
 
-    row_h = 6
-    max_r = max(len(emisor_fields), len(cliente_fields), 1)
-    box_h = 13 + max_r * row_h + 4
+    h_emisor  = _measure_card_h(pdf, _CARD_W, emisor_fields)
+    h_cliente = _measure_card_h(pdf, _CARD_W, cliente_fields)
+    box_h     = max(h_emisor, h_cliente)
 
-    _draw_card(pdf, _LX,                    y, _CARD_W, box_h, "Emisor",  emisor_fields)
-    _draw_card(pdf, _LX + _CARD_W + _CARD_GAP, y, _CARD_W, box_h, "Cliente", cliente_fields)
+    _draw_card(pdf, _LX,                         y, _CARD_W, box_h, "Emisor",  emisor_fields)
+    _draw_card(pdf, _LX + _CARD_W + _CARD_GAP,   y, _CARD_W, box_h, "Cliente", cliente_fields)
 
     pdf.set_text_color(*_INK)
     pdf.set_y(y + box_h + 6)
@@ -382,8 +406,12 @@ def _draw_emisor_cliente(pdf, empresa, client_fields):
 
 # ── Tabla de ítems ────────────────────────────────────────────────────────────
 
-def _draw_items_table(pdf, items, show_iva_col=False):
-    if show_iva_col:
+def _draw_items_table(pdf, items, show_iva_col=False, show_prices=True):
+    if not show_prices:
+        widths  = [154, 20]
+        headers = ["DESCRIPCIÓN", "CANTIDAD"]
+        aligns  = ["L", "C"]
+    elif show_iva_col:
         widths  = [80, 18, 30, 16, 30]
         headers = ["DESCRIPCIÓN", "CANTIDAD", "PRECIO UNIT.", "IVA", "IMPORTE"]
         aligns  = ["L", "C", "R", "C", "R"]
@@ -470,13 +498,14 @@ def _draw_items_table(pdf, items, show_iva_col=False):
 
         pdf.set_xy(cx, vc); pdf.cell(widths[1], LINE_H, f"{qty:g}", align="C", ln=False)
         cx += widths[1]
-        pdf.set_xy(cx, vc); pdf.cell(widths[2], LINE_H, "$ " + _ar(price), align="R", ln=False)
-        cx += widths[2]
-        if show_iva_col:
-            iva_pct = item.get("iva_pct", 0)
-            pdf.set_xy(cx, vc); pdf.cell(widths[3], LINE_H, f"{iva_pct:.0f}%", align="C", ln=False)
-            cx += widths[3]
-        pdf.set_xy(cx, vc); pdf.cell(widths[-1], LINE_H, "$ " + _ar(sub), align="R", ln=False)
+        if show_prices:
+            pdf.set_xy(cx, vc); pdf.cell(widths[2], LINE_H, "$ " + _ar(price), align="R", ln=False)
+            cx += widths[2]
+            if show_iva_col:
+                iva_pct = item.get("iva_pct", 0)
+                pdf.set_xy(cx, vc); pdf.cell(widths[3], LINE_H, f"{iva_pct:.0f}%", align="C", ln=False)
+                cx += widths[3]
+            pdf.set_xy(cx, vc); pdf.cell(widths[-1], LINE_H, "$ " + _ar(sub), align="R", ln=False)
 
         # Separador de fila
         pdf.set_draw_color(*_LINE)
@@ -745,13 +774,22 @@ def generate_pdf(remito, output_dir=None):
         ("Teléfono",  remito.get("client_phone", "")),
     ]
     _draw_emisor_cliente(pdf, emp, client_fields)
-    _draw_items_table(pdf, remito["items"], show_iva_col=False)
-
-    sub = remito.get("subtotal", 0)
-    tax = remito.get("tax_amount", 0)
-    tot = remito.get("total", 0)
-    pct = round(remito.get("tax_rate", 0) * 100)
-    _draw_totals_and_notes(pdf, sub, tax, 0, tot, pct, remito.get("observations", ""))
+    _draw_items_table(pdf, remito["items"], show_prices=False)
+    if remito.get("observations"):
+        obs_w = _RX - _LX
+        pdf.ln(3)
+        y_obs = pdf.get_y()
+        pdf.set_fill_color(*_ACCENT_SOFT)
+        _rrect(pdf, _LX, y_obs, obs_w, 28, style="F")
+        pdf.set_xy(_LX + 4, y_obs + 4)
+        pdf.set_font("Helvetica", "B", 8)
+        pdf.set_text_color(*_ACCENT_DARK)
+        pdf.cell(obs_w - 8, 5, "Observaciones:", ln=True)
+        pdf.set_x(_LX + 4)
+        pdf.set_font("Helvetica", "", 7.5)
+        pdf.set_text_color(*_INK)
+        pdf.multi_cell(obs_w - 8, 4.5, str(remito["observations"])[:400])
+        pdf.ln(2)
     _draw_no_fiscal_notice(pdf)
     pdf.output(filepath)
     return os.path.abspath(filepath)
@@ -853,3 +891,257 @@ def generate_pdf_factura(factura, output_dir=None):
                            condicion_venta=factura.get("condicion_venta", ""))
     pdf.output(filepath)
     return os.path.abspath(filepath)
+
+
+# ── Recibo de pago ────────────────────────────────────────────────────────────
+
+_MEDIOS_LABEL = {
+    "efectivo":      "Efectivo",
+    "transferencia": "Transferencia",
+    "mercadopago":   "MercadoPago",
+    "cuenta_dni":    "Cuenta DNI",
+    "billetera":     "Billetera Virtual",
+    "cheque":        "Cheque",
+    "tarjeta":       "Tarjeta",
+}
+
+
+def generate_pdf_recibo(factura: dict, cobros: list[dict]) -> bytes:
+    """
+    Genera un recibo de pago A4 en memoria y devuelve los bytes del PDF.
+
+    factura – dict con los campos de la factura (tipo, punto_venta, numero,
+              fecha, cliente_razon, cliente_cuit, total, …)
+    cobros  – lista de dicts de caja_movimientos (fecha, medio_pago,
+              referencia, monto)
+    """
+    emp = _empresa()
+    pdf = FPDF(format="A4", unit="mm")
+    pdf.set_auto_page_break(auto=True, margin=20)
+    pdf.add_page()
+
+    lx, rx, cw = _LX, _RX, _CW
+    y0 = 18
+
+    # ── Encabezado empresa ────────────────────────────────────────────────────
+    logo_path = emp.get("logo_path", "")
+    has_logo  = bool(logo_path and os.path.exists(logo_path))
+    logo_sz   = 14
+
+    if has_logo:
+        pdf.image(_prepare_logo(logo_path), x=lx, y=y0, h=logo_sz)
+    else:
+        pdf.set_fill_color(*_ACCENT)
+        _rrect(pdf, lx, y0, logo_sz, logo_sz, r=2.5, style="F")
+        ini = "".join(w[0].upper() for w in emp.get("nombre", "?").split()[:2]) or "?"
+        pdf.set_font("Helvetica", "B", 7)
+        pdf.set_text_color(*_WHITE)
+        pdf.set_xy(lx, y0 + 3.5)
+        pdf.cell(logo_sz, logo_sz - 7, ini[:3], align="C")
+
+    tx = lx + logo_sz + 4
+    tw = 95 - logo_sz - 4
+
+    nombre = emp.get("nombre", "")
+    if nombre:
+        pdf.set_font("Helvetica", "B", 14)
+        pdf.set_text_color(*_INK)
+        pdf.set_xy(tx, y0 + 1)
+        pdf.multi_cell(tw, 6, nombre, align="L", new_x="LEFT", new_y="NEXT")
+
+    pdf.set_font("Helvetica", "", 8)
+    pdf.set_text_color(*_MUTED)
+    details = []
+    if emp.get("cuit"):
+        details.append(f"CUIT: {emp['cuit']}")
+    if emp.get("direccion"):
+        details.append(emp["direccion"])
+    if emp.get("telefono"):
+        details.append(f"Tel: {emp['telefono']}")
+    if details:
+        pdf.set_xy(tx, pdf.get_y() + 1)
+        pdf.multi_cell(tw, 4.5, "  ·  ".join(details), align="L")
+
+    # ── Cuadro RECIBO (derecha) ───────────────────────────────────────────────
+    vx, vy, vw, vh = 125, y0, 67, 32
+    pdf.set_fill_color(*_INK)
+    _rrect(pdf, vx, vy, vw, vh, style="F")
+
+    pdf.set_font("Helvetica", "B", 18)
+    pdf.set_text_color(*_WHITE)
+    pdf.set_xy(vx, vy + 4)
+    pdf.cell(vw, 10, "RECIBO", align="C")
+
+    es_venta    = factura.get("_es_venta", False)
+    fecha_fac   = _fmt_fecha((factura.get("fecha") or "")[:10])
+    if es_venta:
+        ref_line = f"Venta N° {factura.get('_venta_numero', factura.get('numero', ''))}"
+        concepto_doc = "Venta"
+    else:
+        pv  = str(factura.get("punto_venta", 0)).zfill(4)
+        num = str(factura.get("numero", 0)).zfill(8)
+        tipo_nombre = _TIPO_NOMBRE_DOC.get(int(factura.get("tipo", 11)), "Comprobante")
+        ref_line = f"De: {tipo_nombre} {pv}-{num}"
+        concepto_doc = tipo_nombre
+
+    pdf.set_font("Helvetica", "", 7.5)
+    pdf.set_xy(vx, vy + 15)
+    pdf.cell(vw, 5, ref_line, align="C")
+    pdf.set_xy(vx, vy + 20)
+    pdf.cell(vw, 5, f"Emisión: {fecha_fac}", align="C")
+
+    sep_y = max(pdf.get_y(), y0 + logo_sz) + 6
+
+    # ── Línea separadora ──────────────────────────────────────────────────────
+    pdf.set_draw_color(*_LINE)
+    pdf.set_line_width(0.4)
+    pdf.line(lx, sep_y, rx, sep_y)
+    sep_y += 5
+
+    # ── Recibido de ───────────────────────────────────────────────────────────
+    pdf.set_font("Helvetica", "B", 7)
+    pdf.set_text_color(*_ACCENT)
+    pdf.set_xy(lx, sep_y)
+    pdf.cell(cw, 5, "RECIBIDO DE", ln=True)
+
+    pdf.set_draw_color(*_LINE)
+    pdf.set_line_width(0.2)
+    pdf.line(lx, sep_y + 5, rx, sep_y + 5)
+
+    fy = sep_y + 7
+    row_h = 6
+    lbl_w = 42
+
+    def _field(lbl, val):
+        nonlocal fy
+        if not val:
+            return
+        pdf.set_xy(lx, fy)
+        pdf.set_font("Helvetica", "", 7.5)
+        pdf.set_text_color(*_MUTED)
+        pdf.cell(lbl_w, row_h, lbl)
+        pdf.set_font("Helvetica", "B", 7.5)
+        pdf.set_text_color(*_INK)
+        val_w = cw - lbl_w
+        lines = pdf.multi_cell(val_w, row_h, str(val), split_only=True)
+        n = max(1, len(lines))
+        pdf.set_xy(lx + lbl_w, fy)
+        pdf.multi_cell(val_w, row_h, str(val), align="L", new_x="LEFT", new_y="NEXT")
+        fy += n * row_h
+
+    _field("Razón social", factura.get("cliente_razon") or "Consumidor Final")
+    _field("CUIT / DNI",   factura.get("cliente_cuit") or "")
+    _field("Domicilio",    factura.get("cliente_domicilio") or "")
+
+    fy += 4
+
+    # ── Monto destacado ───────────────────────────────────────────────────────
+    total_cobrado = sum(float(c.get("monto", 0)) for c in cobros)
+    pdf.set_fill_color(*_ACCENT_SOFT)
+    _rrect(pdf, lx, fy, cw, 16, r=3, style="F")
+
+    pdf.set_font("Helvetica", "", 8.5)
+    pdf.set_text_color(*_ACCENT_DARK)
+    pdf.set_xy(lx + 4, fy + 3)
+    pdf.cell(60, 6, "LA SUMA DE:")
+
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.set_text_color(*_ACCENT)
+    pdf.set_xy(lx + 60, fy + 2)
+    pdf.cell(cw - 64, 12, f"$ {_ar(total_cobrado)}", align="R")
+
+    fy += 22
+
+    # ── En concepto de ────────────────────────────────────────────────────────
+    parcial = total_cobrado < float(factura.get("total", 0)) - 0.005
+    concepto = "Pago parcial de" if parcial else "Cancelación de"
+    concepto += f" {ref_line.replace('De: ', '')} del {fecha_fac}"
+
+    pdf.set_font("Helvetica", "", 8)
+    pdf.set_text_color(*_MUTED)
+    pdf.set_xy(lx, fy)
+    pdf.cell(25, 5, "En concepto de:")
+    pdf.set_font("Helvetica", "B", 8)
+    pdf.set_text_color(*_INK)
+    pdf.set_xy(lx + 25, fy)
+    pdf.multi_cell(cw - 25, 5, concepto, align="L")
+    fy = pdf.get_y() + 6
+
+    # ── Detalle de cobros ─────────────────────────────────────────────────────
+    if cobros:
+        pdf.set_font("Helvetica", "B", 7)
+        pdf.set_text_color(*_ACCENT)
+        pdf.set_xy(lx, fy)
+        pdf.cell(cw, 5, "DETALLE DE PAGOS")
+        fy += 5
+
+        pdf.set_draw_color(*_LINE)
+        pdf.set_line_width(0.2)
+        pdf.line(lx, fy, rx, fy)
+        fy += 2
+
+        # Encabezado
+        cols_w = [38, 44, 50, 42]
+        headers = ["FECHA", "MEDIO", "REFERENCIA", "MONTO"]
+        hx = lx
+        pdf.set_font("Helvetica", "B", 6.5)
+        pdf.set_text_color(*_MUTED)
+        for h_txt, w in zip(headers, cols_w):
+            pdf.set_xy(hx, fy)
+            align = "R" if h_txt == "MONTO" else "L"
+            pdf.cell(w, 5, h_txt, align=align)
+            hx += w
+        fy += 5
+        pdf.line(lx, fy, rx, fy)
+        fy += 1
+
+        # Filas
+        pdf.set_font("Helvetica", "", 8)
+        pdf.set_text_color(*_INK)
+        for c in cobros:
+            hx = lx
+            vals = [
+                _fmt_fecha((c.get("fecha") or "")[:10]),
+                _MEDIOS_LABEL.get(c.get("medio_pago", ""), c.get("medio_pago", "") or "-"),
+                c.get("referencia") or "-",
+                f"$ {_ar(float(c.get('monto', 0)))}",
+            ]
+            aligns = ["L", "L", "L", "R"]
+            for val, w, al in zip(vals, cols_w, aligns):
+                pdf.set_xy(hx, fy)
+                pdf.cell(w, 6, str(val), align=al)
+                hx += w
+            fy += 6
+
+        pdf.set_draw_color(*_LINE)
+        pdf.line(lx, fy, rx, fy)
+        fy += 3
+
+        # Total
+        pdf.set_font("Helvetica", "B", 9)
+        pdf.set_text_color(*_INK)
+        pdf.set_xy(lx, fy)
+        pdf.cell(cw - cols_w[-1], 7, "Total recibido:", align="R")
+        pdf.set_text_color(*_ACCENT)
+        pdf.cell(cols_w[-1], 7, f"$ {_ar(total_cobrado)}", align="R")
+        fy += 14
+
+    # ── Firma y sello ─────────────────────────────────────────────────────────
+    firma_y = max(fy, pdf.h - 55)
+    pdf.set_draw_color(*_LINE)
+    pdf.set_line_width(0.3)
+    pdf.line(lx, firma_y + 20, lx + 70, firma_y + 20)
+    pdf.set_font("Helvetica", "", 7.5)
+    pdf.set_text_color(*_MUTED)
+    pdf.set_xy(lx, firma_y + 21)
+    pdf.cell(70, 5, "Firma y sello", align="C")
+
+    # Pie
+    pdf.set_font("Helvetica", "", 7)
+    pdf.set_text_color(*_MUTED)
+    pdf.set_xy(lx, pdf.h - 14)
+    pdf.cell(cw, 5,
+             f"{emp.get('nombre', '')}  ·  CUIT: {emp.get('cuit', '')}  ·  "
+             f"Documento no válido como factura", align="C")
+
+    return bytes(pdf.output())

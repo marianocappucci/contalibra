@@ -251,6 +251,31 @@
       </li>
       {% endif %}
 
+      {% if 'egresos' in mods %}
+      <li><div class="sidebar-section">Egresos</div></li>
+      <li class="nav-item">
+        <a class="nav-link {% if active == 'egresos' %}active{% endif %}" href="/egresos">
+          <i class="bi bi-arrow-up-circle"></i>Egresos
+        </a>
+      </li>
+      {% if 'proveedores' in mods %}
+      <li class="nav-item">
+        <a class="nav-link {% if active == 'proveedores' %}active{% endif %}" href="/proveedores">
+          <i class="bi bi-truck"></i>Proveedores
+        </a>
+      </li>
+      {% endif %}
+      {% endif %}
+
+      {% if 'tesoreria' in mods %}
+      <li><div class="sidebar-section">Tesorería</div></li>
+      <li class="nav-item">
+        <a class="nav-link {% if active == 'tesoreria' %}active{% endif %}" href="/tesoreria">
+          <i class="bi bi-bank"></i>Cuentas
+        </a>
+      </li>
+      {% endif %}
+
       <li><div class="sidebar-section">Integraciones</div></li>
       <li class="nav-item">
         <a class="nav-link {% if active == 'mp_bandeja' %}active{% endif %}" href="/integraciones/mp/bandeja"

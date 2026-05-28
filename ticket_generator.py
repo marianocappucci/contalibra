@@ -138,7 +138,15 @@ def _pie_ticket(pdf: _TicketPDF, pie: str, corte: bool):
 def _recortar_pdf_a_contenido(pdf: _TicketPDF) -> bytes:
     """Recorta la altura del PDF al contenido real generado."""
     alto_real = pdf.get_y() + 5
-    pdf.pages[1]["height"] = alto_real * _MM_TO_PT
+    page     = pdf.pages[1]
+    h_old_pt = page._height_pt
+    h_new_pt = alto_real * _MM_TO_PT
+    # Ajustar coordenadas: el contenido fue dibujado asumiendo h_old_pt de altura;
+    # prepend una traslación para que quede visible en la nueva página más chica.
+    ty = h_new_pt - h_old_pt  # negativo → desplaza contenido hacia abajo en PDF
+    page.set_dimensions(page._width_pt, h_new_pt)
+    transform = f"q 1 0 0 1 0 {ty:.3f} cm\n".encode()
+    page.contents = bytearray(transform) + page.contents + bytearray(b"\nQ")
     return bytes(pdf.output())
 
 

@@ -140,14 +140,16 @@ async def cliente_nuevo_rapido(request: Request, user: Auth):
     if not name:
         return JSONResponse({"error": "El nombre es obligatorio."}, status_code=422)
     try:
-        cid = db.create_client(
-            name,
-            str(form.get("address", "")).strip(),
-            str(form.get("cuit_dni", "")).strip(),
-            str(form.get("email", "")).strip(),
-            str(form.get("phone", "")).strip(),
-            str(form.get("iva_condition", "")).strip(),
-        )
-        return JSONResponse({"id": cid, "name": name})
+        address       = str(form.get("address", "")).strip()
+        cuit_dni      = str(form.get("cuit_dni", "")).strip()
+        email         = str(form.get("email", "")).strip()
+        phone         = str(form.get("phone", "")).strip()
+        iva_condition = str(form.get("iva_condition", "")).strip()
+        cid = db.create_client(name, address, cuit_dni, email, phone, iva_condition)
+        return JSONResponse({
+            "id": cid, "name": name,
+            "address": address, "cuit_dni": cuit_dni,
+            "iva_condition": iva_condition, "email": email,
+        })
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=422)

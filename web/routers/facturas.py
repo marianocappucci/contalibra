@@ -386,7 +386,9 @@ def _detail_ctx(factura: dict, error: str = "") -> dict:
             factura["cbte_asoc_tipo"], factura["cbte_asoc_pv"], factura["cbte_asoc_nro"]
         )
 
-    cobro = db.get_cobro_factura(factura["id"]) if es_factura else None
+    cobros = db.get_cobros_factura(factura["id"]) if es_factura else []
+    total_cobrado = sum(c["monto"] for c in cobros)
+    pendiente     = max(0.0, round(factura["total"] - total_cobrado, 2)) if es_factura else 0.0
 
     # Intentar obtener email del cliente para pre-llenar el modal
     cliente_email = ""
@@ -394,6 +396,8 @@ def _detail_ctx(factura: dict, error: str = "") -> dict:
         c = db.get_client(factura["client_id"])
         if c:
             cliente_email = c.get("email", "")
+
+    cajas = db.get_all_cajas() if es_factura else []
 
     return {
         "factura":          factura,
@@ -406,7 +410,12 @@ def _detail_ctx(factura: dict, error: str = "") -> dict:
         "notas_debito":     nds,
         "factura_original": factura_original,
         "tipo_labels":      _TIPO_LABELS,
-        "cobro":            cobro,
+        "cobros":           cobros,
+        "cobro":            cobros[-1] if cobros else None,
+        "total_cobrado":    total_cobrado,
+        "pendiente":        pendiente,
+        "cajas":            cajas,
+        "medio_labels":     db.MEDIOS_PAGO_LABELS,
         "cliente_email":    cliente_email,
         "email_ok":         None,
         "email_error":      None,
@@ -713,31 +722,41 @@ async def factura_duplicar(factura_id: int, user: Auth):
 
 @router.post("/facturas/{factura_id}/cobrar")
 async def factura_cobrar(request: Request, factura_id: int, user: Auth):
-    """Registra el cobro de una factura creando un ingreso en caja."""
-    next_url = request.query_params.get("next", f"/facturas/{factura_id}")
+    """Registra un cobro (total o parcial) de una factura."""
     factura = db.get_factura(factura_id)
     if not factura:
         raise HTTPException(404)
-    if db.get_cobro_factura(factura_id):
-        return RedirectResponse(next_url, status_code=303)
+
+    form = await request.form()
+    try:
+        monto = float(str(form.get("monto", factura["total"])).replace(",", "."))
+    except (ValueError, TypeError):
+        monto = float(factura["total"])
+
+    medio_pago  = str(form.get("medio_pago", "")).strip()
+    caja_id_raw = form.get("caja_id", "")
+    caja_id     = int(caja_id_raw) if caja_id_raw else None
+    fecha       = str(form.get("fecha", datetime.date.today().isoformat())).strip()
+    referencia  = str(form.get("referencia", "")).strip()
 
     from pdf_generator import _TIPO_LABELS
     tipo_label = _TIPO_LABELS.get(factura["tipo"], "Factura")
     pv  = str(factura["punto_venta"]).zfill(4)
     num = str(factura["numero"]).zfill(8)
-    concepto   = f"Cobro {tipo_label} {pv}-{num} — {factura['cliente_razon']}"
-    referencia = f"{pv}-{num}"
+    concepto = f"Cobro {tipo_label} {pv}-{num} — {factura['cliente_razon']}"
 
     db.create_caja_movimiento(
-        fecha=datetime.date.today().isoformat(),
+        fecha=fecha,
         tipo="ingreso",
         concepto=concepto,
-        monto=factura["total"],
+        monto=monto,
         referencia=referencia,
         factura_id=factura_id,
+        caja_id=caja_id,
+        medio_pago=medio_pago,
         usuario_id=(db.get_usuario_by_username(user) or {}).get("id"),
     )
-    return RedirectResponse(next_url, status_code=303)
+    return RedirectResponse(f"/facturas/{factura_id}", status_code=303)
 
 @router.get("/facturas/{factura_id}/ticket")
 def factura_ticket(factura_id: int, user: Auth):
@@ -751,4 +770,23 @@ def factura_ticket(factura_id: int, user: Auth):
         content=pdf_bytes,
         media_type="application/pdf",
         headers={"Content-Disposition": f'inline; filename="ticket_factura_{factura_id}.pdf"'},
+    )
+
+
+@router.get("/facturas/{factura_id}/recibo")
+def factura_recibo(factura_id: int, user: Auth):
+    from fastapi.responses import Response as _Resp
+    factura = db.get_factura(factura_id)
+    if not factura:
+        raise HTTPException(404)
+    cobros = db.get_cobros_factura(factura_id)
+    if not cobros:
+        raise HTTPException(404, detail="Esta factura no tiene cobros registrados.")
+    pdf_bytes = pdf_gen.generate_pdf_recibo(factura, cobros)
+    pv  = str(factura.get("punto_venta", 0)).zfill(4)
+    num = str(factura.get("numero", 0)).zfill(8)
+    return _Resp(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="recibo_{pv}_{num}.pdf"'},
     )

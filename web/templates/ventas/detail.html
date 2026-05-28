@@ -18,6 +18,11 @@
     <a href="/ventas/{{ venta.id }}/ticket" target="_blank" class="btn btn-outline-secondary btn-sm">
       <i class="bi bi-printer me-1"></i>Ticket
     </a>
+    {% if venta.pagos %}
+    <a href="/ventas/{{ venta.id }}/recibo" target="_blank" class="btn btn-outline-success btn-sm">
+      <i class="bi bi-file-earmark-check me-1"></i>Recibo
+    </a>
+    {% endif %}
     <a href="/ventas" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Volver</a>
   </div>
 </div>

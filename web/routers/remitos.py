@@ -45,12 +45,10 @@ async def remito_nuevo_post(request: Request, user: Auth):
         client_email = str(form.get("client_email", "")).strip()
         client_phone = str(form.get("client_phone", "")).strip()
         date_str = str(form.get("date", "")).strip()
-        tax_rate = float(form.get("tax_rate", "0.21"))
         observations = str(form.get("observations", "")).strip()
 
         descs = form.getlist("desc[]")
-        qtys = form.getlist("qty[]")
-        prices = form.getlist("price[]")
+        qtys  = form.getlist("qty[]")
 
         if not client_name:
             raise ValueError("El nombre del cliente es requerido.")
@@ -58,13 +56,11 @@ async def remito_nuevo_post(request: Request, user: Auth):
             raise ValueError("Debe agregar al menos un ítem.")
 
         items = []
-        for desc, qty_s, price_s in zip(descs, qtys, prices):
+        for desc, qty_s in zip(descs, qtys):
             if not desc.strip():
                 continue
             qty = float(qty_s.replace(",", "."))
-            price = float(price_s.replace(",", "."))
-            items.append({"description": desc.strip(), "qty": qty,
-                          "unit_price": price, "subtotal": round(qty * price, 2)})
+            items.append({"description": desc.strip(), "qty": qty})
 
         if not items:
             raise ValueError("Debe agregar al menos un ítem válido.")
@@ -72,15 +68,12 @@ async def remito_nuevo_post(request: Request, user: Auth):
         if client_id:
             c = db.get_client(client_id)
             if c:
-                client_name = c["name"]
+                client_name    = c["name"]
                 client_address = c.get("address", "")
-                client_cuit = c.get("cuit_dni", "")
-                client_email = c.get("email", "")
-                client_phone = c.get("phone", "")
+                client_cuit    = c.get("cuit_dni", "")
+                client_email   = c.get("email", "")
+                client_phone   = c.get("phone", "")
 
-        subtotal = round(sum(i["subtotal"] for i in items), 2)
-        tax_amount = round(subtotal * tax_rate, 2)
-        total = round(subtotal + tax_amount, 2)
         number = db.get_next_remito_number()
 
         uid = (db.get_usuario_by_username(user) or {}).get("id")
@@ -89,10 +82,8 @@ async def remito_nuevo_post(request: Request, user: Auth):
             client_id=client_id, client_name=client_name,
             client_address=client_address, client_cuit=client_cuit,
             client_email=client_email, client_phone=client_phone,
-            items=items, subtotal=subtotal,
-            tax_rate=tax_rate, tax_amount=tax_amount,
-            total=total, observations=observations,
-            usuario_id=uid,
+            items=items, subtotal=0, tax_rate=0, tax_amount=0, total=0,
+            observations=observations, usuario_id=uid,
         )
         pdf_path = pdf_gen.generate_pdf(db.get_remito(remito_id))
         db.update_remito_pdf_path(remito_id, pdf_path)

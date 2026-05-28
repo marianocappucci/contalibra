@@ -9,14 +9,18 @@ cada cliente corre en su propio contenedor Docker con base de datos aislada.
 | Módulo | Plan | Descripción |
 |--------|------|-------------|
 | Clientes | Básico | ABM de clientes con historial |
-| Ventas | Básico | Punto de venta con múltiples medios de pago |
+| Ventas | Básico | Punto de venta con múltiples medios de pago y recibo PDF |
 | Caja | Básico | Movimientos de caja y turnos de cajero |
-| Facturación | Estándar | Facturas electrónicas A/B/C vía ARCA (WSAA + WSFEv1) |
-| Remitos | Estándar | Remitos con PDF |
+| Facturación | Estándar | Facturas electrónicas A/B/C vía ARCA (WSAA + WSFEv1), cobro parcial y recibo PDF |
+| Remitos | Estándar | Remitos de entrega (sin precios) con PDF |
 | Presupuestos | Estándar | Presupuestos con conversión a remito/factura |
 | Productos | Estándar | Catálogo de productos con precios |
+| Egresos | Estándar | Registro de gastos con categorías, IVA y seguimiento de pagos |
+| Proveedores | Estándar | ABM de proveedores vinculados a egresos |
 | Stock | Premium | Control de inventario con alertas de mínimo |
+| Depósitos | Premium | Múltiples depósitos con transferencias de stock |
 | Reportes | Estándar | Ventas, medios de pago, top productos, caja |
+| Tesorería | Estándar | Saldo de múltiples cuentas bancarias/efectivo, movimientos y transferencias |
 
 ## Stack técnico
 
