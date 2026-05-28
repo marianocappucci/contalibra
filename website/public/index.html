@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Contalibra — Sistema de gestión para comercios y PyMEs argentinas</title>
-  <meta name="description" content="Facturación electrónica ARCA, ventas, caja, stock y reportes. Todo en un sistema simple, sin complicaciones.">
+  <meta name="description" content="Facturación electrónica ARCA, ventas, caja, stock e inventario. Todo en un sistema simple, sin complicaciones.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
@@ -31,7 +31,6 @@
     <div class="hero-badge">Sistema para PyMEs argentinas</div>
     <h1>Gestioná tu comercio.<br><span>Sin complicaciones.</span></h1>
     <p>Facturación electrónica ARCA, ventas, caja con turnos, stock e inventario — todo en un solo sistema web, por cliente, sin instalaciones.</p>
-
   </div>
 </section>
 
@@ -69,19 +68,19 @@
       </div>
 
       <div class="feature-card">
+        <div class="feature-icon" style="background:#fef9c3">
+          <i class="bi bi-cash-stack" style="color:#854d0e"></i>
+        </div>
+        <h3>Caja y Turnos <span class="feature-badge badge-basico">Básico</span></h3>
+        <p>Control de caja con apertura y cierre de turno por cajero. Soporte para múltiples cajas con medios de cobro configurables.</p>
+      </div>
+
+      <div class="feature-card">
         <div class="feature-icon" style="background:#ecfdf5">
           <i class="bi bi-envelope-check" style="color:#065f46"></i>
         </div>
         <h3>Envío por email <span class="feature-badge badge-estandar">Estándar</span></h3>
         <p>Enviá facturas, presupuestos y remitos por email directamente desde el sistema, con el PDF adjunto. Configuración SMTP propia.</p>
-      </div>
-
-      <div class="feature-card">
-        <div class="feature-icon" style="background:#fef9c3">
-          <i class="bi bi-cash-stack" style="color:#854d0e"></i>
-        </div>
-        <h3>Caja y Turnos <span class="feature-badge badge-basico">Básico</span></h3>
-        <p>Control de caja con apertura y cierre de turno por cajero. Resumen de efectivo, diferencias y movimientos del día.</p>
       </div>
 
       <div class="feature-card">
@@ -105,7 +104,7 @@
           <i class="bi bi-calculator" style="color:#9d174d"></i>
         </div>
         <h3>Presupuestos <span class="feature-badge badge-estandar">Estándar</span></h3>
-        <p>Presupuestos con fecha de validez y estados (pendiente / aceptado / rechazado). PDF descargable para enviar al cliente.</p>
+        <p>Presupuestos con fecha de validez y 6 estados (Borrador → Enviado → Aceptado → Facturado). PDF descargable y conversión directa a remito o factura.</p>
       </div>
 
       <div class="feature-card">
@@ -117,6 +116,54 @@
       </div>
 
       <div class="feature-card">
+        <div class="feature-icon" style="background:#f0fdf4">
+          <i class="bi bi-tags" style="color:#15803d"></i>
+        </div>
+        <h3>Listas de Precios <span class="feature-badge badge-estandar">Estándar</span></h3>
+        <p>Múltiples listas de precios (mayorista, minorista, etc.). Actualización masiva por porcentaje y asignación por cliente.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:#fef3c7">
+          <i class="bi bi-journal-text" style="color:#92400e"></i>
+        </div>
+        <h3>Cuenta Corriente <span class="feature-badge badge-estandar">Estándar</span></h3>
+        <p>Control de deudas por cliente con historial de cargos y pagos. Registrá abonos parciales o totales y consultá el saldo en tiempo real.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:#fef2f2">
+          <i class="bi bi-file-earmark-minus" style="color:#b91c1c"></i>
+        </div>
+        <h3>Egresos y Proveedores <span class="feature-badge badge-estandar">Estándar</span></h3>
+        <p>Registrá gastos y facturas de proveedores por categoría. Control de estado de pago (pendiente / pagado) e integración con Libro IVA Compras.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:#f0f9ff">
+          <i class="bi bi-bank" style="color:#0c4a6e"></i>
+        </div>
+        <h3>Tesorería <span class="feature-badge badge-estandar">Estándar</span></h3>
+        <p>Administrá cuentas bancarias, caja chica y billeteras digitales. Registrá ingresos, egresos y transferencias entre cuentas con saldo en tiempo real.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:#fff7ed">
+          <i class="bi bi-bar-chart-line" style="color:#c2410c"></i>
+        </div>
+        <h3>Reportes <span class="feature-badge badge-estandar">Estándar</span></h3>
+        <p>Ventas por período, medios de pago, productos más vendidos y caja por medio de cobro. Exportación CSV para conciliar con tu contador.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:#f5f3ff">
+          <i class="bi bi-file-spreadsheet" style="color:#6d28d9"></i>
+        </div>
+        <h3>Libros IVA Digital <span class="feature-badge badge-estandar">Estándar</span></h3>
+        <p>Generación de Libro IVA Ventas y Compras en formato REGINFO para importar en los aplicativos de ARCA. Cero trabajo manual.</p>
+      </div>
+
+      <div class="feature-card">
         <div class="feature-icon" style="background:#f3e8ff">
           <i class="bi bi-archive" style="color:#7e22ce"></i>
         </div>
@@ -125,18 +172,18 @@
       </div>
 
       <div class="feature-card">
-        <div class="feature-icon" style="background:#fff7ed">
-          <i class="bi bi-bar-chart-line" style="color:#c2410c"></i>
+        <div class="feature-icon" style="background:#faf5ff">
+          <i class="bi bi-building" style="color:#7c3aed"></i>
         </div>
-        <h3>Reportes <span class="feature-badge badge-estandar">Estándar</span></h3>
-        <p>Ventas por período, medios de pago, productos más vendidos y movimientos de caja. Exportación CSV incluida.</p>
+        <h3>Múltiples Depósitos <span class="feature-badge badge-premium">Premium</span></h3>
+        <p>Gestioná el inventario por depósito o sucursal. Transferí stock entre depósitos y consultá el saldo por ubicación.</p>
       </div>
 
       <div class="feature-card">
         <div class="feature-icon" style="background:#f0fdf4">
           <i class="bi bi-printer" style="color:#15803d"></i>
         </div>
-        <h3>Impresora de tickets</h3>
+        <h3>Impresora de tickets <span class="feature-badge badge-estandar">Estándar</span></h3>
         <p>Generación de tickets en PDF para impresoras térmicas de rollo (58 y 80 mm). Compatible con Epson TM, Star, Bixolon.</p>
       </div>
 
@@ -144,7 +191,7 @@
         <div class="feature-icon" style="background:#fef2f2">
           <i class="bi bi-person-badge" style="color:#b91c1c"></i>
         </div>
-        <h3>Roles de usuario</h3>
+        <h3>Roles de usuario <span class="feature-badge badge-basico">Básico</span></h3>
         <p>Administrador, operador y cajero. Cada rol ve solo lo que necesita. Usuarios ilimitados por instancia.</p>
       </div>
 
@@ -152,8 +199,8 @@
         <div class="feature-icon" style="background:#f8fafc">
           <i class="bi bi-shield-lock" style="color:#475569"></i>
         </div>
-        <h3>Base de datos propia</h3>
-        <p>Cada cliente tiene su propia base de datos aislada en el servidor. Backup descargable en un clic desde el sistema.</p>
+        <h3>Base de datos propia <span class="feature-badge badge-basico">Básico</span></h3>
+        <p>Cada cliente tiene su propia base de datos aislada en el servidor. Backup y restore descargable en un clic desde el sistema.</p>
       </div>
 
     </div>
@@ -175,7 +222,7 @@
     </h2>
 
     <p style="color:#cbd5e1;font-size:1.05rem;margin:0 auto 2rem;max-width:520px;line-height:1.65">
-      Generá un QR dinámico por cada venta y confirmá el pago en tiempo real. Sin apps externas, sin pasos extras — todo desde el mismo panel donde registrás tus ventas.
+      Generá un QR dinámico por cada venta y confirmá el pago en tiempo real. Además, las transferencias que recibís en tu cuenta de MP aparecen automáticamente en la bandeja para facturarlas con un clic.
     </p>
 
     <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:.6rem;margin-bottom:2.5rem">
@@ -186,7 +233,7 @@
         <i class="bi bi-check-circle" style="margin-right:.35rem;color:#34d399"></i>Confirmación automática
       </span>
       <span style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);color:#e2e8f0;font-size:.85rem;font-weight:600;padding:.4rem 1rem;border-radius:999px">
-        <i class="bi bi-phone" style="margin-right:.35rem"></i>Cuenta DNI y billeteras
+        <i class="bi bi-inbox" style="margin-right:.35rem"></i>Bandeja de transferencias
       </span>
       <span style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);color:#e2e8f0;font-size:.85rem;font-weight:600;padding:.4rem 1rem;border-radius:999px">
         <i class="bi bi-credit-card" style="margin-right:.35rem"></i>Tarjetas débito y crédito
@@ -246,14 +293,16 @@
         <ul class="plan-features">
           <li><i class="bi bi-check-circle-fill icon-check"></i> Ventas y punto de cobro</li>
           <li><i class="bi bi-check-circle-fill icon-check"></i> Cobro con QR MercadoPago</li>
-          <li><i class="bi bi-check-circle-fill icon-check"></i> Clientes</li>
-          <li><i class="bi bi-check-circle-fill icon-check"></i> Caja y turnos de cajero</li>
           <li><i class="bi bi-check-circle-fill icon-check"></i> Múltiples medios de pago</li>
-          <li><i class="bi bi-check-circle-fill icon-check"></i> Usuarios ilimitados</li>
-          <li><i class="bi bi-check-circle-fill icon-check"></i> Backup de base de datos</li>
-          <li class="muted"><i class="bi bi-x-circle icon-x"></i> Facturación electrónica</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Clientes con historial</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Caja y turnos de cajero</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Múltiples cajas</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Ticket y recibo por venta</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Roles de usuario (admin / cajero)</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Backup y restore de base de datos</li>
+          <li class="muted"><i class="bi bi-x-circle icon-x"></i> Facturación electrónica ARCA</li>
           <li class="muted"><i class="bi bi-x-circle icon-x"></i> Remitos y presupuestos</li>
-          <li class="muted"><i class="bi bi-x-circle icon-x"></i> Stock</li>
+          <li class="muted"><i class="bi bi-x-circle icon-x"></i> Catálogo de productos</li>
         </ul>
         <a href="https://wa.me/5491127752983?text=Hola,%20quiero%20contratar%20el%20plan%20B%C3%A1sico%20de%20Contalibra"
            target="_blank" class="btn btn-outline plan-cta">Contratar</a>
@@ -265,18 +314,24 @@
         <div class="plan-name">Estándar</div>
         <div class="plan-price">$ 59.000 <span>/ mes</span></div>
         <p class="plan-desc" style="font-size:.8rem;color:#bfdbfe;margin-bottom:.5rem">+ IVA · valores mensuales</p>
-        <p class="plan-desc">Para negocios que emiten comprobantes y necesitan gestionar presupuestos y remitos.</p>
+        <p class="plan-desc">Para negocios que emiten comprobantes y quieren gestión completa de su operación.</p>
         <ul class="plan-features">
           <li><i class="bi bi-check-circle-fill icon-check"></i> Todo lo del plan Básico</li>
-          <li><i class="bi bi-check-circle-fill icon-check"></i> Facturación electrónica A/B/C</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Facturación electrónica A/B/C (ARCA)</li>
           <li><i class="bi bi-check-circle-fill icon-check"></i> Notas de crédito y débito</li>
-          <li><i class="bi bi-check-circle-fill icon-check"></i> Remitos con PDF</li>
-          <li><i class="bi bi-check-circle-fill icon-check"></i> Presupuestos</li>
-          <li><i class="bi bi-check-circle-fill icon-check"></i> Catálogo de productos</li>
-          <li><i class="bi bi-check-circle-fill icon-check"></i> Envío de comprobantes por email</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Remitos numerados con PDF</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Presupuestos (6 estados + PDF)</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Catálogo de productos y categorías</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Listas de precios múltiples</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Cuenta corriente por cliente</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Egresos y proveedores</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Tesorería (bancos, caja chica, digitales)</li>
           <li><i class="bi bi-check-circle-fill icon-check"></i> Reportes y exportación CSV</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Libros IVA Digital (REGINFO para ARCA)</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Envío de comprobantes por email</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Bandeja de pagos MercadoPago</li>
           <li><i class="bi bi-check-circle-fill icon-check"></i> Impresora de tickets térmica</li>
-          <li class="muted"><i class="bi bi-x-circle icon-x"></i> Control de stock</li>
+          <li class="muted"><i class="bi bi-x-circle icon-x"></i> Control de stock e inventario</li>
         </ul>
         <a href="https://wa.me/5491127752983?text=Hola,%20quiero%20contratar%20el%20plan%20Est%C3%A1ndar%20de%20Contalibra"
            target="_blank" class="btn btn-primary plan-cta">Contratar</a>
@@ -287,14 +342,16 @@
         <div class="plan-name">Premium</div>
         <div class="plan-price">$ 89.000 <span>/ mes</span></div>
         <p class="plan-desc" style="font-size:.8rem;color:var(--muted);margin-bottom:.5rem">+ IVA · valores mensuales</p>
-        <p class="plan-desc">Para negocios con inventario que necesitan control de stock en tiempo real.</p>
+        <p class="plan-desc">Para negocios con inventario que necesitan control de stock y múltiples depósitos.</p>
         <ul class="plan-features">
           <li><i class="bi bi-check-circle-fill icon-check"></i> Todo lo del plan Estándar</li>
-          <li><i class="bi bi-check-circle-fill icon-check"></i> Control de inventario</li>
-          <li><i class="bi bi-check-circle-fill icon-check"></i> Ajustes de stock manuales</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Control de inventario en tiempo real</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Múltiples depósitos / sucursales</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Transferencias de stock entre depósitos</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Ajustes manuales de inventario</li>
           <li><i class="bi bi-check-circle-fill icon-check"></i> Descuento automático por venta</li>
           <li><i class="bi bi-check-circle-fill icon-check"></i> Alertas de stock mínimo</li>
-          <li><i class="bi bi-check-circle-fill icon-check"></i> Movimientos de inventario</li>
+          <li><i class="bi bi-check-circle-fill icon-check"></i> Movimientos de inventario detallados</li>
           <li><i class="bi bi-check-circle-fill icon-check"></i> Soporte prioritario</li>
         </ul>
         <a href="https://wa.me/5491127752983?text=Hola,%20quiero%20contratar%20el%20plan%20Premium%20de%20Contalibra"
@@ -375,7 +432,6 @@
     © 2026 Contalibra · Todos los derechos reservados
   </div>
 </footer>
-
 
 </body>
 </html>

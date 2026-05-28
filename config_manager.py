@@ -20,7 +20,7 @@ _DEFAULTS = {
     # MercadoPago
     "mp_access_token":        "",
     "mp_webhook_secret":      "",
-    "mp_concepto_descripcion": "Suscripcion mensual",
+    "mp_concepto_descripcion": "Cobro con Mercadopago",
     "mp_iva_rate":            "0",
     # MercadoPago QR Dinámico (punto de venta presencial)
     "mp_user_id":             "",   # ID numérico del vendedor en MP

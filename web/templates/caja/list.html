@@ -46,7 +46,7 @@
   </div>
 </div>
 
-<!-- Filtro de período -->
+<!-- Filtro de período + caja -->
 <form class="card mb-3" method="get" action="/caja">
   <div class="card-body py-2">
     <div class="d-flex gap-2 align-items-center flex-wrap">
@@ -54,6 +54,14 @@
       <input type="date" class="form-control form-control-sm" name="desde" value="{{ desde }}" style="width:150px">
       <span class="text-muted">—</span>
       <input type="date" class="form-control form-control-sm" name="hasta" value="{{ hasta }}" style="width:150px">
+      {% if cajas|length > 1 %}
+      <select name="caja_id" class="form-select form-select-sm" style="width:180px">
+        <option value="0">Todas las cajas</option>
+        {% for c in cajas %}
+        <option value="{{ c.id }}" {% if caja_id == c.id %}selected{% endif %}>{{ c.nombre }}</option>
+        {% endfor %}
+      </select>
+      {% endif %}
       <button class="btn btn-sm btn-outline-secondary" type="submit"><i class="bi bi-funnel"></i></button>
       <a href="/caja" class="btn btn-sm btn-outline-danger"><i class="bi bi-x"></i></a>
     </div>
@@ -72,6 +80,7 @@
             <th>Tipo</th>
             <th>Concepto</th>
             <th>Referencia</th>
+            {% if cajas|length > 1 %}<th>Caja / Medio</th>{% endif %}
             <th class="text-end">Monto</th>
             <th></th>
           </tr>
@@ -96,6 +105,12 @@
               {% endif %}
             </td>
             <td class="text-muted small">{{ m.referencia }}</td>
+            {% if cajas|length > 1 %}
+            <td class="small text-muted">
+              {% if m.caja_nombre %}<span class="d-block">{{ m.caja_nombre }}</span>{% endif %}
+              {% if m.medio_pago %}<span class="badge bg-light text-dark border">{{ m.medio_pago }}</span>{% endif %}
+            </td>
+            {% endif %}
             <td class="text-end fw-semibold {% if m.tipo == 'ingreso' %}text-success{% else %}text-danger{% endif %}">
               {% if m.tipo == 'ingreso' %}+{% else %}-{% endif %}$ {{ m.monto|moneda }}
             </td>

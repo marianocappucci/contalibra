@@ -6,7 +6,7 @@ import datetime
 import shutil
 import sqlite3
 import tempfile
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import RedirectResponse, FileResponse
 from typing import Annotated
 
@@ -20,13 +20,24 @@ router = APIRouter()
 Auth = Annotated[str, Depends(require_auth)]
 
 LOGO_DIR    = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "logos")
-CERTS_DIR   = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "arca_certs")
+CERTS_DIR   = os.path.join(os.path.dirname(db.DB_PATH), "arca_certs")
 BACKUPS_DIR = os.path.join(os.path.dirname(db.DB_PATH), "backups")
 
 
 def _arca_cfg():
     configs = db.obtener_todas_arca_configs()
     return configs[0] if configs else {}
+
+
+@router.get("/config/empresa/logo", include_in_schema=False)
+def config_logo(user: Auth):
+    cfg = config_manager.load()
+    path = cfg.get("logo_path", "")
+    if not path or not os.path.exists(path):
+        raise HTTPException(404)
+    ext = os.path.splitext(path)[1].lower()
+    media = "image/png" if ext == ".png" else "image/jpeg"
+    return FileResponse(path, media_type=media)
 
 
 @router.get("/config")
@@ -338,3 +349,55 @@ async def config_restore_db(request: Request, user: Auth):
         "saved": "restore", "restore_error": None,
         "backups": _listar_backups(),
     })
+
+
+@router.get("/config/categorias-producto")
+def categorias_producto_get(request: Request, user: Auth):
+    return templates.TemplateResponse(request, "config/categorias_producto.html", {
+        "categorias": db.get_categorias_producto(),
+        "active": "config",
+    })
+
+
+@router.post("/config/categorias-producto")
+async def categorias_producto_post(request: Request, user: Auth):
+    form = await request.form()
+    nombre = str(form.get("nombre", "")).strip()
+    if nombre:
+        try:
+            db.create_categoria_producto(nombre)
+        except Exception:
+            pass
+    return RedirectResponse("/config/categorias-producto", status_code=303)
+
+
+@router.post("/config/categorias-producto/{cid}/eliminar")
+def categorias_producto_eliminar(cid: int, user: Auth):
+    db.delete_categoria_producto(cid)
+    return RedirectResponse("/config/categorias-producto", status_code=303)
+
+
+@router.get("/config/categorias-egreso")
+def categorias_egreso_get(request: Request, user: Auth):
+    return templates.TemplateResponse(request, "config/categorias_egreso.html", {
+        "categorias": db.get_categorias_egreso(),
+        "active": "config",
+    })
+
+
+@router.post("/config/categorias-egreso")
+async def categorias_egreso_post(request: Request, user: Auth):
+    form = await request.form()
+    nombre = str(form.get("nombre", "")).strip()
+    if nombre:
+        try:
+            db.create_categoria_egreso(nombre)
+        except Exception:
+            pass
+    return RedirectResponse("/config/categorias-egreso", status_code=303)
+
+
+@router.post("/config/categorias-egreso/{cid}/eliminar")
+def categorias_egreso_eliminar(cid: int, user: Auth):
+    db.delete_categoria_egreso(cid)
+    return RedirectResponse("/config/categorias-egreso", status_code=303)

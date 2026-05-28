@@ -49,7 +49,7 @@
                value="{{ concepto }}" placeholder="Ej: Cobro factura cliente / Pago servicios" required>
       </div>
 
-      <div class="row g-3 mb-4">
+      <div class="row g-3 mb-3">
         <div class="col-md-6">
           <label class="form-label fw-semibold">Monto <span class="text-danger">*</span></label>
           <div class="input-group">
@@ -64,6 +64,33 @@
                  placeholder="Opcional — N° factura, proveedor, etc.">
         </div>
       </div>
+
+      {% if cajas %}
+      <div class="row g-3 mb-4">
+        {% if cajas|length > 1 %}
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Caja</label>
+          <select name="caja_id" class="form-select" id="sel-caja" onchange="cargarMedios()">
+            {% for c in cajas %}{% if c.activo %}
+            <option value="{{ c.id }}" {% if c.es_default %}selected{% endif %}>{{ c.nombre }}</option>
+            {% endif %}{% endfor %}
+          </select>
+        </div>
+        {% else %}
+        <input type="hidden" name="caja_id" value="{{ cajas[0].id }}">
+        {% endif %}
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Medio de pago</label>
+          <select name="medio_pago" class="form-select" id="sel-medio">
+            <option value="">— Sin especificar —</option>
+            {% set primera_caja = cajas | selectattr('es_default') | first | default(cajas[0]) %}
+            {% for mid in primera_caja.medios_pago %}
+            <option value="{{ mid }}">{{ medio_labels.get(mid, mid) }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      {% endif %}
 
       <div class="d-flex gap-2">
         <a href="{% if factura_id %}/facturas/{{ factura_id }}{% else %}/caja{% endif %}"
@@ -80,5 +107,21 @@
 <script>
   const f = document.getElementById('fecha');
   if (f && !f.value) f.value = new Date().toISOString().slice(0, 10);
+
+  const MEDIO_LABELS = {{ medio_labels | tojson }};
+
+  async function cargarMedios() {
+    const selCaja  = document.getElementById('sel-caja');
+    const selMedio = document.getElementById('sel-medio');
+    if (!selCaja || !selMedio) return;
+    const cid = selCaja.value;
+    const res  = await fetch(`/cajas/${cid}/medios`);
+    const data = await res.json();
+    selMedio.innerHTML = '<option value="">— Sin especificar —</option>';
+    data.forEach(mid => {
+      const opt = new Option(MEDIO_LABELS[mid] || mid, mid);
+      selMedio.appendChild(opt);
+    });
+  }
 </script>
 {% endblock %}

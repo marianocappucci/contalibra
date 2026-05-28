@@ -90,9 +90,13 @@
     .card { border: none; box-shadow: 0 1px 6px rgba(0,0,0,.07); border-radius: 12px; }
     .card-header { background: transparent; border-bottom: 1px solid #f0f0f0; font-weight: 600; }
     .table th { font-size: 0.82rem; text-transform: uppercase; letter-spacing: .04em; color: #666; }
+    .badge-borrador  { background: #e2e3e5; color: #41464b; }
+    .badge-enviado   { background: #cfe2ff; color: #084298; }
     .badge-pendiente { background: #fff3cd; color: #856404; }
     .badge-aceptado  { background: #d1e7dd; color: #0f5132; }
     .badge-rechazado { background: #f8d7da; color: #842029; }
+    .badge-vencido   { background: #ffe5d0; color: #7c3f00; }
+    .badge-facturado { background: #d3d3f7; color: #2b2b8b; }
     .logout-link { color: #b0b8d4; font-size: 0.85rem; padding: 0.5rem 1.2rem; display: block; }
     .logout-link:hover { color: #fff; }
     @media (max-width: 768px) {
@@ -165,6 +169,13 @@
         </a>
       </li>
       {% endif %}
+      {% if 'cuenta_corriente' in mods %}
+      <li class="nav-item">
+        <a class="nav-link {% if active == 'cuenta_corriente' %}active{% endif %}" href="/cuenta-corriente">
+          <i class="bi bi-journal-text"></i>Cta. Corriente
+        </a>
+      </li>
+      {% endif %}
       {% if 'presupuestos' in mods %}
       <li class="nav-item">
         <a class="nav-link {% if active == 'presupuestos' %}active{% endif %}" href="/presupuestos">
@@ -182,7 +193,7 @@
       {% if 'facturacion' in mods %}
       <li class="nav-item">
         <a class="nav-link {% if active == 'facturas' %}active{% endif %}" href="/facturas">
-          <i class="bi bi-receipt"></i>Facturas
+          <i class="bi bi-receipt"></i>Comprobantes
         </a>
       </li>
       {% endif %}
@@ -195,12 +206,35 @@
         <a class="nav-link {% if active == 'productos' %}active{% endif %}" href="/productos">
           <i class="bi bi-box-seam"></i>Productos
         </a>
+        <ul class="nav flex-column ms-3" style="font-size:.85em">
+          <li class="nav-item">
+            <a class="nav-link py-1 {% if active == 'categorias_producto' %}active{% endif %}"
+               href="/config/categorias-producto">
+              <i class="bi bi-tags me-1"></i>Categorías
+            </a>
+          </li>
+          {% if 'listas_precio' in mods %}
+          <li class="nav-item">
+            <a class="nav-link py-1 {% if active == 'listas_precio' %}active{% endif %}"
+               href="/listas-precio">
+              <i class="bi bi-tag me-1"></i>Listas de precios
+            </a>
+          </li>
+          {% endif %}
+        </ul>
       </li>
       {% endif %}
       {% if 'stock' in mods %}
       <li class="nav-item">
         <a class="nav-link {% if active == 'stock' %}active{% endif %}" href="/stock">
           <i class="bi bi-archive"></i>Stock
+        </a>
+      </li>
+      {% endif %}
+      {% if 'depositos' in mods %}
+      <li class="nav-item">
+        <a class="nav-link {% if active == 'depositos' %}active{% endif %}" href="/depositos">
+          <i class="bi bi-building"></i>Depósitos
         </a>
       </li>
       {% endif %}
@@ -212,6 +246,13 @@
         <a class="nav-link {% if active == 'caja' %}active{% endif %}" href="/caja">
           <i class="bi bi-cash-stack"></i>Caja
         </a>
+        <ul class="nav flex-column ms-3" style="font-size:.85em">
+          <li class="nav-item">
+            <a class="nav-link py-1 {% if active == 'cajas_config' %}active{% endif %}" href="/cajas">
+              <i class="bi bi-cash-coin me-1"></i>Gestionar cajas
+            </a>
+          </li>
+        </ul>
       </li>
       <li class="nav-item">
         <a class="nav-link {% if active == 'turnos' %}active{% endif %}" href="/turnos">
@@ -220,11 +261,53 @@
       </li>
       {% endif %}
 
-      {% if 'reportes' in mods %}
+      {% if 'reportes' in mods or 'libros_iva' in mods %}
       <li><div class="sidebar-section">Análisis</div></li>
+      {% if 'reportes' in mods %}
       <li class="nav-item">
         <a class="nav-link {% if active == 'reportes' %}active{% endif %}" href="/reportes">
           <i class="bi bi-bar-chart-line"></i>Reportes
+        </a>
+        <ul class="nav flex-column ms-3" style="font-size:.85em">
+          <li class="nav-item">
+            <a class="nav-link py-1 {% if active == 'reporte_caja_medios' %}active{% endif %}"
+               href="/reportes/caja-medios">
+              <i class="bi bi-cash-stack me-1"></i>Caja por medio
+            </a>
+          </li>
+        </ul>
+      </li>
+      {% endif %}
+      {% if 'libros_iva' in mods %}
+      <li class="nav-item">
+        <a class="nav-link {% if active == 'libros_iva' %}active{% endif %}" href="/libros-iva">
+          <i class="bi bi-journal-text"></i>Libros IVA
+        </a>
+      </li>
+      {% endif %}
+      {% endif %}
+
+      {% if 'egresos' in mods %}
+      <li><div class="sidebar-section">Egresos</div></li>
+      <li class="nav-item">
+        <a class="nav-link {% if active == 'egresos' %}active{% endif %}" href="/egresos">
+          <i class="bi bi-arrow-up-circle"></i>Egresos
+        </a>
+      </li>
+      {% if 'proveedores' in mods %}
+      <li class="nav-item">
+        <a class="nav-link {% if active == 'proveedores' %}active{% endif %}" href="/proveedores">
+          <i class="bi bi-truck"></i>Proveedores
+        </a>
+      </li>
+      {% endif %}
+      {% endif %}
+
+      {% if 'tesoreria' in mods %}
+      <li><div class="sidebar-section">Tesorería</div></li>
+      <li class="nav-item">
+        <a class="nav-link {% if active == 'tesoreria' %}active{% endif %}" href="/tesoreria">
+          <i class="bi bi-bank"></i>Cuentas
         </a>
       </li>
       {% endif %}

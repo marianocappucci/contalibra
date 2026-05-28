@@ -41,7 +41,6 @@
         <dl class="row mb-0">
           <dt class="col-sm-4">Número</dt><dd class="col-sm-8 font-monospace">{{ remito.number }}</dd>
           <dt class="col-sm-4">Fecha</dt><dd class="col-sm-8">{{ remito.date }}</dd>
-          <dt class="col-sm-4">IVA</dt><dd class="col-sm-8">{{ (remito.tax_rate * 100)|int }}%</dd>
           {% if remito.observations %}
           <dt class="col-sm-4">Observaciones</dt><dd class="col-sm-8">{{ remito.observations }}</dd>
           {% endif %}
@@ -59,9 +58,7 @@
             <thead class="table-light">
               <tr>
                 <th>Descripción</th>
-                <th class="text-end">Cantidad</th>
-                <th class="text-end">Precio unit.</th>
-                <th class="text-end">Subtotal</th>
+                <th class="text-end" style="width:120px">Cantidad</th>
               </tr>
             </thead>
             <tbody>
@@ -69,25 +66,9 @@
               <tr>
                 <td>{{ item.description }}</td>
                 <td class="text-end">{{ item.qty|entero }}</td>
-                <td class="text-end">$ {{ item.unit_price|moneda }}</td>
-                <td class="text-end">$ {{ item.subtotal|moneda }}</td>
               </tr>
               {% endfor %}
             </tbody>
-            <tfoot class="table-light fw-semibold">
-              <tr>
-                <td colspan="3" class="text-end">Subtotal</td>
-                <td class="text-end">$ {{ remito.subtotal|moneda }}</td>
-              </tr>
-              <tr>
-                <td colspan="3" class="text-end">IVA {{ (remito.tax_rate * 100)|int }}%</td>
-                <td class="text-end">$ {{ remito.tax_amount|moneda }}</td>
-              </tr>
-              <tr class="fs-5">
-                <td colspan="3" class="text-end fw-bold">TOTAL</td>
-                <td class="text-end fw-bold text-primary">$ {{ remito.total|moneda }}</td>
-              </tr>
-            </tfoot>
           </table>
         </div>
       </div>

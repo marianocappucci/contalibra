@@ -20,14 +20,10 @@
       <div class="card-header d-flex justify-content-between align-items-center">
         <span><i class="bi bi-list-ul me-1"></i>Artículos</span>
         <div class="d-flex gap-2">
-          <input type="search" id="buscador-producto" class="form-control form-control-sm"
+          <input type="text" id="buscador-producto" class="form-control form-control-sm"
                  placeholder="Buscar producto…" style="width:220px" autocomplete="off">
         </div>
       </div>
-
-      <!-- Sugerencias autocomplete -->
-      <div id="sugerencias" class="list-group position-absolute shadow-sm"
-           style="z-index:1000;display:none;max-width:340px;max-height:220px;overflow-y:auto"></div>
 
       <div class="card-body p-0">
         <table class="table table-sm align-middle mb-0" id="tabla-items">
@@ -63,14 +59,31 @@
           <label class="form-label fw-semibold">Fecha</label>
           <input type="date" name="fecha" class="form-control" value="{{ hoy }}">
         </div>
-        <div class="mb-0">
-          <label class="form-label fw-semibold">Cliente <span class="text-muted fw-normal small">(opcional)</span></label>
-          <select name="cliente_id" class="form-select" id="sel-cliente">
-            <option value="">— Consumidor final —</option>
-            {% for c in clientes %}
-            <option value="{{ c.id }}">{{ c.name }}</option>
+        {% if listas_precio %}
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Lista de precios</label>
+          <select id="sel-lista-precio" class="form-select form-select-sm" onchange="onListaChange(this.value)">
+            <option value="">— Precio de venta —</option>
+            {% for l in listas_precio %}
+            <option value="{{ l.id }}">{{ l.nombre }}</option>
             {% endfor %}
           </select>
+        </div>
+        {% endif %}
+        <div class="mb-0">
+          <label class="form-label fw-semibold">Cliente <span class="text-muted fw-normal small">(opcional)</span></label>
+          <div class="input-group">
+            <select name="cliente_id" class="form-select" id="sel-cliente">
+              <option value="">— Consumidor final —</option>
+              {% for c in clientes %}
+              <option value="{{ c.id }}">{{ c.name }}</option>
+              {% endfor %}
+            </select>
+            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal"
+                    data-bs-target="#modal-nuevo-cliente" title="Agregar nuevo cliente">
+              <i class="bi bi-person-plus"></i>
+            </button>
+          </div>
           <input type="hidden" name="cliente_nombre" id="cliente-nombre-hidden">
         </div>
       </div>
@@ -120,7 +133,7 @@
                      class="form-control monto-pago" step="0.01" min="0"
                      placeholder="Monto" oninput="calcPagado()">
             </div>
-            {% if m.id in ['transferencia', 'mercadopago', 'cuenta_dni', 'billetera'] %}
+            {% if m.id in ['transferencia', 'mercadopago', 'cuenta_dni', 'billetera', 'cuenta_corriente'] %}
             <input type="text" name="ref_{{ m.id }}" class="form-control form-control-sm"
                    placeholder="Referencia / N° operación (opcional)">
             {% endif %}
@@ -153,6 +166,59 @@
   </div><!-- /col derecha -->
 </div>
 </form>
+
+<!-- Modal nuevo cliente -->
+<div class="modal fade" id="modal-nuevo-cliente" tabindex="-1" aria-labelledby="modal-nc-label" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modal-nc-label"><i class="bi bi-person-plus me-2"></i>Nuevo cliente</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="modal-nc-error" class="alert alert-danger d-none"></div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Nombre / Razón social <span class="text-danger">*</span></label>
+          <input type="text" id="nc-name" class="form-control" placeholder="Ej: Juan García">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">CUIT / DNI</label>
+          <input type="text" id="nc-cuit" class="form-control" placeholder="20-12345678-9">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Condición IVA</label>
+          <select id="nc-iva" class="form-select">
+            <option value="">— Sin especificar —</option>
+            <option>Consumidor Final</option>
+            <option>Responsable Inscripto</option>
+            <option>Monotributista</option>
+            <option>IVA Exento</option>
+            <option>No Alcanzado</option>
+            <option>IVA No Responsable</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Email</label>
+          <input type="email" id="nc-email" class="form-control" placeholder="cliente@ejemplo.com">
+        </div>
+        <div class="mb-0">
+          <label class="form-label">Teléfono</label>
+          <input type="text" id="nc-phone" class="form-control" placeholder="11 1234-5678">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btn-guardar-cliente">
+          <i class="bi bi-check2 me-1"></i>Guardar y seleccionar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Sugerencias autocomplete — fuera del form para que position:fixed funcione correctamente -->
+<div id="sugerencias" class="list-group shadow"
+     style="position:fixed;z-index:9999;display:none;max-height:220px;overflow-y:auto"></div>
 
 <script>
 let filaIdx = 0;
@@ -251,6 +317,24 @@ function toggleMedio(el) {
   calcPagado();
 }
 
+// — Lista de precios —
+let listaId = 0;
+let preciosLista = {};  // {producto_id: precio}
+
+async function onListaChange(val) {
+  listaId = parseInt(val) || 0;
+  preciosLista = {};
+  if (listaId) {
+    const res = await fetch(`/api/listas-precio/${listaId}/precios`);
+    preciosLista = await res.json();
+  }
+}
+
+function getPrecioParaProducto(pid, precioBase) {
+  if (listaId && preciosLista[pid] != null) return preciosLista[pid];
+  return precioBase;
+}
+
 // — Autocompletado de productos —
 const buscador = document.getElementById('buscador-producto');
 const sugs     = document.getElementById('sugerencias');
@@ -259,10 +343,14 @@ let debounceT;
 buscador.addEventListener('input', () => {
   clearTimeout(debounceT);
   const q = buscador.value.trim();
-  if (q.length < 2) { sugs.style.display='none'; return; }
+  if (q.length < 1) { sugs.style.display='none'; return; }
   debounceT = setTimeout(async () => {
-    const res = await fetch(`/productos/buscar?q=${encodeURIComponent(q)}`);
-    const data = await res.json();
+    const url = `/productos/buscar?q=${encodeURIComponent(q)}${listaId ? '&lista_id='+listaId : ''}`;
+    let data = [];
+    try {
+      const res = await fetch(url);
+      if (res.ok) data = await res.json();
+    } catch(e) { return; }
     sugs.innerHTML = '';
     if (!data.length) { sugs.style.display='none'; return; }
     data.forEach(p => {
@@ -278,10 +366,10 @@ buscador.addEventListener('input', () => {
       });
       sugs.appendChild(a);
     });
-    // Posicionar bajo el buscador
+    // Posicionar bajo el buscador (fixed = coordenadas relativas al viewport)
     const rect = buscador.getBoundingClientRect();
-    sugs.style.top  = (rect.bottom + window.scrollY) + 'px';
-    sugs.style.left = (rect.left + window.scrollX) + 'px';
+    sugs.style.top   = rect.bottom + 'px';
+    sugs.style.left  = rect.left + 'px';
     sugs.style.width = rect.width + 'px';
     sugs.style.display = '';
   }, 250);
@@ -293,5 +381,45 @@ document.addEventListener('click', e => {
 
 // Agregar primera fila vacía al cargar
 agregarFila();
+
+// — Modal nuevo cliente —
+document.getElementById('btn-guardar-cliente').addEventListener('click', async () => {
+  const name = document.getElementById('nc-name').value.trim();
+  const errDiv = document.getElementById('modal-nc-error');
+  errDiv.classList.add('d-none');
+
+  if (!name) {
+    errDiv.textContent = 'El nombre es obligatorio.';
+    errDiv.classList.remove('d-none');
+    return;
+  }
+
+  const body = new FormData();
+  body.append('name',          name);
+  body.append('cuit_dni',      document.getElementById('nc-cuit').value.trim());
+  body.append('iva_condition', document.getElementById('nc-iva').value);
+  body.append('email',         document.getElementById('nc-email').value.trim());
+  body.append('phone',         document.getElementById('nc-phone').value.trim());
+
+  const res  = await fetch('/clientes/nuevo-rapido', { method: 'POST', body });
+  const data = await res.json();
+
+  if (data.error) {
+    errDiv.textContent = data.error;
+    errDiv.classList.remove('d-none');
+    return;
+  }
+
+  // Agregar al select y seleccionarlo
+  const sel = document.getElementById('sel-cliente');
+  const opt = new Option(data.name, data.id, true, true);
+  sel.appendChild(opt);
+  sel.value = data.id;
+
+  // Cerrar modal y limpiar campos
+  bootstrap.Modal.getInstance(document.getElementById('modal-nuevo-cliente')).hide();
+  ['nc-name','nc-cuit','nc-email','nc-phone'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('nc-iva').value = '';
+});
 </script>
 {% endblock %}

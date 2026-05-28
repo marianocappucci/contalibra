@@ -3,7 +3,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from fastapi import APIRouter, Request, Depends, HTTPException
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from typing import Annotated
 
 import database as db
@@ -130,3 +130,26 @@ def cliente_eliminar(request: Request, cliente_id: int, user: Auth):
             "clientes": db.get_all_clients(), "error": str(e), "active": "clientes",
         }, status_code=422)
     return RedirectResponse("/clientes", status_code=303)
+
+
+@router.post("/clientes/nuevo-rapido")
+async def cliente_nuevo_rapido(request: Request, user: Auth):
+    """Crea un cliente desde un modal y devuelve JSON con id y nombre."""
+    form = await request.form()
+    name = str(form.get("name", "")).strip()
+    if not name:
+        return JSONResponse({"error": "El nombre es obligatorio."}, status_code=422)
+    try:
+        address       = str(form.get("address", "")).strip()
+        cuit_dni      = str(form.get("cuit_dni", "")).strip()
+        email         = str(form.get("email", "")).strip()
+        phone         = str(form.get("phone", "")).strip()
+        iva_condition = str(form.get("iva_condition", "")).strip()
+        cid = db.create_client(name, address, cuit_dni, email, phone, iva_condition)
+        return JSONResponse({
+            "id": cid, "name": name,
+            "address": address, "cuit_dni": cuit_dni,
+            "iva_condition": iva_condition, "email": email,
+        })
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=422)

@@ -1,8 +1,25 @@
 {% extends "base.html" %}
 {% block title %}Presupuesto {{ presupuesto.number }} — Contalibra{% endblock %}
 {% block content %}
+
+{% macro badge_estado(st) %}
+  {% if st == 'borrador' %}<span class="badge badge-borrador rounded-pill px-3 fs-6">Borrador</span>
+  {% elif st == 'enviado' %}<span class="badge badge-enviado rounded-pill px-3 fs-6">Enviado</span>
+  {% elif st == 'aceptado' %}<span class="badge badge-aceptado rounded-pill px-3 fs-6">Aceptado</span>
+  {% elif st == 'rechazado' %}<span class="badge badge-rechazado rounded-pill px-3 fs-6">Rechazado</span>
+  {% elif st == 'vencido' %}<span class="badge badge-vencido rounded-pill px-3 fs-6">Vencido</span>
+  {% elif st == 'facturado' %}<span class="badge badge-facturado rounded-pill px-3 fs-6">Facturado</span>
+  {% else %}<span class="badge badge-enviado rounded-pill px-3 fs-6">Enviado</span>
+  {% endif %}
+{% endmacro %}
+
+{% set st = presupuesto.status %}
+
 <div class="page-header">
-  <h1><i class="bi bi-calculator me-2 text-primary"></i>Presupuesto <span class="font-monospace">{{ presupuesto.number }}</span></h1>
+  <div class="d-flex align-items-center gap-3">
+    <h1 class="mb-0"><i class="bi bi-calculator me-2 text-primary"></i>Presupuesto <span class="font-monospace">{{ presupuesto.number }}</span></h1>
+    {{ badge_estado(st) }}
+  </div>
   <div class="d-flex gap-2">
     <a href="/presupuestos/{{ presupuesto.id }}/pdf" class="btn btn-outline-primary" target="_blank">
       <i class="bi bi-file-pdf me-1"></i>Ver PDF
@@ -46,15 +63,7 @@
           <dt class="col-sm-5">Fecha</dt><dd class="col-sm-7">{{ presupuesto.date }}</dd>
           <dt class="col-sm-5">Válido hasta</dt><dd class="col-sm-7">{{ presupuesto.valid_until }}</dd>
           <dt class="col-sm-5">Estado</dt>
-          <dd class="col-sm-7">
-            {% if presupuesto.status == 'aceptado' %}
-              <span class="badge badge-aceptado rounded-pill px-3">Aceptado</span>
-            {% elif presupuesto.status == 'rechazado' %}
-              <span class="badge badge-rechazado rounded-pill px-3">Rechazado</span>
-            {% else %}
-              <span class="badge badge-pendiente rounded-pill px-3">Pendiente</span>
-            {% endif %}
-          </dd>
+          <dd class="col-sm-7">{{ badge_estado(st) }}</dd>
           {% if presupuesto.observations %}
           <dt class="col-sm-5">Observaciones</dt><dd class="col-sm-7">{{ presupuesto.observations }}</dd>
           {% endif %}
@@ -107,12 +116,29 @@
     </div>
   </div>
 
-  {% if presupuesto.status == 'pendiente' %}
+  {# ── Panel de acciones según estado ── #}
+  {% if st not in ('facturado',) %}
   <div class="col-12">
-    <div class="card border-warning">
-      <div class="card-header text-warning fw-semibold">Cambiar estado</div>
+    <div class="card">
+      <div class="card-header fw-semibold">Acciones</div>
       <div class="card-body">
-        <div class="d-flex gap-3 flex-wrap">
+        <div class="d-flex gap-2 flex-wrap align-items-center">
+
+          {# Borrador → Enviado #}
+          {% if st == 'borrador' %}
+          <form method="post" action="/presupuestos/{{ presupuesto.id }}/estado">
+            <input type="hidden" name="estado" value="enviado">
+            <button class="btn btn-primary"><i class="bi bi-send me-1"></i>Marcar como Enviado</button>
+          </form>
+          <form method="post" action="/presupuestos/{{ presupuesto.id }}/estado"
+                onsubmit="return confirm('¿Marcar como rechazado?')">
+            <input type="hidden" name="estado" value="rechazado">
+            <button class="btn btn-outline-danger"><i class="bi bi-x-circle me-1"></i>Rechazar</button>
+          </form>
+          {% endif %}
+
+          {# Enviado (o pendiente legacy) → Aceptado / Rechazado #}
+          {% if st in ('enviado', 'pendiente') %}
           <form method="post" action="/presupuestos/{{ presupuesto.id }}/estado">
             <input type="hidden" name="estado" value="aceptado">
             <input type="hidden" name="convertir_remito" value="0">
@@ -128,22 +154,44 @@
             <input type="hidden" name="estado" value="rechazado">
             <button class="btn btn-outline-danger"><i class="bi bi-x-circle me-1"></i>Rechazar</button>
           </form>
+          {% endif %}
+
+          {# Aceptado → Facturado #}
+          {% if st == 'aceptado' %}
+          <a href="/facturas/nueva?from_presupuesto={{ presupuesto.id }}" class="btn btn-primary">
+            <i class="bi bi-receipt me-1"></i>Generar Factura
+          </a>
+          <form method="post" action="/presupuestos/{{ presupuesto.id }}/estado">
+            <input type="hidden" name="estado" value="facturado">
+            <button class="btn btn-outline-secondary"><i class="bi bi-check2-all me-1"></i>Marcar como Facturado</button>
+          </form>
+          <form method="post" action="/presupuestos/{{ presupuesto.id }}/estado"
+                onsubmit="return confirm('¿Rechazar un presupuesto aceptado?')">
+            <input type="hidden" name="estado" value="rechazado">
+            <button class="btn btn-outline-danger"><i class="bi bi-x-circle me-1"></i>Rechazar</button>
+          </form>
+          {% endif %}
+
+          {# Rechazado o Vencido → Reactivar como Borrador #}
+          {% if st in ('rechazado', 'vencido') %}
+          <form method="post" action="/presupuestos/{{ presupuesto.id }}/estado">
+            <input type="hidden" name="estado" value="borrador">
+            <button class="btn btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1"></i>Reactivar como Borrador</button>
+          </form>
+          {% endif %}
+
         </div>
       </div>
     </div>
   </div>
   {% endif %}
 
-  {% if presupuesto.status == 'aceptado' %}
+  {# Facturado: link a factura si existe #}
+  {% if st == 'facturado' %}
   <div class="col-12">
-    <div class="card border-primary">
-      <div class="card-header text-primary fw-semibold"><i class="bi bi-receipt me-1"></i>Facturación</div>
-      <div class="card-body">
-        <p class="text-muted small mb-3">Generá una factura con los ítems de este presupuesto. Vas a poder revisar y ajustar fechas de servicio antes de emitirla.</p>
-        <a href="/facturas/nueva?from_presupuesto={{ presupuesto.id }}" class="btn btn-primary">
-          <i class="bi bi-receipt me-1"></i>Generar Factura
-        </a>
-      </div>
+    <div class="alert alert-info d-flex align-items-center gap-2 mb-0">
+      <i class="bi bi-check2-all flex-shrink-0 fs-5"></i>
+      <span>Este presupuesto está <strong>facturado</strong> y cerrado comercialmente.</span>
     </div>
   </div>
   {% endif %}

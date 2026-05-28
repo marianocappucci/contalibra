@@ -18,11 +18,12 @@ router = APIRouter()
 Auth = Annotated[str, Depends(require_auth)]
 
 MEDIOS_PAGO = [
-    {"id": "efectivo",      "label": "Efectivo",        "icon": "bi-cash"},
-    {"id": "transferencia", "label": "Transferencia",   "icon": "bi-bank"},
-    {"id": "mercadopago",   "label": "Mercado Pago",    "icon": "bi-phone"},
-    {"id": "cuenta_dni",    "label": "Cuenta DNI",      "icon": "bi-person-vcard"},
-    {"id": "billetera",     "label": "Otras billeteras","icon": "bi-wallet2"},
+    {"id": "efectivo",         "label": "Efectivo",         "icon": "bi-cash"},
+    {"id": "transferencia",    "label": "Transferencia",    "icon": "bi-bank"},
+    {"id": "mercadopago",      "label": "Mercado Pago",     "icon": "bi-phone"},
+    {"id": "cuenta_dni",       "label": "Cuenta DNI",       "icon": "bi-person-vcard"},
+    {"id": "billetera",        "label": "Otras billeteras", "icon": "bi-wallet2"},
+    {"id": "cuenta_corriente", "label": "Cuenta corriente", "icon": "bi-journal-text"},
 ]
 
 MEDIO_LABELS = {m["id"]: m["label"] for m in MEDIOS_PAGO}
@@ -30,10 +31,12 @@ MEDIO_LABELS = {m["id"]: m["label"] for m in MEDIOS_PAGO}
 
 @router.get("/ventas")
 def ventas_list(request: Request, user: Auth,
-                desde: str = "", hasta: str = "", q: str = ""):
-    ventas = db.get_all_ventas(desde=desde, hasta=hasta, q=q)
+                desde: str = "", hasta: str = "", q: str = "", tab: str = "todas"):
+    if tab not in ("todas", "sin_facturar", "facturadas"):
+        tab = "todas"
+    ventas = db.get_all_ventas(desde=desde, hasta=hasta, q=q, tab=tab)
     return templates.TemplateResponse(request, "ventas/list.html", {
-        "ventas": ventas, "desde": desde, "hasta": hasta, "q": q,
+        "ventas": ventas, "desde": desde, "hasta": hasta, "q": q, "tab": tab,
         "active": "ventas", "medio_labels": MEDIO_LABELS,
     })
 
@@ -41,9 +44,11 @@ def ventas_list(request: Request, user: Auth,
 @router.get("/ventas/nueva")
 def venta_nueva_get(request: Request, user: Auth):
     clientes = db.get_all_clients()
+    listas   = db.get_all_listas_precio(solo_activas=True)
     return templates.TemplateResponse(request, "ventas/nueva.html", {
         "clientes": clientes, "medios_pago": MEDIOS_PAGO,
         "hoy": date.today().isoformat(), "active": "ventas",
+        "listas_precio": listas,
         "error": None,
     })
 
@@ -127,13 +132,19 @@ async def venta_nueva_post(request: Request, user: Auth):
     usuario_id = usuario["id"] if usuario else None
 
     numero = db.get_next_venta_numero()
+    if total_pagado >= total:
+        estado = "cobrada"
+    elif total_pagado > 0:
+        estado = "parcial"
+    else:
+        estado = "pendiente"
 
     # — guardar —
     venta_id = db.create_venta(
         numero=numero, fecha=fecha, items=items,
         subtotal=subtotal, descuento=descuento, total=total,
         cliente_id=cliente_id, cliente_nombre=cliente_nombre,
-        usuario_id=usuario_id, observaciones=obs,
+        usuario_id=usuario_id, observaciones=obs, estado=estado,
     )
     for p in pagos:
         db.add_venta_pago(venta_id, p["medio"], p["monto"], p.get("referencia", ""))
@@ -268,4 +279,40 @@ def venta_ticket(vid: int, user: Auth):
         content=pdf_bytes,
         media_type="application/pdf",
         headers={"Content-Disposition": f'inline; filename="ticket_venta_{vid}.pdf"'},
+    )
+
+
+@router.get("/ventas/{vid}/recibo")
+def venta_recibo(vid: int, user: Auth):
+    import pdf_generator as pg
+    venta = db.get_venta(vid)
+    if not venta:
+        raise HTTPException(404)
+    # Adaptar venta al formato que espera generate_pdf_recibo
+    factura_like = {
+        "tipo":            None,
+        "punto_venta":     0,
+        "numero":          venta["id"],
+        "fecha":           venta.get("fecha", ""),
+        "cliente_razon":   venta.get("cliente_nombre") or "Consumidor Final",
+        "cliente_cuit":    venta.get("cliente_cuit", ""),
+        "cliente_domicilio": "",
+        "total":           venta.get("total", 0),
+        "_es_venta":       True,
+        "_venta_numero":   venta.get("numero", venta["id"]),
+    }
+    cobros = [
+        {
+            "fecha":      venta.get("fecha", ""),
+            "medio_pago": p.get("medio", ""),
+            "referencia": p.get("referencia", ""),
+            "monto":      float(p.get("monto", 0)),
+        }
+        for p in venta.get("pagos", [])
+    ]
+    pdf_bytes = pg.generate_pdf_recibo(factura_like, cobros)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="recibo_venta_{vid}.pdf"'},
     )

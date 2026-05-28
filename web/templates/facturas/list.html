@@ -3,9 +3,31 @@
 {% block content %}
 <div class="page-header">
   <h1><i class="bi bi-receipt me-2 text-primary"></i>Comprobantes</h1>
-  {% if vista != 'nc' %}
-  <a href="/facturas/nueva" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Nueva factura</a>
-  {% endif %}
+  <div class="dropdown">
+    <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="bi bi-plus-lg me-1"></i>Nuevo
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end">
+      <li>
+        <a class="dropdown-item" href="/facturas/nueva">
+          <i class="bi bi-file-text me-2 text-primary"></i>Factura
+        </a>
+      </li>
+      <li><hr class="dropdown-divider"></li>
+      <li>
+        <span class="dropdown-item disabled">
+          <i class="bi bi-file-minus me-2 text-warning"></i>Nota de Crédito
+          <small class="d-block text-muted" style="font-size:0.75rem">Generá desde el detalle de una factura</small>
+        </span>
+      </li>
+      <li>
+        <span class="dropdown-item disabled">
+          <i class="bi bi-file-plus me-2 text-info"></i>Nota de Débito
+          <small class="d-block text-muted" style="font-size:0.75rem">Generá desde el detalle de una factura</small>
+        </span>
+      </li>
+    </ul>
+  </div>
 </div>
 
 <!-- Tabs -->

@@ -102,38 +102,40 @@
       <div class="card">
         <div class="card-header">Cliente</div>
         <div class="card-body">
-          {% if clientes %}
           <div class="mb-3">
-            <label class="form-label">Seleccionar cliente existente</label>
-            <select class="form-select" id="client-select" name="client_id">
-              <option value="">— Nuevo cliente —</option>
-              {% for c in clientes %}
-              <option value="{{ c.id }}"
-                data-address="{{ c.address or '' }}"
-                data-cuit="{{ c.cuit_dni or '' }}"
-                data-email="{{ c.email or '' }}"
-                data-phone="{{ c.phone or '' }}"
-                data-iva="{{ c.iva_condition or '' }}">{{ c.name }}</option>
-              {% endfor %}
-            </select>
+            <label class="form-label">Cliente</label>
+            <div class="input-group">
+              <select class="form-select" id="client-select" name="client_id">
+                <option value="">— Consumidor Final —</option>
+                {% for c in clientes %}
+                <option value="{{ c.id }}"
+                  data-address="{{ c.address or '' }}"
+                  data-cuit="{{ c.cuit_dni or '' }}"
+                  data-email="{{ c.email or '' }}"
+                  data-phone="{{ c.phone or '' }}"
+                  data-iva="{{ c.iva_condition or '' }}">{{ c.name }}</option>
+                {% endfor %}
+              </select>
+              <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal"
+                      data-bs-target="#modal-nuevo-cliente" title="Agregar nuevo cliente">
+                <i class="bi bi-person-plus"></i>
+              </button>
+            </div>
           </div>
-          {% endif %}
-          <div class="row g-2" id="client-fields">
-            <div class="col-md-6">
-              <label class="form-label">Razón social <span class="text-danger">*</span></label>
-              <input type="text" class="form-control" name="client_name" id="client_name" required>
-            </div>
-            <div class="col-md-3">
-              <label class="form-label">CUIT</label>
-              <input type="text" class="form-control" name="client_cuit" id="client_cuit" placeholder="20-12345678-9">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label">Condición IVA</label>
-              <input type="text" class="form-control" name="client_iva" id="client_iva" placeholder="Responsable Inscripto">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Domicilio</label>
-              <input type="text" class="form-control" name="client_address" id="client_address">
+          <!-- Hidden: always submitted; JS keeps it in sync with the selected client -->
+          <input type="hidden" name="client_name"    id="client_name"    value="Consumidor Final">
+          <input type="hidden" name="client_cuit"    id="client_cuit"    value="">
+          <input type="hidden" name="client_iva"     id="client_iva"     value="">
+          <input type="hidden" name="client_address" id="client_address" value="">
+          <!-- Display-only card: shown only when a stored client is selected -->
+          <div id="client-fields" class="border rounded p-2 bg-light d-none">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <div class="fw-semibold" id="cf-display-name"></div>
+                <div class="small text-muted" id="cf-display-cuit"></div>
+                <div class="small text-muted" id="cf-display-iva"></div>
+                <div class="small text-muted" id="cf-display-address"></div>
+              </div>
             </div>
           </div>
         </div>
@@ -171,9 +173,13 @@
       <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
           Ítems
-          <button type="button" class="btn btn-sm btn-outline-primary" id="add-row">
-            <i class="bi bi-plus-lg"></i> Agregar ítem
-          </button>
+          <div class="d-flex gap-2 align-items-center">
+            <input type="text" id="buscador-prod" class="form-control form-control-sm"
+                   placeholder="Buscar producto…" style="width:200px" autocomplete="off">
+            <button type="button" class="btn btn-sm btn-outline-primary" id="add-row">
+              <i class="bi bi-plus-lg me-1"></i>Agregar ítem
+            </button>
+          </div>
         </div>
         <div class="card-body p-0">
           <div class="table-responsive">
@@ -232,6 +238,58 @@
     </div>
   </div>
 </form>
+
+<div id="sugs-prod" class="list-group shadow"
+     style="position:fixed;z-index:9999;display:none;max-height:220px;overflow-y:auto"></div>
+
+<!-- Modal nuevo cliente -->
+<div class="modal fade" id="modal-nuevo-cliente" tabindex="-1" aria-labelledby="modal-nc-label" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modal-nc-label"><i class="bi bi-person-plus me-2"></i>Nuevo cliente</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="modal-nc-error" class="alert alert-danger d-none"></div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Nombre / Razón social <span class="text-danger">*</span></label>
+          <input type="text" id="nc-name" class="form-control" placeholder="Ej: Juan García">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">CUIT / DNI</label>
+          <input type="text" id="nc-cuit" class="form-control" placeholder="20-12345678-9">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Condición IVA</label>
+          <select id="nc-iva" class="form-select">
+            <option value="">— Sin especificar —</option>
+            <option>Consumidor Final</option>
+            <option>Responsable Inscripto</option>
+            <option>Monotributista</option>
+            <option>IVA Exento</option>
+            <option>No Alcanzado</option>
+            <option>IVA No Responsable</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Email</label>
+          <input type="email" id="nc-email" class="form-control" placeholder="cliente@ejemplo.com">
+        </div>
+        <div class="mb-0">
+          <label class="form-label">Teléfono</label>
+          <input type="text" id="nc-phone" class="form-control" placeholder="11 1234-5678">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btn-guardar-cliente">
+          <i class="bi bi-check2 me-1"></i>Guardar y seleccionar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -239,6 +297,45 @@
 const fmt = n => '$ ' + n.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
 
 const esMonotributista = {{ 'true' if es_monotributista else 'false' }};
+
+// ── Buscador de productos ──
+(function () {
+  const buscador = document.getElementById('buscador-prod');
+  const sugs     = document.getElementById('sugs-prod');
+  let debT;
+  buscador.addEventListener('input', () => {
+    clearTimeout(debT);
+    const q = buscador.value.trim();
+    if (!q) { sugs.style.display = 'none'; return; }
+    debT = setTimeout(async () => {
+      let data = [];
+      try { const r = await fetch(`/productos/buscar?q=${encodeURIComponent(q)}`); if (r.ok) data = await r.json(); } catch(e) { return; }
+      sugs.innerHTML = '';
+      if (!data.length) { sugs.style.display = 'none'; return; }
+      data.forEach(p => {
+        const a = document.createElement('a');
+        a.href = '#';
+        a.className = 'list-group-item list-group-item-action py-1 px-3 small';
+        a.innerHTML = `<strong>${p.nombre}</strong><span class="text-muted ms-2">${fmt(p.precio_venta)} / ${p.unidad}</span>`;
+        a.addEventListener('click', e => { e.preventDefault(); insertar(p); buscador.value = ''; sugs.style.display = 'none'; });
+        sugs.appendChild(a);
+      });
+      const rect = buscador.getBoundingClientRect();
+      sugs.style.top = rect.bottom + 'px'; sugs.style.left = rect.left + 'px';
+      sugs.style.width = Math.max(rect.width, 260) + 'px'; sugs.style.display = '';
+    }, 200);
+  });
+  document.addEventListener('click', e => { if (!sugs.contains(e.target) && e.target !== buscador) sugs.style.display = 'none'; });
+  function insertar(p) {
+    let row = [...document.querySelectorAll('.item-row')].find(r => !r.querySelector('[name="desc[]"]').value.trim());
+    if (!row) { addRow(); const rows = document.querySelectorAll('.item-row'); row = rows[rows.length - 1]; }
+    row.querySelector('[name="desc[]"]').value   = p.nombre;
+    row.querySelector('.qty').value              = 1;
+    row.querySelector('.price').value            = p.precio_venta.toFixed(2);
+    recalc();
+    row.querySelector('[name="desc[]"]').focus();
+  }
+})();
 
 function recalc() {
   let sub = 0;
@@ -280,17 +377,30 @@ document.querySelectorAll('.item-row').forEach(bindRow);
 document.getElementById('add-row').addEventListener('click', addRow);
 if (!esMonotributista) document.getElementById('tax-rate').addEventListener('change', recalc);
 
+function applyClientSelection(opt) {
+  const fields  = document.getElementById('client-fields');
+  if (opt.value) {
+    document.getElementById('client_name').value    = opt.text;
+    document.getElementById('client_cuit').value    = opt.dataset.cuit    || '';
+    document.getElementById('client_iva').value     = opt.dataset.iva     || '';
+    document.getElementById('client_address').value = opt.dataset.address || '';
+    document.getElementById('cf-display-name').textContent    = opt.text;
+    document.getElementById('cf-display-cuit').textContent    = opt.dataset.cuit    || '';
+    document.getElementById('cf-display-iva').textContent     = opt.dataset.iva     || '';
+    document.getElementById('cf-display-address').textContent = opt.dataset.address || '';
+    fields.classList.remove('d-none');
+  } else {
+    document.getElementById('client_name').value    = 'Consumidor Final';
+    document.getElementById('client_cuit').value    = '';
+    document.getElementById('client_iva').value     = '';
+    document.getElementById('client_address').value = '';
+    fields.classList.add('d-none');
+  }
+}
+
 const sel = document.getElementById('client-select');
 if (sel) {
-  sel.addEventListener('change', () => {
-    const opt = sel.options[sel.selectedIndex];
-    const locked = opt.value !== '';
-    document.getElementById('client_name').value    = opt.value ? opt.text : '';
-    document.getElementById('client_address').value = opt.dataset.address || '';
-    document.getElementById('client_cuit').value    = opt.dataset.cuit || '';
-    document.getElementById('client_iva').value     = opt.dataset.iva || '';
-    document.querySelectorAll('#client-fields input').forEach(i => i.readOnly = locked);
-  });
+  sel.addEventListener('change', () => applyClientSelection(sel.options[sel.selectedIndex]));
 }
 
 const dateInput = document.querySelector('input[name="fecha"]');
@@ -324,11 +434,6 @@ recalc();
     clientSel.value = '{{ prefill.client_id }}';
     clientSel.dispatchEvent(new Event('change'));
   }
-  {% else %}
-  document.getElementById('client_name').value    = {{ prefill.client_name | tojson }};
-  document.getElementById('client_cuit').value    = {{ prefill.client_cuit | tojson }};
-  document.getElementById('client_address').value = {{ prefill.client_address | tojson }};
-  document.getElementById('client_iva').value     = {{ prefill.client_iva | tojson }};
   {% endif %}
 
   const conceptoSel = document.getElementById('concepto-select');
@@ -365,6 +470,47 @@ document.getElementById('btnBorrador').addEventListener('click', function() {
   document.body.appendChild(clone);
   clone.submit();
   document.body.removeChild(clone);
+});
+
+document.getElementById('btn-guardar-cliente').addEventListener('click', async function () {
+  const name = document.getElementById('nc-name').value.trim();
+  const errDiv = document.getElementById('modal-nc-error');
+  errDiv.classList.add('d-none');
+  if (!name) {
+    errDiv.textContent = 'El nombre es obligatorio.';
+    errDiv.classList.remove('d-none');
+    return;
+  }
+  const body = new FormData();
+  body.append('name',          name);
+  body.append('cuit_dni',      document.getElementById('nc-cuit').value.trim());
+  body.append('iva_condition', document.getElementById('nc-iva').value);
+  body.append('email',         document.getElementById('nc-email').value.trim());
+  body.append('phone',         document.getElementById('nc-phone').value.trim());
+
+  const res  = await fetch('/clientes/nuevo-rapido', { method: 'POST', body });
+  const data = await res.json();
+  if (data.error) {
+    errDiv.textContent = data.error;
+    errDiv.classList.remove('d-none');
+    return;
+  }
+
+  const clientSel = document.getElementById('client-select');
+  const opt = document.createElement('option');
+  opt.value          = data.id;
+  opt.text           = data.name;
+  opt.dataset.cuit   = data.cuit_dni    || '';
+  opt.dataset.iva    = data.iva_condition || '';
+  opt.dataset.address = data.address    || '';
+  opt.dataset.email  = data.email       || '';
+  clientSel.appendChild(opt);
+  clientSel.value = data.id;
+  clientSel.dispatchEvent(new Event('change'));
+
+  bootstrap.Modal.getInstance(document.getElementById('modal-nuevo-cliente')).hide();
+  ['nc-name','nc-cuit','nc-email','nc-phone'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('nc-iva').value = '';
 });
 </script>
 {% endblock %}

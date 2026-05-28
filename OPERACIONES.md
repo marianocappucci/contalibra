@@ -8,16 +8,82 @@ desplegar actualizaciones del sistema.
 ## Índice
 
 1. [Arquitectura](#arquitectura)
-2. [Setup inicial del servidor](#setup-inicial-del-servidor)
-3. [Alta de un cliente nuevo](#alta-de-un-cliente-nuevo)
-4. [Gestión diaria con panel_admin.py](#gestión-diaria-con-panel_adminpy)
-5. [Desplegar una actualización](#desplegar-una-actualización)
-6. [Cuándo reconstruir la imagen vs solo reiniciar](#cuándo-reconstruir-la-imagen-vs-solo-reiniciar)
-7. [Backup y restauración](#backup-y-restauración)
-8. [Proxy y SSL (Nginx Proxy Manager)](#proxy-y-ssl-nginx-proxy-manager)
-9. [Gestión del estado del servicio](#gestión-del-estado-del-servicio)
-10. [Website de marketing (contalibra.com.ar)](#website-de-marketing-contalibracomar)
-11. [Estructura de directorios](#estructura-de-directorios)
+2. [Entornos dev y producción](#entornos-dev-y-producción)
+3. [Setup inicial del servidor](#setup-inicial-del-servidor)
+4. [Alta de un cliente nuevo](#alta-de-un-cliente-nuevo)
+5. [Gestión diaria con panel_admin.py](#gestión-diaria-con-panel_adminpy)
+6. [Desplegar una actualización](#desplegar-una-actualización)
+7. [Cuándo reconstruir la imagen vs solo reiniciar](#cuándo-reconstruir-la-imagen-vs-solo-reiniciar)
+8. [Backup y restauración](#backup-y-restauración)
+9. [Proxy y SSL (Nginx Proxy Manager)](#proxy-y-ssl-nginx-proxy-manager)
+10. [Gestión del estado del servicio](#gestión-del-estado-del-servicio)
+11. [Website de marketing (contalibra.com.ar)](#website-de-marketing-contalibracomar)
+12. [Estructura de directorios](#estructura-de-directorios)
+
+---
+
+## Entornos dev y producción
+
+El sistema maneja dos entornos completamente separados que corren en el mismo servidor.
+
+| | Desarrollo | Producción |
+|---|---|---|
+| Rama git | `develop` | `main` |
+| Puerto | `8071` | `8070` |
+| Contenedor Docker | `contalibra-dev` | `contalibra` |
+| docker-compose | `docker-compose.yml` | `docker-compose.prod.yml` |
+| Base de datos | `./dev-data/contalibra.db` | `./contalibra.db` |
+| Código | Volumen montado (hot-reload) | Copiado en la imagen |
+| Badge en UI | `DEV` amarillo en sidebar | Sin badge |
+
+### Flujo de trabajo diario
+
+Todo el trabajo se hace en la rama `develop`. Los cambios se pushean libremente.
+
+```bash
+git checkout develop       # siempre trabajar en develop
+# ... editar código ...
+git add -A
+git commit -m "descripcion"
+git push origin develop
+```
+
+### Arrancar entorno de desarrollo
+
+```bash
+cd /root/contalibra
+docker compose up -d --build    # usa docker-compose.yml → puerto 8071
+```
+
+### Promover cambios a producción
+
+Cuando los cambios están listos para producción, ejecutar el script de deploy **desde la rama `develop`**:
+
+```bash
+# Sin bump de versión (usa la versión actual en version.py)
+./scripts/deploy-prod.sh
+
+# Con bump de versión (actualiza version.py, commitea, mergea y tagea)
+./scripts/deploy-prod.sh 1.3.0
+```
+
+El script hace automáticamente:
+1. Verifica que estás en `develop` y no hay cambios sin commitear
+2. (Opcional) Actualiza `version.py` y commitea el bump
+3. Hace merge `develop → main` con `--no-ff`
+4. Crea el git tag `vX.Y.Z`
+5. Construye la imagen de producción y reinicia el contenedor `contalibra`
+6. Vuelve a `develop` y pushea ambas ramas + el tag a origin
+
+### Versionado
+
+La versión del sistema se define en `version.py`:
+
+```python
+VERSION = "1.2.0"
+```
+
+Se muestra en el sidebar de la UI. Cada deploy a producción debe tener su propio tag git (`v1.2.0`, `v1.3.0`, etc.) y su entrada en `CHANGELOG.md`.
 
 ---
 

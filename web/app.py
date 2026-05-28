@@ -31,6 +31,14 @@ from web.routers import stock as stock_router
 from web.routers import turnos as turnos_router
 from web.routers import logs as logs_router
 from web.routers import reportes as reportes_router
+from web.routers import depositos as depositos_router
+from web.routers import cajas as cajas_router
+from web.routers import egresos as egresos_router
+from web.routers import proveedores as proveedores_router
+from web.routers import tesoreria as tesoreria_router
+from web.routers import cuenta_corriente as cc_router
+from web.routers import listas_precio as listas_precio_router
+from web.routers import libros_iva as libros_iva_router
 
 app = FastAPI(title="Contalibra")
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
@@ -109,6 +117,14 @@ app.include_router(turnos_router.router)
 app.include_router(logs_router.router)
 app.include_router(reportes_router.router)
 app.include_router(mp_bandeja_router.router)
+app.include_router(depositos_router.router)
+app.include_router(cajas_router.router)
+app.include_router(egresos_router.router)
+app.include_router(proveedores_router.router)
+app.include_router(tesoreria_router.router)
+app.include_router(cc_router.router)
+app.include_router(listas_precio_router.router)
+app.include_router(libros_iva_router.router)
 
 
 @app.on_event("startup")
