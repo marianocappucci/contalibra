@@ -20,13 +20,24 @@ router = APIRouter()
 Auth = Annotated[str, Depends(require_auth)]
 
 LOGO_DIR    = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "logos")
-CERTS_DIR   = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "arca_certs")
+CERTS_DIR   = os.path.join(os.path.dirname(db.DB_PATH), "arca_certs")
 BACKUPS_DIR = os.path.join(os.path.dirname(db.DB_PATH), "backups")
 
 
 def _arca_cfg():
     configs = db.obtener_todas_arca_configs()
     return configs[0] if configs else {}
+
+
+@router.get("/config/empresa/logo", include_in_schema=False)
+def config_logo(user: Auth):
+    cfg = config_manager.load()
+    path = cfg.get("logo_path", "")
+    if not path or not os.path.exists(path):
+        raise HTTPException(404)
+    ext = os.path.splitext(path)[1].lower()
+    media = "image/png" if ext == ".png" else "image/jpeg"
+    return FileResponse(path, media_type=media)
 
 
 @router.get("/config")

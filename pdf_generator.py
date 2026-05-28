@@ -117,6 +117,20 @@ except ImportError:
     _HAS_PIL = False
 
 
+def _logo_fit_dims(path: str, max_w: float, max_h: float):
+    """Devuelve (w, h) para encajar el logo en max_w×max_h manteniendo proporción."""
+    if not _HAS_PIL:
+        return 0, max_h   # fpdf2 escala el ancho automáticamente con h fija
+    try:
+        img = _PILImage.open(path)
+        iw, ih = img.size
+        img.close()
+        scale = min(max_w / iw, max_h / ih)
+        return round(iw * scale, 2), round(ih * scale, 2)
+    except Exception:
+        return 0, max_h
+
+
 def _prepare_logo(path: str):
     if not _HAS_PIL:
         return path
@@ -216,13 +230,20 @@ def _dashed_line(pdf, x1, y1, x2, y2, dash=2.5, gap=1.5):
 def _draw_header_block(pdf, letra, titulo, codigo, info_fields, empresa):
     y0 = _LX   # top margin 18 mm
 
+    # Calcular altura del voucher box primero (para que el logo sea proporcional)
+    meta_h = len(info_fields) * _META_RH + 5
+    vh     = _LETTER_RH + meta_h
+
     # ── Izquierda: logo + título ──────────────────────────────────────────
     logo_path = empresa.get("logo_path", "")
     has_logo  = bool(logo_path and os.path.exists(logo_path))
-    logo_sz   = 14
+    logo_sz   = 14   # fallback para cuadrado de iniciales
 
     if has_logo:
-        pdf.image(_prepare_logo(logo_path), x=_LX, y=y0, h=logo_sz)
+        lw, lh = _logo_fit_dims(logo_path, _CW * 0.45, vh)
+        # Centrar verticalmente respecto al recuadro derecho
+        ly = y0 + (vh - lh) / 2
+        pdf.image(_prepare_logo(logo_path), x=_LX, y=ly, w=lw, h=lh)
     else:
         # Cuadrado teal con iniciales
         pdf.set_fill_color(*_ACCENT)
@@ -249,9 +270,6 @@ def _draw_header_block(pdf, letra, titulo, codigo, info_fields, empresa):
     vx = _RIGHT_X
     vy = y0
     vw = _RIGHT_W
-
-    meta_h = len(info_fields) * _META_RH + 5
-    vh     = _LETTER_RH + meta_h
 
     # Fondo blanco redondeado
     pdf.set_fill_color(*_WHITE)
@@ -926,10 +944,13 @@ def generate_pdf_recibo(factura: dict, cobros: list[dict]) -> bytes:
     # ── Encabezado empresa ────────────────────────────────────────────────────
     logo_path = emp.get("logo_path", "")
     has_logo  = bool(logo_path and os.path.exists(logo_path))
-    logo_sz   = 14
+    logo_sz   = 14   # fallback cuadrado iniciales
+    _recibo_box_h = 32  # altura del cuadro RECIBO (derecha)
 
     if has_logo:
-        pdf.image(_prepare_logo(logo_path), x=lx, y=y0, h=logo_sz)
+        lw, lh = _logo_fit_dims(logo_path, _CW * 0.45, _recibo_box_h)
+        ly = y0 + (_recibo_box_h - lh) / 2
+        pdf.image(_prepare_logo(logo_path), x=lx, y=ly, w=lw, h=lh)
     else:
         pdf.set_fill_color(*_ACCENT)
         _rrect(pdf, lx, y0, logo_sz, logo_sz, r=2.5, style="F")

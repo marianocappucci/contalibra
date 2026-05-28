@@ -103,9 +103,10 @@
       <div class="mb-4">
         <label class="form-label fw-semibold">Logo de la empresa</label>
         {% if cfg.logo_path %}
-        <div class="mb-2">
+        <div class="mb-3 d-flex align-items-center gap-3">
+          <img src="/config/empresa/logo" alt="Logo actual"
+               style="max-height:72px;max-width:200px;object-fit:contain;border:1px solid #dee2e6;border-radius:8px;padding:6px;background:#fff;">
           <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Logo cargado</span>
-          <span class="text-muted small ms-2">{{ cfg.logo_path | replace('/app/', '') }}</span>
         </div>
         {% endif %}
         <input type="file" class="form-control" name="logo" accept=".png,.jpg,.jpeg">
@@ -150,6 +151,29 @@
     {% if seccion == 'mp' %}
     <h5 class="fw-bold mb-1"><i class="bi bi-phone me-2 text-primary"></i>MercadoPago</h5>
     <p class="text-muted small mb-4">Configurá la integración para cobros por QR y pagos online.</p>
+
+    {# ── Status MP ── #}
+    {% if cfg.mp_access_token %}
+    {% set mp_token = cfg.mp_access_token %}
+    {% set mp_es_test = mp_token.startswith('TEST-') %}
+    <div class="alert {% if mp_es_test %}alert-warning{% else %}alert-success{% endif %} d-flex align-items-start gap-3 mb-4 py-2">
+      <i class="bi bi-{% if mp_es_test %}exclamation-triangle-fill{% else %}check-circle-fill{% endif %} mt-1"></i>
+      <div class="small">
+        <span class="badge {% if mp_es_test %}bg-warning text-dark{% else %}bg-success{% endif %} me-2">
+          {% if mp_es_test %}Sandbox / Pruebas{% else %}Producción{% endif %}
+        </span>
+        Token: <i class="bi bi-check-circle text-success"></i>
+        &nbsp;·&nbsp;
+        Webhook secret: {% if cfg.mp_webhook_secret %}<i class="bi bi-check-circle text-success"></i>{% else %}<i class="bi bi-x-circle text-danger"></i>{% endif %}
+        &nbsp;·&nbsp;
+        QR (User ID + POS): {% if cfg.mp_user_id and cfg.mp_pos_id %}<i class="bi bi-check-circle text-success"></i>{% else %}<i class="bi bi-dash-circle text-secondary"></i>{% endif %}
+      </div>
+    </div>
+    {% else %}
+    <div class="alert alert-warning mb-4 small">
+      <i class="bi bi-exclamation-triangle me-2"></i>MercadoPago no configurado. Completá el Access Token para habilitar la integración.
+    </div>
+    {% endif %}
 
     {# Tutorial MP #}
     <div class="card border-0 bg-light mb-4">
@@ -204,7 +228,7 @@
       <div class="mb-3">
         <label class="form-label fw-semibold">Access Token</label>
         <input type="password" class="form-control font-monospace" name="mp_access_token"
-               value="{{ cfg.mp_access_token }}" placeholder="APP_USR-...">
+               value="{{ cfg.mp_access_token }}" placeholder="APP_USR-... o TEST-...">
         <div class="form-text">Token de producción de tu aplicación en MercadoPago.</div>
       </div>
       <div class="row g-3 mb-3">
@@ -230,7 +254,7 @@
       <div class="mb-3">
         <label class="form-label fw-semibold">Descripción del servicio</label>
         <input type="text" class="form-control" name="mp_concepto_descripcion"
-               value="{{ cfg.mp_concepto_descripcion }}" placeholder="Suscripcion mensual">
+               value="{{ cfg.mp_concepto_descripcion }}" placeholder="Cobro con Mercadopago">
         <div class="form-text">Aparece en la factura generada automáticamente.</div>
       </div>
       <div class="mb-4">
@@ -275,6 +299,24 @@
     {% if seccion == 'arca' %}
     <h5 class="fw-bold mb-1"><i class="bi bi-shield-lock me-2 text-primary"></i>ARCA / Facturación electrónica</h5>
     <p class="text-muted small mb-4">Certificados y punto de venta para emitir facturas ante AFIP/ARCA.</p>
+
+    {# ── Status ARCA ── #}
+    {% if arca %}
+    <div class="alert alert-info d-flex align-items-start gap-3 mb-4 py-2">
+      <i class="bi bi-info-circle-fill mt-1"></i>
+      <div class="small">
+        CUIT: <code>{{ arca.cuit }}</code> &nbsp;·&nbsp;
+        PV: <code>{{ arca.punto_venta }}</code> &nbsp;·&nbsp;
+        <span class="badge {% if arca.ambiente == 'produccion' %}bg-danger{% else %}bg-warning text-dark{% endif %}">{{ arca.ambiente | capitalize }}</span><br>
+        Cert: {% if arca.certificado_path %}<i class="bi bi-check-circle text-success"></i>{% else %}<i class="bi bi-x-circle text-danger"></i>{% endif %}
+        &nbsp; Clave: {% if arca.clave_path %}<i class="bi bi-check-circle text-success"></i>{% else %}<i class="bi bi-x-circle text-danger"></i>{% endif %}
+      </div>
+    </div>
+    {% else %}
+    <div class="alert alert-warning mb-4 small">
+      <i class="bi bi-exclamation-triangle me-2"></i>ARCA no configurado. Completá el formulario para habilitar la facturación electrónica.
+    </div>
+    {% endif %}
 
     {# Tutorial ARCA #}
     <div class="card border-0 bg-light mb-4">
@@ -327,23 +369,6 @@
         </div>
       </div>
     </div>
-
-    {% if arca %}
-    <div class="alert alert-info d-flex align-items-start gap-3 mb-4 py-2">
-      <i class="bi bi-info-circle-fill mt-1"></i>
-      <div class="small">
-        CUIT: <code>{{ arca.cuit }}</code> &nbsp;·&nbsp;
-        PV: <code>{{ arca.punto_venta }}</code> &nbsp;·&nbsp;
-        <span class="badge {% if arca.ambiente == 'produccion' %}bg-danger{% else %}bg-warning text-dark{% endif %}">{{ arca.ambiente | capitalize }}</span><br>
-        Cert: {% if arca.certificado_path %}<i class="bi bi-check-circle text-success"></i>{% else %}<i class="bi bi-x-circle text-danger"></i>{% endif %}
-        &nbsp; Clave: {% if arca.clave_path %}<i class="bi bi-check-circle text-success"></i>{% else %}<i class="bi bi-x-circle text-danger"></i>{% endif %}
-      </div>
-    </div>
-    {% else %}
-    <div class="alert alert-warning mb-4 small">
-      <i class="bi bi-exclamation-triangle me-2"></i>ARCA no configurado. Completá el formulario para habilitar la facturación electrónica.
-    </div>
-    {% endif %}
 
     <form method="post" action="/config/arca" enctype="multipart/form-data">
       <div class="row g-3 mb-3">
@@ -409,6 +434,26 @@
     {% if seccion == 'mail' %}
     <h5 class="fw-bold mb-1"><i class="bi bi-envelope me-2 text-primary"></i>Email / SMTP</h5>
     <p class="text-muted small mb-4">Configurá el servidor de email para enviar comprobantes a los clientes.</p>
+
+    {# ── Status Email ── #}
+    {% if cfg.email_smtp_host and cfg.email_smtp_user %}
+    <div class="alert {% if cfg.email_smtp_password %}alert-success{% else %}alert-warning{% endif %} d-flex align-items-start gap-3 mb-4 py-2">
+      <i class="bi bi-{% if cfg.email_smtp_password %}check-circle-fill{% else %}exclamation-triangle-fill{% endif %} mt-1"></i>
+      <div class="small">
+        Servidor: <code>{{ cfg.email_smtp_host }}:{{ cfg.email_smtp_port }}</code>
+        &nbsp;·&nbsp;
+        Usuario: <i class="bi bi-check-circle text-success"></i>
+        &nbsp;·&nbsp;
+        Contraseña: {% if cfg.email_smtp_password %}<i class="bi bi-check-circle text-success"></i>{% else %}<i class="bi bi-x-circle text-danger"></i>{% endif %}
+        &nbsp;·&nbsp;
+        Remitente: {% if cfg.email_from %}<i class="bi bi-check-circle text-success"></i>{% else %}<i class="bi bi-dash-circle text-secondary"></i>{% endif %}
+      </div>
+    </div>
+    {% else %}
+    <div class="alert alert-warning mb-4 small">
+      <i class="bi bi-exclamation-triangle me-2"></i>Email no configurado. Completá el servidor SMTP para habilitar el envío de comprobantes.
+    </div>
+    {% endif %}
 
     {# Tutorial Gmail #}
     <div class="card border-0 bg-light mb-4">

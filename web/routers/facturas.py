@@ -262,7 +262,7 @@ async def factura_nueva_post(request: Request, user: Auth):
         # Factura C (monotributista) nunca discrimina IVA
         tax_rate    = 0.0 if tipo == 11 else float(form.get("tax_rate", "0.21"))
 
-        client_id      = int(form.get("client_id", 0)) or None
+        client_id      = int(form.get("client_id") or 0) or None
         client_name    = str(form.get("client_name", "")).strip()
         client_cuit    = str(form.get("client_cuit", "")).strip()
         client_address = str(form.get("client_address", "")).strip()
