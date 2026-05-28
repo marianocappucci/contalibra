@@ -67,3 +67,6 @@ dev-data/
 
 # Config privada de Nginx Proxy Manager (credenciales)
 scripts/.npm_config.json
+
+# Scripts de infraestructura local (no van a producción)
+scripts/create_dev_proxy.py
