@@ -75,6 +75,7 @@
           <th>Fecha</th>
           <th>Tipo</th>
           <th>Concepto</th>
+          <th>Usuario</th>
           <th>Referencia / Medio</th>
           <th class="text-end">Monto</th>
           <th></th>
@@ -103,6 +104,7 @@
               {{ m.concepto }}
             {% endif %}
           </td>
+          <td class="small">{{ m.usuario_nombre or '—' }}</td>
           <td class="text-muted small">
             {{ m.referencia or '' }}
             {% if m.medio %}

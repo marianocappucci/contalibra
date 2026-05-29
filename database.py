@@ -1291,9 +1291,10 @@ def get_caja_movimientos(desde=None, hasta=None, limit=500, caja_id=None):
             where.append("cm.fecha BETWEEN ? AND ?"); params += [desde, hasta]
         if caja_id:
             where.append("cm.caja_id = ?"); params.append(caja_id)
-        sql = """SELECT cm.*, c.nombre AS caja_nombre
+        sql = """SELECT cm.*, c.nombre AS caja_nombre, u.nombre AS usuario_nombre
                  FROM caja_movimientos cm
-                 LEFT JOIN cajas c ON c.id = cm.caja_id"""
+                 LEFT JOIN cajas c ON c.id = cm.caja_id
+                 LEFT JOIN usuarios u ON u.id = cm.usuario_id"""
         if where:
             sql += " WHERE " + " AND ".join(where)
         sql += " ORDER BY cm.fecha DESC, cm.id DESC LIMIT ?"
@@ -2966,10 +2967,12 @@ def get_movimientos_tesoreria(cuenta_id: int | None = None, limit: int = 200,
         rows = conn.execute(f"""
             SELECT m.*,
                    co.nombre AS cuenta_nombre,
-                   cd.nombre AS cuenta_destino_nombre
+                   cd.nombre AS cuenta_destino_nombre,
+                   u.nombre AS usuario_nombre
             FROM movimientos_tesoreria m
             JOIN cuentas_tesoreria co ON co.id = m.cuenta_id
             LEFT JOIN cuentas_tesoreria cd ON cd.id = m.cuenta_destino_id
+            LEFT JOIN usuarios u ON u.id = m.usuario_id
             {where}
             ORDER BY m.fecha DESC, m.id DESC
             LIMIT ?
@@ -3106,14 +3109,16 @@ def get_cc_movimientos(cliente_id: int) -> list[dict]:
                 "concepto": f"Venta #{r['numero']}",
                 "monto": r["monto"], "referencia": "", "medio": "",
                 "venta_id": r["venta_id"], "factura_id": None, "cc_pago_id": None,
+                "usuario_nombre": None,
             })
 
         if cuit:
             rows = conn.execute("""
                 SELECT cm.fecha, f.tipo AS ftipo, f.punto_venta, f.numero,
-                       cm.monto, f.id AS factura_id, cm.referencia
+                       cm.monto, f.id AS factura_id, cm.referencia, u.nombre AS usuario_nombre
                 FROM caja_movimientos cm
                 JOIN facturas f ON cm.factura_id = f.id
+                LEFT JOIN usuarios u ON u.id = cm.usuario_id
                 WHERE f.cliente_cuit = ? AND cm.tipo = 'ingreso'
                   AND LOWER(cm.medio_pago) IN ('cuenta corriente','cuenta_corriente')
             """, (cuit,)).fetchall()
@@ -3131,11 +3136,14 @@ def get_cc_movimientos(cliente_id: int) -> list[dict]:
                     "monto": r["monto"], "referencia": r["referencia"] or "",
                     "medio": "", "venta_id": None,
                     "factura_id": r["factura_id"], "cc_pago_id": None,
+                    "usuario_nombre": r["usuario_nombre"],
                 })
 
         rows = conn.execute("""
-            SELECT id, fecha, concepto, monto, referencia, medio_pago
-            FROM cc_pagos WHERE cliente_id = ? ORDER BY fecha, id
+            SELECT id, fecha, concepto, monto, referencia, medio_pago, u.nombre AS usuario_nombre
+            FROM cc_pagos
+            LEFT JOIN usuarios u ON u.id = cc_pagos.usuario_id
+            WHERE cliente_id = ? ORDER BY fecha, id
         """, (cliente_id,)).fetchall()
         for r in rows:
             movs.append({
@@ -3144,6 +3152,7 @@ def get_cc_movimientos(cliente_id: int) -> list[dict]:
                 "monto": r["monto"], "referencia": r["referencia"] or "",
                 "medio": r["medio_pago"] or "",
                 "venta_id": None, "factura_id": None, "cc_pago_id": r["id"],
+                "usuario_nombre": r["usuario_nombre"],
             })
 
     return sorted(movs, key=lambda x: x["fecha"])

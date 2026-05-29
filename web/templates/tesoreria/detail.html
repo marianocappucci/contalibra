@@ -85,6 +85,7 @@
           <th>Fecha</th>
           <th>Tipo</th>
           <th>Concepto</th>
+          <th>Usuario</th>
           <th>Referencia</th>
           <th class="text-end">Monto</th>
           <th></th>
@@ -106,6 +107,7 @@
             {% endif %}
           </td>
           <td>{{ m.concepto }}</td>
+          <td class="small">{{ m.usuario_nombre or '—' }}</td>
           <td class="text-muted small">{{ m.referencia or '' }}</td>
           <td class="text-end fw-semibold {% if m.tipo in ('ingreso','transferencia_entrada') %}text-success{% else %}text-danger{% endif %}">
             {% if m.tipo in ('ingreso','transferencia_entrada') %}+{% else %}-{% endif %}
