@@ -140,69 +140,101 @@
 
 <!-- Modal registrar cobro -->
 {% if pendiente > 0 or not cobros %}
-<div class="modal fade" id="modalCobro" tabindex="-1" aria-labelledby="modalCobroLabel" aria-hidden="true">
+{% set _pendiente_cobro = pendiente if pendiente > 0 else factura.total %}
+{% set _caja_default = cajas | selectattr('es_default') | first | default(cajas[0] if cajas else none) %}
+<div class="modal fade" id="modalCobro" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
-      <form method="post" action="/facturas/{{ factura.id }}/cobrar">
+      <form method="post" action="/facturas/{{ factura.id }}/cobrar" id="formCobro">
         <div class="modal-header">
-          <h5 class="modal-title" id="modalCobroLabel">
+          <h5 class="modal-title">
             <i class="bi bi-cash me-2 text-success"></i>Registrar cobro
           </h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
-          <div class="row g-3">
-            <div class="col-md-6">
-              <label class="form-label fw-semibold">Monto a cobrar <span class="text-danger">*</span></label>
-              <div class="input-group">
-                <span class="input-group-text">$</span>
-                <input type="number" name="monto" class="form-control" step="0.01" min="0.01"
-                       value="{{ pendiente if pendiente > 0 else factura.total }}" required>
-              </div>
-              <div class="form-text">Total de la factura: $ {{ factura.total|moneda }}</div>
-            </div>
+
+          <!-- Fecha y Caja -->
+          <div class="row g-3 mb-3">
             <div class="col-md-6">
               <label class="form-label fw-semibold">Fecha</label>
               <input type="date" name="fecha" class="form-control" id="cobro-fecha">
             </div>
-          </div>
-          <div class="row g-3 mt-1">
             {% if cajas|length > 1 %}
             <div class="col-md-6">
               <label class="form-label fw-semibold">Caja</label>
-              <select name="caja_id" class="form-select" id="cobro-caja" onchange="cobroCargarMedios()">
+              <select name="caja_id" class="form-select" id="cobro-caja"
+                      onchange="cobroRecargarMedios(this.value)">
                 {% for c in cajas %}{% if c.activo %}
                 <option value="{{ c.id }}" {% if c.es_default %}selected{% endif %}>{{ c.nombre }}</option>
                 {% endif %}{% endfor %}
               </select>
             </div>
             {% else %}
-            {% if cajas %}
-            <input type="hidden" name="caja_id" value="{{ cajas[0].id }}">
+            {% if cajas %}<input type="hidden" name="caja_id" value="{{ cajas[0].id }}">{% endif %}
             {% endif %}
+          </div>
+
+          <!-- Medios de pago -->
+          <div class="fw-semibold small text-muted mb-2">Medios de pago</div>
+          <div id="cobro-medios">
+            {% if _caja_default %}
+            {% for mid in _caja_default.medios_pago %}
+            {% set lbl = medio_labels.get(mid, mid) %}
+            {% set con_ref = mid in ['transferencia', 'mercadopago', 'cuenta_dni', 'billetera', 'cheque'] %}
+            <div class="border rounded mb-2 p-2 medio-bloque" id="bloque-{{ mid }}">
+              <div class="d-flex align-items-center gap-2">
+                <div class="form-check form-switch mb-0">
+                  <input class="form-check-input medio-check" type="checkbox"
+                         id="chk-{{ mid }}" data-medio="{{ mid }}"
+                         onchange="cobroToggle(this)">
+                  <label class="form-check-label fw-semibold" for="chk-{{ mid }}">{{ lbl }}</label>
+                </div>
+                <div class="input-group input-group-sm ms-auto medio-amount" id="amt-{{ mid }}" style="display:none;width:160px">
+                  <span class="input-group-text">$</span>
+                  <input type="number" class="form-control monto-medio text-end"
+                         name="monto_medio[]" step="0.01" min="0.01"
+                         placeholder="0,00" disabled
+                         oninput="cobroActualizarTotal()">
+                  <input type="hidden" name="medio_id[]" value="{{ mid }}" disabled>
+                </div>
+              </div>
+              {% if con_ref %}
+              <div class="medio-ref mt-1 ps-4" id="ref-{{ mid }}" style="display:none">
+                <input type="text" name="ref_medio[]" class="form-control form-control-sm"
+                       placeholder="Referencia / N° operación (opcional)" disabled>
+              </div>
+              {% else %}
+              <input type="hidden" name="ref_medio[]" value="" disabled>
+              {% endif %}
+            </div>
+            {% endfor %}
             {% endif %}
-            <div class="col-md-6">
-              <label class="form-label fw-semibold">Medio de pago</label>
-              <select name="medio_pago" class="form-select" id="cobro-medio">
-                <option value="">— Sin especificar —</option>
-                {% set primera_caja = cajas | selectattr('es_default') | first | default(cajas[0] if cajas else none) %}
-                {% if primera_caja %}
-                {% for mid in primera_caja.medios_pago %}
-                <option value="{{ mid }}">{{ medio_labels.get(mid, mid) }}</option>
-                {% endfor %}
-                {% endif %}
-              </select>
+          </div>
+
+          <!-- Resumen -->
+          <div class="d-flex justify-content-between align-items-center mt-3 p-3 rounded"
+               style="background:#f0fdf4;border:1px solid #bbf7d0">
+            <div>
+              <div class="small text-muted">Pendiente</div>
+              <div class="fw-bold text-danger">$ {{ (pendiente if pendiente > 0 else factura.total)|moneda }}</div>
+              <button type="button" class="btn btn-link btn-sm p-0 mt-1 text-decoration-none"
+                      onclick="cobrarTodo()" style="font-size:.8rem">
+                <i class="bi bi-lightning-fill me-1"></i>Cobrar todo
+              </button>
+            </div>
+            <i class="bi bi-arrow-right text-muted"></i>
+            <div class="text-end">
+              <div class="small text-muted">Ingresado</div>
+              <div class="fw-bold text-success fs-5" id="cobro-total-lbl">$ 0,00</div>
             </div>
           </div>
-          <div class="mt-3">
-            <label class="form-label fw-semibold">Referencia <span class="text-muted fw-normal small">(opcional)</span></label>
-            <input type="text" name="referencia" class="form-control"
-                   placeholder="N° de transferencia, cheque, etc.">
-          </div>
+          <div id="cobro-alerta" class="alert py-1 px-2 small mt-2 mb-0" style="display:none"></div>
+
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="submit" class="btn btn-success fw-semibold">
+          <button type="submit" class="btn btn-success fw-semibold" id="cobro-btn" disabled>
             <i class="bi bi-check-lg me-1"></i>Confirmar cobro
           </button>
         </div>
@@ -392,24 +424,117 @@
 {% endblock %}
 {% block scripts %}
 <script>
-  const MEDIO_LABELS = {{ medio_labels | tojson }};
+const MEDIO_LABELS  = {{ medio_labels | tojson }};
+const PENDIENTE_COB = {{ (pendiente if pendiente > 0 else factura.total) | round(2) }};
+const fmt = n => '$ ' + (+n).toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
+const CON_REF = new Set(['transferencia','mercadopago','cuenta_dni','billetera','cheque']);
 
-  document.addEventListener('DOMContentLoaded', function () {
-    const f = document.getElementById('cobro-fecha');
-    if (f && !f.value) f.value = new Date().toISOString().slice(0, 10);
-  });
+document.addEventListener('DOMContentLoaded', () => {
+  const f = document.getElementById('cobro-fecha');
+  if (f && !f.value) f.value = new Date().toISOString().slice(0,10);
+});
 
-  async function cobroCargarMedios() {
-    const selCaja  = document.getElementById('cobro-caja');
-    const selMedio = document.getElementById('cobro-medio');
-    if (!selCaja || !selMedio) return;
-    const res  = await fetch(`/cajas/${selCaja.value}/medios`);
-    const data = await res.json();
-    selMedio.innerHTML = '<option value="">— Sin especificar —</option>';
-    data.forEach(mid => {
-      const opt = new Option(MEDIO_LABELS[mid] || mid, mid);
-      selMedio.appendChild(opt);
-    });
+function cobroToggle(chk) {
+  const mid   = chk.dataset.medio;
+  const amt   = document.getElementById('amt-' + mid);
+  const ref   = document.getElementById('ref-' + mid);
+  const montoIn  = amt?.querySelector('.monto-medio');
+  const medioIn  = amt?.querySelector('[name="medio_id[]"]');
+  const refIn    = ref?.querySelector('[name="ref_medio[]"]') || document.querySelector(`#bloque-${mid} [name="ref_medio[]"]`);
+
+  if (chk.checked) {
+    if (amt) { amt.style.display = ''; montoIn && (montoIn.disabled = false); }
+    if (medioIn) medioIn.disabled = false;
+    if (ref)  { ref.style.display  = ''; refIn  && (refIn.disabled  = false); }
+    else if (refIn) refIn.disabled = false;
+    // No pre-rellenar: el usuario ingresa el monto explícitamente
+  } else {
+    if (amt) { amt.style.display = 'none'; montoIn && (montoIn.disabled = true, montoIn.value = ''); }
+    if (medioIn) medioIn.disabled = true;
+    if (ref)  { ref.style.display  = 'none';  refIn  && (refIn.disabled  = true,  refIn.value  = ''); }
+    else if (refIn) { refIn.disabled = true; refIn.value = ''; }
   }
+  cobroActualizarTotal();
+}
+
+function cobroActualizarTotal() {
+  let total = 0;
+  document.querySelectorAll('.monto-medio:not(:disabled)').forEach(i => {
+    total += parseFloat(i.value || 0);
+  });
+  const lbl = document.getElementById('cobro-total-lbl');
+  const btn = document.getElementById('cobro-btn');
+  const alerta = document.getElementById('cobro-alerta');
+  if (lbl) lbl.textContent = fmt(total);
+  const diff = Math.round((total - PENDIENTE_COB) * 100) / 100;
+  if (total <= 0) {
+    alerta.style.display = 'none';
+    btn && (btn.disabled = true);
+  } else if (diff > 0.01) {
+    alerta.className = 'alert alert-danger py-1 px-2 small mt-2 mb-0';
+    alerta.innerHTML = `<i class="bi bi-exclamation-triangle me-1"></i>El total supera el pendiente (${fmt(PENDIENTE_COB)}).`;
+    alerta.style.display = '';
+    btn && (btn.disabled = true);
+  } else if (diff < -0.01) {
+    alerta.className = 'alert alert-info py-1 px-2 small mt-2 mb-0';
+    alerta.innerHTML = `<i class="bi bi-info-circle me-1"></i>Pago parcial — quedará pendiente ${fmt(-diff)}.`;
+    alerta.style.display = '';
+    btn && (btn.disabled = false);
+  } else {
+    alerta.style.display = 'none';
+    btn && (btn.disabled = false);
+  }
+}
+
+function cobrarTodo() {
+  // Habilita el primer medio disponible (si ninguno activo) y llena con el total pendiente
+  const checks = [...document.querySelectorAll('.medio-check')];
+  const activos = checks.filter(c => c.checked);
+  if (activos.length === 0 && checks.length > 0) {
+    checks[0].checked = true;
+    cobroToggle(checks[0]);
+  }
+  // Reparte el pendiente en los campos activos (o lo pone en el primero)
+  const activosAhora = [...document.querySelectorAll('.medio-check:checked')];
+  if (activosAhora.length === 1) {
+    const mid = activosAhora[0].dataset.medio;
+    const inp = document.querySelector(`#amt-${mid} .monto-medio`);
+    if (inp) { inp.value = PENDIENTE_COB.toFixed(2); cobroActualizarTotal(); }
+  }
+}
+
+async function cobroRecargarMedios(cajaId) {
+  const res  = await fetch(`/cajas/${cajaId}/medios`);
+  const mids = await res.json();
+  const cont = document.getElementById('cobro-medios');
+  if (!cont) return;
+  cont.innerHTML = '';
+  mids.forEach(mid => {
+    const lbl    = MEDIO_LABELS[mid] || mid;
+    const conRef = CON_REF.has(mid);
+    cont.innerHTML += `
+      <div class="border rounded mb-2 p-2 medio-bloque" id="bloque-${mid}">
+        <div class="d-flex align-items-center gap-2">
+          <div class="form-check form-switch mb-0">
+            <input class="form-check-input medio-check" type="checkbox"
+                   id="chk-${mid}" data-medio="${mid}"
+                   onchange="cobroToggle(this)">
+            <label class="form-check-label fw-semibold" for="chk-${mid}">${lbl}</label>
+          </div>
+          <div class="input-group input-group-sm ms-auto medio-amount" id="amt-${mid}" style="display:none;width:160px">
+            <span class="input-group-text">$</span>
+            <input type="number" class="form-control monto-medio text-end"
+                   name="monto_medio[]" step="0.01" min="0.01"
+                   placeholder="0,00" disabled oninput="cobroActualizarTotal()">
+            <input type="hidden" name="medio_id[]" value="${mid}" disabled>
+          </div>
+        </div>
+        ${conRef ? `<div class="medio-ref mt-1 ps-4" id="ref-${mid}" style="display:none">
+          <input type="text" name="ref_medio[]" class="form-control form-control-sm"
+                 placeholder="Referencia / N° operación (opcional)" disabled>
+        </div>` : `<input type="hidden" name="ref_medio[]" value="" disabled>`}
+      </div>`;
+  });
+}
 </script>
 {% endblock %}

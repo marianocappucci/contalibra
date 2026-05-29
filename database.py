@@ -1062,9 +1062,15 @@ def get_facturas_filtradas(desde="", hasta="", q="", vista="facturas", limit=50,
         params += [f"%{q}%", f"%{q}%", f"%{q}%"]
     if solo_sin_cobrar:
         conds.append("f.cae != '' AND f.cae IS NOT NULL AND f.cae != 'PENDIENTE'")
-        conds.append("NOT EXISTS(SELECT 1 FROM caja_movimientos cm WHERE cm.factura_id=f.id AND cm.tipo='ingreso')")
+        conds.append("""
+            COALESCE((SELECT SUM(cm.monto) FROM caja_movimientos cm
+                      WHERE cm.factura_id=f.id AND cm.tipo='ingreso'), 0) < f.total
+        """)
     where = " AND ".join(conds)
-    cobrada_col = "EXISTS(SELECT 1 FROM caja_movimientos cm WHERE cm.factura_id=f.id AND cm.tipo='ingreso') AS cobrada"
+    cobrada_col = """
+        COALESCE((SELECT SUM(cm.monto) FROM caja_movimientos cm
+                  WHERE cm.factura_id=f.id AND cm.tipo='ingreso'), 0) AS total_cobrado
+    """
     with get_connection() as conn:
         total = conn.execute(f"SELECT COUNT(*) FROM facturas f WHERE {where}", params).fetchone()[0]
         rows = conn.execute(
@@ -3237,7 +3243,7 @@ def get_lista_precio_items(lista_id: int, categoria: str = "") -> list[dict]:
     """Devuelve todos los productos activos con su precio en la lista dada."""
     with get_connection() as conn:
         where = "AND p.categoria=?" if categoria else ""
-        params = [lista_id, lista_id]
+        params = [lista_id]
         if categoria:
             params.append(categoria)
         rows = conn.execute(f"""

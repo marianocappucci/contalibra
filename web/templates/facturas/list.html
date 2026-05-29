@@ -138,8 +138,11 @@
             <td>
               {% if f.cae %}
                 {% if vista in ('facturas', 'sin_cobrar') %}
-                  {% if f.cobrada %}
+                  {% set tc = f.total_cobrado | float %}
+                  {% if tc >= f.total %}
                   <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Cobrada</span>
+                  {% elif tc > 0 %}
+                  <span class="badge bg-info text-dark"><i class="bi bi-clock-history me-1"></i>Parcial</span>
                   {% else %}
                   <span class="badge bg-warning text-dark"><i class="bi bi-clock me-1"></i>Sin cobrar</span>
                   {% endif %}
@@ -151,11 +154,12 @@
               {% endif %}
             </td>
             <td class="text-end">
-              {% if vista in ('facturas', 'sin_cobrar') and f.cae and not f.cobrada %}
-              <form method="post" action="/facturas/{{ f.id }}/cobrar?next=/facturas?vista={{ vista }}" class="d-inline"
-                    onsubmit="return confirm('¿Registrar cobro de ${{ f.total|moneda }} para {{ f.cliente_razon }}?')">
-                <button class="btn btn-sm btn-success" title="Registrar cobro"><i class="bi bi-cash-coin"></i></button>
-              </form>
+              {% set tc = f.total_cobrado | float %}
+              {% if vista in ('facturas', 'sin_cobrar') and f.cae and tc < f.total %}
+              <a href="/facturas/{{ f.id }}#modalCobro" class="btn btn-sm btn-success"
+                 title="Registrar cobro" onclick="setTimeout(()=>{const m=document.getElementById('modalCobro');if(m)new bootstrap.Modal(m).show()},200)">
+                <i class="bi bi-cash-coin"></i>
+              </a>
               {% endif %}
               <a href="/facturas/{{ f.id }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i></a>
               <a href="/facturas/{{ f.id }}/pdf" class="btn btn-sm btn-outline-primary" target="_blank"><i class="bi bi-file-pdf"></i></a>

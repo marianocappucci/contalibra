@@ -16,6 +16,10 @@ import config_manager
 import email_sender
 from web.auth import require_auth
 from web.templates_config import templates
+from web.helpers.auth_helper import get_current_user_id
+from web.helpers.form_helper import extract_client_from_form, extract_items_from_form, calculate_totals
+from web.helpers.arca_helper import get_next_numero_with_arca, solicitar_cae as _solicitar_cae
+from web.helpers.email_helper import send_comprobante, smtp_configurado
 
 router = APIRouter()
 
@@ -119,48 +123,27 @@ async def factura_borrador_pdf(request: Request, user: Auth):
         concepto    = int(form.get("concepto", 2))
         fecha_str       = str(form.get("fecha", datetime.date.today().isoformat())).strip()
         observations    = str(form.get("observations", "")).strip()
+        condicion_venta = str(form.get("condicion_venta", "")).strip()
         fch_serv_desde  = str(form.get("fch_serv_desde", "")).strip()
         fch_serv_hasta  = str(form.get("fch_serv_hasta", "")).strip()
         fch_vto_pago    = str(form.get("fch_vto_pago", "")).strip()
         tax_rate    = 0.0 if tipo == 11 else float(form.get("tax_rate", "0.21") or "0.21")
 
-        client_id = int(form.get("client_id", 0) or 0)
-        client_name    = str(form.get("client_name", "")).strip()
-        client_cuit    = str(form.get("client_cuit", "")).strip()
-        client_address = str(form.get("client_address", "")).strip()
-        client_iva     = str(form.get("client_iva", "")).strip()
+        cliente = extract_client_from_form(form)
+        client_id      = cliente["client_id"]
+        client_name    = cliente["client_name"]
+        client_cuit    = cliente["client_cuit"]
+        client_address = cliente["client_address"]
+        client_iva     = cliente["client_iva"]
 
-        if client_id:
-            c = db.get_client(client_id)
-            if c:
-                client_name    = c["name"]
-                client_cuit    = c.get("cuit_dni", "")
-                client_address = c.get("address", "")
-                client_iva     = c.get("iva_condition", "")
-
-        descs  = form.getlist("desc[]")
-        qtys   = form.getlist("qty[]")
-        prices = form.getlist("price[]")
-
-        items = []
-        for desc, qty_s, price_s in zip(descs, qtys, prices):
-            if not desc.strip():
-                continue
-            qty   = float(qty_s.replace(",", ".") or "1")
-            price = float(price_s.replace(",", ".") or "0")
-            items.append({
-                "description": desc.strip(),
-                "qty": qty,
-                "unit_price": price,
-                "subtotal": round(qty * price, 2),
-            })
-
+        items = extract_items_from_form(form)
         if not items:
             items = [{"description": "Ejemplo de servicio", "qty": 1, "unit_price": 1000.0, "subtotal": 1000.0}]
 
-        subtotal   = round(sum(i["subtotal"] for i in items), 2)
-        iva_amount = round(subtotal * tax_rate, 2)
-        total      = round(subtotal + iva_amount, 2)
+        totals     = calculate_totals(items, tax_rate)
+        subtotal   = totals["subtotal"]
+        iva_amount = totals["iva_amount"]
+        total      = totals["total"]
 
         factura_draft = {
             "id": 0,
@@ -178,6 +161,7 @@ async def factura_borrador_pdf(request: Request, user: Auth):
             "total": total,
             "concepto": concepto,
             "observaciones": observations,
+            "condicion_venta": condicion_venta,
             "fch_serv_desde": fch_serv_desde,
             "fch_serv_hasta": fch_serv_hasta,
             "fch_vto_pago": fch_vto_pago,
@@ -262,73 +246,29 @@ async def factura_nueva_post(request: Request, user: Auth):
         # Factura C (monotributista) nunca discrimina IVA
         tax_rate    = 0.0 if tipo == 11 else float(form.get("tax_rate", "0.21"))
 
-        client_id      = int(form.get("client_id") or 0) or None
-        client_name    = str(form.get("client_name", "")).strip()
-        client_cuit    = str(form.get("client_cuit", "")).strip()
-        client_address = str(form.get("client_address", "")).strip()
-        client_iva     = str(form.get("client_iva", "")).strip()
-
-        descs  = form.getlist("desc[]")
-        qtys   = form.getlist("qty[]")
-        prices = form.getlist("price[]")
+        cliente = extract_client_from_form(form)
+        client_id      = cliente["client_id"]
+        client_name    = cliente["client_name"]
+        client_cuit    = cliente["client_cuit"]
+        client_address = cliente["client_address"]
+        client_iva     = cliente["client_iva"]
 
         if not client_name:
             raise ValueError("El nombre/razón social del cliente es requerido.")
-        if not any(d.strip() for d in descs):
-            raise ValueError("Debe agregar al menos un ítem.")
 
-        if client_id:
-            c = db.get_client(client_id)
-            if c:
-                client_name    = c["name"]
-                client_cuit    = c.get("cuit_dni", "")
-                client_address = c.get("address", "")
-                client_iva     = c.get("iva_condition", "")
-
-        items = []
-        for desc, qty_s, price_s in zip(descs, qtys, prices):
-            if not desc.strip():
-                continue
-            qty   = float(qty_s.replace(",", "."))
-            price = float(price_s.replace(",", "."))
-            items.append({
-                "description": desc.strip(),
-                "qty": qty,
-                "unit_price": price,
-                "subtotal": round(qty * price, 2),
-            })
-
+        items = extract_items_from_form(form)
         if not items:
             raise ValueError("Debe agregar al menos un ítem válido.")
 
-        subtotal   = round(sum(i["subtotal"] for i in items), 2)
-        iva_amount = round(subtotal * tax_rate, 2)
-        total      = round(subtotal + iva_amount, 2)
+        totals     = calculate_totals(items, tax_rate)
+        subtotal   = totals["subtotal"]
+        iva_amount = totals["iva_amount"]
+        total      = totals["total"]
         iva_code   = IVA_CODES.get(client_iva, 0)
 
-        # Obtener configuración ARCA y autenticar
-        arca_cfg = db.obtener_todas_arca_configs()
-        arca     = arca_cfg[0] if arca_cfg else None
-        ta       = None
+        numero, ta, arca = await get_next_numero_with_arca(punto_venta, tipo)
 
-        if arca and arca.get("certificado_path") and arca.get("clave_path"):
-            try:
-                ta = await arca_wsaa.autenticar(
-                    arca["certificado_path"], arca["clave_path"], arca["ambiente"]
-                )
-                # Número correlativo según ARCA (no la DB local)
-                ultimo = await arca_wsfe.ultimo_numero_autorizado(
-                    punto_venta, tipo, arca["cuit"],
-                    ta["token"], ta["sign"], arca["ambiente"],
-                )
-                numero = ultimo + 1
-            except Exception:
-                ta     = None
-                numero = db.get_next_factura_numero(punto_venta, tipo)
-        else:
-            numero = db.get_next_factura_numero(punto_venta, tipo)
-
-        uid = (db.get_usuario_by_username(user) or {}).get("id")
+        uid = get_current_user_id(user)
         factura_id = db.create_factura(
             tipo=tipo, punto_venta=punto_venta, numero=numero,
             fecha=fecha_str, cliente_cuit=client_cuit,
@@ -344,16 +284,7 @@ async def factura_nueva_post(request: Request, user: Auth):
         )
         factura = db.get_factura(factura_id)
 
-        # Solicitar CAE si tenemos token válido
-        if ta and arca:
-            try:
-                cae_data = await arca_wsfe.solicitar_cae(
-                    factura, arca["cuit"], ta["token"], ta["sign"], arca["ambiente"]
-                )
-                db.update_factura_cae(factura_id, cae_data["cae"], cae_data["cae_vto"])
-                factura = db.get_factura(factura_id)
-            except Exception:
-                pass  # Factura guardada sin CAE; se puede reintentar desde el detalle
+        factura = await _solicitar_cae(factura_id, factura, ta, arca)
 
         pdf_path = pdf_gen.generate_pdf_factura(factura)
         db.update_factura_pdf_path(factura_id, pdf_path)
@@ -488,10 +419,9 @@ async def factura_enviar_email(request: Request, factura_id: int, user: Auth):
     if not factura:
         raise HTTPException(404)
 
-    cfg = config_manager.load()
     ctx = _detail_ctx(factura)
 
-    if not cfg.get("email_smtp_host"):
+    if not smtp_configurado():
         return templates.TemplateResponse(request, "facturas/detail.html",
             {**ctx, "email_error": "Configurá el servidor SMTP en Configuración → Integraciones.",
              "email_ok": None})
@@ -508,17 +438,8 @@ async def factura_enviar_email(request: Request, factura_id: int, user: Auth):
     doc_label  = f"{tipo_label} {pv}-{num}"
 
     try:
-        email_sender.enviar_comprobante(
-            to_email=to_mail, to_name=factura["cliente_razon"],
-            pdf_path=pdf_path, empresa_nombre=cfg.get("empresa_nombre", ""),
-            factura_label=doc_label, total=factura["total"],
-            smtp_host=cfg["email_smtp_host"],
-            smtp_port=int(cfg.get("email_smtp_port", 587)),
-            smtp_user=cfg["email_smtp_user"],
-            smtp_password=cfg.get("email_smtp_password", ""),
-            from_email=cfg.get("email_from") or cfg["email_smtp_user"],
-            from_name=cfg.get("email_from_name", ""),
-        )
+        send_comprobante(to_email=to_mail, to_name=factura["cliente_razon"],
+                         pdf_path=pdf_path, factura_label=doc_label, total=factura["total"])
         return templates.TemplateResponse(request, "facturas/detail.html",
             {**ctx, "email_ok": f"Email enviado a {to_mail}.", "email_error": None})
     except Exception as e:
@@ -535,27 +456,10 @@ def factura_eliminar(factura_id: int, user: Auth):
 async def _crear_nota(orig: dict, nuevo_tipo: int, obs_prefijo: str, usuario_id=None) -> int:
     """Helper compartido para crear NC o ND a partir de una factura original."""
     import datetime
-    arca_cfg = db.obtener_todas_arca_configs()
-    arca     = arca_cfg[0] if arca_cfg else None
-    ta       = None
-    fecha_hoy    = datetime.date.today().isoformat()
-    punto_venta  = orig["punto_venta"]
+    fecha_hoy   = datetime.date.today().isoformat()
+    punto_venta = orig["punto_venta"]
 
-    if arca and arca.get("certificado_path") and arca.get("clave_path"):
-        try:
-            ta = await arca_wsaa.autenticar(
-                arca["certificado_path"], arca["clave_path"], arca["ambiente"]
-            )
-            ultimo = await arca_wsfe.ultimo_numero_autorizado(
-                punto_venta, nuevo_tipo, arca["cuit"],
-                ta["token"], ta["sign"], arca["ambiente"],
-            )
-            numero = ultimo + 1
-        except Exception:
-            ta     = None
-            numero = db.get_next_factura_numero(punto_venta, nuevo_tipo)
-    else:
-        numero = db.get_next_factura_numero(punto_venta, nuevo_tipo)
+    numero, ta, arca = await get_next_numero_with_arca(punto_venta, nuevo_tipo)
 
     nota_id = db.create_factura(
         tipo=nuevo_tipo, punto_venta=punto_venta, numero=numero,
@@ -580,17 +484,7 @@ async def _crear_nota(orig: dict, nuevo_tipo: int, obs_prefijo: str, usuario_id=
         usuario_id=usuario_id,
     )
     nota = db.get_factura(nota_id)
-
-    if ta and arca:
-        try:
-            cae_data = await arca_wsfe.solicitar_cae(
-                nota, arca["cuit"], ta["token"], ta["sign"], arca["ambiente"]
-            )
-            db.update_factura_cae(nota_id, cae_data["cae"], cae_data["cae_vto"])
-            nota = db.get_factura(nota_id)
-        except Exception:
-            pass
-
+    nota = await _solicitar_cae(nota_id, nota, ta, arca)
     pdf_path = pdf_gen.generate_pdf_factura(nota)
     db.update_factura_pdf_path(nota_id, pdf_path)
     return nota_id
@@ -621,7 +515,7 @@ async def nc_crear(factura_id: int, user: Auth):
     nc_tipo = _TIPO_NC.get(orig["tipo"])
     if not nc_tipo:
         raise HTTPException(400, "Tipo de comprobante no admite nota de crédito")
-    nota_id = await _crear_nota(orig, nc_tipo, "Anula", usuario_id=(db.get_usuario_by_username(user) or {}).get("id"))
+    nota_id = await _crear_nota(orig, nc_tipo, "Anula", usuario_id=get_current_user_id(user))
     return RedirectResponse(f"/facturas/{nota_id}", status_code=303)
 
 
@@ -650,7 +544,7 @@ async def nd_crear(factura_id: int, user: Auth):
     nd_tipo = _TIPO_ND.get(orig["tipo"])
     if not nd_tipo:
         raise HTTPException(400, "Tipo de comprobante no admite nota de débito")
-    nota_id = await _crear_nota(orig, nd_tipo, "Referencia", usuario_id=(db.get_usuario_by_username(user) or {}).get("id"))
+    nota_id = await _crear_nota(orig, nd_tipo, "Referencia", usuario_id=get_current_user_id(user))
     return RedirectResponse(f"/facturas/{nota_id}", status_code=303)
 
 
@@ -664,25 +558,7 @@ async def factura_duplicar(factura_id: int, user: Auth):
     punto_venta = orig["punto_venta"]
     fecha_hoy   = datetime.date.today().isoformat()
 
-    arca_cfg = db.obtener_todas_arca_configs()
-    arca     = arca_cfg[0] if arca_cfg else None
-    ta       = None
-
-    if arca and arca.get("certificado_path") and arca.get("clave_path"):
-        try:
-            ta = await arca_wsaa.autenticar(
-                arca["certificado_path"], arca["clave_path"], arca["ambiente"]
-            )
-            ultimo = await arca_wsfe.ultimo_numero_autorizado(
-                punto_venta, tipo, arca["cuit"],
-                ta["token"], ta["sign"], arca["ambiente"],
-            )
-            numero = ultimo + 1
-        except Exception:
-            ta     = None
-            numero = db.get_next_factura_numero(punto_venta, tipo)
-    else:
-        numero = db.get_next_factura_numero(punto_venta, tipo)
+    numero, ta, arca = await get_next_numero_with_arca(punto_venta, tipo)
 
     nueva_id = db.create_factura(
         tipo=tipo, punto_venta=punto_venta, numero=numero,
@@ -701,20 +577,10 @@ async def factura_duplicar(factura_id: int, user: Auth):
         fch_serv_hasta=orig.get("fch_serv_hasta", ""),
         fch_vto_pago=fecha_hoy,
         condicion_venta=orig.get("condicion_venta", ""),
-        usuario_id=(db.get_usuario_by_username(user) or {}).get("id"),
+        usuario_id=get_current_user_id(user),
     )
     nueva = db.get_factura(nueva_id)
-
-    if ta and arca:
-        try:
-            cae_data = await arca_wsfe.solicitar_cae(
-                nueva, arca["cuit"], ta["token"], ta["sign"], arca["ambiente"]
-            )
-            db.update_factura_cae(nueva_id, cae_data["cae"], cae_data["cae_vto"])
-            nueva = db.get_factura(nueva_id)
-        except Exception:
-            pass
-
+    nueva = await _solicitar_cae(nueva_id, nueva, ta, arca)
     pdf_path = pdf_gen.generate_pdf_factura(nueva)
     db.update_factura_pdf_path(nueva_id, pdf_path)
     return RedirectResponse(f"/facturas/{nueva_id}", status_code=303)
@@ -728,34 +594,38 @@ async def factura_cobrar(request: Request, factura_id: int, user: Auth):
         raise HTTPException(404)
 
     form = await request.form()
-    try:
-        monto = float(str(form.get("monto", factura["total"])).replace(",", "."))
-    except (ValueError, TypeError):
-        monto = float(factura["total"])
-
-    medio_pago  = str(form.get("medio_pago", "")).strip()
     caja_id_raw = form.get("caja_id", "")
     caja_id     = int(caja_id_raw) if caja_id_raw else None
     fecha       = str(form.get("fecha", datetime.date.today().isoformat())).strip()
-    referencia  = str(form.get("referencia", "")).strip()
+
+    medio_ids = form.getlist("medio_id[]")
+    montos    = form.getlist("monto_medio[]")
+    refs      = form.getlist("ref_medio[]")
 
     from pdf_generator import _TIPO_LABELS
     tipo_label = _TIPO_LABELS.get(factura["tipo"], "Factura")
     pv  = str(factura["punto_venta"]).zfill(4)
     num = str(factura["numero"]).zfill(8)
     concepto = f"Cobro {tipo_label} {pv}-{num} — {factura['cliente_razon']}"
+    uid = get_current_user_id(user)
 
-    db.create_caja_movimiento(
-        fecha=fecha,
-        tipo="ingreso",
-        concepto=concepto,
-        monto=monto,
-        referencia=referencia,
-        factura_id=factura_id,
-        caja_id=caja_id,
-        medio_pago=medio_pago,
-        usuario_id=(db.get_usuario_by_username(user) or {}).get("id"),
-    )
+    # Crear un movimiento de caja por cada medio con monto > 0
+    pagos_registrados = 0
+    for medio_id, monto_s, ref in zip(medio_ids, montos, refs):
+        try:
+            monto = float(monto_s.replace(",", ".") or "0")
+        except (ValueError, TypeError):
+            monto = 0.0
+        if monto <= 0:
+            continue
+        db.create_caja_movimiento(
+            fecha=fecha, tipo="ingreso", concepto=concepto,
+            monto=monto, referencia=ref.strip(),
+            factura_id=factura_id, caja_id=caja_id,
+            medio_pago=medio_id, usuario_id=uid,
+        )
+        pagos_registrados += 1
+
     return RedirectResponse(f"/facturas/{factura_id}", status_code=303)
 
 @router.get("/facturas/{factura_id}/ticket")
