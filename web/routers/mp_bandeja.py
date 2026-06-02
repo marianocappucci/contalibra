@@ -92,7 +92,6 @@ async def mp_sincronizar(request: Request, _: Auth,
         logger.error("Error consultando movimientos MP: %s", e)
         return RedirectResponse("/integraciones/mp/bandeja?error=sync_error", status_code=303)
 
-    logger.info("Iniciando sincronización MP: desde=%s hasta=%s", desde, hasta)
     nuevos = 0
     for pago in movimientos:
         payment_id = str(pago.get("id", "")).strip()
@@ -138,17 +137,6 @@ async def mp_sincronizar(request: Request, _: Auth,
             datetime.date.today().isoformat()
         )[:10]
 
-        logger.info(
-            "Sincronizando movimiento MP payment_id=%s fecha=%s monto=%.2f "
-            "payment_type=%s payment_method=%s origen_nombre=%s email=%s id_type=%s id_number=%s",
-            payment_id, fecha_mov, monto, tipo, origen_banco,
-            origen_nombre, payer_email_val, payer_id_type, payer_id_number,
-        )
-        logger.debug(
-            "Datos completos payer para payment_id=%s: %s",
-            payment_id, json.dumps(payer, ensure_ascii=False, indent=2),
-        )
-
         db.create_mp_movimiento(
             mp_movement_id=payment_id,
             tipo=tipo,
@@ -166,7 +154,6 @@ async def mp_sincronizar(request: Request, _: Auth,
         )
         nuevos += 1
 
-    logger.info("Sincronización completada: %d movimientos nuevos procesados", nuevos)
     return RedirectResponse(
         f"/integraciones/mp/bandeja?msg=sync_ok&nuevos={nuevos}",
         status_code=303,
