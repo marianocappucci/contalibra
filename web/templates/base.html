@@ -29,6 +29,13 @@
       border-bottom: 1px solid #2d2d4e;
       line-height: 1.2;
       flex-shrink: 0;
+      display: block;
+      text-decoration: none;
+      cursor: pointer;
+      transition: opacity 0.2s ease;
+    }
+    .sidebar .brand:hover {
+      opacity: 0.8;
     }
     .sidebar .brand-sub {
       display: block;
@@ -134,12 +141,12 @@
 <body>
 <div class="d-flex">
   <nav class="sidebar">
-    <div class="brand">
+    <a href="/dashboard" class="brand">
       <i class="bi bi-journal-bookmark-fill me-2"></i>Contalibra
       {% if request.state.empresa_nombre %}
       <span class="brand-sub">{{ request.state.empresa_nombre }}</span>
       {% endif %}
-    </div>
+    </a>
     {% set mods = request.state.modulos if request.state.modulos is defined else set() %}
     {% set is_admin = request.state.current_user and request.state.current_user.role == 'admin' %}
     {% set has_ventas = 'ventas' in mods or 'clientes' in mods or 'presupuestos' in mods or 'remitos' in mods or 'facturacion' in mods or 'cuenta_corriente' in mods %}
