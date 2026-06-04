@@ -10,6 +10,7 @@ from typing import Annotated
 import database as db
 from web.auth import require_auth
 from web.templates_config import templates
+from web.helpers.auth_helper import get_current_user_id
 
 router = APIRouter()
 Auth = Annotated[str, Depends(require_auth)]
@@ -97,7 +98,7 @@ async def egreso_nuevo_post(request: Request, user: Auth):
         if total <= 0:
             raise ValueError("El monto debe ser mayor a cero.")
 
-        uid = (db.get_usuario_by_username(user) or {}).get("id")
+        uid = get_current_user_id(user)
         eid = db.create_egreso(
             fecha=fecha, concepto=concepto, total=total,
             proveedor_id=proveedor_id, proveedor_nombre=proveedor_nombre,
@@ -159,7 +160,7 @@ async def egreso_pagar(request: Request, eid: int, user: Auth):
     fecha       = str(form.get("fecha", _HOY())).strip()
     referencia  = str(form.get("referencia", "")).strip()
 
-    uid = (db.get_usuario_by_username(user) or {}).get("id")
+    uid = get_current_user_id(user)
 
     # Crear pago en egresos_pagos y actualizar estado
     db.create_pago_egreso(

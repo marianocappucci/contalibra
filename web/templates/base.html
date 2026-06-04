@@ -29,6 +29,13 @@
       border-bottom: 1px solid #2d2d4e;
       line-height: 1.2;
       flex-shrink: 0;
+      display: block;
+      text-decoration: none;
+      cursor: pointer;
+      transition: opacity 0.2s ease;
+    }
+    .sidebar .brand:hover {
+      opacity: 0.8;
     }
     .sidebar .brand-sub {
       display: block;
@@ -134,16 +141,19 @@
 <body>
 <div class="d-flex">
   <nav class="sidebar">
-    <div class="brand">
+    <a href="/dashboard" class="brand">
       <i class="bi bi-journal-bookmark-fill me-2"></i>Contalibra
       {% if request.state.empresa_nombre %}
       <span class="brand-sub">{{ request.state.empresa_nombre }}</span>
       {% endif %}
-    </div>
+    </a>
     {% set mods = request.state.modulos if request.state.modulos is defined else set() %}
     {% set is_admin = request.state.current_user and request.state.current_user.role == 'admin' %}
-    {% set has_comercial = 'ventas' in mods or 'clientes' in mods or 'presupuestos' in mods or 'remitos' in mods or 'facturacion' in mods %}
-    {% set has_inventario = 'productos' in mods or 'stock' in mods %}
+    {% set has_ventas = 'ventas' in mods or 'clientes' in mods or 'presupuestos' in mods or 'remitos' in mods or 'facturacion' in mods or 'cuenta_corriente' in mods %}
+    {% set has_inventario = 'productos' in mods or 'stock' in mods or 'depositos' in mods %}
+    {% set has_compras = 'egresos' in mods or 'proveedores' in mods %}
+    {% set has_caja_tes = 'caja' in mods or 'tesoreria' in mods %}
+    {% set has_reportes = 'reportes' in mods or 'libros_iva' in mods %}
     <div class="sidebar-nav">
     <ul class="nav flex-column mt-2">
 
@@ -153,26 +163,13 @@
         </a>
       </li>
 
-      {% if has_comercial %}
-      <li><div class="sidebar-section">Comercial</div></li>
-      {% if 'ventas' in mods %}
+      {# ── VENTAS ── #}
+      {% if has_ventas %}
+      <li><div class="sidebar-section">Ventas</div></li>
+      {% if 'facturacion' in mods %}
       <li class="nav-item">
-        <a class="nav-link {% if active == 'ventas' %}active{% endif %}" href="/ventas">
-          <i class="bi bi-cart3"></i>Ventas
-        </a>
-      </li>
-      {% endif %}
-      {% if 'clientes' in mods %}
-      <li class="nav-item">
-        <a class="nav-link {% if active == 'clientes' %}active{% endif %}" href="/clientes">
-          <i class="bi bi-people"></i>Clientes
-        </a>
-      </li>
-      {% endif %}
-      {% if 'cuenta_corriente' in mods %}
-      <li class="nav-item">
-        <a class="nav-link {% if active == 'cuenta_corriente' %}active{% endif %}" href="/cuenta-corriente">
-          <i class="bi bi-journal-text"></i>Cta. Corriente
+        <a class="nav-link {% if active == 'facturas' %}active{% endif %}" href="/facturas">
+          <i class="bi bi-receipt"></i>Comprobantes
         </a>
       </li>
       {% endif %}
@@ -190,15 +187,57 @@
         </a>
       </li>
       {% endif %}
-      {% if 'facturacion' in mods %}
+      {% if 'ventas' in mods %}
       <li class="nav-item">
-        <a class="nav-link {% if active == 'facturas' %}active{% endif %}" href="/facturas">
-          <i class="bi bi-receipt"></i>Comprobantes
+        <a class="nav-link {% if active == 'ventas' %}active{% endif %}" href="/ventas">
+          <i class="bi bi-cart3"></i>Ventas POS
+        </a>
+      </li>
+      {% endif %}
+      {% if 'clientes' in mods %}
+      <li class="nav-item">
+        <a class="nav-link {% if active == 'clientes' %}active{% endif %}" href="/clientes">
+          <i class="bi bi-people"></i>Clientes
+        </a>
+        {% if 'cuenta_corriente' in mods %}
+        <ul class="nav flex-column ms-3" style="font-size:.85em">
+          <li class="nav-item">
+            <a class="nav-link py-1 {% if active == 'cuenta_corriente' %}active{% endif %}" href="/cuenta-corriente">
+              <i class="bi bi-journal-text me-1"></i>Cuenta Corriente
+            </a>
+          </li>
+        </ul>
+        {% endif %}
+      </li>
+      {% elif 'cuenta_corriente' in mods %}
+      <li class="nav-item">
+        <a class="nav-link {% if active == 'cuenta_corriente' %}active{% endif %}" href="/cuenta-corriente">
+          <i class="bi bi-journal-text"></i>Cuenta Corriente
         </a>
       </li>
       {% endif %}
       {% endif %}
 
+      {# ── COMPRAS ── #}
+      {% if has_compras %}
+      <li><div class="sidebar-section">Compras</div></li>
+      {% if 'egresos' in mods %}
+      <li class="nav-item">
+        <a class="nav-link {% if active == 'egresos' %}active{% endif %}" href="/egresos">
+          <i class="bi bi-bag"></i>Egresos
+        </a>
+      </li>
+      {% endif %}
+      {% if 'proveedores' in mods %}
+      <li class="nav-item">
+        <a class="nav-link {% if active == 'proveedores' %}active{% endif %}" href="/proveedores">
+          <i class="bi bi-truck"></i>Proveedores
+        </a>
+      </li>
+      {% endif %}
+      {% endif %}
+
+      {# ── INVENTARIO ── #}
       {% if has_inventario %}
       <li><div class="sidebar-section">Inventario</div></li>
       {% if 'productos' in mods %}
@@ -240,13 +279,20 @@
       {% endif %}
       {% endif %}
 
+      {# ── CAJA & TESORERÍA ── #}
+      {% if has_caja_tes %}
+      <li><div class="sidebar-section">Caja &amp; Tesorería</div></li>
       {% if 'caja' in mods %}
-      <li><div class="sidebar-section">Caja</div></li>
       <li class="nav-item">
         <a class="nav-link {% if active == 'caja' %}active{% endif %}" href="/caja">
           <i class="bi bi-cash-stack"></i>Caja
         </a>
         <ul class="nav flex-column ms-3" style="font-size:.85em">
+          <li class="nav-item">
+            <a class="nav-link py-1 {% if active == 'turnos' %}active{% endif %}" href="/turnos">
+              <i class="bi bi-person-badge me-1"></i>Turnos
+            </a>
+          </li>
           <li class="nav-item">
             <a class="nav-link py-1 {% if active == 'cajas_config' %}active{% endif %}" href="/cajas">
               <i class="bi bi-cash-coin me-1"></i>Gestionar cajas
@@ -254,15 +300,30 @@
           </li>
         </ul>
       </li>
+      {% endif %}
+      {% if 'tesoreria' in mods %}
       <li class="nav-item">
-        <a class="nav-link {% if active == 'turnos' %}active{% endif %}" href="/turnos">
-          <i class="bi bi-person-badge"></i>Turnos
+        <a class="nav-link {% if active == 'tesoreria' %}active{% endif %}" href="/tesoreria">
+          <i class="bi bi-bank"></i>Cuentas bancarias
         </a>
       </li>
       {% endif %}
+      {% endif %}
+      <li class="nav-item">
+        <a class="nav-link {% if active == 'mp_bandeja' %}active{% endif %}" href="/integraciones/mp/bandeja"
+           style="display:flex;align-items:center;justify-content:space-between">
+          <span><i class="bi bi-credit-card-2-front" style="color:#009ee3"></i>Pagos MercadoPago</span>
+          {% if request.state.mp_pending_count > 0 %}
+          <span class="badge rounded-pill bg-danger" style="font-size:.7rem;min-width:1.4rem">
+            {{ request.state.mp_pending_count }}
+          </span>
+          {% endif %}
+        </a>
+      </li>
 
-      {% if 'reportes' in mods or 'libros_iva' in mods %}
-      <li><div class="sidebar-section">Análisis</div></li>
+      {# ── REPORTES ── #}
+      {% if has_reportes %}
+      <li><div class="sidebar-section">Reportes</div></li>
       {% if 'reportes' in mods %}
       <li class="nav-item">
         <a class="nav-link {% if active == 'reportes' %}active{% endif %}" href="/reportes">
@@ -287,44 +348,7 @@
       {% endif %}
       {% endif %}
 
-      {% if 'egresos' in mods %}
-      <li><div class="sidebar-section">Egresos</div></li>
-      <li class="nav-item">
-        <a class="nav-link {% if active == 'egresos' %}active{% endif %}" href="/egresos">
-          <i class="bi bi-arrow-up-circle"></i>Egresos
-        </a>
-      </li>
-      {% if 'proveedores' in mods %}
-      <li class="nav-item">
-        <a class="nav-link {% if active == 'proveedores' %}active{% endif %}" href="/proveedores">
-          <i class="bi bi-truck"></i>Proveedores
-        </a>
-      </li>
-      {% endif %}
-      {% endif %}
-
-      {% if 'tesoreria' in mods %}
-      <li><div class="sidebar-section">Tesorería</div></li>
-      <li class="nav-item">
-        <a class="nav-link {% if active == 'tesoreria' %}active{% endif %}" href="/tesoreria">
-          <i class="bi bi-bank"></i>Cuentas
-        </a>
-      </li>
-      {% endif %}
-
-      <li><div class="sidebar-section">Integraciones</div></li>
-      <li class="nav-item">
-        <a class="nav-link {% if active == 'mp_bandeja' %}active{% endif %}" href="/integraciones/mp/bandeja"
-           style="display:flex;align-items:center;justify-content:space-between">
-          <span><i class="bi bi-credit-card-2-front" style="color:#009ee3"></i>Pagos MercadoPago</span>
-          {% if request.state.mp_pending_count > 0 %}
-          <span class="badge rounded-pill bg-danger" style="font-size:.7rem;min-width:1.4rem">
-            {{ request.state.mp_pending_count }}
-          </span>
-          {% endif %}
-        </a>
-      </li>
-
+      {# ── CONFIGURACIÓN ── #}
       <li><div class="sidebar-divider"></div></li>
       <li class="nav-item">
         <a class="nav-link {% if active == 'config' %}active{% endif %}" href="/config">
@@ -332,6 +356,7 @@
         </a>
       </li>
 
+      {# ── ADMINISTRACIÓN ── #}
       {% if is_admin %}
       <li><div class="sidebar-section">Administración</div></li>
       <li class="nav-item">

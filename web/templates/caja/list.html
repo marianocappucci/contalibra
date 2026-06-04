@@ -79,6 +79,7 @@
             <th>Fecha</th>
             <th>Tipo</th>
             <th>Concepto</th>
+            <th>Usuario</th>
             <th>Referencia</th>
             {% if cajas|length > 1 %}<th>Caja / Medio</th>{% endif %}
             <th class="text-end">Monto</th>
@@ -104,6 +105,7 @@
               </a>
               {% endif %}
             </td>
+            <td class="small">{{ m.usuario_nombre or '—' }}</td>
             <td class="text-muted small">{{ m.referencia }}</td>
             {% if cajas|length > 1 %}
             <td class="small text-muted">

@@ -18,43 +18,9 @@
       <div class="card">
         <div class="card-header">Cliente</div>
         <div class="card-body">
-          {% if clientes %}
-          <div class="mb-3">
-            <label class="form-label">Seleccionar cliente</label>
-            <select class="form-select" id="client-select" name="client_id">
-              <option value="">— Sin cliente —</option>
-              {% for c in clientes %}
-              <option value="{{ c.id }}"
-                data-address="{{ c.address or '' }}"
-                data-cuit="{{ c.cuit_dni or '' }}"
-                data-email="{{ c.email or '' }}"
-                data-phone="{{ c.phone or '' }}">{{ c.name }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          {% endif %}
-          <div class="row g-2" id="client-fields">
-            <div class="col-md-6">
-              <label class="form-label">Nombre / Razón social <span class="text-danger">*</span></label>
-              <input type="text" class="form-control" name="client_name" id="client_name" required>
-            </div>
-            <div class="col-md-3">
-              <label class="form-label">CUIT / DNI</label>
-              <input type="text" class="form-control" name="client_cuit" id="client_cuit">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label">Domicilio</label>
-              <input type="text" class="form-control" name="client_address" id="client_address">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label">Email</label>
-              <input type="email" class="form-control" name="client_email" id="client_email">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label">Teléfono</label>
-              <input type="text" class="form-control" name="client_phone" id="client_phone">
-            </div>
-          </div>
+          {% set client_placeholder = '— Sin cliente —' %}
+          {% set client_default_name = '' %}
+          {% include '_cliente_selector.html' %}
         </div>
       </div>
     </div>
@@ -80,38 +46,8 @@
 
     <!-- Ítems -->
     <div class="col-12">
-      <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          Ítems
-          <div class="d-flex gap-2 align-items-center">
-            <input type="text" id="buscador-prod" class="form-control form-control-sm"
-                   placeholder="Buscar producto…" style="width:200px" autocomplete="off">
-            <button type="button" class="btn btn-sm btn-outline-primary" id="add-row">
-              <i class="bi bi-plus-lg me-1"></i>Agregar ítem
-            </button>
-          </div>
-        </div>
-        <div class="card-body p-0">
-          <div class="table-responsive">
-            <table class="table align-middle mb-0" id="items-table">
-              <thead class="table-light">
-                <tr>
-                  <th>Descripción</th>
-                  <th style="width:120px">Cantidad</th>
-                  <th style="width:40px"></th>
-                </tr>
-              </thead>
-              <tbody id="items-body">
-                <tr class="item-row">
-                  <td><input type="text" class="form-control form-control-sm" name="desc[]" required></td>
-                  <td><input type="number" class="form-control form-control-sm qty" name="qty[]" min="0.001" step="any" value="1" required></td>
-                  <td><button type="button" class="btn btn-sm btn-outline-danger remove-row"><i class="bi bi-trash"></i></button></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+      {% set show_prices = false %}
+      {% include '_items_table.html' %}
     </div>
 
     <div class="col-12 d-flex justify-content-end gap-2 pb-4">
@@ -122,8 +58,11 @@
     </div>
   </div>
 </form>
+
 <div id="sugs-prod" class="list-group shadow"
      style="position:fixed;z-index:9999;display:none;max-height:220px;overflow-y:auto"></div>
+
+{% include '_modal_nuevo_cliente.html' %}
 {% endblock %}
 
 {% block scripts %}
@@ -168,9 +107,7 @@
 function addRow() {
   const tbody = document.getElementById('items-body');
   const row = tbody.querySelector('.item-row').cloneNode(true);
-  row.querySelectorAll('input').forEach(i => {
-    i.value = i.classList.contains('qty') ? 1 : '';
-  });
+  row.querySelectorAll('input').forEach(i => { i.value = i.classList.contains('qty') ? 1 : ''; });
   tbody.appendChild(row);
   bindRow(row);
 }
@@ -184,22 +121,11 @@ function bindRow(row) {
 document.querySelectorAll('.item-row').forEach(bindRow);
 document.getElementById('add-row').addEventListener('click', addRow);
 
-// Autocompletar datos del cliente
-const sel = document.getElementById('client-select');
-if (sel) {
-  sel.addEventListener('change', () => {
-    const opt = sel.options[sel.selectedIndex];
-    const locked = opt.value !== '';
-    document.getElementById('client_name').value    = opt.value ? opt.text : '';
-    document.getElementById('client_address').value = opt.dataset.address || '';
-    document.getElementById('client_cuit').value    = opt.dataset.cuit || '';
-    document.getElementById('client_email').value   = opt.dataset.email || '';
-    document.getElementById('client_phone').value   = opt.dataset.phone || '';
-    document.querySelectorAll('#client-fields input').forEach(i => i.readOnly = locked);
-  });
-}
-
 const dateInput = document.querySelector('input[name="date"]');
 if (dateInput && !dateInput.value) dateInput.value = new Date().toISOString().slice(0,10);
+
 </script>
+{% set client_default_name = '' %}
+{% include '_cliente_selector_js.html' %}
+{% include '_modal_nuevo_cliente_js.html' %}
 {% endblock %}

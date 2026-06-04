@@ -209,6 +209,7 @@
             <tr>
               <th>Fecha</th>
               <th>Concepto</th>
+              <th>Usuario</th>
               <th>Referencia</th>
               <th class="text-end">Monto</th>
             </tr>
@@ -218,6 +219,7 @@
             <tr>
               <td class="small text-muted">{{ m.fecha }}</td>
               <td class="small">{{ m.concepto }}</td>
+              <td class="small">{{ m.usuario_nombre or '—' }}</td>
               <td class="small text-muted font-monospace">{{ m.referencia or '' }}</td>
               <td class="text-end fw-semibold {% if m.tipo == 'ingreso' %}text-success{% else %}text-danger{% endif %}">
                 {% if m.tipo == 'ingreso' %}+{% else %}−{% endif %} $ {{ m.monto|moneda0 }}

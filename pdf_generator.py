@@ -659,12 +659,29 @@ def _draw_factura_footer(pdf, factura, empresa):
     info_w = qr_x - _LX - 5
     cy     = fy + 2
 
+    # Logo ARCA tipográfico
+    _ARCA_DARK = (74, 74, 74)
+    _ARCA_SUB  = (110, 110, 110)
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.set_text_color(*_ARCA_DARK)
+    pdf.set_xy(_LX, cy)
+    pdf.cell(40, 5, "ARCA", ln=False)
+    cy += 5
+    pdf.set_font("Helvetica", "", 5)
+    pdf.set_text_color(*_ARCA_SUB)
+    pdf.set_xy(_LX, cy)
+    pdf.cell(60, 3.5, "AGENCIA DE RECAUDACI\xd3N Y CONTROL ADUANERO", ln=False)
+    cy += 4.5
+    pdf.set_text_color(*_INK)
+
     if cae:
+        es_dev = os.environ.get("ENV", "") == "development"
         pdf.set_xy(_LX, cy)
         pdf.set_font("Helvetica", "B", 8); pdf.set_text_color(*_INK)
         pdf.cell(22, 5, "CAE/CAI:", ln=False)
         pdf.set_font("Helvetica", "", 8)
-        pdf.cell(info_w - 22, 5, cae, ln=True)
+        cae_display = f"{cae}  [DEV - SIMULADO]" if es_dev else cae
+        pdf.cell(info_w - 22, 5, cae_display, ln=True)
         pdf.set_xy(_LX, pdf.get_y())
         pdf.set_font("Helvetica", "B", 8)
         pdf.cell(40, 5, "Vencimiento CAE/CAI:", ln=False)
@@ -737,11 +754,7 @@ class RemitoPDF(FPDF):
         self.set_y(_draw_header_block(self, "R", "Remito", "", info_fields, emp))
 
     def footer(self):
-        self.set_y(-14)
-        self.set_font("Helvetica", "I", 7)
-        self.set_text_color(*_MUTED)
-        self.cell(0, 5, "Documento no válido como factura", align="C")
-        self.set_text_color(*_INK)
+        pass
 
 
 class PresupuestoPDF(FPDF):
@@ -808,6 +821,13 @@ def generate_pdf(remito, output_dir=None):
         pdf.set_text_color(*_INK)
         pdf.multi_cell(obs_w - 8, 4.5, str(remito["observations"])[:400])
         pdf.ln(2)
+
+    # Anclar aviso al pie (aviso 18mm + margen 22mm)
+    target_y = pdf.h - 40
+    if pdf.get_y() > target_y:
+        pdf.add_page()
+        target_y = pdf.h - 40
+    pdf.set_y(target_y)
     _draw_no_fiscal_notice(pdf)
     pdf.output(filepath)
     return os.path.abspath(filepath)
@@ -837,6 +857,15 @@ def generate_pdf_presupuesto(presupuesto, output_dir=None):
     tax = presupuesto.get("tax_amount", 0)
     tot = presupuesto.get("total", 0)
     pct = round(presupuesto.get("tax_rate", 0) * 100)
+
+    # Anclar totales + aviso al pie (totales 38mm + aviso 18mm + footer 14mm + margen)
+    _BOTTOM_BLOCK_H = 80
+    target_y = pdf.h - _BOTTOM_BLOCK_H
+    if pdf.get_y() > target_y:
+        pdf.add_page()
+        target_y = pdf.h - _BOTTOM_BLOCK_H
+    pdf.set_y(target_y)
+
     _draw_totals_and_notes(pdf, sub, tax, 0, tot, pct,
                            presupuesto.get("observations", ""))
     _draw_no_fiscal_notice(
@@ -939,85 +968,27 @@ def generate_pdf_recibo(factura: dict, cobros: list[dict]) -> bytes:
     pdf.add_page()
 
     lx, rx, cw = _LX, _RX, _CW
-    y0 = 18
 
-    # ── Encabezado empresa ────────────────────────────────────────────────────
-    logo_path = emp.get("logo_path", "")
-    has_logo  = bool(logo_path and os.path.exists(logo_path))
-    logo_sz   = 14   # fallback cuadrado iniciales
-    _recibo_box_h = 32  # altura del cuadro RECIBO (derecha)
-
-    if has_logo:
-        lw, lh = _logo_fit_dims(logo_path, _CW * 0.45, _recibo_box_h)
-        ly = y0 + (_recibo_box_h - lh) / 2
-        pdf.image(_prepare_logo(logo_path), x=lx, y=ly, w=lw, h=lh)
-    else:
-        pdf.set_fill_color(*_ACCENT)
-        _rrect(pdf, lx, y0, logo_sz, logo_sz, r=2.5, style="F")
-        ini = "".join(w[0].upper() for w in emp.get("nombre", "?").split()[:2]) or "?"
-        pdf.set_font("Helvetica", "B", 7)
-        pdf.set_text_color(*_WHITE)
-        pdf.set_xy(lx, y0 + 3.5)
-        pdf.cell(logo_sz, logo_sz - 7, ini[:3], align="C")
-
-    tx = lx + logo_sz + 4
-    tw = 95 - logo_sz - 4
-
-    nombre = emp.get("nombre", "")
-    if nombre:
-        pdf.set_font("Helvetica", "B", 14)
-        pdf.set_text_color(*_INK)
-        pdf.set_xy(tx, y0 + 1)
-        pdf.multi_cell(tw, 6, nombre, align="L", new_x="LEFT", new_y="NEXT")
-
-    pdf.set_font("Helvetica", "", 8)
-    pdf.set_text_color(*_MUTED)
-    details = []
-    if emp.get("cuit"):
-        details.append(f"CUIT: {emp['cuit']}")
-    if emp.get("direccion"):
-        details.append(emp["direccion"])
-    if emp.get("telefono"):
-        details.append(f"Tel: {emp['telefono']}")
-    if details:
-        pdf.set_xy(tx, pdf.get_y() + 1)
-        pdf.multi_cell(tw, 4.5, "  ·  ".join(details), align="L")
-
-    # ── Cuadro RECIBO (derecha) ───────────────────────────────────────────────
-    vx, vy, vw, vh = 125, y0, 67, 32
-    pdf.set_fill_color(*_INK)
-    _rrect(pdf, vx, vy, vw, vh, style="F")
-
-    pdf.set_font("Helvetica", "B", 18)
-    pdf.set_text_color(*_WHITE)
-    pdf.set_xy(vx, vy + 4)
-    pdf.cell(vw, 10, "RECIBO", align="C")
-
-    es_venta    = factura.get("_es_venta", False)
-    fecha_fac   = _fmt_fecha((factura.get("fecha") or "")[:10])
+    # Calcular ref_line y fecha antes de dibujar el header
+    es_venta  = factura.get("_es_venta", False)
+    fecha_fac = _fmt_fecha((factura.get("fecha") or "")[:10])
     if es_venta:
-        ref_line = f"Venta N° {factura.get('_venta_numero', factura.get('numero', ''))}"
+        ref_line     = f"Venta N\xb0 {factura.get('_venta_numero', factura.get('numero', ''))}"
         concepto_doc = "Venta"
     else:
-        pv  = str(factura.get("punto_venta", 0)).zfill(4)
-        num = str(factura.get("numero", 0)).zfill(8)
-        tipo_nombre = _TIPO_NOMBRE_DOC.get(int(factura.get("tipo", 11)), "Comprobante")
-        ref_line = f"De: {tipo_nombre} {pv}-{num}"
+        pv           = str(factura.get("punto_venta", 0)).zfill(4)
+        num          = str(factura.get("numero", 0)).zfill(8)
+        tipo_nombre  = _TIPO_NOMBRE_DOC.get(int(factura.get("tipo", 11)), "Comprobante")
+        ref_line     = f"{tipo_nombre} {pv}-{num}"
         concepto_doc = tipo_nombre
 
-    pdf.set_font("Helvetica", "", 7.5)
-    pdf.set_xy(vx, vy + 15)
-    pdf.cell(vw, 5, ref_line, align="C")
-    pdf.set_xy(vx, vy + 20)
-    pdf.cell(vw, 5, f"Emisión: {fecha_fac}", align="C")
+    info_fields = [
+        ("Comprobante:", ref_line),
+        ("Emisi\xf3n:",  fecha_fac),
+    ]
 
-    sep_y = max(pdf.get_y(), y0 + logo_sz) + 6
-
-    # ── Línea separadora ──────────────────────────────────────────────────────
-    pdf.set_draw_color(*_LINE)
-    pdf.set_line_width(0.4)
-    pdf.line(lx, sep_y, rx, sep_y)
-    sep_y += 5
+    # ── Encabezado estilo factura ─────────────────────────────────────────────
+    sep_y = _draw_header_block(pdf, "R", "Recibo", "", info_fields, emp)
 
     # ── Recibido de ───────────────────────────────────────────────────────────
     pdf.set_font("Helvetica", "B", 7)
@@ -1157,7 +1128,8 @@ def generate_pdf_recibo(factura: dict, cobros: list[dict]) -> bytes:
     pdf.set_xy(lx, firma_y + 21)
     pdf.cell(70, 5, "Firma y sello", align="C")
 
-    # Pie
+    # Pie (desactivar auto_break para poder posicionarlo en el borde inferior)
+    pdf.set_auto_page_break(False)
     pdf.set_font("Helvetica", "", 7)
     pdf.set_text_color(*_MUTED)
     pdf.set_xy(lx, pdf.h - 14)

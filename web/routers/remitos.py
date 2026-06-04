@@ -10,6 +10,8 @@ import database as db
 import pdf_generator as pdf_gen
 from web.auth import require_auth
 from web.templates_config import templates
+from web.helpers.auth_helper import get_current_user_id
+from web.helpers.form_helper import extract_client_from_form, extract_items_from_form
 
 router = APIRouter()
 
@@ -38,52 +40,32 @@ async def remito_nuevo_post(request: Request, user: Auth):
     clientes = db.get_all_clients()
 
     try:
-        client_id = int(form.get("client_id", 0)) or None
-        client_name = str(form.get("client_name", "")).strip()
-        client_address = str(form.get("client_address", "")).strip()
-        client_cuit = str(form.get("client_cuit", "")).strip()
-        client_email = str(form.get("client_email", "")).strip()
-        client_phone = str(form.get("client_phone", "")).strip()
-        date_str = str(form.get("date", "")).strip()
+        cliente = extract_client_from_form(form)
+        client_id      = cliente["client_id"]
+        client_name    = cliente["client_name"]
+        client_cuit    = cliente["client_cuit"]
+        client_address = cliente["client_address"]
+        client_email   = cliente["client_email"]
+        client_phone   = cliente["client_phone"]
+        date_str     = str(form.get("date",         "")).strip()
         observations = str(form.get("observations", "")).strip()
-
-        descs = form.getlist("desc[]")
-        qtys  = form.getlist("qty[]")
 
         if not client_name:
             raise ValueError("El nombre del cliente es requerido.")
-        if not any(d.strip() for d in descs):
-            raise ValueError("Debe agregar al menos un ítem.")
 
-        items = []
-        for desc, qty_s in zip(descs, qtys):
-            if not desc.strip():
-                continue
-            qty = float(qty_s.replace(",", "."))
-            items.append({"description": desc.strip(), "qty": qty})
-
+        items = extract_items_from_form(form, include_prices=False)
         if not items:
             raise ValueError("Debe agregar al menos un ítem válido.")
 
-        if client_id:
-            c = db.get_client(client_id)
-            if c:
-                client_name    = c["name"]
-                client_address = c.get("address", "")
-                client_cuit    = c.get("cuit_dni", "")
-                client_email   = c.get("email", "")
-                client_phone   = c.get("phone", "")
-
         number = db.get_next_remito_number()
 
-        uid = (db.get_usuario_by_username(user) or {}).get("id")
         remito_id = db.create_remito(
             number=number, date=date_str,
             client_id=client_id, client_name=client_name,
             client_address=client_address, client_cuit=client_cuit,
             client_email=client_email, client_phone=client_phone,
             items=items, subtotal=0, tax_rate=0, tax_amount=0, total=0,
-            observations=observations, usuario_id=uid,
+            observations=observations, usuario_id=get_current_user_id(user),
         )
         pdf_path = pdf_gen.generate_pdf(db.get_remito(remito_id))
         db.update_remito_pdf_path(remito_id, pdf_path)

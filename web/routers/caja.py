@@ -10,6 +10,7 @@ import datetime
 import database as db
 from web.auth import require_auth
 from web.templates_config import templates
+from web.helpers.auth_helper import get_current_user_id
 
 router = APIRouter()
 
@@ -81,7 +82,7 @@ async def caja_nuevo_post(request: Request, user: Auth):
 
         caja_id    = int(form.get("caja_id") or 0) or None
         medio_pago = str(form.get("medio_pago", "")).strip()
-        uid = (db.get_usuario_by_username(user) or {}).get("id")
+        uid = get_current_user_id(user)
         db.create_caja_movimiento(fecha, tipo, concepto, monto, referencia,
                                   factura_id, uid, caja_id=caja_id, medio_pago=medio_pago)
 

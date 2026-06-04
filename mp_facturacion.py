@@ -21,6 +21,16 @@ _TIPO_POR_CONDICION = {
     "Responsable Inscripto": 6,
 }
 _TIPO_LABEL = {1: "Factura A", 6: "Factura B", 11: "Factura C"}
+_IVA_CODES = {
+    "Responsable Inscripto": 1,
+    "IVA Responsable Inscripto": 1,
+    "Monotributista": 6,
+    "Responsable Monotributo": 6,
+    "IVA Exento": 4,
+    "Consumidor Final": 5,
+    "No Alcanzado": 3,
+    "IVA No Responsable": 3,
+}
 
 
 def _service_dates_for_current_month():
@@ -101,12 +111,13 @@ async def generar_factura_mp(
     else:
         numero = db.get_next_factura_numero(punto_venta, tipo)
 
+    cliente_iva_cond = _IVA_CODES.get(client.get("iva_condition", "Consumidor Final"), 5)
     factura_id = db.create_factura(
         tipo=tipo, punto_venta=punto_venta, numero=numero,
         fecha=fecha_hoy,
         cliente_cuit=client.get("cuit_dni", ""),
         cliente_razon=client["name"],
-        cliente_iva_cond=5,
+        cliente_iva_cond=cliente_iva_cond,
         items=items,
         subtotal=subtotal,
         iva_amount=iva_amount,
