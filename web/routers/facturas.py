@@ -288,6 +288,23 @@ async def factura_nueva_post(request: Request, user: Auth):
 
         pdf_path = pdf_gen.generate_pdf_factura(factura)
         db.update_factura_pdf_path(factura_id, pdf_path)
+
+        # Si la condición de venta es Cuenta Corriente, registrar movimiento en caja
+        if condicion_venta == "Cuenta Corriente":
+            pv_str = str(punto_venta).zfill(4)
+            num_str = str(numero).zfill(8)
+            tipo_label = {1: "Factura A", 6: "Factura B", 11: "Factura C"}.get(tipo, "Factura")
+            db.create_caja_movimiento(
+                fecha=fecha_str,
+                tipo="ingreso",
+                concepto=f"Factura {tipo_label} {pv_str}-{num_str} — {client_name}",
+                monto=total,
+                referencia="",
+                factura_id=factura_id,
+                medio_pago="Cuenta Corriente",
+                usuario_id=uid,
+            )
+
         return RedirectResponse(f"/facturas/{factura_id}", status_code=303)
 
     except Exception as e:
