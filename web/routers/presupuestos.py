@@ -198,6 +198,14 @@ async def presupuesto_enviar_email(request: Request, pres_id: int, user: Auth):
 
 
 @router.post("/presupuestos/{pres_id}/eliminar")
-def presupuesto_eliminar(pres_id: int, user: Auth):
-    db.delete_presupuesto(pres_id)
-    return RedirectResponse("/presupuestos", status_code=303)
+def presupuesto_eliminar(pres_id: int, user: Auth, request: Request):
+    try:
+        db.delete_presupuesto(pres_id)
+        return RedirectResponse("/presupuestos", status_code=303)
+    except ValueError as e:
+        presupuestos = db.get_all_presupuestos()
+        return templates.TemplateResponse(request, "presupuestos/list.html", {
+            "presupuestos": presupuestos,
+            "error": str(e),
+            "active": "presupuestos",
+        }, status_code=422)

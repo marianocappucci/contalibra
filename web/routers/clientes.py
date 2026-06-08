@@ -124,7 +124,19 @@ def cliente_toggle_auto_facturar(request: Request, cliente_id: int, user: Auth):
 @router.post("/clientes/{cliente_id}/eliminar")
 def cliente_eliminar(request: Request, cliente_id: int, user: Auth):
     try:
-        db.delete_client(cliente_id)
+        cliente = db.get_client(cliente_id)
+        if not cliente:
+            raise ValueError("Cliente no encontrado")
+
+        # Verificar si tiene presupuestos aprobados
+        if db.tiene_presupuestos_aprobados(cliente_id):
+            raise ValueError(
+                f"No se puede desactivar {cliente['name']} porque tiene presupuestos aprobados. "
+                "Primero debe cancelar o rechazar esos presupuestos."
+            )
+
+        # Desactivar el cliente
+        db.desactivar_cliente(cliente_id)
     except ValueError as e:
         return templates.TemplateResponse(request, "clientes/list.html", {
             "clientes": db.get_all_clients(), "error": str(e), "active": "clientes",
