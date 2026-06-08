@@ -316,6 +316,8 @@ def init_db():
         cols = [r[1] for r in conn.execute("PRAGMA table_info(clients)").fetchall()]
         if "iva_condition" not in cols:
             conn.execute("ALTER TABLE clients ADD COLUMN iva_condition TEXT DEFAULT ''")
+        if "activo" not in cols:
+            conn.execute("ALTER TABLE clients ADD COLUMN activo INTEGER DEFAULT 1")
         fact_cols = [r[1] for r in conn.execute("PRAGMA table_info(facturas)").fetchall()]
         if "cliente_domicilio" not in fact_cols:
             conn.execute("ALTER TABLE facturas ADD COLUMN cliente_domicilio TEXT DEFAULT ''")
@@ -558,6 +560,11 @@ def create_client(name, address="", cuit_dni="", email="", phone="", iva_conditi
 
 def get_all_clients():
     with get_connection() as conn:
+        return [dict(r) for r in conn.execute("SELECT * FROM clients WHERE activo = 1 ORDER BY name")]
+
+
+def get_all_clients_including_inactive():
+    with get_connection() as conn:
         return [dict(r) for r in conn.execute("SELECT * FROM clients ORDER BY name")]
 
 
@@ -565,6 +572,23 @@ def get_client(client_id):
     with get_connection() as conn:
         row = conn.execute("SELECT * FROM clients WHERE id=?", (client_id,)).fetchone()
         return dict(row) if row else None
+
+
+def desactivar_cliente(client_id: int) -> bool:
+    """Marca un cliente como inactivo (soft delete)."""
+    with get_connection() as conn:
+        conn.execute("UPDATE clients SET activo = 0 WHERE id = ?", (client_id,))
+        return True
+
+
+def tiene_presupuestos_aprobados(client_id: int) -> bool:
+    """Verifica si un cliente tiene presupuestos en estado 'aceptado'."""
+    with get_connection() as conn:
+        result = conn.execute(
+            "SELECT COUNT(*) FROM presupuestos WHERE client_id = ? AND status = 'aceptado'",
+            (client_id,)
+        ).fetchone()
+        return result[0] > 0 if result else False
 
 
 def get_facturas_by_client(cuit_dni: str, name: str, limit: int = 100) -> list:
@@ -870,7 +894,15 @@ def delete_remito(remito_id):
 
 
 def delete_presupuesto(presupuesto_id):
+    """Borra un presupuesto solo si está en estado 'pendiente'."""
     with get_connection() as conn:
+        presupuesto = conn.execute(
+            "SELECT status FROM presupuestos WHERE id=?", (presupuesto_id,)
+        ).fetchone()
+        if not presupuesto:
+            raise ValueError("Presupuesto no encontrado")
+        if presupuesto["status"] != "pendiente":
+            raise ValueError(f"No se puede borrar un presupuesto {presupuesto['status']}")
         conn.execute("DELETE FROM presupuestos WHERE id=?", (presupuesto_id,))
 
 
