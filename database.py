@@ -901,8 +901,9 @@ def delete_presupuesto(presupuesto_id):
         ).fetchone()
         if not presupuesto:
             raise ValueError("Presupuesto no encontrado")
-        if presupuesto["status"] != "pendiente":
-            raise ValueError(f"No se puede borrar un presupuesto {presupuesto['status']}")
+        status = dict(presupuesto)["status"] if presupuesto else None
+        if status != "pendiente":
+            raise ValueError(f"No se puede borrar un presupuesto {status}")
         conn.execute("DELETE FROM presupuestos WHERE id=?", (presupuesto_id,))
 
 
