@@ -202,3 +202,34 @@ certs/
 *.key
 *.pem
 ```
+
+---
+
+## Servicio de Consulta de Padrón (Consultar CUIT de cliente)
+
+El botón **"Consultar ARCA"** en el alta de clientes usa el webservice **`ws_sr_padron_a13`** (Padrón Alcance 13).
+
+> ⚠️ ARCA discontinuó el Padrón Alcance 4 (`ws_sr_padron_a4`). El servicio vigente es el **Alcance 13**.
+
+### Habilitar el servicio para tu certificado
+
+1. Ingresá a **https://www.arca.gob.ar** con tu clave fiscal
+2. Andá a **Administrador de Relaciones de Clave Fiscal**
+3. Click en **Nueva Relación**
+4. Completá:
+   - **Entidad**: ARCA
+   - **Servicio**: ws_sr_padron_a13 — Consulta a Padrón Alcance 13
+   - **Representado**: tu CUIT
+   - **Certificado**: el alias que ya creaste
+5. Confirmá
+
+Una vez delegado, el botón "Consultar ARCA" en el formulario de clientes va a completar automáticamente nombre, domicilio y condición frente al IVA.
+
+### Datos que devuelve
+
+| Campo | Fuente en A13 |
+|-------|--------------|
+| Nombre / Razón Social | nodo nombre / apellido / razonSocial |
+| Domicilio fiscal | nodo domicilio con tipoDomicilio=FISCAL |
+| Condición IVA | nodo categoriaMonotributo o impuesto (id 32/33/34) |
+| Estado clave | nodo estadoClave (ACTIVO / INACTIVO) |

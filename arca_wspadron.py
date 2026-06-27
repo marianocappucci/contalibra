@@ -1,5 +1,5 @@
 """
-Cliente WSPadron A4 de ARCA/AFIP.
+Cliente WSPadron A13 de ARCA/AFIP.
 Consulta datos de contribuyentes por CUIT usando credenciales WSAA.
 """
 
@@ -9,11 +9,11 @@ import xml.etree.ElementTree as ET
 import httpx
 
 WSPADRON_URL = {
-    "homologacion": "https://awshomo.afip.gov.ar/sr-padron/webservices/personaServiceA4",
-    "produccion":   "https://aws.afip.gov.ar/sr-padron/webservices/personaServiceA4",
+    "homologacion": "https://awshomo.afip.gov.ar/sr-padron/webservices/personaServiceA13",
+    "produccion":   "https://aws.afip.gov.ar/sr-padron/webservices/personaServiceA13",
 }
 
-_NS = "http://a4.soap.ws.server.puc.sr/"
+_NS = "http://a13.soap.ws.server.puc.sr/"
 
 
 def _ssl_ctx():
@@ -29,12 +29,7 @@ async def consultar_persona(
     sign: str,
     ambiente: str = "produccion",
 ) -> dict:
-    """
-    Consulta datos de un contribuyente en WSPadron A4.
-    Devuelve dict con: nombre, domicilio, iva_condition, estado, cuit.
-    Lanza RuntimeError con mensaje legible ante cualquier falla.
-    """
-    url  = WSPADRON_URL.get(ambiente, WSPADRON_URL["produccion"])
+    url    = WSPADRON_URL.get(ambiente, WSPADRON_URL["produccion"])
     cuit_e = cuit_empresa.replace("-", "").strip()
     cuit_c = cuit_consultar.replace("-", "").strip()
 
@@ -73,13 +68,15 @@ async def consultar_persona(
             raise RuntimeError("CUIT no encontrado en el padrón de ARCA.")
         raise RuntimeError(f"WSPadron: {fault}")
 
-    # Buscar getPersonaReturn
-    ret = next((e for e in root.iter() if e.tag.endswith("getPersonaReturn")), None)
+    # A13: <personaReturn><persona>...</persona></personaReturn>
+    ret = next((e for e in root.iter() if e.tag.endswith("personaReturn")), None)
     if ret is None:
-        raise RuntimeError("WSPadron: respuesta inesperada (sin getPersonaReturn)")
+        raise RuntimeError("WSPadron: respuesta inesperada (sin personaReturn)")
 
-    def text(tag):
-        el = next((e for e in ret.iter() if e.tag.endswith(tag)), None)
+    persona = next((e for e in ret if e.tag.endswith("persona")), ret)
+
+    def text(tag, node=persona):
+        el = next((e for e in node.iter() if e.tag.endswith(tag)), None)
         return (el.text or "").strip() if el is not None else ""
 
     tipo_persona = text("tipoPersona")
@@ -92,19 +89,23 @@ async def consultar_persona(
         nombre_p = text("nombre")
         nombre   = f"{apellido}, {nombre_p}".strip(", ") if apellido else nombre_p
 
-    # Domicilio fiscal
-    dom_el = next((e for e in ret.iter() if e.tag.endswith("domicilioFiscal")), None)
+    # Domicilio fiscal: <domicilio> con <tipoDomicilio>FISCAL</tipoDomicilio>
     domicilio = ""
-    if dom_el is not None:
+    for dom_el in persona.iter():
+        if not dom_el.tag.endswith("domicilio"):
+            continue
+        tipo = next((e.text or "" for e in dom_el if e.tag.endswith("tipoDomicilio")), "")
+        if "FISCAL" not in tipo.upper():
+            continue
         calle     = next((e.text or "" for e in dom_el if e.tag.endswith("calle")),     "").strip()
         numero    = next((e.text or "" for e in dom_el if e.tag.endswith("numero")),    "").strip()
         localidad = next((e.text or "" for e in dom_el if e.tag.endswith("localidad")), "").strip()
         provincia = next((e.text or "" for e in dom_el if e.tag.endswith("descripcionProvincia")), "").strip()
         parts = [p for p in [f"{calle} {numero}".strip(), localidad, provincia] if p]
         domicilio = ", ".join(parts)
+        break
 
-    # Condición IVA
-    iva_condition = _detectar_iva(ret)
+    iva_condition = _detectar_iva(persona)
 
     return {
         "cuit":          cuit_c,
@@ -115,20 +116,19 @@ async def consultar_persona(
     }
 
 
-def _detectar_iva(ret: ET.Element) -> str:
-    """Determina la condición IVA a partir del nodo getPersonaReturn."""
-    # Monotributista: existe datosMonotributo con actividad activa
-    mono = next((e for e in ret.iter() if e.tag.endswith("datosMonotributo")), None)
+def _detectar_iva(persona: ET.Element) -> str:
+    # A13: monotributo aparece como <categoriaMonotributo> o <monotributo>
+    mono = next((e for e in persona.iter() if e.tag.endswith("categoriaMonotributo")), None)
+    if mono is None:
+        mono = next((e for e in persona.iter() if e.tag.endswith("monotributo")), None)
     if mono is not None:
-        estado_mono = next((e.text for e in mono.iter() if e.tag.endswith("estado")), "") or ""
-        if estado_mono.upper() in ("ACTIVO", ""):
-            return "Monotributista"
+        return "Monotributista"
 
-    # Buscar en impuestos: idImpuesto 32 = IVA RI, 34 = IVA Exento, 33 = IVA No Responsable
-    for imp in ret.iter():
+    # Impuestos: mismos códigos que A4 (32=RI, 33=NR, 34=Exento)
+    for imp in persona.iter():
         if not imp.tag.endswith("impuesto"):
             continue
-        id_imp = next((e.text for e in imp if e.tag.endswith("idImpuesto")), "") or ""
+        id_imp     = next((e.text for e in imp if e.tag.endswith("idImpuesto")), "") or ""
         estado_imp = next((e.text for e in imp if e.tag.endswith("estado")), "") or ""
         if estado_imp.upper() != "ACTIVO":
             continue

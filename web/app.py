@@ -303,7 +303,7 @@ async def consultar_cuit(cuit: str, user: str = Depends(require_auth)):
     try:
         ta = await arca_wsaa.autenticar(
             arca["certificado_path"], arca["clave_path"], arca["ambiente"],
-            servicio="ws_sr_padron_a4",
+            servicio="ws_sr_padron_a13",
         )
         datos = await arca_wspadron.consultar_persona(
             arca["cuit"], cuit_limpio, ta["token"], ta["sign"], arca["ambiente"]
@@ -318,9 +318,9 @@ async def consultar_cuit(cuit: str, user: str = Depends(require_auth)):
         if "coe" in msg.lower() or "no autorizado" in msg.lower() or "constraints" in msg.lower() or "sin acceso" in msg.lower():
             return JSONResponse({
                 "error": (
-                    "El certificado no tiene acceso al servicio de Padrón (ws_sr_padron_a4). "
+                    "El certificado no tiene acceso al servicio de Padrón (ws_sr_padron_a13). "
                     "Ingresá a ARCA → Administración de Relaciones → delegá el servicio "
-                    "'Consulta a Padrón Alcance 4' para tu CUIT y volvé a intentarlo."
+                    "'Consulta a Padrón Alcance 13' para tu CUIT y volvé a intentarlo."
                 )
             }, status_code=403)
         return JSONResponse({"error": msg}, status_code=502)
