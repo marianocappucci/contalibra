@@ -41,6 +41,17 @@ def _service_dates_for_current_month():
     return first.isoformat(), last.isoformat(), today.isoformat()
 
 
+_CONDICION_POR_PAYMENT_TYPE = {
+    "bank_transfer":    "Transferencia Bancaria",
+    "credit_card":      "Tarjeta de Crédito",
+    "debit_card":       "Tarjeta de Débito",
+    "account_money":    "Otros medios de pago electrónico",
+    "digital_wallet":   "Otros medios de pago electrónico",
+    "digital_currency": "Otros medios de pago electrónico",
+    "prepaid_card":     "Tarjeta de Crédito",
+}
+
+
 async def generar_factura_mp(
     monto: float,
     payer_email: str,
@@ -48,19 +59,25 @@ async def generar_factura_mp(
     referencia: str,
     cfg: dict,
     concepto_override: str = "",
+    cliente_override: dict = None,
+    payment_type: str = "",
 ) -> tuple[int, str, str, bool]:
     """
     Crea factura con CAE, PDF y la registra en caja. Envía email si hay config.
     Devuelve (factura_id, numero_str, tipo_label, email_enviado).
+    Si se pasa cliente_override se usa ese cliente sin crear uno nuevo.
     """
-    client = db.get_client_by_email(payer_email) if payer_email else None
-    if not client:
-        client_id = db.create_client(
-            name=payer_name or payer_email or "Sin nombre",
-            email=payer_email,
-            iva_condition="Consumidor Final",
-        )
-        client = db.get_client(client_id)
+    if cliente_override:
+        client = cliente_override
+    else:
+        client = db.get_client_by_email(payer_email) if payer_email else None
+        if not client:
+            client_id = db.create_client(
+                name=payer_name or payer_email or "Sin nombre",
+                email=payer_email,
+                iva_condition="Consumidor Final",
+            )
+            client = db.get_client(client_id)
 
     iva_cond = cfg.get("empresa_iva_condition", "Monotributista")
     tipo     = _TIPO_POR_CONDICION.get(iva_cond, 11)
@@ -111,6 +128,10 @@ async def generar_factura_mp(
     else:
         numero = db.get_next_factura_numero(punto_venta, tipo)
 
+    condicion_venta = _CONDICION_POR_PAYMENT_TYPE.get(
+        payment_type, "Otros medios de pago electrónico"
+    )
+
     cliente_iva_cond = _IVA_CODES.get(client.get("iva_condition", "Consumidor Final"), 5)
     factura_id = db.create_factura(
         tipo=tipo, punto_venta=punto_venta, numero=numero,
@@ -128,6 +149,7 @@ async def generar_factura_mp(
         fch_serv_desde=fch_desde,
         fch_serv_hasta=fch_hasta,
         fch_vto_pago=fch_vto,
+        condicion_venta=condicion_venta,
     )
     factura = db.get_factura(factura_id)
 
@@ -167,12 +189,16 @@ async def generar_factura_mp(
     smtp_pass  = cfg.get("email_smtp_password", "")
     from_email = cfg.get("email_from", "")
 
+    # Usar el email del cliente registrado primero; payer_email como fallback
+    to_email = client.get("email") or payer_email
+    to_name  = client["name"]
+
     email_sent = False
-    if smtp_host and smtp_user and smtp_pass and from_email and payer_email and pdf_path:
+    if smtp_host and smtp_user and smtp_pass and from_email and to_email and pdf_path:
         try:
             email_sender.enviar_comprobante(
-                to_email=payer_email,
-                to_name=payer_name,
+                to_email=to_email,
+                to_name=to_name,
                 pdf_path=pdf_path,
                 empresa_nombre=cfg.get("empresa_nombre", ""),
                 factura_label=f"{tipo_lb} {pv_str}-{num_str}",

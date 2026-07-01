@@ -165,7 +165,7 @@
             <td class="font-monospace small">{{ '%04d'|format(f.punto_venta) }}-{{ '%08d'|format(f.numero) }}</td>
             <td class="font-monospace small text-muted">{{ f.cae or '—' }}</td>
             <td>{{ f.cliente_razon }}</td>
-            <td class="font-monospace small text-muted">{{ f.cliente_cuit or '—' }}</td>
+            <td class="font-monospace small text-muted">{{ f.cliente_cuit|cuit if f.cliente_cuit else '—' }}</td>
             <td class="text-end">$ {{ f.subtotal|moneda }}</td>
             <td class="text-end {% if f.iva_amount > 0 %}text-primary{% else %}text-muted{% endif %}">
               $ {{ f.iva_amount|moneda }}
@@ -312,7 +312,7 @@
             <td class="text-muted small">{{ e.fecha }}</td>
             <td class="font-monospace small">{{ e.numero or '—' }}</td>
             <td>{{ e.proveedor_nombre or '—' }}</td>
-            <td class="font-monospace small text-muted">{{ e.proveedor_cuit or '—' }}</td>
+            <td class="font-monospace small text-muted">{{ e.proveedor_cuit|cuit if e.proveedor_cuit else '—' }}</td>
             <td class="text-end">$ {{ e.monto_neto|moneda }}</td>
             <td class="text-end text-muted small">{{ e.iva_pct }}%</td>
             <td class="text-end fw-semibold text-success">$ {{ e.iva_monto|moneda }}</td>

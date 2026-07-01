@@ -370,6 +370,45 @@
       </div>
     </div>
 
+
+    {# Tutorial Padron A13 #}
+    <div class="card border-0 bg-light mb-4">
+      <div class="card-body py-3 px-4">
+        <div class="d-flex align-items-center gap-2 mb-2" data-bs-toggle="collapse" data-bs-target="#tutorialPadron" style="cursor:pointer">
+          <span class="badge text-white" style="background:#1a3a5c;font-size:.7rem"><i class="bi bi-person-vcard me-1"></i>ARCA / AFIP</span>
+          <span class="fw-semibold small">¿Qué servicio debo habilitar para consultar datos de clientes por CUIT?</span>
+          <i class="bi bi-chevron-down ms-auto text-muted"></i>
+        </div>
+        <div class="collapse" id="tutorialPadron">
+          <hr class="my-2">
+          <p class="small mb-3">El botón <strong>"Consultar ARCA"</strong> en el formulario de clientes completa automáticamente nombre, domicilio y condición de IVA a partir del CUIT. Para que funcione, tu certificado debe tener acceso al webservice de Padrón Alcance 13.</p>
+
+          <p class="small fw-semibold mb-1">1 — Ingresar al Administrador de Relaciones</p>
+          <ol class="small mb-3" style="line-height:1.9">
+            <li>Ingresá con CUIT y Clave Fiscal a <a href="https://auth.afip.gob.ar" target="_blank" class="text-decoration-none fw-semibold">auth.afip.gob.ar <i class="bi bi-box-arrow-up-right" style="font-size:.65rem"></i></a></li>
+            <li>Buscá y abrí el servicio <strong>"Administrador de Relaciones de Clave Fiscal"</strong></li>
+            <li>Hacé clic en <strong>Nueva Relación</strong></li>
+          </ol>
+
+          <p class="small fw-semibold mb-1">2 — Crear la relación para Padrón Alcance 13</p>
+          <ol class="small mb-3" style="line-height:1.9">
+            <li>En <em>Servicio</em>, buscá y seleccioná: <strong>Consulta a Padrón Alcance 13</strong> (ws_sr_padron_a13)</li>
+            <li>En <em>Representante</em>, seleccioná el certificado que ya configuraste en Contalibra</li>
+            <li>Confirmá la relación</li>
+          </ol>
+
+          <div class="alert alert-success py-2 px-3 mb-1 small">
+            <i class="bi bi-check-circle me-1"></i>
+            Una vez habilitado, el botón <strong>"Consultar ARCA"</strong> en el alta de clientes funcionará automáticamente.
+          </div>
+          <div class="alert alert-info py-2 px-3 mb-0 small">
+            <i class="bi bi-info-circle me-1"></i>
+            Este servicio es distinto al de facturación (WSFE). Necesitás habilitarlos por separado usando el mismo certificado.
+          </div>
+        </div>
+      </div>
+    </div>
+
     <form method="post" action="/config/arca" enctype="multipart/form-data">
       <div class="row g-3 mb-3">
         <div class="col-md-5">

@@ -64,7 +64,7 @@
             <tbody>
               {% for item in remito['items'] %}
               <tr>
-                <td>{{ item.description }}</td>
+                <td style="white-space: pre-line">{{ item.description }}</td>
                 <td class="text-end">{{ item.qty|entero }}</td>
               </tr>
               {% endfor %}

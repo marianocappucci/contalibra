@@ -341,7 +341,7 @@
             <tbody>
               {% for item in factura['items'] %}
               <tr>
-                <td>{{ item.description }}</td>
+                <td style="white-space: pre-line">{{ item.description }}</td>
                 <td class="text-end">{{ item.qty|entero }}</td>
                 <td class="text-end">$ {{ item.unit_price|moneda }}</td>
                 <td class="text-end">$ {{ item.subtotal|moneda }}</td>
@@ -387,10 +387,9 @@
       <i class="bi bi-file-minus me-1"></i>Nota de Crédito
     </a>
     {% endif %}
-    <form method="post" action="/facturas/{{ factura.id }}/duplicar"
-          onsubmit="return confirm('¿Duplicar este comprobante? Se creará uno nuevo con la misma información, fecha de hoy y número correlativo.')">
-      <button class="btn btn-outline-secondary"><i class="bi bi-copy me-1"></i>Duplicar</button>
-    </form>
+    <a href="/facturas/nueva?from_factura={{ factura.id }}" class="btn btn-outline-secondary">
+      <i class="bi bi-copy me-1"></i>Duplicar
+    </a>
     <form method="post" action="/facturas/{{ factura.id }}/eliminar"
           onsubmit="return confirm('¿Eliminar esta factura? Esta acción no se puede deshacer.')">
       <button class="btn btn-outline-danger"><i class="bi bi-trash me-1"></i>Eliminar</button>

@@ -72,6 +72,9 @@
             <td class="text-end fw-semibold">$ {{ p.total|moneda }}</td>
             <td class="text-end">
               <a href="/presupuestos/{{ p.id }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i></a>
+              {% if p.status == 'borrador' %}
+              <a href="/presupuestos/{{ p.id }}/editar" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
+              {% endif %}
               <a href="/presupuestos/{{ p.id }}/pdf" class="btn btn-sm btn-outline-primary" target="_blank"><i class="bi bi-file-pdf"></i></a>
             </td>
           </tr>

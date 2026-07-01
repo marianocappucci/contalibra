@@ -192,7 +192,7 @@ async def factura_borrador_pdf(request: Request, user: Auth):
 
 
 @router.get("/facturas/nueva")
-def factura_nueva_get(request: Request, user: Auth, from_presupuesto: int = 0):
+def factura_nueva_get(request: Request, user: Auth, from_presupuesto: int = 0, from_factura: int = 0):
     tipos = _tipos_emisor()
     es_monotributista = len(tipos) == 1 and tipos[0]["value"] == 11
     prefill = None
@@ -213,6 +213,31 @@ def factura_nueva_get(request: Request, user: Auth, from_presupuesto: int = 0):
                 "concepto":       2,
                 "observations":   pres.get("observations", ""),
                 "items":          pres["items"],
+            }
+    elif from_factura:
+        orig = db.get_factura(from_factura)
+        if orig:
+            matched_client = None
+            if orig.get("cliente_cuit"):
+                matched_client = next(
+                    (c for c in db.get_all_clients() if c.get("cuit_dni") == orig["cliente_cuit"]),
+                    None,
+                )
+            prefill = {
+                "client_id":       matched_client["id"] if matched_client else "",
+                "client_name":     orig.get("cliente_razon", ""),
+                "client_cuit":     orig.get("cliente_cuit", ""),
+                "client_address":  orig.get("cliente_domicilio", ""),
+                "client_iva":      matched_client.get("iva_condition", "") if matched_client else "",
+                "concepto":        orig.get("concepto", 1),
+                "observations":    orig.get("observaciones", ""),
+                "items":           orig["items"],
+                "tipo":            orig["tipo"],
+                "punto_venta":     orig["punto_venta"],
+                "condicion_venta": orig.get("condicion_venta", ""),
+                "fch_serv_desde":  orig.get("fch_serv_desde", ""),
+                "fch_serv_hasta":  orig.get("fch_serv_hasta", ""),
+                "fch_vto_pago":    orig.get("fch_vto_pago", ""),
             }
     return templates.TemplateResponse(request, "facturas/form.html", {
         "clientes":            db.get_all_clients(),
@@ -563,44 +588,6 @@ async def nd_crear(factura_id: int, user: Auth):
         raise HTTPException(400, "Tipo de comprobante no admite nota de débito")
     nota_id = await _crear_nota(orig, nd_tipo, "Referencia", usuario_id=get_current_user_id(user))
     return RedirectResponse(f"/facturas/{nota_id}", status_code=303)
-
-
-@router.post("/facturas/{factura_id}/duplicar")
-async def factura_duplicar(factura_id: int, user: Auth):
-    orig = db.get_factura(factura_id)
-    if not orig:
-        raise HTTPException(404)
-
-    tipo        = orig["tipo"]
-    punto_venta = orig["punto_venta"]
-    fecha_hoy   = datetime.date.today().isoformat()
-
-    numero, ta, arca = await get_next_numero_with_arca(punto_venta, tipo)
-
-    nueva_id = db.create_factura(
-        tipo=tipo, punto_venta=punto_venta, numero=numero,
-        fecha=fecha_hoy,
-        cliente_cuit=orig["cliente_cuit"],
-        cliente_razon=orig["cliente_razon"],
-        cliente_iva_cond=orig.get("cliente_iva_cond") or 0,
-        items=orig["items"],
-        subtotal=orig["subtotal"],
-        iva_amount=orig["iva_amount"],
-        total=orig["total"],
-        concepto=orig.get("concepto", 1),
-        observaciones=orig.get("observaciones", ""),
-        cliente_domicilio=orig.get("cliente_domicilio", ""),
-        fch_serv_desde=orig.get("fch_serv_desde", ""),
-        fch_serv_hasta=orig.get("fch_serv_hasta", ""),
-        fch_vto_pago=fecha_hoy,
-        condicion_venta=orig.get("condicion_venta", ""),
-        usuario_id=get_current_user_id(user),
-    )
-    nueva = db.get_factura(nueva_id)
-    nueva = await _solicitar_cae(nueva_id, nueva, ta, arca)
-    pdf_path = pdf_gen.generate_pdf_factura(nueva)
-    db.update_factura_pdf_path(nueva_id, pdf_path)
-    return RedirectResponse(f"/facturas/{nueva_id}", status_code=303)
 
 
 @router.post("/facturas/{factura_id}/cobrar")

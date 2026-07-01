@@ -20,9 +20,18 @@ def _entero(value):
         return str(value)
 
 
+def _cuit(value):
+    """Formatea CUIT/CUIL con guiones: XX-XXXXXXXX-X. Devuelve el valor original si no aplica."""
+    digits = "".join(c for c in str(value or "") if c.isdigit())
+    if len(digits) == 11:
+        return f"{digits[:2]}-{digits[2:10]}-{digits[10]}"
+    return str(value or "")
+
+
 templates = Jinja2Templates(directory=_TEMPLATES_DIR)
 templates.env.filters["moneda"]  = lambda v: _moneda(v, 2)
 templates.env.filters["moneda0"] = lambda v: _moneda(v, 0)
 templates.env.filters["entero"]  = _entero
+templates.env.filters["cuit"]    = _cuit
 templates.env.globals["app_version"] = VERSION
 templates.env.globals["app_env"]     = os.environ.get("ENV", "development")
