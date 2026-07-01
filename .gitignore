@@ -8,6 +8,7 @@ env/
 venv/
 venv39/
 .venv
+.venv-scripts
 
 # Base de datos
 *.db

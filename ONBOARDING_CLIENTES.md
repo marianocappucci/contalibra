@@ -43,12 +43,24 @@ Antes de levantar la instancia, pedile al cliente:
 
 Cada cliente corre en su propio contenedor, aislado en `clientes/<slug>/`, todos compartiendo la misma imagen `contalibra:latest` (buildeada una sola vez desde este repo). El código nunca se copia por cliente — solo se crean datos y configuración propios.
 
+### Setup único del servidor (ya hecho, dejar documentado)
+
+`nuevo_cliente.py`/`panel_admin.py` usan `httpx` para hablar con la API de Nginx Proxy Manager (proxy + SSL automático). El Python del sistema en el VPS no tiene `pip` disponible por política de Debian (PEP 668), así que estos scripts corren con un venv dedicado en `/root/contalibra/.venv-scripts` (gitignored, no se versiona). Si hay que recrearlo en otro servidor:
+
+```bash
+apt-get install -y python3-pip python3-venv
+python3 -m venv /root/contalibra/.venv-scripts
+/root/contalibra/.venv-scripts/bin/pip install httpx
+```
+
+Todos los comandos de abajo se ejecutan con `.venv-scripts/bin/python3` en vez de `python3` a secas (o activá el venv con `source .venv-scripts/bin/activate`).
+
 ### Alta de un cliente nuevo
 
 En el servidor (`/root/contalibra`):
 
 ```bash
-python3 scripts/nuevo_cliente.py
+./.venv-scripts/bin/python3 scripts/nuevo_cliente.py
 ```
 
 El wizard interactivo pide nombre, slug, puerto, dominio y credenciales de admin; crea `clientes/<slug>/` (compose + `data/` con DB, config, certs y PDFs aislados), buildea la imagen si falta, levanta el contenedor y — si hay dominio y Nginx Proxy Manager configurado (`scripts/npm_setup.py`) — ofrece crear el proxy + certificado SSL automáticamente.
@@ -56,12 +68,12 @@ El wizard interactivo pide nombre, slug, puerto, dominio y credenciales de admin
 ### Gestión del día a día
 
 ```bash
-python3 scripts/panel_admin.py            # menú interactivo
-python3 scripts/panel_admin.py listar     # ver todos los clientes y su estado
-python3 scripts/panel_admin.py backup <slug>
-python3 scripts/panel_admin.py actualizar [slug...]   # rebuild imagen + restart (sin args = todos)
-python3 scripts/panel_admin.py pausar <slug>          # banner de aviso, sin cortar acceso
-python3 scripts/panel_admin.py suspender <slug>       # corta el acceso completo
+./.venv-scripts/bin/python3 scripts/panel_admin.py            # menú interactivo
+./.venv-scripts/bin/python3 scripts/panel_admin.py listar     # ver todos los clientes y su estado
+./.venv-scripts/bin/python3 scripts/panel_admin.py backup <slug>
+./.venv-scripts/bin/python3 scripts/panel_admin.py actualizar [slug...]   # rebuild imagen + restart (sin args = todos)
+./.venv-scripts/bin/python3 scripts/panel_admin.py pausar <slug>          # banner de aviso, sin cortar acceso
+./.venv-scripts/bin/python3 scripts/panel_admin.py suspender <slug>       # corta el acceso completo
 ```
 
 Ver `--help` implícito (`panel_admin.py` sin comando muestra el menú con todas las opciones: logs, restore de DB, proxies NPM, etc.)
