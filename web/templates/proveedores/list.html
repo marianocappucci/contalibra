@@ -34,7 +34,7 @@
           {% for p in proveedores %}
           <tr>
             <td><a href="/proveedores/{{ p.id }}" class="fw-semibold text-decoration-none">{{ p.nombre }}</a></td>
-            <td class="small font-monospace text-muted">{{ p.cuit_dni or '—' }}</td>
+            <td class="small font-monospace text-muted">{{ p.cuit_dni|cuit if p.cuit_dni else '—' }}</td>
             <td class="small text-muted">{{ p.email or '—' }}</td>
             <td class="small text-muted">{{ p.phone or '—' }}</td>
             <td class="text-end">

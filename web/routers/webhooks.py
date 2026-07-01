@@ -159,17 +159,25 @@ async def webhook_mercadopago(request: Request):
             "Pago MP aprobado payment_id=%s monto=%.2f tipo=%s método=%s",
             payment_id, monto, payment_type, payment_method,
         )
-        # Auto-facturación: si el cliente tiene habilitada la facturación automática
-        client = db.get_client_by_email(payer_email) if payer_email else None
+        # Buscar cliente por email o CUIT (normalizado, sin guiones)
+        client = (
+            db.get_client_by_email(payer_email) if payer_email else None
+        ) or (
+            db.get_client_by_cuit(payer_id_number) if payer_id_number else None
+        )
+
+        # Auto-facturación por flag del cliente
         if client and client.get("auto_facturar"):
             try:
                 factura_id, num_str, tipo_lb, _ = await mp_facturacion.generar_factura_mp(
                     monto=monto,
-                    payer_email=payer_email,
-                    payer_name=payer_name,
+                    payer_email=client.get("email") or payer_email,
+                    payer_name=client["name"],
                     referencia=f"MP#{payment_id}",
                     cfg=config_manager.load(),
                     concepto_override=descripcion_mp,
+                    cliente_override=client,
+                    payment_type=payment_type,
                 )
                 db.update_mp_pago_estado(
                     db.get_mp_pago(payment_id)["id"],
@@ -181,5 +189,41 @@ async def webhook_mercadopago(request: Request):
                 )
             except Exception as e:
                 logger.error("Error auto-factura payment_id=%s: %s", payment_id, e)
+
+        # Auto-facturación por descripción "Hosting Mensual"
+        elif descripcion_mp.lower().startswith("hosting mensual"):
+            if client:
+                try:
+                    to_email = client.get("email") or payer_email
+                    factura_id, num_str, tipo_lb, email_sent = await mp_facturacion.generar_factura_mp(
+                        monto=monto,
+                        payer_email=to_email,
+                        payer_name=client["name"],
+                        referencia=f"MP#{payment_id}",
+                        cfg=config_manager.load(),
+                        concepto_override=descripcion_mp,
+                        cliente_override=client,
+                        payment_type=payment_type,
+                    )
+                    db.update_mp_pago_estado(
+                        db.get_mp_pago(payment_id)["id"],
+                        "facturado", factura_id,
+                    )
+                    logger.info(
+                        "Hosting Mensual: factura %s %s para payment_id=%s cliente=%s email_sent=%s",
+                        tipo_lb, num_str, payment_id, client["name"], email_sent,
+                    )
+                    if not email_sent:
+                        logger.warning(
+                            "Hosting Mensual payment_id=%s: factura generada pero sin email para %s",
+                            payment_id, client["name"],
+                        )
+                except Exception as e:
+                    logger.error("Error auto-factura Hosting Mensual payment_id=%s: %s", payment_id, e)
+            else:
+                logger.info(
+                    "Hosting Mensual payment_id=%s: cliente no encontrado (CUIT=%s email=%s), queda pendiente",
+                    payment_id, payer_id_number, payer_email,
+                )
 
     return JSONResponse({"ok": True, "msg": f"status={status}"}, status_code=200)

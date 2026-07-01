@@ -18,7 +18,7 @@
       <div class="card-body">
         <dl class="row mb-0">
           {% if proveedor.cuit_dni %}
-          <dt class="col-sm-5">CUIT / DNI</dt><dd class="col-sm-7 font-monospace">{{ proveedor.cuit_dni }}</dd>
+          <dt class="col-sm-5">CUIT / DNI</dt><dd class="col-sm-7 font-monospace">{{ proveedor.cuit_dni|cuit }}</dd>
           {% endif %}
           {% if proveedor.iva_condition %}
           <dt class="col-sm-5">Condición IVA</dt><dd class="col-sm-7">{{ proveedor.iva_condition }}</dd>

@@ -100,19 +100,31 @@
     if (!row) { addRow(); const rows = document.querySelectorAll('.item-row'); row = rows[rows.length - 1]; }
     row.querySelector('[name="desc[]"]').value = p.nombre;
     row.querySelector('.qty').value            = 1;
+    autoResize(row.querySelector('.desc-field'));
     row.querySelector('[name="desc[]"]').focus();
   }
 })();
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
 
 function addRow() {
   const tbody = document.getElementById('items-body');
   const row = tbody.querySelector('.item-row').cloneNode(true);
   row.querySelectorAll('input').forEach(i => { i.value = i.classList.contains('qty') ? 1 : ''; });
+  const desc = row.querySelector('.desc-field');
+  desc.value = '';
+  desc.style.height = 'auto';
   tbody.appendChild(row);
   bindRow(row);
 }
 
 function bindRow(row) {
+  const desc = row.querySelector('.desc-field');
+  desc.addEventListener('input', () => autoResize(desc));
+  autoResize(desc);
   row.querySelector('.remove-row').addEventListener('click', () => {
     if (document.querySelectorAll('.item-row').length > 1) row.remove();
   });

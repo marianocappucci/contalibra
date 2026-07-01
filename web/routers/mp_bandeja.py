@@ -22,18 +22,38 @@ Auth = Annotated[str, Depends(require_auth)]
 
 def _enrich_with_client(items: list) -> list:
     emails = {p["payer_email"] for p in items if p.get("payer_email")}
-    if not emails:
-        for p in items:
-            p["cliente"] = None
-        return items
-    placeholders = ",".join("?" * len(emails))
+    cuits  = {(p.get("payer_id_number") or "").replace("-", "").strip()
+               for p in items if p.get("payer_id_number")}
+    cuits.discard("")
+
+    by_email: dict = {}
+    by_cuit:  dict = {}
+
     with db.get_connection() as conn:
-        rows = conn.execute(
-            f"SELECT * FROM clients WHERE email IN ({placeholders})", tuple(emails)
-        ).fetchall()
-    by_email = {dict(r)["email"]: dict(r) for r in rows}
+        if emails:
+            ph = ",".join("?" * len(emails))
+            rows = conn.execute(
+                f"SELECT * FROM clients WHERE email IN ({ph})", tuple(emails)
+            ).fetchall()
+            by_email = {dict(r)["email"]: dict(r) for r in rows}
+
+        if cuits:
+            ph = ",".join("?" * len(cuits))
+            rows = conn.execute(
+                f"SELECT * FROM clients WHERE REPLACE(cuit_dni, '-', '') IN ({ph})",
+                tuple(cuits),
+            ).fetchall()
+            for r in rows:
+                d = dict(r)
+                norm = (d.get("cuit_dni") or "").replace("-", "").strip()
+                if norm:
+                    by_cuit[norm] = d
+
     for p in items:
-        p["cliente"] = by_email.get(p.get("payer_email") or "")
+        email = p.get("payer_email") or ""
+        cuit  = (p.get("payer_id_number") or "").replace("-", "").strip()
+        p["cliente"] = by_email.get(email) or (by_cuit.get(cuit) if cuit else None)
+
     return items
 
 
@@ -209,6 +229,7 @@ async def mp_facturar(mp_pago_id: int, request: Request, _: Auth):
         payer_name=pago["payer_name"] or "",
         referencia=f"MP#{pago['mp_payment_id']}",
         cfg=cfg,
+        payment_type=pago.get("payment_type") or "",
     )
     db.update_mp_pago_estado(mp_pago_id, "facturado", factura_id=factura_id)
     email_param = "" if email_sent else "&email_error=1" if pago.get("payer_email") else ""
@@ -287,6 +308,7 @@ async def mov_facturar(mov_id: int, request: Request, _: Auth):
         payer_name=mov["payer_name"] or mov["origen_nombre"] or "",
         referencia=f"Transferencia MP#{mov['mp_movement_id']}",
         cfg=cfg,
+        payment_type=mov.get("tipo") or "",
     )
     db.update_mp_movimiento_estado(mov_id, "facturado", factura_id=factura_id)
     email_param = "" if email_sent else "&email_error=1" if payer_email else ""

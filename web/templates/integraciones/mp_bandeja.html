@@ -67,9 +67,15 @@
     <a href="/clientes/{{ p.cliente.id }}" class="text-decoration-none">
       <i class="bi bi-person-fill me-1 text-success"></i>{{ p.cliente.name }}
     </a>
-    {% if p.cliente.cuit_dni %}<br><small class="text-muted">{{ p.cliente.cuit_dni }}</small>{% endif %}
+    {% if p.cliente.cuit_dni %}<br><small class="text-muted">{{ p.cliente.cuit_dni|cuit }}</small>{% endif %}
+    {% if not p.cliente.email %}
+      <br><span class="badge bg-warning text-dark" style="font-size:.72rem" title="El cliente no tiene email cargado"><i class="bi bi-envelope-slash me-1"></i>Sin email</span>
+    {% endif %}
   {% else %}
     <span class="text-muted" style="font-size:.85rem"><i class="bi bi-person-dash me-1"></i>Sin registro</span>
+    {% if (p.descripcion_mp or '').lower().startswith('hosting mensual') %}
+      <br><span class="badge bg-danger" style="font-size:.72rem" title="Se facturará automáticamente al dar de alta el cliente"><i class="bi bi-house-gear me-1"></i>Hosting Mensual</span>
+    {% endif %}
     <br>
     <button type="button" class="btn btn-link btn-sm p-0 text-primary" style="font-size:.8rem"
             data-bs-toggle="modal" data-bs-target="#modal{{ modal_prefix }}{{ p.id }}">
@@ -425,9 +431,13 @@
             <td class="text-center" style="white-space:nowrap">
               {% if p.factura_id %}
                 <a href="/facturas/{{ p.factura_id }}" class="btn btn-sm btn-outline-primary py-0 me-1"><i class="bi bi-receipt me-1"></i>Ver</a>
+                {% if p.cliente and p.cliente.email %}
                 <form method="post" action="/integraciones/mp/factura/{{ p.factura_id }}/reenviar" class="d-inline">
                   <button type="submit" class="btn btn-sm btn-outline-secondary py-0" title="Reenviar email"><i class="bi bi-envelope-arrow-up"></i></button>
                 </form>
+                {% else %}
+                <span class="badge bg-warning text-dark" style="font-size:.72rem" title="Agregá el email al cliente para poder reenviar la factura"><i class="bi bi-envelope-slash"></i> Sin email</span>
+                {% endif %}
               {% else %}—{% endif %}
             </td>
           </tr>

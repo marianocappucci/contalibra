@@ -40,7 +40,7 @@
         {% for c in clientes %}
         <tr>
           <td class="fw-semibold">{{ c.name }}</td>
-          <td class="text-muted small font-monospace">{{ c.cuit_dni or '—' }}</td>
+          <td class="text-muted small font-monospace">{{ c.cuit_dni|cuit if c.cuit_dni else '—' }}</td>
           <td class="text-end">
             {% if c.saldo > 0 %}
               <span class="badge fs-6" style="background:#fff3cd;color:#856404">$ {{ c.saldo|moneda }}</span>

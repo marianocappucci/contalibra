@@ -26,7 +26,7 @@
 
           {% if cliente.cuit_dni %}
           <dt class="col-sm-4">CUIT / DNI</dt>
-          <dd class="col-sm-8 font-monospace">{{ cliente.cuit_dni }}</dd>
+          <dd class="col-sm-8 font-monospace">{{ cliente.cuit_dni|cuit }}</dd>
           {% endif %}
 
           {% if cliente.iva_condition %}

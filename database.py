@@ -894,7 +894,7 @@ def delete_remito(remito_id):
 
 
 def delete_presupuesto(presupuesto_id):
-    """Borra un presupuesto solo si está en estado 'pendiente'."""
+    """Borra un presupuesto solo si está en estado 'borrador'."""
     with get_connection() as conn:
         presupuesto = conn.execute(
             "SELECT status FROM presupuestos WHERE id=?", (presupuesto_id,)
@@ -902,7 +902,7 @@ def delete_presupuesto(presupuesto_id):
         if not presupuesto:
             raise ValueError("Presupuesto no encontrado")
         status = dict(presupuesto)["status"] if presupuesto else None
-        if status != "pendiente":
+        if status != "borrador":
             raise ValueError(f"No se puede borrar un presupuesto {status}")
         conn.execute("DELETE FROM presupuestos WHERE id=?", (presupuesto_id,))
 
@@ -1093,16 +1093,17 @@ def get_facturas_filtradas(desde="", hasta="", q="", vista="facturas", limit=50,
     if q:
         conds.append("(CAST(f.numero AS TEXT) LIKE ? OR f.cliente_razon LIKE ? OR f.observaciones LIKE ?)")
         params += [f"%{q}%", f"%{q}%", f"%{q}%"]
+    _cc_excl = "AND LOWER(cm.medio_pago) NOT IN ('cuenta corriente','cuenta_corriente')"
     if solo_sin_cobrar:
         conds.append("f.cae != '' AND f.cae IS NOT NULL AND f.cae != 'PENDIENTE'")
-        conds.append("""
+        conds.append(f"""
             COALESCE((SELECT SUM(cm.monto) FROM caja_movimientos cm
-                      WHERE cm.factura_id=f.id AND cm.tipo='ingreso'), 0) < f.total
+                      WHERE cm.factura_id=f.id AND cm.tipo='ingreso' {_cc_excl}), 0) < f.total
         """)
     where = " AND ".join(conds)
-    cobrada_col = """
+    cobrada_col = f"""
         COALESCE((SELECT SUM(cm.monto) FROM caja_movimientos cm
-                  WHERE cm.factura_id=f.id AND cm.tipo='ingreso'), 0) AS total_cobrado
+                  WHERE cm.factura_id=f.id AND cm.tipo='ingreso' {_cc_excl}), 0) AS total_cobrado
     """
     with get_connection() as conn:
         total = conn.execute(f"SELECT COUNT(*) FROM facturas f WHERE {where}", params).fetchone()[0]
@@ -1371,7 +1372,9 @@ def get_cobro_factura(factura_id):
     """Devuelve el último movimiento de cobro de una factura, o None."""
     with get_connection() as conn:
         row = conn.execute(
-            "SELECT * FROM caja_movimientos WHERE factura_id=? AND tipo='ingreso' ORDER BY id DESC LIMIT 1",
+            "SELECT * FROM caja_movimientos WHERE factura_id=? AND tipo='ingreso'"
+            " AND LOWER(medio_pago) NOT IN ('cuenta corriente','cuenta_corriente')"
+            " ORDER BY id DESC LIMIT 1",
             (factura_id,),
         ).fetchone()
         return dict(row) if row else None
@@ -1381,7 +1384,9 @@ def get_cobros_factura(factura_id) -> list[dict]:
     """Devuelve todos los movimientos de cobro de una factura."""
     with get_connection() as conn:
         rows = conn.execute(
-            "SELECT * FROM caja_movimientos WHERE factura_id=? AND tipo='ingreso' ORDER BY id",
+            "SELECT * FROM caja_movimientos WHERE factura_id=? AND tipo='ingreso'"
+            " AND LOWER(medio_pago) NOT IN ('cuenta corriente','cuenta_corriente')"
+            " ORDER BY id",
             (factura_id,),
         ).fetchall()
     return [dict(r) for r in rows]
@@ -1467,6 +1472,19 @@ def get_client_by_email(email: str):
             "SELECT * FROM clients WHERE email=? LIMIT 1", (email,)
         ).fetchone()
         return dict(row) if row else None
+
+
+def get_client_by_cuit(cuit: str):
+    """Busca cliente por CUIT normalizando guiones (ej: 20317819162 == 20-31781916-2)."""
+    normalized = (cuit or "").replace("-", "").strip()
+    if not normalized:
+        return None
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT * FROM clients WHERE REPLACE(cuit_dni, '-', '') = ? LIMIT 1",
+            (normalized,),
+        ).fetchone()
+    return dict(row) if row else None
 
 
 # ── MercadoPago movimientos (transferencias bancarias entrantes) ───────────────
