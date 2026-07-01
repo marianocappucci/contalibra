@@ -5,13 +5,9 @@ Documentación NPM API: http://<npm-host>:81/api/
 Config leída desde scripts/.npm_config.json (generado por npm_setup.py).
 """
 import json
-import sys
 from pathlib import Path
 
-try:
-    import httpx
-except ImportError:
-    sys.exit("[ERROR] httpx no instalado. Ejecutá: pip install httpx")
+import httpx
 
 CONFIG_FILE = Path(__file__).parent / ".npm_config.json"
 
