@@ -147,12 +147,11 @@ def main():
         (data_dir / sub).mkdir(parents=True, exist_ok=True)
     print(f"[OK] Directorios en {client_dir}")
 
-    # — config.json —
+    # — config.json — (claves deben coincidir con _DEFAULTS en config_manager.py)
     config = {
-        "nombre_empresa": nombre, "direccion": "", "telefono": "", "email": "",
-        "cuit": "", "condicion_iva": "Responsable Inscripto",
-        "logo_path": "", "punto_venta": 1, "moneda": "ARS",
-        "condiciones_pago": "Contado", "nota_pie": ""
+        "empresa_nombre": nombre, "empresa_direccion": "", "empresa_telefono": "",
+        "empresa_email": "", "empresa_cuit": "",
+        "empresa_iva_condition": "Responsable Inscripto",
     }
     (data_dir / "config.json").write_text(
         json.dumps(config, indent=2, ensure_ascii=False), encoding="utf-8"
