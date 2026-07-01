@@ -41,35 +41,36 @@ Antes de levantar la instancia, pedile al cliente:
 
 ## 2. Levantar el servidor
 
-### Opción A — VPS con Docker (producción)
+Cada cliente corre en su propio contenedor, aislado en `clientes/<slug>/`, todos compartiendo la misma imagen `contalibra:latest` (buildeada una sola vez desde este repo). El código nunca se copia por cliente — solo se crean datos y configuración propios.
+
+### Alta de un cliente nuevo
+
+En el servidor (`/root/contalibra`):
 
 ```bash
-# En el servidor del cliente o en el tuyo
-git clone <repo> contalibra-<nombre-cliente>
-cd contalibra-<nombre-cliente>
-
-# Copiar y editar variables de entorno si las hubiera
-cp .env.example .env
-
-# Levantar con Docker Compose
-docker compose up -d
-
-# Verificar que esté corriendo
-docker compose ps
-docker compose logs -f app
+python3 scripts/nuevo_cliente.py
 ```
 
-La app queda accesible en el puerto configurado (por defecto 8000).
+El wizard interactivo pide nombre, slug, puerto, dominio y credenciales de admin; crea `clientes/<slug>/` (compose + `data/` con DB, config, certs y PDFs aislados), buildea la imagen si falta, levanta el contenedor y — si hay dominio y Nginx Proxy Manager configurado (`scripts/npm_setup.py`) — ofrece crear el proxy + certificado SSL automáticamente.
 
-### Opción B — Servidor compartido (desarrollo/demo)
+### Gestión del día a día
 
-Si el cliente está en un plan de prueba o va a correr en tu infraestructura, usá la instancia ya levantada y configurá una nueva base de datos aislada.
+```bash
+python3 scripts/panel_admin.py            # menú interactivo
+python3 scripts/panel_admin.py listar     # ver todos los clientes y su estado
+python3 scripts/panel_admin.py backup <slug>
+python3 scripts/panel_admin.py actualizar [slug...]   # rebuild imagen + restart (sin args = todos)
+python3 scripts/panel_admin.py pausar <slug>          # banner de aviso, sin cortar acceso
+python3 scripts/panel_admin.py suspender <slug>       # corta el acceso completo
+```
+
+Ver `--help` implícito (`panel_admin.py` sin comando muestra el menú con todas las opciones: logs, restore de DB, proxies NPM, etc.)
 
 ### DNS / Dominio
 
 - Configurar el subdominio del cliente (ej: `nombre-cliente.contalibra.com.ar`)
 - Apuntar el DNS al IP del servidor
-- Verificar que nginx esté sirviendo correctamente con HTTPS
+- El proxy + SSL se gestionan automáticamente vía NPM desde `nuevo_cliente.py` / `panel_admin.py` (comandos `npm-crear` / `npm-eliminar` / `npm-listar`)
 
 ---
 
