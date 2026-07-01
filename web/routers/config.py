@@ -19,7 +19,7 @@ router = APIRouter()
 
 Auth = Annotated[str, Depends(require_auth)]
 
-LOGO_DIR    = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "logos")
+LOGO_DIR    = os.path.join(os.path.dirname(db.DB_PATH), "logos")
 CERTS_DIR   = os.path.join(os.path.dirname(db.DB_PATH), "arca_certs")
 BACKUPS_DIR = os.path.join(os.path.dirname(db.DB_PATH), "backups")
 

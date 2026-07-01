@@ -131,9 +131,6 @@ app.include_router(libros_iva_router.router)
 def startup():
     db.init_db()
     db.ensure_admin_user()
-    os.makedirs(os.path.join(os.path.dirname(os.path.dirname(__file__)), "remitos_pdf"), exist_ok=True)
-    os.makedirs(os.path.join(os.path.dirname(os.path.dirname(__file__)), "presupuestos_pdf"), exist_ok=True)
-    os.makedirs(os.path.join(os.path.dirname(os.path.dirname(__file__)), "facturas_pdf"), exist_ok=True)
 
 
 @app.get("/", include_in_schema=False)
