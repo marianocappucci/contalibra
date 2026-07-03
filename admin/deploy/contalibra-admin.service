@@ -8,7 +8,9 @@ Type=simple
 User=root
 WorkingDirectory=/root/contalibra
 EnvironmentFile=/etc/contalibra-admin.env
-ExecStart=/root/contalibra/.venv-scripts/bin/uvicorn admin.app:app --host 0.0.0.0 --port 8060
+# Bind solo a la interfaz del gateway Docker (por donde llega NPM), no a 0.0.0.0:
+# así el panel no queda expuesto directo en el puerto público del VPS.
+ExecStart=/root/contalibra/.venv-scripts/bin/uvicorn admin.app:app --host 172.18.0.1 --port 8060
 Restart=always
 RestartSec=3
 
