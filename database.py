@@ -2547,13 +2547,13 @@ def set_modulo(modulo: str, habilitado: bool):
 
 
 def apply_plan(plan: str):
-    """Habilita/deshabilita módulos según el plan elegido."""
-    _PLANES = {
-        "basico":    {"clientes", "caja", "ventas"},
-        "estandar":  {"clientes", "caja", "ventas", "facturacion", "remitos", "presupuestos", "productos"},
-        "premium":   {"clientes", "caja", "ventas", "facturacion", "remitos", "presupuestos", "productos", "stock"},
-    }
-    activos = _PLANES.get(plan, set())
+    """Habilita/deshabilita módulos según el plan elegido.
+
+    El mapeo plan→módulos vive en plans.py (fuente de verdad compartida con el
+    backoffice), para que lo que se habilita coincida con lo que se vende.
+    """
+    import plans
+    activos = plans.modulos_de_plan(plan)
     with get_connection() as conn:
         rows = conn.execute("SELECT modulo FROM modulos").fetchall()
         for r in rows:

@@ -1,0 +1,16 @@
+[Unit]
+Description=Contalibra Backoffice (panel de superadmin)
+After=network.target docker.service
+Wants=docker.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/contalibra
+EnvironmentFile=/etc/contalibra-admin.env
+ExecStart=/root/contalibra/.venv-scripts/bin/uvicorn admin.app:app --host 0.0.0.0 --port 8060
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
