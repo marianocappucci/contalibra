@@ -166,7 +166,7 @@ def _empresa():
         "cuit":               cfg.get("empresa_cuit",              ""),
         "telefono":           cfg.get("empresa_telefono",          ""),
         "email":              cfg.get("empresa_email",             ""),
-        "logo_path":          cfg.get("logo_path",                 ""),
+        "logo_path":          config_manager.resolve_logo_path(cfg),
         "iibb":               cfg.get("empresa_iibb",              ""),
         "iva_condition":      cfg.get("empresa_iva_condition",     "Monotributista"),
         "inicio_actividades": cfg.get("empresa_inicio_actividades",""),

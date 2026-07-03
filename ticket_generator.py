@@ -118,16 +118,20 @@ def _empresa_header(pdf: _TicketPDF, cfg: dict, logo: bool):
     cuit   = cfg.get("empresa_cuit", "") or ""
     tel    = cfg.get("empresa_telefono", "") or ""
 
+    logo_drawn = False
     if logo:
-        logo_path = cfg.get("logo_path", "")
+        logo_path = config_manager.resolve_logo_path(cfg)
         if logo_path and os.path.exists(logo_path):
             logo_w = min(pdf._w * 0.5, 30)
             pdf.image(logo_path, x=(pdf._ancho - logo_w) / 2, w=logo_w)
             pdf.ln(1)
+            logo_drawn = True
 
     iva_cond = cfg.get("empresa_iva_condition", "") or ""
 
-    if nombre:
+    # Con logo dibujado, el nombre en texto es redundante (mismo criterio que el
+    # PDF A4). Si el logo no se pudo dibujar, se cae al nombre como antes.
+    if nombre and not logo_drawn:
         pdf._centrado(nombre[:40], bold=True)
     if dir_:
         pdf._centrado(dir_[:48])
