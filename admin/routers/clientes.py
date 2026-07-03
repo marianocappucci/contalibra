@@ -57,7 +57,7 @@ def nuevo_submit(
 
 
 @router.get("/clientes/{slug}")
-def detalle(request: Request, user: Auth, slug: str, msg: str = "", error: str = "", **q):
+def detalle(request: Request, user: Auth, slug: str, msg: str = "", error: str = ""):
     cliente = services.get_cliente(slug)
     if not cliente:
         return RedirectResponse("/?error=Cliente no encontrado", status_code=303)
