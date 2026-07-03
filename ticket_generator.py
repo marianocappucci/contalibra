@@ -222,6 +222,19 @@ def _draw_qr_ticket(pdf: _TicketPDF, url: str):
 
 # ── Ticket de VENTA ────────────────────────────────────────────────────────────
 
+def _fmt_fecha(s: str) -> str:
+    """Convierte a 'dd/mm/aaaa'. Acepta 'YYYY-MM-DD[ HH:MM...]' (preservando la hora)
+    y el formato ARCA 'AAAAMMDD' (ej: vencimiento de CAE)."""
+    s = s or ""
+    if len(s) >= 10 and s[4] == "-" and s[7] == "-":
+        d = f"{s[8:10]}/{s[5:7]}/{s[0:4]}"
+        resto = s[10:].strip()
+        return f"{d} {resto}" if resto else d
+    if len(s) == 8 and s.isdigit():
+        return f"{s[6:8]}/{s[4:6]}/{s[0:4]}"
+    return s
+
+
 def generar_ticket_venta(venta: dict) -> bytes:
     ancho_mm, fuente, logo, corte, pie, cfg = _cfg_ticket()
     pdf = _TicketPDF(ancho_mm, fuente)
@@ -230,7 +243,7 @@ def generar_ticket_venta(venta: dict) -> bytes:
     pdf._separador()
 
     # Encabezado de la venta
-    fecha = (venta.get("fecha") or "")[:16]
+    fecha = _fmt_fecha((venta.get("fecha") or "")[:16])
     pdf._centrado(f"TICKET DE VENTA", bold=True)
     pdf._centrado(f"N° {venta.get('id', '')}")
     pdf._centrado(fecha)
@@ -287,7 +300,7 @@ def generar_ticket_factura(factura: dict) -> bytes:
     tipo_label = _TIPO_FACTURA.get(int(factura.get("tipo", 11)), "COMPROBANTE")
     pv   = str(factura.get("punto_venta", "")).zfill(4)
     num  = str(factura.get("numero", "")).zfill(8)
-    fecha = (factura.get("fecha") or "")[:10]
+    fecha = _fmt_fecha((factura.get("fecha") or "")[:10])
 
     pdf._centrado(tipo_label, bold=True)
     pdf._centrado(f"N° {pv}-{num}")
@@ -361,7 +374,7 @@ def generar_ticket_factura(factura: dict) -> bytes:
         pdf._separador("-")
         pdf._texto(f"CAE: {cae}")
         if cae_vto:
-            pdf._texto(f"Vto CAE: {cae_vto}")
+            pdf._texto(f"Vto CAE: {_fmt_fecha(cae_vto)}")
         empresa_cuit = cfg.get("empresa_cuit", "") or ""
         if empresa_cuit:
             pdf.ln(2)

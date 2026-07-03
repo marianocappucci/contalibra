@@ -160,7 +160,7 @@
           {% set tipo_lbl = {1:'FAC A',2:'ND A',3:'NC A',6:'FAC B',7:'ND B',8:'NC B',11:'FAC C',12:'ND C',13:'NC C'} %}
           {% for f in facturas %}
           <tr>
-            <td class="text-muted small">{{ f.fecha }}</td>
+            <td class="text-muted small">{{ f.fecha|fecha }}</td>
             <td><span class="badge bg-light text-dark border small">{{ tipo_lbl.get(f.tipo, f.tipo) }}</span></td>
             <td class="font-monospace small">{{ '%04d'|format(f.punto_venta) }}-{{ '%08d'|format(f.numero) }}</td>
             <td class="font-monospace small text-muted">{{ f.cae or '—' }}</td>
@@ -309,7 +309,7 @@
         <tbody>
           {% for e in egresos %}
           <tr>
-            <td class="text-muted small">{{ e.fecha }}</td>
+            <td class="text-muted small">{{ e.fecha|fecha }}</td>
             <td class="font-monospace small">{{ e.numero or '—' }}</td>
             <td>{{ e.proveedor_nombre or '—' }}</td>
             <td class="font-monospace small text-muted">{{ e.proveedor_cuit|cuit if e.proveedor_cuit else '—' }}</td>

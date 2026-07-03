@@ -89,7 +89,7 @@
         <tbody>
           {% for m in movimientos %}
           <tr>
-            <td class="text-nowrap">{{ m.fecha }}</td>
+            <td class="text-nowrap">{{ m.fecha|fecha }}</td>
             <td>
               {% if m.tipo == 'ingreso' %}
               <span class="badge bg-success">Ingreso</span>

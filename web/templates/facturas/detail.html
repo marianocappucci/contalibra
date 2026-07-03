@@ -38,7 +38,7 @@
     <a href="/facturas/{{ factura_original.id }}" class="font-monospace fw-semibold">
       {{ '%04d' % factura_original.punto_venta }}-{{ '%08d' % factura_original.numero }}
     </a>
-    del {{ factura_original.fecha }} — {{ factura_original.cliente_razon }}
+    del {{ factura_original.fecha|fecha }} — {{ factura_original.cliente_razon }}
   </div>
 </div>
 {% endif %}
@@ -55,7 +55,7 @@
         <a href="/facturas/{{ nc.id }}" class="font-monospace fw-semibold">
           {{ tipo_labels.get(nc.tipo, 'NC') }} {{ '%04d' % nc.punto_venta }}-{{ '%08d' % nc.numero }}
         </a>
-        — {{ nc.fecha }}
+        — {{ nc.fecha|fecha }}
         {% if nc.cae %}<span class="badge bg-success ms-1">Autorizada</span>{% else %}<span class="badge bg-warning text-dark ms-1">Pendiente</span>{% endif %}
       </li>
       {% endfor %}
@@ -76,7 +76,7 @@
         <a href="/facturas/{{ nd.id }}" class="font-monospace fw-semibold">
           {{ tipo_labels.get(nd.tipo, 'ND') }} {{ '%04d' % nd.punto_venta }}-{{ '%08d' % nd.numero }}
         </a>
-        — {{ nd.fecha }}
+        — {{ nd.fecha|fecha }}
         {% if nd.cae %}<span class="badge bg-success ms-1">Autorizada</span>{% else %}<span class="badge bg-warning text-dark ms-1">Pendiente</span>{% endif %}
       </li>
       {% endfor %}
@@ -116,7 +116,7 @@
       <div class="small fw-semibold text-success mb-1"><i class="bi bi-list-check me-1"></i>Cobros registrados</div>
       {% for c in cobros %}
       <div class="d-flex justify-content-between align-items-center py-1 {% if not loop.last %}border-bottom{% endif %}">
-        <span class="small text-muted">{{ c.fecha }}
+        <span class="small text-muted">{{ c.fecha|fecha }}
           {% if c.medio_pago %}<span class="badge bg-light text-dark border ms-1">{{ medio_labels.get(c.medio_pago, c.medio_pago) }}</span>{% endif %}
           {% if c.referencia %}<span class="text-muted ms-1">({{ c.referencia }})</span>{% endif %}
         </span>
@@ -259,7 +259,7 @@
   <div>
     <strong>Comprobante autorizado por ARCA</strong> &mdash;
     CAE: <code>{{ factura.cae }}</code>
-    &nbsp;&middot;&nbsp; Vence: <strong>{{ factura.cae_vto }}</strong>
+    &nbsp;&middot;&nbsp; Vence: <strong>{{ factura.cae_vto|fecha }}</strong>
   </div>
 </div>
 {% else %}
@@ -303,7 +303,7 @@
         <dl class="row mb-0">
           <dt class="col-sm-4">Tipo</dt><dd class="col-sm-8">{{ tipo_label }}</dd>
           <dt class="col-sm-4">Número</dt><dd class="col-sm-8 font-monospace">{{ pv }}-{{ num }}</dd>
-          <dt class="col-sm-4">Fecha</dt><dd class="col-sm-8">{{ factura.fecha }}</dd>
+          <dt class="col-sm-4">Fecha</dt><dd class="col-sm-8">{{ factura.fecha|fecha }}</dd>
           <dt class="col-sm-4">Concepto</dt><dd class="col-sm-8">{{ concepto_label }}</dd>
           {% if factura.condicion_venta %}
           <dt class="col-sm-4">Cond. de venta</dt><dd class="col-sm-8">{{ factura.condicion_venta }}</dd>

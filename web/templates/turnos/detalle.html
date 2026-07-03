@@ -128,7 +128,7 @@
                     {{ v.numero }}
                   </a>
                 </td>
-                <td class="text-muted small">{{ v.fecha }}</td>
+                <td class="text-muted small">{{ v.fecha|fecha }}</td>
                 <td>{{ v.cliente_nombre or '— Consumidor final —' }}</td>
                 <td class="text-end fw-semibold">$ {{ v.total|moneda }}</td>
                 <td class="text-center">

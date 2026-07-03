@@ -62,7 +62,7 @@
         <tbody>
           {% for e in egresos %}
           <tr>
-            <td class="small text-nowrap">{{ e.fecha }}</td>
+            <td class="small text-nowrap">{{ e.fecha|fecha }}</td>
             <td><a href="/egresos/{{ e.id }}" class="text-decoration-none">{{ e.concepto }}</a></td>
             <td class="small text-muted">{{ e.categoria or '—' }}</td>
             <td>

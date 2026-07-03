@@ -95,7 +95,7 @@
       <tbody>
         {% for m in movimientos %}
         <tr>
-          <td class="text-muted small">{{ m.fecha[:10] }}</td>
+          <td class="text-muted small">{{ m.fecha|fecha }}</td>
           <td>
             <a href="/tesoreria/{{ m.cuenta_id }}" class="text-decoration-none">{{ m.cuenta_nombre }}</a>
             {% if m.tipo == 'transferencia_entrada' %}

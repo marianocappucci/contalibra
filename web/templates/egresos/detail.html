@@ -42,7 +42,7 @@
     {% for p in pagos %}
     <div class="d-flex justify-content-between align-items-center py-1 {% if not loop.last %}border-bottom{% endif %}">
       <span class="small text-muted">
-        {{ p.fecha }}
+        {{ p.fecha|fecha }}
         {% if p.medio_pago %}<span class="badge bg-light text-dark border ms-1">{{ medio_labels.get(p.medio_pago, p.medio_pago) }}</span>{% endif %}
         {% if p.referencia %}<span class="ms-1">({{ p.referencia }})</span>{% endif %}
       </span>
@@ -60,7 +60,7 @@
       <div class="card-header">Datos del egreso</div>
       <div class="card-body">
         <dl class="row mb-0">
-          <dt class="col-sm-5">Fecha</dt><dd class="col-sm-7">{{ egreso.fecha }}</dd>
+          <dt class="col-sm-5">Fecha</dt><dd class="col-sm-7">{{ egreso.fecha|fecha }}</dd>
           {% if egreso.proveedor_nombre %}
           <dt class="col-sm-5">Proveedor</dt>
           <dd class="col-sm-7">

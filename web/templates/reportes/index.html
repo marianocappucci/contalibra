@@ -79,7 +79,7 @@
           <tbody>
           {% for r in ventas_ts %}
           <tr>
-            <td>{{ r.periodo }}</td>
+            <td>{{ r.periodo|fecha }}</td>
             <td class="text-end">{{ r.cantidad|entero }}</td>
             <td class="text-end fw-semibold">${{ r.total|moneda }}</td>
           </tr>
