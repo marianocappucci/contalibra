@@ -177,8 +177,11 @@ def arca_estado(user: str = Depends(require_auth)):
     if not configs:
         return JSONResponse({"configurado": False})
     cfg = configs[0]
-    tiene_cert  = bool(cfg.get("certificado_path")) and os.path.exists(cfg.get("certificado_path", ""))
-    tiene_clave = bool(cfg.get("clave_path")) and os.path.exists(cfg.get("clave_path", ""))
+    cert_path, clave_path = config_manager.resolve_cert_paths(
+        cfg.get("certificado_path", ""), cfg.get("clave_path", "")
+    )
+    tiene_cert  = bool(cert_path) and os.path.exists(cert_path)
+    tiene_clave = bool(clave_path) and os.path.exists(clave_path)
     return JSONResponse({
         "configurado": tiene_cert and tiene_clave,
         "ambiente": cfg.get("ambiente", ""),
@@ -195,8 +198,9 @@ async def arca_probar(user: str = Depends(require_auth)):
         return JSONResponse({"ok": False, "error": "ARCA no está configurado."}, status_code=400)
 
     cfg        = configs[0]
-    cert_path  = cfg.get("certificado_path", "")
-    key_path   = cfg.get("clave_path", "")
+    cert_path, key_path = config_manager.resolve_cert_paths(
+        cfg.get("certificado_path", ""), cfg.get("clave_path", "")
+    )
     ambiente   = cfg.get("ambiente", "homologacion")
 
     # Validar archivos localmente primero
@@ -278,7 +282,9 @@ def arca_cert_info(user: str = Depends(require_auth)):
     configs = db.obtener_todas_arca_configs()
     if not configs:
         return JSONResponse({"error": "Sin configuracion"}, status_code=404)
-    cert_path = configs[0].get("certificado_path", "")
+    cert_path, _ = config_manager.resolve_cert_paths(
+        configs[0].get("certificado_path", ""), configs[0].get("clave_path", "")
+    )
     return JSONResponse(arca_wsaa.info_certificado(cert_path))
 
 
@@ -297,9 +303,12 @@ async def consultar_cuit(cuit: str, user: str = Depends(require_auth)):
             status_code=503,
         )
 
+    cert_path, clave_path = config_manager.resolve_cert_paths(
+        arca["certificado_path"], arca["clave_path"]
+    )
     try:
         ta = await arca_wsaa.autenticar(
-            arca["certificado_path"], arca["clave_path"], arca["ambiente"],
+            cert_path, clave_path, arca["ambiente"],
             servicio="ws_sr_padron_a13",
         )
         datos = await arca_wspadron.consultar_persona(

@@ -4,6 +4,7 @@ import os
 _DATA_DIR   = os.environ.get("DATA_DIR", os.path.dirname(__file__))
 CONFIG_PATH = os.path.join(_DATA_DIR, "config.json")
 LOGO_DIR    = os.path.join(_DATA_DIR, "logos")
+CERTS_DIR   = os.path.join(_DATA_DIR, "arca_certs")
 
 _LOGO_EXTS = (".png", ".jpg", ".jpeg", ".webp")
 
@@ -80,3 +81,25 @@ def resolve_logo_path(cfg=None):
         if cands:
             return max(cands, key=os.path.getmtime)
     return ""
+
+
+def resolve_cert_paths(cert_path="", key_path=""):
+    """Devuelve (certificado, clave_privada) ARCA auto-corrigiendo rutas obsoletas.
+
+    Análogo a resolve_logo_path: hasta la migración de los certificados a
+    DATA_DIR, arca_config guardaba rutas tipo /app/arca_certs, que quedaron
+    persistidas en configuraciones viejas aunque los archivos reales ahora vivan
+    en DATA_DIR/arca_certs (los sube config.py con nombres fijos). Si un path
+    guardado no apunta a un archivo existente, se cae al nombre estándar dentro
+    de CERTS_DIR. Si tampoco existe el fallback, se devuelve el path original tal
+    cual para que el llamador reporte el error habitual.
+    """
+    def _resolve(p, filename):
+        p = (p or "").strip()
+        if p and os.path.exists(p):
+            return p
+        fallback = os.path.join(CERTS_DIR, filename)
+        return fallback if os.path.exists(fallback) else p
+
+    return (_resolve(cert_path, "certificado.crt"),
+            _resolve(key_path, "clave_privada.key"))

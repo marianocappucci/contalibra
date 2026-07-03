@@ -112,9 +112,12 @@ async def generar_factura_mp(
     punto_venta = arca["punto_venta"] if arca else 1
 
     if arca and arca.get("certificado_path") and arca.get("clave_path"):
+        cert_path, clave_path = config_manager.resolve_cert_paths(
+            arca["certificado_path"], arca["clave_path"]
+        )
         try:
             ta = await arca_wsaa.autenticar(
-                arca["certificado_path"], arca["clave_path"], arca["ambiente"]
+                cert_path, clave_path, arca["ambiente"]
             )
             ultimo = await arca_wsfe.ultimo_numero_autorizado(
                 punto_venta, tipo, arca["cuit"],
