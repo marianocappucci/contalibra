@@ -65,8 +65,8 @@
       <div class="card-body">
         <dl class="row mb-0">
           <dt class="col-sm-5">Número</dt><dd class="col-sm-7 font-monospace">{{ presupuesto.number }}</dd>
-          <dt class="col-sm-5">Fecha</dt><dd class="col-sm-7">{{ presupuesto.date }}</dd>
-          <dt class="col-sm-5">Válido hasta</dt><dd class="col-sm-7">{{ presupuesto.valid_until }}</dd>
+          <dt class="col-sm-5">Fecha</dt><dd class="col-sm-7">{{ presupuesto.date|fecha }}</dd>
+          <dt class="col-sm-5">Válido hasta</dt><dd class="col-sm-7">{{ presupuesto.valid_until|fecha }}</dd>
           <dt class="col-sm-5">Estado</dt>
           <dd class="col-sm-7">{{ badge_estado(st) }}</dd>
           {% if presupuesto.observations %}

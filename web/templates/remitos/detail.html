@@ -40,7 +40,7 @@
       <div class="card-body">
         <dl class="row mb-0">
           <dt class="col-sm-4">Número</dt><dd class="col-sm-8 font-monospace">{{ remito.number }}</dd>
-          <dt class="col-sm-4">Fecha</dt><dd class="col-sm-8">{{ remito.date }}</dd>
+          <dt class="col-sm-4">Fecha</dt><dd class="col-sm-8">{{ remito.date|fecha }}</dd>
           {% if remito.observations %}
           <dt class="col-sm-4">Observaciones</dt><dd class="col-sm-8">{{ remito.observations }}</dd>
           {% endif %}

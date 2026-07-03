@@ -94,7 +94,7 @@
       <tbody>
         {% for m in movimientos %}
         <tr>
-          <td class="text-muted small">{{ m.fecha[:10] }}</td>
+          <td class="text-muted small">{{ m.fecha|fecha }}</td>
           <td>
             {% if m.tipo == 'ingreso' %}
               <span class="badge" style="background:#d1e7dd;color:#0f5132">Ingreso</span>

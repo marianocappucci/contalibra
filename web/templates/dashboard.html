@@ -131,7 +131,7 @@
                 <span class="badge bg-secondary me-1">{{ f.letra }}</span>
                 <span class="font-monospace small">{{ f.label_numero }}</span>
               </td>
-              <td class="small text-muted">{{ f.fecha }}</td>
+              <td class="small text-muted">{{ f.fecha|fecha }}</td>
               <td class="small">{{ f.cliente_razon }}</td>
               <td class="text-end fw-semibold">$ {{ f.total|moneda0 }}</td>
               <td>
@@ -217,7 +217,7 @@
           <tbody>
             {% for m in ultimos_movimientos %}
             <tr>
-              <td class="small text-muted">{{ m.fecha }}</td>
+              <td class="small text-muted">{{ m.fecha|fecha }}</td>
               <td class="small">{{ m.concepto }}</td>
               <td class="small">{{ m.usuario_nombre or '—' }}</td>
               <td class="small text-muted font-monospace">{{ m.referencia or '' }}</td>

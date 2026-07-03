@@ -52,7 +52,7 @@
         <tbody>
           {% for m in movimientos %}
           <tr>
-            <td class="text-muted small">{{ m.fecha }}</td>
+            <td class="text-muted small">{{ m.fecha|fecha }}</td>
             <td>
               <a href="/stock/movimientos?producto_id={{ m.producto_id }}" class="text-decoration-none fw-semibold">
                 {{ m.producto_nombre }}

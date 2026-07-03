@@ -121,7 +121,7 @@
           <tr>
             <td><span class="font-monospace small">{{ pv }}-{{ num }}</span></td>
             <td><span class="badge {{ badge[0] }}">{{ badge[1] }}</span></td>
-            <td>{{ f.fecha }}</td>
+            <td>{{ f.fecha|fecha }}</td>
             <td>{{ f.cliente_razon }}</td>
             {% if vista in ('nc', 'nd') %}
             <td>

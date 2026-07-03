@@ -84,7 +84,7 @@
         <tbody>
           {% for e in egresos %}
           <tr>
-            <td class="text-nowrap small">{{ e.fecha }}</td>
+            <td class="text-nowrap small">{{ e.fecha|fecha }}</td>
             <td class="small">
               {% if e.proveedor_id %}
               <a href="/proveedores/{{ e.proveedor_id }}" class="text-decoration-none">{{ e.proveedor_nombre }}</a>

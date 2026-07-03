@@ -81,7 +81,7 @@
       <div class="card-body">
         <dl class="row mb-0 small">
           <dt class="col-5 text-muted">Fecha</dt>
-          <dd class="col-7">{{ venta.fecha }}</dd>
+          <dd class="col-7">{{ venta.fecha|fecha }}</dd>
           <dt class="col-5 text-muted">Cliente</dt>
           <dd class="col-7">{{ venta.cliente_nombre or '— Consumidor final —' }}</dd>
           {% if venta.observaciones %}

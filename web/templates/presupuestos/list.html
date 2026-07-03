@@ -65,10 +65,10 @@
           {% for p in presupuestos %}
           <tr>
             <td><span class="font-monospace small">{{ p.number }}</span></td>
-            <td>{{ p.date }}</td>
+            <td>{{ p.date|fecha }}</td>
             <td>{{ p.client_name }}</td>
             <td>{{ badge_estado(p.status) }}</td>
-            <td>{{ p.valid_until }}</td>
+            <td>{{ p.valid_until|fecha }}</td>
             <td class="text-end fw-semibold">$ {{ p.total|moneda }}</td>
             <td class="text-end">
               <a href="/presupuestos/{{ p.id }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i></a>

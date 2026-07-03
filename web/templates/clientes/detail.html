@@ -175,7 +175,7 @@
           {% for p in presupuestos %}
           <tr>
             <td class="font-monospace small">{{ p.number }}</td>
-            <td class="text-muted small">{{ p.date }}</td>
+            <td class="text-muted small">{{ p.date|fecha }}</td>
             <td class="text-muted small">{{ p.valid_until or '—' }}</td>
             <td class="text-end fw-semibold">$ {{ p.total|moneda }}</td>
             <td class="text-center">
@@ -222,7 +222,7 @@
           {% for r in remitos %}
           <tr>
             <td class="font-monospace small">{{ r.number }}</td>
-            <td class="text-muted small">{{ r.date }}</td>
+            <td class="text-muted small">{{ r.date|fecha }}</td>
             <td class="text-end fw-semibold">$ {{ r.total|moneda }}</td>
             <td class="text-end">
               <a href="/remitos/{{ r.id }}" class="btn btn-sm btn-outline-secondary">

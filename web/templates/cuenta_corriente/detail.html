@@ -87,7 +87,7 @@
         {% if m.tipo == 'debito' %}{% set saldo_acum.v = saldo_acum.v + m.monto %}
         {% else %}{% set saldo_acum.v = saldo_acum.v - m.monto %}{% endif %}
         <tr>
-          <td class="text-muted small">{{ m.fecha }}</td>
+          <td class="text-muted small">{{ m.fecha|fecha }}</td>
           <td>
             {% if m.tipo == 'debito' %}
               <span class="badge" style="background:#f8d7da;color:#842029">Cargo</span>

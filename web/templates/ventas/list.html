@@ -72,7 +72,7 @@
             <td class="fw-semibold text-primary">
               <a href="/ventas/{{ v.id }}" class="text-decoration-none">{{ v.numero }}</a>
             </td>
-            <td class="text-muted small">{{ v.fecha }}</td>
+            <td class="text-muted small">{{ v.fecha|fecha }}</td>
             <td>
               {% if v.cliente_id %}
               <a href="/clientes/{{ v.cliente_id }}" class="text-decoration-none">{{ v.cliente_nombre or '—' }}</a>

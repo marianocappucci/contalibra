@@ -263,7 +263,7 @@
         <tbody>
           {% for p in pendientes %}
           <tr>
-            <td class="text-muted" style="white-space:nowrap">{{ p.created_at[:10] }}</td>
+            <td class="text-muted" style="white-space:nowrap">{{ p.created_at|fecha }}</td>
             <td>
               <div class="fw-semibold">{{ p.payer_name or '—' }}</div>
               {% if p.payer_email %}<small class="text-muted">{{ p.payer_email }}</small>{% endif %}
@@ -327,7 +327,7 @@
         <tbody>
           {% for t in transferencias %}
           <tr>
-            <td class="text-muted" style="white-space:nowrap">{{ t.fecha or t.created_at[:10] }}</td>
+            <td class="text-muted" style="white-space:nowrap">{{ (t.fecha or t.created_at)|fecha }}</td>
             <td>
               <div class="fw-semibold">{{ t.origen_nombre or '—' }}</div>
               {% if t.payer_id_number %}<small class="text-muted">{{ t.payer_id_type or 'ID' }}: {{ t.payer_id_number }}</small>{% endif %}
@@ -419,7 +419,7 @@
         <tbody>
           {% for p in historial %}
           <tr>
-            <td class="text-muted">{{ p.created_at[:10] }}</td>
+            <td class="text-muted">{{ p.created_at|fecha }}</td>
             <td>{{ origen_badge(p.payment_type, p.payment_method, '') }}</td>
             <td>{{ p.payer_name or p.payer_email or '—' }}</td>
             <td>{% if p.cliente %}<a href="/clientes/{{ p.cliente.id }}">{{ p.cliente.name }}</a>{% else %}—{% endif %}</td>
@@ -445,7 +445,7 @@
           {% endfor %}
           {% for t in transferencias_hist %}
           <tr>
-            <td class="text-muted">{{ t.fecha or t.created_at[:10] }}</td>
+            <td class="text-muted">{{ (t.fecha or t.created_at)|fecha }}</td>
             <td><span class="badge rounded-pill bg-secondary" style="font-size:.78rem"><i class="bi bi-bank me-1"></i>{{ label_tipo(t.tipo) }}{% if t.origen_banco %} · {{ label_metodo(t.origen_banco) }}{% endif %}</span></td>
             <td>
               {{ t.origen_nombre or t.payer_name or '—' }}
