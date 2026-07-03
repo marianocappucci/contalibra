@@ -476,7 +476,9 @@ async def factura_enviar_email(request: Request, factura_id: int, user: Auth):
             {**ctx, "email_error": "Ingresá una dirección de email.", "email_ok": None})
 
     from pdf_generator import _TIPO_LABELS
-    pdf_path   = factura.get("pdf_path") or pdf_gen.generate_pdf_factura(factura)
+    pdf_path   = factura.get("pdf_path")
+    if not pdf_path or not os.path.exists(pdf_path):
+        pdf_path = pdf_gen.generate_pdf_factura(factura)
     tipo_label = _TIPO_LABELS.get(factura["tipo"], "Comprobante")
     pv         = str(factura["punto_venta"]).zfill(4)
     num        = str(factura["numero"]).zfill(8)
