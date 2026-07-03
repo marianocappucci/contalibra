@@ -59,13 +59,13 @@ _TIPO_FACTURA = {
 
 class _TicketPDF(FPDF):
     def __init__(self, ancho_mm: int, fuente_size: int):
-        # Márgenes laterales 3 mm; altura de página dinámica (se extiende sola)
+        # Márgenes laterales 2 mm; altura de página dinámica (se extiende sola)
         super().__init__(orientation="P", unit="mm", format=(ancho_mm, 2000))
-        self.set_margins(3, 3, 3)
-        self.set_auto_page_break(auto=True, margin=3)
+        self.set_margins(2, 2, 2)
+        self.set_auto_page_break(auto=True, margin=2)
         self._ancho = ancho_mm
         self._fs = fuente_size          # tamaño base
-        self._w = ancho_mm - 6         # ancho útil
+        self._w = ancho_mm - 4         # ancho útil
         self.add_page()
         self.set_font("Courier", size=fuente_size)
 
