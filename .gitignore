@@ -57,7 +57,8 @@ logos/
 .claude/
 
 # Datos por cliente (generados por scripts/nuevo_cliente.py)
-clientes/
+# Anclado a la raíz: no debe ignorar admin/templates/clientes/
+/clientes/
 
 # Base de datos y config de entorno de desarrollo
 dev-data/
