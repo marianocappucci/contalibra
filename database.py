@@ -3191,10 +3191,10 @@ def get_cc_movimientos(cliente_id: int) -> list[dict]:
                 })
 
         rows = conn.execute("""
-            SELECT id, fecha, concepto, monto, referencia, medio_pago, u.nombre AS usuario_nombre
+            SELECT cc_pagos.id, fecha, concepto, monto, referencia, medio_pago, u.nombre AS usuario_nombre
             FROM cc_pagos
             LEFT JOIN usuarios u ON u.id = cc_pagos.usuario_id
-            WHERE cliente_id = ? ORDER BY fecha, id
+            WHERE cc_pagos.cliente_id = ? ORDER BY fecha, cc_pagos.id
         """, (cliente_id,)).fetchall()
         for r in rows:
             movs.append({
