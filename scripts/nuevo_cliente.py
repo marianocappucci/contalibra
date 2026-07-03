@@ -174,17 +174,14 @@ def crear_cliente(nombre: str, slug: str = "", domain: str = "", port: int = 0,
 
     # — detectar red Docker —
     net_name    = "stack_stack-net"
-    net_section = f"""
-networks:
-  stack-net:
-    external: true
-    name: {net_name}
-"""
-    net_ref = "\n    networks:\n      - stack-net"
-    if not network_exists(net_name):
+    if network_exists(net_name):
+        service_net = "    networks:\n      - stack-net\n"
+        top_net     = (f"\nnetworks:\n  stack-net:\n    external: true\n"
+                       f"    name: {net_name}\n")
+    else:
         log(f"[WARN] Red '{net_name}' no encontrada — el contenedor usará la red por defecto.")
-        net_section = ""
-        net_ref     = ""
+        service_net = ""
+        top_net     = ""
 
     # — docker-compose.yml —
     compose = f"""\
@@ -203,8 +200,7 @@ services:
       - ADMIN_USER={admin_user}
       - ADMIN_PASSWORD={admin_password}
       - ADMIN_NOMBRE={admin_nombre}
-{net_ref.lstrip()}
-{net_section}"""
+{service_net}{top_net}"""
     (client_dir / "docker-compose.yml").write_text(compose)
 
     # — metadata del cliente —
