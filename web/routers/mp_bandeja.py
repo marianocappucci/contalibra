@@ -13,6 +13,7 @@ import database as db
 import config_manager
 import mp_api
 import mp_facturacion
+import pdf_generator as pdf_gen
 from web.auth import require_auth
 from web.templates_config import templates
 
@@ -330,6 +331,8 @@ async def reenviar_email(factura_id: int, request: Request, _: Auth):
     smtp_pass  = cfg.get("email_smtp_password", "")
     from_email = cfg.get("email_from", "")
     pdf_path   = factura.get("pdf_path", "")
+    if not pdf_path or not os.path.exists(pdf_path):
+        pdf_path = pdf_gen.generate_pdf_factura(factura)
     dest_email = factura.get("cliente_email", "") or ""
 
     if not (smtp_host and smtp_user and smtp_pass and from_email):

@@ -241,7 +241,9 @@ async def presupuesto_enviar_email(request: Request, pres_id: int, user: Auth):
         return templates.TemplateResponse(request, "presupuestos/detail.html",
             {**ctx, "email_error": "Ingresá una dirección de email.", "email_ok": None})
 
-    pdf_path  = pres.get("pdf_path") or pdf_gen.generate_pdf_presupuesto(pres)
+    pdf_path  = pres.get("pdf_path")
+    if not pdf_path or not os.path.exists(pdf_path):
+        pdf_path = pdf_gen.generate_pdf_presupuesto(pres)
     doc_label = f"Presupuesto {pres['number']}"
 
     try:
