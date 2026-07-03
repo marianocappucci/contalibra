@@ -59,13 +59,13 @@ _TIPO_FACTURA = {
 
 class _TicketPDF(FPDF):
     def __init__(self, ancho_mm: int, fuente_size: int):
-        # Márgenes laterales 3 mm; altura de página dinámica (se extiende sola)
+        # Márgenes laterales 2 mm; altura de página dinámica (se extiende sola)
         super().__init__(orientation="P", unit="mm", format=(ancho_mm, 2000))
-        self.set_margins(3, 3, 3)
-        self.set_auto_page_break(auto=True, margin=3)
+        self.set_margins(2, 2, 2)
+        self.set_auto_page_break(auto=True, margin=2)
         self._ancho = ancho_mm
         self._fs = fuente_size          # tamaño base
-        self._w = ancho_mm - 6         # ancho útil
+        self._w = ancho_mm - 4         # ancho útil
         self.add_page()
         self.set_font("Courier", size=fuente_size)
 
@@ -90,11 +90,16 @@ class _TicketPDF(FPDF):
     def _centrado(self, txt: str, size: int = 0, bold: bool = False):
         s = size or self._fs
         self.set_font("Courier", "B" if bold else "", s)
-        self.cell(self._w, s * 0.35 + 0.5, txt, align="C", ln=True)
+        self.multi_cell(self._w, s * 0.35 + 0.5, txt, align="C")
+        # fpdf2 deja el cursor X en el borde derecho tras multi_cell; resetear
+        # al margen izquierdo para que el siguiente elemento no arranque pegado
+        # a la derecha y se corte (dejaba caracteres sueltos como "V" o "-").
+        self.set_x(self.l_margin)
 
     def _texto(self, txt: str, bold: bool = False):
         self.set_font("Courier", "B" if bold else "", self._fs)
         self.multi_cell(self._w, self._line_h(), txt)
+        self.set_x(self.l_margin)
 
 
 def _cfg_ticket():
@@ -301,10 +306,15 @@ def generar_ticket_factura(factura: dict) -> bytes:
     if isinstance(items, str):
         items = json.loads(items)
     for it in items:
-        nombre = str(it.get("descripcion", it.get("nombre", "")))[:28]
-        cant   = float(it.get("cantidad", 1))
-        precio = float(it.get("precio_unitario", it.get("precio", 0)))
-        subtot = cant * precio
+        # Los ítems de factura se guardan con las claves description/qty/unit_price
+        # (ver form_helper.extract_items_from_form). Se contemplan también las
+        # variantes descripcion/cantidad/precio_unitario por compatibilidad.
+        raw_desc = str(it.get("description") or it.get("descripcion") or it.get("nombre", ""))
+        nombre = raw_desc.split("\n", 1)[0][:28]   # primera línea; el detalle no va al ticket
+        cant   = float(it.get("qty", it.get("cantidad", 1)) or 1)
+        precio = float(it.get("unit_price", it.get("precio_unitario", it.get("precio", 0))) or 0)
+        subtot = it.get("subtotal")
+        subtot = float(subtot) if subtot is not None else cant * precio
         cant_s = f"{cant:g}" if cant != int(cant) else str(int(cant))
         pdf._texto(f"{nombre}")
         pdf._row(f"  {cant_s} x $" + _ar(precio), "$" + _ar(subtot))
@@ -320,8 +330,8 @@ def generar_ticket_factura(factura: dict) -> bytes:
         for it in items:
             pct = float(it.get("iva_pct", 0) or 0)
             if pct:
-                cant_i  = float(it.get("cantidad", 1))
-                precio_i = float(it.get("precio_unitario", it.get("precio", 0)))
+                cant_i   = float(it.get("qty", it.get("cantidad", 1)) or 1)
+                precio_i = float(it.get("unit_price", it.get("precio_unitario", it.get("precio", 0))) or 0)
                 neto_i   = cant_i * precio_i / (1 + pct / 100)
                 iva_por_pct[pct] = iva_por_pct.get(pct, 0.0) + neto_i * pct / 100
         if iva_por_pct:
