@@ -90,7 +90,7 @@ class _TicketPDF(FPDF):
     def _centrado(self, txt: str, size: int = 0, bold: bool = False):
         s = size or self._fs
         self.set_font("Courier", "B" if bold else "", s)
-        self.cell(self._w, s * 0.35 + 0.5, txt, align="C", ln=True)
+        self.multi_cell(self._w, s * 0.35 + 0.5, txt, align="C")
 
     def _texto(self, txt: str, bold: bool = False):
         self.set_font("Courier", "B" if bold else "", self._fs)
