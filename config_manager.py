@@ -3,6 +3,9 @@ import os
 
 _DATA_DIR   = os.environ.get("DATA_DIR", os.path.dirname(__file__))
 CONFIG_PATH = os.path.join(_DATA_DIR, "config.json")
+LOGO_DIR    = os.path.join(_DATA_DIR, "logos")
+
+_LOGO_EXTS = (".png", ".jpg", ".jpeg", ".webp")
 
 _DEFAULTS = {
     # Estado del servicio (gestionado desde panel_admin.py o config web)
@@ -56,3 +59,24 @@ def save(data):
     merged = {**_DEFAULTS, **data}
     with open(CONFIG_PATH, "w", encoding="utf-8") as f:
         json.dump(merged, f, ensure_ascii=False, indent=2)
+
+
+def resolve_logo_path(cfg=None):
+    """Devuelve la ruta a un archivo de logo existente, o "" si no hay ninguno.
+
+    El "logo_path" guardado en config es una ruta absoluta que puede quedar
+    obsoleta: hasta la migración de LOGO_DIR a DATA_DIR (2026-07-01) los logos se
+    guardaban en /app/logos, y ese valor quedó persistido en configuraciones
+    viejas aunque el archivo real ahora viva en DATA_DIR/logos. Si el path
+    guardado no existe, se cae al logo más reciente encontrado en LOGO_DIR.
+    """
+    cfg = cfg if cfg is not None else load()
+    p = (cfg.get("logo_path") or "").strip()
+    if p and os.path.exists(p):
+        return p
+    if os.path.isdir(LOGO_DIR):
+        cands = [os.path.join(LOGO_DIR, f) for f in os.listdir(LOGO_DIR)
+                 if f.lower().startswith("logo") and f.lower().endswith(_LOGO_EXTS)]
+        if cands:
+            return max(cands, key=os.path.getmtime)
+    return ""

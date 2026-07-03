@@ -32,7 +32,7 @@ def _arca_cfg():
 @router.get("/config/empresa/logo", include_in_schema=False)
 def config_logo(user: Auth):
     cfg = config_manager.load()
-    path = cfg.get("logo_path", "")
+    path = config_manager.resolve_logo_path(cfg)
     if not path or not os.path.exists(path):
         raise HTTPException(404)
     ext = os.path.splitext(path)[1].lower()
