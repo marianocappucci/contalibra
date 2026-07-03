@@ -3,6 +3,7 @@ import random
 import datetime
 
 import database as db
+import config_manager
 import arca_wsaa
 import arca_wsfe
 
@@ -33,9 +34,12 @@ async def get_next_numero_with_arca(punto_venta: int, tipo: int):
     ta       = None
 
     if arca and arca.get("certificado_path") and arca.get("clave_path"):
+        cert_path, clave_path = config_manager.resolve_cert_paths(
+            arca["certificado_path"], arca["clave_path"]
+        )
         try:
             ta = await arca_wsaa.autenticar(
-                arca["certificado_path"], arca["clave_path"], arca["ambiente"]
+                cert_path, clave_path, arca["ambiente"]
             )
             ultimo = await arca_wsfe.ultimo_numero_autorizado(
                 punto_venta, tipo, arca["cuit"],

@@ -421,9 +421,12 @@ async def factura_autorizar(request: Request, factura_id: int, user: Auth):
             {**_detail_ctx(factura),
              "arca_error": "ARCA no está configurado. Cargá los certificados en Configuración."})
 
+    cert_path, clave_path = config_manager.resolve_cert_paths(
+        arca["certificado_path"], arca["clave_path"]
+    )
     try:
         ta = await arca_wsaa.autenticar(
-            arca["certificado_path"], arca["clave_path"], arca["ambiente"]
+            cert_path, clave_path, arca["ambiente"]
         )
         cae_data = await arca_wsfe.solicitar_cae(
             factura, arca["cuit"], ta["token"], ta["sign"], arca["ambiente"]
