@@ -24,7 +24,6 @@ from web.auth import (
 from web.routers import clientes, remitos, presupuestos, facturas, config as config_router, caja, webhooks, dashboard
 from web.routers import mp_bandeja as mp_bandeja_router
 from web.routers import usuarios as usuarios_router
-from web.routers import modulos as modulos_router
 from web.routers import productos as productos_router
 from web.routers import ventas as ventas_router
 from web.routers import stock as stock_router
@@ -109,7 +108,6 @@ app.include_router(config_router.router)
 app.include_router(caja.router)
 app.include_router(webhooks.router)
 app.include_router(usuarios_router.router)
-app.include_router(modulos_router.router)
 app.include_router(productos_router.router)
 app.include_router(ventas_router.router)
 app.include_router(stock_router.router)
