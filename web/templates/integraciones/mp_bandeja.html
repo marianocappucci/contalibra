@@ -221,10 +221,10 @@
    ══════════════════════════════════════════════════════════════════════ #}
 <ul class="nav nav-tabs" id="mpTabs" role="tablist">
   <li class="nav-item" role="presentation">
-    <button class="nav-link active" id="tab-pendientes-btn" data-bs-toggle="tab"
-            data-bs-target="#tab-pendientes" type="button" role="tab">
-      <i class="bi bi-hourglass-split me-1 text-warning"></i>Pendientes de factura
-      <span class="badge bg-warning text-dark ms-1">{{ pendientes|length }}</span>
+    <button class="nav-link active" id="tab-historial-btn" data-bs-toggle="tab"
+            data-bs-target="#tab-historial" type="button" role="tab">
+      <i class="bi bi-clock-history me-1"></i>Historial reciente
+      <span class="badge bg-light text-dark border ms-1">{{ (historial|length) + (transferencias_hist|length) }}</span>
     </button>
   </li>
   <li class="nav-item" role="presentation">
@@ -235,52 +235,81 @@
     </button>
   </li>
   <li class="nav-item" role="presentation">
-    <button class="nav-link" id="tab-historial-btn" data-bs-toggle="tab"
-            data-bs-target="#tab-historial" type="button" role="tab">
-      <i class="bi bi-clock-history me-1"></i>Historial reciente
-      <span class="badge bg-light text-dark border ms-1">{{ (historial|length) + (transferencias_hist|length) }}</span>
+    <button class="nav-link" id="tab-pendientes-btn" data-bs-toggle="tab"
+            data-bs-target="#tab-pendientes" type="button" role="tab">
+      <i class="bi bi-hourglass-split me-1 text-warning"></i>Pendientes de factura
+      <span class="badge bg-warning text-dark ms-1">{{ pendientes|length }}</span>
     </button>
   </li>
 </ul>
 
 <div class="tab-content border border-top-0 rounded-bottom bg-white mb-4">
 
-  {# ── Pestaña 1: Pagos pendientes de factura (webhook) ── #}
-  <div class="tab-pane fade show active" id="tab-pendientes" role="tabpanel" aria-labelledby="tab-pendientes-btn">
-    {% if pendientes %}
+  {# ── Pestaña 1: Historial reciente ── #}
+  <div class="tab-pane fade show active" id="tab-historial" role="tabpanel" aria-labelledby="tab-historial-btn">
+    {% if historial or transferencias_hist %}
     <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
+      <table class="table table-sm align-middle mb-0" style="font-size:.88rem">
         <thead class="table-light">
           <tr>
             <th>Fecha</th>
-            <th>Pagador</th>
-            <th>Origen</th>
+            <th>Tipo</th>
+            <th>Emisor / Pagador</th>
             <th>Cliente</th>
             <th class="text-end">Monto</th>
-            <th class="text-center">Acciones</th>
+            <th class="text-center">Estado</th>
+            <th class="text-center">Factura</th>
           </tr>
         </thead>
         <tbody>
-          {% for p in pendientes %}
+          {% for p in historial %}
           <tr>
-            <td class="text-muted" style="white-space:nowrap">{{ p.created_at|fecha }}</td>
-            <td>
-              <div class="fw-semibold">{{ p.payer_name or '—' }}</div>
-              {% if p.payer_email %}<small class="text-muted">{{ p.payer_email }}</small>{% endif %}
-              {% if p.payer_id_number %}<br><small class="text-muted">{{ p.payer_id_type or 'ID' }}: {{ p.payer_id_number }}</small>{% endif %}
+            <td class="text-muted">{{ p.created_at|fecha }}</td>
+            <td>{{ origen_badge(p.payment_type, p.payment_method, '') }}</td>
+            <td>{{ p.payer_name or p.payer_email or '—' }}</td>
+            <td>{% if p.cliente %}<a href="/clientes/{{ p.cliente.id }}">{{ p.cliente.name }}</a>{% else %}—{% endif %}</td>
+            <td class="text-end">${{ p.monto|moneda }}</td>
+            <td class="text-center">
+              <span class="badge bg-{{ 'success' if p.estado_factura == 'facturado' else 'secondary' }}">
+                {{ 'Facturado' if p.estado_factura == 'facturado' else 'Ignorado' }}
+              </span>
             </td>
-            <td>{{ origen_badge(p.payment_type, p.payment_method, p.descripcion_mp) }}</td>
-            <td>{{ col_cliente(p, 'Pago') }}</td>
-            <td class="text-end fw-semibold">${{ p.monto|moneda }}</td>
             <td class="text-center" style="white-space:nowrap">
-              <button type="button" class="btn btn-sm btn-primary me-1"
-                      onclick="abrirFacturar('/integraciones/mp/pago/{{ p.id }}/facturar', '${{ p.monto|moneda }}')">
-                <i class="bi bi-receipt me-1"></i>Factura
-              </button>
-              <form method="post" action="/integraciones/mp/pago/{{ p.id }}/ignorar" class="d-inline"
-                    onsubmit="return confirm('¿Ignorar este pago?')">
-                <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-lg"></i></button>
-              </form>
+              {% if p.factura_id %}
+                <a href="/facturas/{{ p.factura_id }}" class="btn btn-sm btn-outline-primary py-0 me-1"><i class="bi bi-receipt me-1"></i>Ver</a>
+                {% if p.cliente and p.cliente.email %}
+                <form method="post" action="/integraciones/mp/factura/{{ p.factura_id }}/reenviar" class="d-inline">
+                  <button type="submit" class="btn btn-sm btn-outline-secondary py-0" title="Reenviar email"><i class="bi bi-envelope-arrow-up"></i></button>
+                </form>
+                {% else %}
+                <span class="badge bg-warning text-dark" style="font-size:.72rem" title="Agregá el email al cliente para poder reenviar la factura"><i class="bi bi-envelope-slash"></i> Sin email</span>
+                {% endif %}
+              {% else %}—{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+          {% for t in transferencias_hist %}
+          <tr>
+            <td class="text-muted">{{ (t.fecha or t.created_at)|fecha }}</td>
+            <td><span class="badge rounded-pill bg-secondary" style="font-size:.78rem"><i class="bi bi-bank me-1"></i>{{ label_tipo(t.tipo) }}{% if t.origen_banco %} · {{ label_metodo(t.origen_banco) }}{% endif %}</span></td>
+            <td>
+              {{ t.origen_nombre or t.payer_name or '—' }}
+              {% if t.origen_banco %}<br><small class="text-muted">{{ label_metodo(t.origen_banco) }}</small>{% endif %}
+            </td>
+            <td>{% if t.cliente %}<a href="/clientes/{{ t.cliente.id }}">{{ t.cliente.name }}</a>{% else %}—{% endif %}</td>
+            <td class="text-end">${{ t.monto|moneda }}</td>
+            <td class="text-center">
+              <span class="badge bg-{{ 'success' if t.estado_factura == 'facturado' else 'secondary' }}">
+                {{ 'Facturado' if t.estado_factura == 'facturado' else 'Ignorado' }}
+              </span>
+            </td>
+            <td class="text-center" style="white-space:nowrap">
+              {% if t.factura_id %}
+                <a href="/facturas/{{ t.factura_id }}" class="btn btn-sm btn-outline-primary py-0 me-1"><i class="bi bi-receipt me-1"></i>Ver</a>
+                <form method="post" action="/integraciones/mp/factura/{{ t.factura_id }}/reenviar" class="d-inline">
+                  <button type="submit" class="btn btn-sm btn-outline-secondary py-0" title="Reenviar email"><i class="bi bi-envelope-arrow-up"></i></button>
+                </form>
+              {% else %}—{% endif %}
             </td>
           </tr>
           {% endfor %}
@@ -289,10 +318,10 @@
     </div>
     {% else %}
     <div class="text-center text-muted py-4">
-      <i class="bi bi-check2-all fs-2 mb-1 d-block text-success"></i>Sin pagos pendientes.
+      <i class="bi bi-clock-history fs-2 mb-1 d-block"></i>Todavía no hay movimientos en el historial.
     </div>
     {% endif %}
-  </div>{# /tab-pendientes #}
+  </div>{# /tab-historial #}
 
   {# ── Pestaña 2: Cobros sincronizados (transferencias / billeteras) ── #}
   <div class="tab-pane fade" id="tab-cobros" role="tabpanel" aria-labelledby="tab-cobros-btn">
@@ -400,71 +429,42 @@
     {% endif %}
   </div>{# /tab-cobros #}
 
-  {# ── Pestaña 3: Historial reciente ── #}
-  <div class="tab-pane fade" id="tab-historial" role="tabpanel" aria-labelledby="tab-historial-btn">
-    {% if historial or transferencias_hist %}
+  {# ── Pestaña 3: Pagos pendientes de factura (webhook) ── #}
+  <div class="tab-pane fade" id="tab-pendientes" role="tabpanel" aria-labelledby="tab-pendientes-btn">
+    {% if pendientes %}
     <div class="table-responsive">
-      <table class="table table-sm align-middle mb-0" style="font-size:.88rem">
+      <table class="table table-hover align-middle mb-0">
         <thead class="table-light">
           <tr>
             <th>Fecha</th>
-            <th>Tipo</th>
-            <th>Emisor / Pagador</th>
+            <th>Pagador</th>
+            <th>Origen</th>
             <th>Cliente</th>
             <th class="text-end">Monto</th>
-            <th class="text-center">Estado</th>
-            <th class="text-center">Factura</th>
+            <th class="text-center">Acciones</th>
           </tr>
         </thead>
         <tbody>
-          {% for p in historial %}
+          {% for p in pendientes %}
           <tr>
-            <td class="text-muted">{{ p.created_at|fecha }}</td>
-            <td>{{ origen_badge(p.payment_type, p.payment_method, '') }}</td>
-            <td>{{ p.payer_name or p.payer_email or '—' }}</td>
-            <td>{% if p.cliente %}<a href="/clientes/{{ p.cliente.id }}">{{ p.cliente.name }}</a>{% else %}—{% endif %}</td>
-            <td class="text-end">${{ p.monto|moneda }}</td>
-            <td class="text-center">
-              <span class="badge bg-{{ 'success' if p.estado_factura == 'facturado' else 'secondary' }}">
-                {{ 'Facturado' if p.estado_factura == 'facturado' else 'Ignorado' }}
-              </span>
-            </td>
-            <td class="text-center" style="white-space:nowrap">
-              {% if p.factura_id %}
-                <a href="/facturas/{{ p.factura_id }}" class="btn btn-sm btn-outline-primary py-0 me-1"><i class="bi bi-receipt me-1"></i>Ver</a>
-                {% if p.cliente and p.cliente.email %}
-                <form method="post" action="/integraciones/mp/factura/{{ p.factura_id }}/reenviar" class="d-inline">
-                  <button type="submit" class="btn btn-sm btn-outline-secondary py-0" title="Reenviar email"><i class="bi bi-envelope-arrow-up"></i></button>
-                </form>
-                {% else %}
-                <span class="badge bg-warning text-dark" style="font-size:.72rem" title="Agregá el email al cliente para poder reenviar la factura"><i class="bi bi-envelope-slash"></i> Sin email</span>
-                {% endif %}
-              {% else %}—{% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-          {% for t in transferencias_hist %}
-          <tr>
-            <td class="text-muted">{{ (t.fecha or t.created_at)|fecha }}</td>
-            <td><span class="badge rounded-pill bg-secondary" style="font-size:.78rem"><i class="bi bi-bank me-1"></i>{{ label_tipo(t.tipo) }}{% if t.origen_banco %} · {{ label_metodo(t.origen_banco) }}{% endif %}</span></td>
+            <td class="text-muted" style="white-space:nowrap">{{ p.created_at|fecha }}</td>
             <td>
-              {{ t.origen_nombre or t.payer_name or '—' }}
-              {% if t.origen_banco %}<br><small class="text-muted">{{ label_metodo(t.origen_banco) }}</small>{% endif %}
+              <div class="fw-semibold">{{ p.payer_name or '—' }}</div>
+              {% if p.payer_email %}<small class="text-muted">{{ p.payer_email }}</small>{% endif %}
+              {% if p.payer_id_number %}<br><small class="text-muted">{{ p.payer_id_type or 'ID' }}: {{ p.payer_id_number }}</small>{% endif %}
             </td>
-            <td>{% if t.cliente %}<a href="/clientes/{{ t.cliente.id }}">{{ t.cliente.name }}</a>{% else %}—{% endif %}</td>
-            <td class="text-end">${{ t.monto|moneda }}</td>
-            <td class="text-center">
-              <span class="badge bg-{{ 'success' if t.estado_factura == 'facturado' else 'secondary' }}">
-                {{ 'Facturado' if t.estado_factura == 'facturado' else 'Ignorado' }}
-              </span>
-            </td>
+            <td>{{ origen_badge(p.payment_type, p.payment_method, p.descripcion_mp) }}</td>
+            <td>{{ col_cliente(p, 'Pago') }}</td>
+            <td class="text-end fw-semibold">${{ p.monto|moneda }}</td>
             <td class="text-center" style="white-space:nowrap">
-              {% if t.factura_id %}
-                <a href="/facturas/{{ t.factura_id }}" class="btn btn-sm btn-outline-primary py-0 me-1"><i class="bi bi-receipt me-1"></i>Ver</a>
-                <form method="post" action="/integraciones/mp/factura/{{ t.factura_id }}/reenviar" class="d-inline">
-                  <button type="submit" class="btn btn-sm btn-outline-secondary py-0" title="Reenviar email"><i class="bi bi-envelope-arrow-up"></i></button>
-                </form>
-              {% else %}—{% endif %}
+              <button type="button" class="btn btn-sm btn-primary me-1"
+                      onclick="abrirFacturar('/integraciones/mp/pago/{{ p.id }}/facturar', '${{ p.monto|moneda }}')">
+                <i class="bi bi-receipt me-1"></i>Factura
+              </button>
+              <form method="post" action="/integraciones/mp/pago/{{ p.id }}/ignorar" class="d-inline"
+                    onsubmit="return confirm('¿Ignorar este pago?')">
+                <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-lg"></i></button>
+              </form>
             </td>
           </tr>
           {% endfor %}
@@ -473,10 +473,10 @@
     </div>
     {% else %}
     <div class="text-center text-muted py-4">
-      <i class="bi bi-clock-history fs-2 mb-1 d-block"></i>Todavía no hay movimientos en el historial.
+      <i class="bi bi-check2-all fs-2 mb-1 d-block text-success"></i>Sin pagos pendientes.
     </div>
     {% endif %}
-  </div>{# /tab-historial #}
+  </div>{# /tab-pendientes #}
 
 </div>{# /tab-content #}
 
@@ -589,7 +589,10 @@ function abrirFacturar(url, monto) {
 }
 
 // Recordar la pestaña activa entre recargas (ej: tras sincronizar o facturar).
-(function () {
+// Nota: bootstrap.bundle.min.js se carga en base.html DESPUÉS de este bloque de
+// contenido, así que la restauración (que necesita `bootstrap`) espera a
+// DOMContentLoaded para no fallar con "bootstrap is not defined".
+document.addEventListener('DOMContentLoaded', function () {
   var KEY = 'mpBandejaTab';
   document.querySelectorAll('#mpTabs button[data-bs-toggle="tab"]').forEach(function (btn) {
     btn.addEventListener('shown.bs.tab', function (e) {
@@ -601,7 +604,7 @@ function abrirFacturar(url, monto) {
     var btn = document.querySelector('#mpTabs button[data-bs-target="' + saved + '"]');
     if (btn) { new bootstrap.Tab(btn).show(); }
   }
-})();
+});
 </script>
 
 {% endblock %}
