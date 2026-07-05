@@ -97,6 +97,11 @@
     .card { border: none; box-shadow: 0 1px 6px rgba(0,0,0,.07); border-radius: 12px; }
     .card-header { background: transparent; border-bottom: 1px solid #f0f0f0; font-weight: 600; }
     .table th { font-size: 0.82rem; text-transform: uppercase; letter-spacing: .04em; color: #666; }
+    /* Las tablas dentro de tarjetas sin padding (card-body p-0) usan el padding
+       propio de celda de Bootstrap (0.5rem), menor al gutter de 1rem del resto
+       de los encabezados de la página (buscador, pestañas) — se empareja acá. */
+    .card-body.p-0 .table > :not(caption) > * > *:first-child { padding-left: 1rem; }
+    .card-body.p-0 .table > :not(caption) > * > *:last-child  { padding-right: 1rem; }
     .badge-borrador  { background: #e2e3e5; color: #41464b; }
     .badge-enviado   { background: #cfe2ff; color: #084298; }
     .badge-pendiente { background: #fff3cd; color: #856404; }
