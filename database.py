@@ -2530,22 +2530,6 @@ def get_modulos() -> dict[str, bool]:
     return {r["modulo"]: bool(r["habilitado"]) for r in rows}
 
 
-def get_modulos_completo() -> list[dict]:
-    with get_connection() as conn:
-        rows = conn.execute(
-            "SELECT id, modulo, habilitado, plan FROM modulos ORDER BY plan, modulo"
-        ).fetchall()
-    return [dict(r) for r in rows]
-
-
-def set_modulo(modulo: str, habilitado: bool):
-    with get_connection() as conn:
-        conn.execute(
-            "UPDATE modulos SET habilitado=? WHERE modulo=?",
-            (1 if habilitado else 0, modulo),
-        )
-
-
 def apply_plan(plan: str):
     """Habilita/deshabilita módulos según el plan elegido.
 

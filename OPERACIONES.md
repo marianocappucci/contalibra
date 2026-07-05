@@ -213,14 +213,13 @@ El cliente ya puede entrar y completar los datos de su empresa en
 
 ### Habilitar módulos
 
-Por defecto los módulos básicos están habilitados. Para activar facturación
-electrónica, stock, u otros módulos premium, entrá como admin al sistema del
-cliente y andá a `/config/modulos`, o usá el panel admin:
+Los módulos se asignan según el plan del cliente desde el backoffice
+(https://admin.contalibra.com.ar), sección Plan de cada cliente. Ya no existe
+una pantalla de auto-gestión de módulos dentro del sistema del cliente.
 
 ```bash
 python3 scripts/panel_admin.py
 # → opción 2 (info) para ver el slug exacto
-# Luego dentro del sistema del cliente: /config/modulos
 ```
 
 ---
