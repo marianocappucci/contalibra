@@ -152,6 +152,16 @@
       }
       .main-content { margin-left: 0; padding: 1rem; }
       .page-header { flex-wrap: wrap; gap: 0.5rem; }
+      /* Encabezados de tarjeta con buscador + botones (ítems, POS, listas):
+         en escritorio van en una fila con justify-content-between; en móvil
+         no entran y desbordan, así que se apilan y el buscador ocupa el ancho. */
+      .card-header.d-flex { flex-wrap: wrap; gap: 0.5rem; }
+      .card-header .form-control,
+      .card-header .input-group { width: 100% !important; }
+      /* El buscador del POS y de la tabla de ítems usa width inline fijo. */
+      #buscador-producto, #buscador-prod { width: 100% !important; }
+      /* Modales: menos margen para aprovechar la pantalla angosta. */
+      .modal-dialog { margin: 0.5rem; }
     }
     /* ── Toggle switch CSS3 ── */
     .toggle-switch {
