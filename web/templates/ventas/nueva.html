@@ -26,20 +26,22 @@
       </div>
 
       <div class="card-body p-0">
-        <table class="table table-sm align-middle mb-0" id="tabla-items">
-          <thead class="table-light">
-            <tr>
-              <th style="width:40%">Descripción</th>
-              <th style="width:14%" class="text-center">Cant.</th>
-              <th style="width:20%" class="text-end">Precio unit.</th>
-              <th style="width:18%" class="text-end">Subtotal</th>
-              <th style="width:8%"></th>
-            </tr>
-          </thead>
-          <tbody id="items-body">
-            <!-- filas dinámicas -->
-          </tbody>
-        </table>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0" id="tabla-items" style="min-width:480px">
+            <thead class="table-light">
+              <tr>
+                <th style="width:40%">Descripción</th>
+                <th style="width:14%" class="text-center">Cant.</th>
+                <th style="width:20%" class="text-end">Precio unit.</th>
+                <th style="width:18%" class="text-end">Subtotal</th>
+                <th style="width:8%"></th>
+              </tr>
+            </thead>
+            <tbody id="items-body">
+              <!-- filas dinámicas -->
+            </tbody>
+          </table>
+        </div>
       </div>
       <div class="card-footer">
         <button type="button" class="btn btn-sm btn-outline-primary" onclick="agregarFila()">
