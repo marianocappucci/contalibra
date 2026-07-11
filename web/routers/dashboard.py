@@ -16,6 +16,12 @@ Auth = Annotated[str, Depends(require_auth)]
 
 _TIPO_LETRA = {1: "A", 6: "B", 11: "C"}
 
+_MESES_ES = {
+    1: "enero", 2: "febrero", 3: "marzo", 4: "abril",
+    5: "mayo", 6: "junio", 7: "julio", 8: "agosto",
+    9: "septiembre", 10: "octubre", 11: "noviembre", 12: "diciembre",
+}
+
 
 @router.get("/dashboard")
 def dashboard(request: Request, user: Auth):
@@ -34,6 +40,6 @@ def dashboard(request: Request, user: Auth):
 
     return templates.TemplateResponse(request, "dashboard.html", {
         **data,
-        "mes_nombre": hoy.strftime("%B %Y").capitalize(),
+        "mes_nombre": f"{hoy.day} de {_MESES_ES[hoy.month]} de {hoy.year}",
         "active": "dashboard",
     })
