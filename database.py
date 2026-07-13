@@ -2,7 +2,9 @@ import sqlite3
 import json
 import os
 import hashlib
+import hmac
 import secrets
+import contextlib
 from datetime import datetime as _datetime, timezone as _timezone, timedelta as _timedelta
 
 _AR_TZ   = _timezone(_timedelta(hours=-3))   # America/Argentina/Buenos_Aires (sin DST)
@@ -1325,17 +1327,19 @@ def delete_caja_config(cid: int):
 # ── Caja ───────────────────────────────────────────────────────────────────────
 
 def create_caja_movimiento(fecha, tipo, concepto, monto, referencia="", factura_id=None,
-                           usuario_id=None, caja_id=None, medio_pago=""):
-    with get_connection() as conn:
+                           usuario_id=None, caja_id=None, medio_pago="",
+                           conn: sqlite3.Connection | None = None):
+    cm = contextlib.nullcontext(conn) if conn is not None else get_connection()
+    with cm as c:
         # Idempotencia: si ya existe un movimiento con la misma referencia, no duplicar
         if referencia:
-            exists = conn.execute(
+            exists = c.execute(
                 "SELECT id FROM caja_movimientos WHERE referencia=? LIMIT 1", (referencia,)
             ).fetchone()
             if exists:
                 return exists[0]
         _caja_id = caja_id or get_default_caja_id()
-        cur = conn.execute(
+        cur = c.execute(
             """INSERT INTO caja_movimientos
                (fecha, tipo, concepto, monto, referencia, factura_id, usuario_id, caja_id, medio_pago)
                VALUES (?,?,?,?,?,?,?,?,?)""",
@@ -1363,14 +1367,21 @@ def get_caja_movimientos(desde=None, hasta=None, limit=500, caja_id=None):
 
 
 def get_caja_resumen(desde=None, hasta=None, caja_id=None):
-    """Devuelve {ingresos, egresos, saldo_periodo, saldo_total}."""
+    """Devuelve {ingresos, egresos, saldo_periodo, saldo_total}.
+
+    Excluye movimientos con medio_pago='cuenta_corriente' — no es efectivo
+    real, es una venta/factura a cuenta (o su reversión, ver `anular_venta`),
+    así que no debe inflar (ni, en la reversión, desinflar) el resumen de
+    caja. Mismo criterio que `get_facturas_filtradas` para saber si una
+    factura está "cobrada". Mismo fix que Restolibra (fork downstream)."""
+    _cc_excl = "LOWER(medio_pago) NOT IN ('cuenta corriente','cuenta_corriente')"
     with get_connection() as conn:
-        where, params = [], []
+        where, params = [_cc_excl], []
         if desde and hasta:
             where.append("fecha BETWEEN ? AND ?"); params += [desde, hasta]
         if caja_id:
             where.append("caja_id = ?"); params.append(caja_id)
-        w = ("WHERE " + " AND ".join(where)) if where else ""
+        w = "WHERE " + " AND ".join(where)
         row = conn.execute(
             f"""SELECT
                   COALESCE(SUM(CASE WHEN tipo='ingreso' THEN monto ELSE 0 END), 0) AS ingresos,
@@ -1382,8 +1393,8 @@ def get_caja_resumen(desde=None, hasta=None, caja_id=None):
         egresos  = row["egresos"]
 
         total = conn.execute(
-            """SELECT COALESCE(SUM(CASE WHEN tipo='ingreso' THEN monto ELSE -monto END), 0)
-               FROM caja_movimientos"""
+            f"""SELECT COALESCE(SUM(CASE WHEN tipo='ingreso' THEN monto ELSE -monto END), 0)
+               FROM caja_movimientos WHERE {_cc_excl}"""
         ).fetchone()[0]
 
         return {
@@ -1791,9 +1802,17 @@ def _verify_password(stored: str, provided: str) -> bool:
     try:
         _, algo, salt, stored_hash = stored.split(":")
         dk = hashlib.pbkdf2_hmac(algo, provided.encode(), salt.encode(), 260_000)
-        return dk.hex() == stored_hash
+        return hmac.compare_digest(dk.hex(), stored_hash)
     except Exception:
         return False
+
+
+# Hash señuelo, mismo costo (260k iteraciones PBKDF2) que uno real — se verifica
+# contra este cuando el username no existe, para que `check_usuario_credentials`
+# tarde lo mismo con usuario inexistente que con password incorrecta. Generado
+# una sola vez al importar el módulo (no en cada request). Mismo fix que
+# Restolibra (fork downstream) — ver wiki/analyses/restolibra-auditoria-produccion.
+_DUMMY_PASSWORD_HASH = _hash_password(secrets.token_hex(16))
 
 
 def create_usuario(username: str, nombre: str, email: str,
@@ -1850,15 +1869,21 @@ def delete_usuario(uid: int):
 
 
 def check_usuario_credentials(username: str, password: str) -> dict | None:
-    """Devuelve el usuario si las credenciales son válidas, None si no."""
+    """Devuelve el usuario si las credenciales son válidas, None si no.
+
+    Siempre corre `_verify_password` (contra un hash señuelo del mismo costo
+    si el username no existe), para que el tiempo de respuesta no delate si
+    un username existe — antes, un username inexistente retornaba de
+    inmediato sin correr las 260k iteraciones de PBKDF2 que sí corren para
+    uno real: timing attack de enumeración de usuarios."""
     with get_connection() as conn:
         row = conn.execute(
             "SELECT * FROM usuarios WHERE username=? AND activo=1", (username,)
         ).fetchone()
-    if not row:
-        return None
-    user = dict(row)
-    return user if _verify_password(user["password_hash"], password) else None
+    user = dict(row) if row else None
+    stored_hash = user["password_hash"] if user else _DUMMY_PASSWORD_HASH
+    password_ok = _verify_password(stored_hash, password)
+    return user if (user and password_ok) else None
 
 
 def ensure_admin_user():
@@ -2097,9 +2122,10 @@ def create_turno(usuario_id: int, monto_inicial: float, notas: str = "") -> int:
         return cur.lastrowid
 
 
-def get_turno_activo(usuario_id: int) -> dict | None:
-    with get_connection() as conn:
-        row = conn.execute(
+def get_turno_activo(usuario_id: int, conn: sqlite3.Connection | None = None) -> dict | None:
+    cm = contextlib.nullcontext(conn) if conn is not None else get_connection()
+    with cm as c:
+        row = c.execute(
             """SELECT t.*, u.nombre AS usuario_nombre
                FROM turnos_caja t JOIN usuarios u ON u.id = t.usuario_id
                WHERE t.usuario_id=? AND t.estado='abierto'
@@ -2191,9 +2217,10 @@ def cerrar_turno(tid: int, monto_declarado: float, notas: str = ""):
         )
 
 
-def vincular_venta_turno(venta_id: int, turno_id: int):
-    with get_connection() as conn:
-        conn.execute("UPDATE ventas SET turno_id=? WHERE id=?", (turno_id, venta_id))
+def vincular_venta_turno(venta_id: int, turno_id: int, conn: sqlite3.Connection | None = None):
+    cm = contextlib.nullcontext(conn) if conn is not None else get_connection()
+    with cm as c:
+        c.execute("UPDATE ventas SET turno_id=? WHERE id=?", (turno_id, venta_id))
 
 
 # ── Stock ─────────────────────────────────────────────────────────────────────
@@ -2202,13 +2229,15 @@ def add_movimiento_stock(producto_id: int, tipo: str, cantidad: float,
                          referencia: str = "", fecha: str = "",
                          venta_id: int | None = None,
                          usuario_id: int | None = None,
-                         deposito_id: int | None = None):
+                         deposito_id: int | None = None,
+                         conn: sqlite3.Connection | None = None):
     """Agrega un movimiento de stock. cantidad positiva=entrada, negativa=salida."""
     from datetime import date as _date
     _fecha = fecha or _date.today().isoformat()
     _deposito = deposito_id or get_default_deposito_id()
-    with get_connection() as conn:
-        conn.execute(
+    cm = contextlib.nullcontext(conn) if conn is not None else get_connection()
+    with cm as c:
+        c.execute(
             """INSERT INTO movimientos_stock
                (producto_id, tipo, cantidad, referencia, venta_id, usuario_id, fecha, deposito_id)
                VALUES (?,?,?,?,?,?,?,?)""",
@@ -2277,7 +2306,8 @@ def ajustar_stock(producto_id: int, stock_nuevo: float, referencia: str,
 
 
 def descontar_stock_venta(venta_id: int, items: list, fecha: str = "",
-                           usuario_id: int | None = None):
+                           usuario_id: int | None = None,
+                           conn: sqlite3.Connection | None = None):
     """Descuenta stock por cada ítem de la venta que tenga producto_id."""
     for item in items:
         pid = item.get("producto_id")
@@ -2288,14 +2318,19 @@ def descontar_stock_venta(venta_id: int, items: list, fecha: str = "",
             cantidad=-abs(float(item.get("qty", 0))),
             referencia=f"Venta ID {venta_id}",
             venta_id=venta_id, usuario_id=usuario_id, fecha=fecha,
+            conn=conn,
         )
 
 
 # ── Ventas ────────────────────────────────────────────────────────────────────
 
-def get_next_venta_numero() -> str:
-    with get_connection() as conn:
-        row = conn.execute(
+def get_next_venta_numero(conn: sqlite3.Connection | None = None) -> str:
+    """Si se pasa `conn`, calcula el número dentro de esa transacción (para no
+    chocar con otra venta concurrente) — ver `crear_venta_directa`. Sin `conn`,
+    sigue siendo best-effort (uso legacy)."""
+    cm = contextlib.nullcontext(conn) if conn is not None else get_connection()
+    with cm as c:
+        row = c.execute(
             "SELECT numero FROM ventas ORDER BY id DESC LIMIT 1"
         ).fetchone()
     if row:
@@ -2311,9 +2346,11 @@ def get_next_venta_numero() -> str:
 def create_venta(numero: str, fecha: str, items: list, subtotal: float,
                  descuento: float, total: float, cliente_id: int | None,
                  cliente_nombre: str, usuario_id: int | None,
-                 observaciones: str = "", estado: str = "cobrada") -> int:
-    with get_connection() as conn:
-        cur = conn.execute(
+                 observaciones: str = "", estado: str = "cobrada",
+                 conn: sqlite3.Connection | None = None) -> int:
+    cm = contextlib.nullcontext(conn) if conn is not None else get_connection()
+    with cm as c:
+        cur = c.execute(
             """INSERT INTO ventas
                (numero, fecha, items, subtotal, descuento, total,
                 cliente_id, cliente_nombre, usuario_id, observaciones, estado)
@@ -2325,12 +2362,77 @@ def create_venta(numero: str, fecha: str, items: list, subtotal: float,
         return cur.lastrowid
 
 
-def add_venta_pago(venta_id: int, medio: str, monto: float, referencia: str = ""):
-    with get_connection() as conn:
-        conn.execute(
+def add_venta_pago(venta_id: int, medio: str, monto: float, referencia: str = "",
+                   conn: sqlite3.Connection | None = None):
+    cm = contextlib.nullcontext(conn) if conn is not None else get_connection()
+    with cm as c:
+        c.execute(
             "INSERT INTO ventas_pagos (venta_id, medio, monto, referencia) VALUES (?,?,?,?)",
             (venta_id, medio, monto, referencia),
         )
+
+
+def crear_venta_directa(fecha: str, items: list, subtotal: float, descuento: float,
+                        total: float, cliente_id: int | None, cliente_nombre: str,
+                        usuario_id: int | None, observaciones: str, estado: str,
+                        pagos: list[dict], stock_habilitado: bool) -> int:
+    """Crea una venta ("Nueva venta" del módulo Ventas) con sus pagos, un
+    movimiento de caja por cada medio, descuento de stock y vinculación al
+    turno activo — todo en una única transacción. Antes, cada paso abría su
+    propia conexión: si algo fallaba a mitad de camino quedaba una venta
+    huérfana sin pagos/caja/stock, y dos submits casi simultáneos (doble
+    click) podían duplicar todo. Mismo fix que Restolibra (fork downstream).
+
+    El número de venta se calcula recién al entrar a la transacción; si dos
+    o más ventas concurrentes chocan en el mismo número (`UNIQUE` en
+    `ventas.numero`), se reintenta con un número fresco. Cada intento
+    fallido reduce la contención en al menos uno (el que ganó ese round ya
+    commiteó), así que el número de reintentos necesarios está acotado por
+    la cantidad de submits realmente simultáneos — en la práctica 1 (doble
+    click)."""
+    MAX_INTENTOS = 10
+    for intento in range(MAX_INTENTOS):
+        with get_connection() as conn:
+            try:
+                numero = get_next_venta_numero(conn=conn)
+                venta_id = create_venta(
+                    numero=numero, fecha=fecha, items=items,
+                    subtotal=subtotal, descuento=descuento, total=total,
+                    cliente_id=cliente_id, cliente_nombre=cliente_nombre,
+                    usuario_id=usuario_id, observaciones=observaciones, estado=estado,
+                    conn=conn,
+                )
+                for p in pagos:
+                    add_venta_pago(venta_id, p["medio"], p["monto"],
+                                   p.get("referencia", ""), conn=conn)
+                    label = MEDIOS_PAGO_LABELS.get(p["medio"], p["medio"])
+                    create_caja_movimiento(
+                        fecha=fecha, tipo="ingreso",
+                        concepto=f"Venta {numero} — {label}",
+                        monto=p["monto"], referencia=p.get("referencia", ""),
+                        medio_pago=p["medio"], usuario_id=usuario_id, conn=conn,
+                    )
+
+                if stock_habilitado:
+                    descontar_stock_venta(venta_id, items, fecha=fecha,
+                                          usuario_id=usuario_id, conn=conn)
+
+                if usuario_id:
+                    turno = get_turno_activo(usuario_id, conn=conn)
+                    if turno:
+                        vincular_venta_turno(venta_id, turno["id"], conn=conn)
+
+                conn.commit()
+                return venta_id
+            except sqlite3.IntegrityError:
+                conn.rollback()
+                if intento < MAX_INTENTOS - 1:
+                    continue
+                raise
+            except Exception:
+                conn.rollback()
+                raise
+    raise RuntimeError("No se pudo generar un número de venta único")
 
 
 def get_all_ventas(desde: str = "", hasta: str = "", q: str = "",
@@ -2402,9 +2504,59 @@ def _parse_pagos_raw(raw: str) -> list[dict]:
     return pagos
 
 
-def anular_venta(vid: int):
+def anular_venta(vid: int, usuario_id: int | None = None) -> None:
+    """Anula una venta: repone el stock que se había descontado, revierte con
+    un egreso cada movimiento de caja generado por sus pagos y, si tenía un
+    pago a cuenta corriente, acredita la deuda del cliente vía `create_cc_pago`
+    (mismo mecanismo que ya usa el cobro de una factura a Cuenta Corriente en
+    `facturas.py`). Todo en una única transacción; no-op si la venta ya
+    estaba anulada, para no revertir dos veces si se reintenta la acción.
+    Mismo fix que Restolibra (fork downstream) — antes esto solo hacía
+    `UPDATE ventas SET estado='anulada'`, sin revertir nada."""
     with get_connection() as conn:
-        conn.execute("UPDATE ventas SET estado='anulada' WHERE id=?", (vid,))
+        try:
+            venta = conn.execute("SELECT * FROM ventas WHERE id=?", (vid,)).fetchone()
+            if not venta:
+                raise ValueError("Venta inexistente")
+            if venta["estado"] == "anulada":
+                return
+
+            fecha = _ar_now().split(" ")[0]
+
+            for m in conn.execute(
+                "SELECT producto_id, cantidad, deposito_id FROM movimientos_stock "
+                "WHERE venta_id=? AND tipo='venta'", (vid,)
+            ).fetchall():
+                add_movimiento_stock(
+                    producto_id=m["producto_id"], tipo="anulacion",
+                    cantidad=-m["cantidad"], referencia=f"Anulación venta ID {vid}",
+                    venta_id=vid, usuario_id=usuario_id, fecha=fecha,
+                    deposito_id=m["deposito_id"], conn=conn,
+                )
+
+            for p in conn.execute(
+                "SELECT id, medio, monto FROM ventas_pagos WHERE venta_id=?", (vid,)
+            ).fetchall():
+                label = MEDIOS_PAGO_LABELS.get(p["medio"], p["medio"])
+                create_caja_movimiento(
+                    fecha=fecha, tipo="egreso",
+                    concepto=f"Anulación venta {venta['numero']} — {label}",
+                    monto=p["monto"], referencia=f"anulacion:venta:{vid}:pago:{p['id']}",
+                    medio_pago=p["medio"], usuario_id=usuario_id, conn=conn,
+                )
+                if p["medio"] == "cuenta_corriente" and venta["cliente_id"]:
+                    create_cc_pago(
+                        cliente_id=venta["cliente_id"], monto=p["monto"], fecha=fecha,
+                        concepto=f"Anulación venta {venta['numero']}",
+                        referencia="", medio_pago="cuenta_corriente",
+                        caja_id=None, usuario_id=usuario_id, conn=conn,
+                    )
+
+            conn.execute("UPDATE ventas SET estado='anulada' WHERE id=?", (vid,))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
 
 
 def vincular_venta_factura(vid: int, factura_id: int):
@@ -2635,6 +2787,23 @@ def get_auth_log(limit: int = 200, offset: int = 0) -> list[dict]:
             (limit, offset),
         ).fetchall()
         return [dict(r) for r in rows]
+
+
+def contar_login_fallidos_recientes(ip: str, minutos: int = 15) -> int:
+    """Cuenta intentos de login fallidos desde esta IP en los últimos
+    `minutos` — base del rate limiting de `/login`. Ventana deslizante
+    sobre `auth_log`, sin tabla ni estado nuevo. Mismo fix que Restolibra
+    (fork downstream)."""
+    if not ip:
+        return 0
+    with get_connection() as conn:
+        row = conn.execute(
+            """SELECT COUNT(*) FROM auth_log
+               WHERE evento='login_fallido' AND ip=?
+                 AND ts >= datetime('now', 'localtime', ?)""",
+            (ip, f"-{int(minutos)} minutes"),
+        ).fetchone()
+    return int(row[0])
 
 
 # ── Módulos ────────────────────────────────────────────────────────────────────
@@ -3344,9 +3513,11 @@ def get_clientes_con_saldo_cc() -> list[dict]:
 
 
 def create_cc_pago(cliente_id: int, monto: float, fecha: str, concepto: str,
-                   referencia: str, medio_pago: str, caja_id, usuario_id) -> int:
-    with get_connection() as conn:
-        cur = conn.execute(
+                   referencia: str, medio_pago: str, caja_id, usuario_id,
+                   conn: sqlite3.Connection | None = None) -> int:
+    cm = contextlib.nullcontext(conn) if conn is not None else get_connection()
+    with cm as c:
+        cur = c.execute(
             """INSERT INTO cc_pagos
                (cliente_id, monto, fecha, concepto, referencia, medio_pago, caja_id, usuario_id)
                VALUES (?,?,?,?,?,?,?,?)""",
