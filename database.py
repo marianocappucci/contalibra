@@ -532,6 +532,21 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_movimientos_stock_producto ON movimientos_stock(producto_id);
         """)
 
+        # UNIQUE aparte (no en el executescript de arriba): si por algún motivo
+        # ya existieran duplicados de tipo+punto_venta+numero en una instancia
+        # (no debería, pero es defensivo), que falle solo esto sin tumbar el
+        # resto de init_db al arrancar la app. Cierra la race condition de
+        # numeración (hallazgo cruzado desde la auditoría de Restolibra) junto
+        # con el retry en create_factura().
+        try:
+            conn.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_facturas_numero_unico "
+                "ON facturas(tipo, punto_venta, numero)"
+            )
+        except sqlite3.Error as e:
+            print(f"[WARN] No se pudo crear idx_facturas_numero_unico (¿hay duplicados "
+                  f"de tipo+punto_venta+numero?): {e}")
+
         # Seed de módulos: inserta sólo los que no existen aún
         _MODULOS_DEFAULT = [
             ("clientes",      1, "basico"),
@@ -1075,23 +1090,37 @@ def create_factura(tipo, punto_venta, numero, fecha, cliente_cuit, cliente_razon
                    cliente_domicilio="", fch_serv_desde="", fch_serv_hasta="",
                    fch_vto_pago="", cbte_asoc_tipo=0, cbte_asoc_pv=0, cbte_asoc_nro=0,
                    condicion_venta="", usuario_id=None):
-    """Crea una nueva factura electrónica."""
-    with get_connection() as conn:
-        cur = conn.execute(
-            """INSERT INTO facturas
-               (tipo, punto_venta, numero, fecha, cliente_cuit, cliente_razon,
-                cliente_iva_cond, items, subtotal, iva_amount, total, concepto,
-                cae, cae_vto, observaciones, pdf_path, cliente_domicilio,
-                fch_serv_desde, fch_serv_hasta, fch_vto_pago,
-                cbte_asoc_tipo, cbte_asoc_pv, cbte_asoc_nro, condicion_venta, usuario_id)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-            (tipo, punto_venta, numero, fecha, cliente_cuit, cliente_razon,
-             cliente_iva_cond, json.dumps(items, ensure_ascii=False), subtotal,
-             iva_amount, total, concepto, cae, cae_vto, observaciones, pdf_path,
-             cliente_domicilio, fch_serv_desde, fch_serv_hasta, fch_vto_pago,
-             cbte_asoc_tipo, cbte_asoc_pv, cbte_asoc_nro, condicion_venta, usuario_id),
-        )
-        return cur.lastrowid
+    """Crea una nueva factura electrónica. `numero` es el número calculado por el
+    caller (local o vía ARCA) pero puede haber quedado obsoleto si otra factura
+    concurrente para el mismo tipo+punto_venta se creó en el medio (no había
+    ningún UNIQUE ni retry — hallazgo cruzado desde la auditoría de Restolibra,
+    "race condition en numeración"). Si el INSERT choca contra
+    idx_facturas_numero_unico, se recalcula el número y se reintenta — el
+    caller debe releer la factura por id (`get_factura`) para conocer el
+    número real, nunca asumir que es el que pasó."""
+    MAX_INTENTOS = 5
+    for intento in range(MAX_INTENTOS):
+        try:
+            with get_connection() as conn:
+                cur = conn.execute(
+                    """INSERT INTO facturas
+                       (tipo, punto_venta, numero, fecha, cliente_cuit, cliente_razon,
+                        cliente_iva_cond, items, subtotal, iva_amount, total, concepto,
+                        cae, cae_vto, observaciones, pdf_path, cliente_domicilio,
+                        fch_serv_desde, fch_serv_hasta, fch_vto_pago,
+                        cbte_asoc_tipo, cbte_asoc_pv, cbte_asoc_nro, condicion_venta, usuario_id)
+                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    (tipo, punto_venta, numero, fecha, cliente_cuit, cliente_razon,
+                     cliente_iva_cond, json.dumps(items, ensure_ascii=False), subtotal,
+                     iva_amount, total, concepto, cae, cae_vto, observaciones, pdf_path,
+                     cliente_domicilio, fch_serv_desde, fch_serv_hasta, fch_vto_pago,
+                     cbte_asoc_tipo, cbte_asoc_pv, cbte_asoc_nro, condicion_venta, usuario_id),
+                )
+                return cur.lastrowid
+        except sqlite3.IntegrityError:
+            if intento == MAX_INTENTOS - 1:
+                raise
+            numero = get_next_factura_numero(punto_venta, tipo)
 
 
 _TIPOS_FACTURA = (1, 6, 11)
