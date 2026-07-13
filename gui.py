@@ -823,7 +823,11 @@ class NuevoRemitoPage(QWidget):
     def _new_client(self):
         dlg = ClientDialog(self)
         if dlg.exec_() == QDialog.Accepted and dlg.result_data:
-            cid = db.create_client(*dlg.result_data)
+            try:
+                cid = db.create_client(*dlg.result_data)
+            except ValueError as e:
+                QMessageBox.warning(self, "Atención", str(e))
+                return
             self.refresh()
             idx = self._client_combo.findData(cid)
             if idx >= 0:
@@ -1005,7 +1009,11 @@ class ClientesPage(QWidget):
     def _nuevo(self):
         dlg = ClientDialog(self)
         if dlg.exec_() == QDialog.Accepted and dlg.result_data:
-            db.create_client(*dlg.result_data)
+            try:
+                db.create_client(*dlg.result_data)
+            except ValueError as e:
+                QMessageBox.warning(self, "Atención", str(e))
+                return
             self.refresh()
 
     def _editar(self):
@@ -1661,7 +1669,11 @@ class NuevoPresupuestoPage(QWidget):
     def _new_client(self):
         dlg = ClientDialog(self)
         if dlg.exec_() == QDialog.Accepted and dlg.result_data:
-            cid = db.create_client(*dlg.result_data)
+            try:
+                cid = db.create_client(*dlg.result_data)
+            except ValueError as e:
+                QMessageBox.warning(self, "Atención", str(e))
+                return
             self.refresh()
             idx = self._client_combo.findData(cid)
             if idx >= 0:
