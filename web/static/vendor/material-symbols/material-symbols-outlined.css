@@ -1,0 +1,31 @@
+@font-face {
+  font-family: 'Material Symbols Outlined';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('./fonts/material-symbols-outlined.ttf?v=1') format('truetype');
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: inherit;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  /* !important: Bootstrap utilities like d-block/d-flex (que se combinan con este
+     icono en varios lugares) fuerzan display:block con !important, y block/flex
+     rompe la sustitucion de ligaduras del font (glyph nunca se sustituye, queda
+     el texto crudo "check_circle" en vez del icono) — bug confirmado en Chromium,
+     ver web/static/vendor/material-symbols en restolibra donde se detecto primero.
+     inline-block/inline no tienen ese problema. */
+  display: inline-block !important;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  vertical-align: -0.2em;
+  -webkit-font-feature-settings: 'liga';
+  font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}

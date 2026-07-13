@@ -10,6 +10,7 @@ import os
 
 from fastapi import FastAPI, Request, Form, Depends
 from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from admin import auth, services
 from admin.templates_config import templates
@@ -18,6 +19,10 @@ from security_headers import SecurityHeadersMiddleware
 
 app = FastAPI(title="Contalibra Backoffice", docs_url=None, redoc_url=None)
 app.add_middleware(SecurityHeadersMiddleware)
+
+# Reusa los assets estáticos de la app principal (corre desde la raíz del repo).
+STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web", "static")
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 DOCS_AUTH_SECRET = os.environ.get("DOCS_AUTH_SECRET", "")
 

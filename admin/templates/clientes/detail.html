@@ -3,16 +3,16 @@
 {% block content %}
 
 <div class="d-flex align-items-center gap-2 mb-3">
-  <a href="/" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+  <a href="/" class="btn btn-sm btn-outline-secondary"><span class="material-symbols-outlined">arrow_back</span></a>
   <h1 class="h4 m-0">{{ c.nombre }}</h1>
   {% set ec = 'estado-running' if c.estado == 'running' else ('estado-exited' if c.estado == 'exited' else ('estado-paused' if c.estado == 'paused' else 'estado-otro')) %}
-  <i class="bi bi-circle-fill estado-dot {{ ec }}" title="{{ c.estado }}"></i>
+  <span class="estado-dot {{ ec }}" title="{{ c.estado }}"></span>
   <span class="text-muted small text-capitalize">{{ c.estado }}</span>
 </div>
 
 {% if nueva_pass %}
 <div class="alert alert-info d-flex align-items-center gap-2">
-  <i class="bi bi-key-fill"></i>
+  <span class="material-symbols-outlined">key</span>
   <div>Credenciales del admin: <strong>{{ c.admin_user }}</strong> / <code>{{ nueva_pass }}</code>
   — guardalas, no se vuelven a mostrar.</div>
 </div>
@@ -22,7 +22,7 @@
   <!-- Datos + edición -->
   <div class="col-lg-6">
     <div class="card h-100">
-      <div class="card-header fw-semibold"><i class="bi bi-info-circle me-2"></i>Datos</div>
+      <div class="card-header fw-semibold"><span class="material-symbols-outlined me-2">info</span>Datos</div>
       <div class="card-body">
         <form method="post" action="/clientes/{{ c.slug }}/editar">
           <div class="mb-2">
@@ -40,7 +40,7 @@
             <dt class="col-5 text-muted">Admin</dt><dd class="col-7">{{ c.admin_user }}</dd>
             <dt class="col-5 text-muted">Iniciado</dt><dd class="col-7">{{ c.iniciado or '—' }}</dd>
           </dl>
-          <button class="btn btn-sm btn-outline-primary"><i class="bi bi-save me-1"></i>Guardar datos</button>
+          <button class="btn btn-sm btn-outline-primary"><span class="material-symbols-outlined me-1">save</span>Guardar datos</button>
         </form>
       </div>
     </div>
@@ -49,7 +49,7 @@
   <!-- Plan -->
   <div class="col-lg-6">
     <div class="card h-100">
-      <div class="card-header fw-semibold"><i class="bi bi-box-seam me-2"></i>Plan</div>
+      <div class="card-header fw-semibold"><span class="material-symbols-outlined me-2">inventory_2</span>Plan</div>
       <div class="card-body">
         <p class="small text-muted mb-2">Plan actual:
           {% if c.plan %}<span class="badge plan-{{ c.plan }}">{{ planes|selectattr('key','equalto',c.plan)|map(attribute='label')|first|default(c.plan) }}</span>
@@ -68,7 +68,7 @@
             </label>
           </div>
           {% endfor %}
-          <button class="btn btn-sm btn-primary mt-2"><i class="bi bi-arrow-repeat me-1"></i>Aplicar plan</button>
+          <button class="btn btn-sm btn-primary mt-2"><span class="material-symbols-outlined me-1">refresh</span>Aplicar plan</button>
           <div class="form-text">Toma efecto de inmediato en la instancia (no requiere reinicio).</div>
         </form>
       </div>
@@ -78,16 +78,16 @@
   <!-- Estado / ciclo de vida -->
   <div class="col-lg-6">
     <div class="card h-100">
-      <div class="card-header fw-semibold"><i class="bi bi-hdd-network me-2"></i>Estado y servicio</div>
+      <div class="card-header fw-semibold"><span class="material-symbols-outlined me-2">lan</span>Estado y servicio</div>
       <div class="card-body">
         <div class="mb-2 small text-muted">Contenedor</div>
         <div class="d-flex flex-wrap gap-2 mb-3">
           {% for acc, ico, lbl, cls in [
-            ('start','play-fill','Iniciar','success'),
-            ('restart','arrow-clockwise','Reiniciar','secondary'),
-            ('stop','stop-fill','Detener','danger')] %}
+            ('start','play_arrow','Iniciar','success'),
+            ('restart','refresh','Reiniciar','secondary'),
+            ('stop','stop','Detener','danger')] %}
           <form method="post" action="/clientes/{{ c.slug }}/estado/{{ acc }}">
-            <button class="btn btn-sm btn-outline-{{ cls }}"><i class="bi bi-{{ ico }} me-1"></i>{{ lbl }}</button>
+            <button class="btn btn-sm btn-outline-{{ cls }}"><span class="material-symbols-outlined me-1">{{ ico }}</span>{{ lbl }}</button>
           </form>
           {% endfor %}
         </div>
@@ -109,21 +109,21 @@
   <!-- Backup + baja -->
   <div class="col-lg-6">
     <div class="card h-100 border-danger-subtle">
-      <div class="card-header fw-semibold"><i class="bi bi-shield-exclamation me-2"></i>Backup y baja</div>
+      <div class="card-header fw-semibold"><span class="material-symbols-outlined me-2">gpp_maybe</span>Backup y baja</div>
       <div class="card-body">
         <form method="post" action="/clientes/{{ c.slug }}/backup" class="mb-3">
-          <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-download me-1"></i>Generar backup</button>
+          <button class="btn btn-sm btn-outline-secondary"><span class="material-symbols-outlined me-1">download</span>Generar backup</button>
           <span class="form-text ms-1">tar.gz de la carpeta data del cliente.</span>
         </form>
         <hr>
-        <p class="small text-danger mb-2"><i class="bi bi-exclamation-triangle me-1"></i>
+        <p class="small text-danger mb-2"><span class="material-symbols-outlined me-1">warning</span>
           Eliminar da de baja el contenedor y borra <strong>todos los datos</strong> del cliente
           (se genera un backup automático antes). Escribí el slug <code>{{ c.slug }}</code> para confirmar.</p>
         <form method="post" action="/clientes/{{ c.slug }}/eliminar"
               onsubmit="return confirm('¿Eliminar definitivamente al cliente {{ c.slug }}?');">
           <div class="input-group input-group-sm">
             <input type="text" name="confirmar" class="form-control" placeholder="{{ c.slug }}" autocomplete="off">
-            <button class="btn btn-danger"><i class="bi bi-trash me-1"></i>Eliminar cliente</button>
+            <button class="btn btn-danger"><span class="material-symbols-outlined me-1">delete</span>Eliminar cliente</button>
           </div>
         </form>
       </div>

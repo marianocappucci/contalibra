@@ -4,7 +4,7 @@
 
 <div class="page-header">
   <h1>
-    <i class="bi bi-person-circle me-2 text-primary"></i>{{ cliente.name }}
+    <span class="material-symbols-outlined me-2 text-primary">account_circle</span>{{ cliente.name }}
     {% if not cliente.activo %}
     <span class="badge bg-secondary ms-2 align-middle">Inactivo</span>
     {% endif %}
@@ -12,17 +12,17 @@
   <div class="d-flex gap-2">
     {% if cliente.activo %}
     <a href="/clientes/{{ cliente.id }}/editar" class="btn btn-outline-secondary">
-      <i class="bi bi-pencil me-1"></i>Editar
+      <span class="material-symbols-outlined me-1">edit</span>Editar
     </a>
     {% else %}
     <form method="post" action="/clientes/{{ cliente.id }}/activar">
       <button type="submit" class="btn btn-success">
-        <i class="bi bi-arrow-counterclockwise me-1"></i>Reactivar cliente
+        <span class="material-symbols-outlined me-1">undo</span>Reactivar cliente
       </button>
     </form>
     {% endif %}
     <a href="/clientes" class="btn btn-outline-secondary">
-      <i class="bi bi-arrow-left me-1"></i>Volver
+      <span class="material-symbols-outlined me-1">arrow_back</span>Volver
     </a>
   </div>
 </div>
@@ -31,7 +31,7 @@
 <div class="row g-3 mb-4">
   <div class="col-md-6">
     <div class="card h-100">
-      <div class="card-header"><i class="bi bi-person me-1"></i>Datos del cliente</div>
+      <div class="card-header"><span class="material-symbols-outlined me-1">person</span>Datos del cliente</div>
       <div class="card-body">
         <dl class="row mb-0">
           <dt class="col-sm-4">Nombre</dt>
@@ -80,7 +80,7 @@
 
   <div class="col-md-6">
     <div class="card h-100">
-      <div class="card-header"><i class="bi bi-bar-chart me-1"></i>Resumen</div>
+      <div class="card-header"><span class="material-symbols-outlined me-1">bar_chart</span>Resumen</div>
       <div class="card-body">
         <div class="row g-3 text-center">
           <div class="col-4">
@@ -113,7 +113,7 @@
 {# ── Alias de facturación MP (excepciones payer CUIT/email → este cliente) ── #}
 <div class="card mb-4">
   <div class="card-header">
-    <i class="bi bi-arrow-left-right me-1"></i>Alias de facturación (Mercado Pago)
+    <span class="material-symbols-outlined me-1">swap_horiz</span>Alias de facturación (Mercado Pago)
   </div>
   <div class="card-body">
     <p class="text-muted small mb-3">
@@ -136,7 +136,7 @@
         </span>
         <form method="post" action="/clientes/{{ cliente.id }}/alias-facturacion/{{ a.id }}/eliminar"
               onsubmit="return confirm('¿Quitar este alias de facturación?')">
-          <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+          <button class="btn btn-sm btn-outline-danger"><span class="material-symbols-outlined">delete</span></button>
         </form>
       </li>
       {% endfor %}
@@ -159,7 +159,7 @@
       </div>
       <div class="col-auto">
         <button type="submit" class="btn btn-sm btn-outline-primary">
-          <i class="bi bi-plus-lg me-1"></i>Agregar alias
+          <span class="material-symbols-outlined me-1">add</span>Agregar alias
         </button>
       </div>
     </form>
@@ -170,9 +170,9 @@
 {% if facturas %}
 <div class="card mb-4">
   <div class="card-header d-flex justify-content-between align-items-center">
-    <span><i class="bi bi-receipt me-1"></i>Facturas y comprobantes</span>
+    <span><span class="material-symbols-outlined me-1">receipt_long</span>Facturas y comprobantes</span>
     <a href="/facturas/nueva" class="btn btn-sm btn-outline-primary">
-      <i class="bi bi-plus-lg me-1"></i>Nueva factura
+      <span class="material-symbols-outlined me-1">add</span>Nueva factura
     </a>
   </div>
   <div class="card-body p-0">
@@ -209,7 +209,7 @@
             </td>
             <td class="text-end">
               <a href="/facturas/{{ f.id }}" class="btn btn-sm btn-outline-secondary">
-                <i class="bi bi-eye"></i>
+                <span class="material-symbols-outlined">visibility</span>
               </a>
             </td>
           </tr>
@@ -225,7 +225,7 @@
 {% if presupuestos %}
 <div class="card mb-4">
   <div class="card-header">
-    <i class="bi bi-file-text me-1"></i>Presupuestos
+    <span class="material-symbols-outlined me-1">description</span>Presupuestos
   </div>
   <div class="card-body p-0">
     <div class="table-responsive">
@@ -258,7 +258,7 @@
             </td>
             <td class="text-end">
               <a href="/presupuestos/{{ p.id }}" class="btn btn-sm btn-outline-secondary">
-                <i class="bi bi-eye"></i>
+                <span class="material-symbols-outlined">visibility</span>
               </a>
             </td>
           </tr>
@@ -274,7 +274,7 @@
 {% if remitos %}
 <div class="card mb-4">
   <div class="card-header">
-    <i class="bi bi-truck me-1"></i>Remitos
+    <span class="material-symbols-outlined me-1">local_shipping</span>Remitos
   </div>
   <div class="card-body p-0">
     <div class="table-responsive">
@@ -295,7 +295,7 @@
             <td class="text-end fw-semibold">$ {{ r.total|moneda }}</td>
             <td class="text-end">
               <a href="/remitos/{{ r.id }}" class="btn btn-sm btn-outline-secondary">
-                <i class="bi bi-eye"></i>
+                <span class="material-symbols-outlined">visibility</span>
               </a>
             </td>
           </tr>
@@ -310,14 +310,14 @@
 {% if not facturas and not presupuestos and not remitos %}
 <div class="card">
   <div class="card-body text-center text-muted py-5">
-    <i class="bi bi-inbox fs-1 d-block mb-3 opacity-25"></i>
+    <span class="material-symbols-outlined fs-1 d-block mb-3 opacity-25">inbox</span>
     <p class="mb-3">Este cliente no tiene comprobantes asociados todavía.</p>
     <div class="d-flex gap-2 justify-content-center">
       <a href="/facturas/nueva" class="btn btn-outline-primary btn-sm">
-        <i class="bi bi-receipt me-1"></i>Nueva factura
+        <span class="material-symbols-outlined me-1">receipt_long</span>Nueva factura
       </a>
       <a href="/presupuestos/nuevo" class="btn btn-outline-secondary btn-sm">
-        <i class="bi bi-file-text me-1"></i>Nuevo presupuesto
+        <span class="material-symbols-outlined me-1">description</span>Nuevo presupuesto
       </a>
     </div>
   </div>
