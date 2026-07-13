@@ -9,10 +9,10 @@ from typing import Annotated
 
 import database as db
 import config_manager
-from web.auth import require_auth
+from web.auth import require_auth, require_role
 from web.templates_config import templates
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_role("admin"))])
 Auth = Annotated[str, Depends(require_auth)]
 
 # ── Constantes ARCA/REGINFO ───────────────────────────────────────────────────

@@ -3,6 +3,19 @@ services:
     build: .
     container_name: contalibra-dev
     restart: unless-stopped
+    # Límites agregados tras cruzar la auditoría de Restolibra (ver
+    # wiki/analyses/restolibra-auditoria-produccion): sin esto, un contenedor
+    # de Contalibra sin tope puede consumir toda la RAM/CPU del VPS y tumbar
+    # a Restolibra (y viceversa), que comparten el mismo host.
+    mem_limit: 768m
+    mem_reservation: 256m
+    cpus: 1.0
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     ports:
       - "8071:8000"
     volumes:
