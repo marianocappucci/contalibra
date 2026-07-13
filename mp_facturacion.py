@@ -61,16 +61,20 @@ async def generar_factura_mp(
     concepto_override: str = "",
     cliente_override: dict = None,
     payment_type: str = "",
+    payer_cuit: str = "",
 ) -> tuple[int, str, str, bool]:
     """
     Crea factura con CAE, PDF y la registra en caja. Envía email si hay config.
     Devuelve (factura_id, numero_str, tipo_label, email_enviado).
     Si se pasa cliente_override se usa ese cliente sin crear uno nuevo.
+    Si no, resuelve el cliente por alias de facturación (excepción configurada
+    para este CUIT/email de pagador) o, en su defecto, por coincidencia directa
+    de email/CUIT — y si no hay ninguno, crea un cliente nuevo.
     """
     if cliente_override:
         client = cliente_override
     else:
-        client = db.get_client_by_email(payer_email) if payer_email else None
+        client = db.resolver_cliente_pago(payer_email, payer_cuit)
         if not client:
             client_id = db.create_client(
                 name=payer_name or payer_email or "Sin nombre",

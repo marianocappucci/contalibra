@@ -2,6 +2,7 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
+from urllib.parse import quote
 from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import RedirectResponse, JSONResponse
 from typing import Annotated
@@ -73,11 +74,14 @@ def cliente_detail(request: Request, cliente_id: int, user: Auth):
     facturas    = db.get_facturas_by_client(cliente.get("cuit_dni") or "", cliente.get("name") or "")
     presupuestos = db.get_presupuestos_by_client(cliente_id)
     remitos     = db.get_remitos_by_client(cliente_id)
+    alias_facturacion = db.get_alias_facturacion_by_cliente(cliente_id)
     return templates.TemplateResponse(request, "clientes/detail.html", {
         "cliente": cliente,
         "facturas": facturas,
         "presupuestos": presupuestos,
         "remitos": remitos,
+        "alias_facturacion": alias_facturacion,
+        "alias_error": request.query_params.get("alias_error"),
         "active": "clientes",
     })
 
@@ -157,6 +161,30 @@ def cliente_activar(request: Request, cliente_id: int, user: Auth):
         raise HTTPException(404)
     db.activar_cliente(cliente_id)
     return RedirectResponse("/clientes", status_code=303)
+
+
+@router.post("/clientes/{cliente_id}/alias-facturacion")
+async def cliente_alias_crear(request: Request, cliente_id: int, user: Auth):
+    """Registra una excepción: pagos de MP con este CUIT o email se facturan
+    a este cliente, aunque el pagador no coincida directamente con sus datos."""
+    if not db.get_client(cliente_id):
+        raise HTTPException(404)
+    form  = await request.form()
+    tipo  = str(form.get("tipo", "")).strip()
+    valor = str(form.get("valor", "")).strip()
+    try:
+        db.crear_alias_facturacion(tipo, valor, cliente_id)
+    except ValueError as e:
+        return RedirectResponse(f"/clientes/{cliente_id}?alias_error={quote(str(e))}", status_code=303)
+    return RedirectResponse(f"/clientes/{cliente_id}", status_code=303)
+
+
+@router.post("/clientes/{cliente_id}/alias-facturacion/{alias_id}/eliminar")
+def cliente_alias_eliminar(request: Request, cliente_id: int, alias_id: int, user: Auth):
+    if not db.get_client(cliente_id):
+        raise HTTPException(404)
+    db.eliminar_alias_facturacion(alias_id)
+    return RedirectResponse(f"/clientes/{cliente_id}", status_code=303)
 
 
 @router.post("/clientes/nuevo-rapido")

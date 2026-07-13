@@ -154,6 +154,16 @@ def init_db():
                 created_at      TEXT DEFAULT (datetime('now'))
             );
 
+            CREATE TABLE IF NOT EXISTS facturacion_alias (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                tipo        TEXT NOT NULL CHECK (tipo IN ('cuit', 'email')),
+                valor       TEXT NOT NULL,
+                cliente_id  INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+                activo      INTEGER NOT NULL DEFAULT 1,
+                created_at  TEXT DEFAULT (datetime('now')),
+                UNIQUE (tipo, valor)
+            );
+
             CREATE TABLE IF NOT EXISTS arca_config (
                 id              INTEGER PRIMARY KEY AUTOINCREMENT,
                 empresa         TEXT NOT NULL UNIQUE,
@@ -1483,9 +1493,13 @@ def update_mp_pago_estado(id: int, estado: str, factura_id=None):
 
 
 def get_client_by_email(email: str):
+    normalized = (email or "").strip().lower()
+    if not normalized:
+        return None
     with get_connection() as conn:
         row = conn.execute(
-            "SELECT * FROM clients WHERE email=? LIMIT 1", (email,)
+            "SELECT * FROM clients WHERE LOWER(email)=? ORDER BY activo DESC, id DESC LIMIT 1",
+            (normalized,),
         ).fetchone()
         return dict(row) if row else None
 
@@ -1503,6 +1517,90 @@ def get_client_by_cuit(cuit: str):
             (normalized,),
         ).fetchone()
     return dict(row) if row else None
+
+
+# ── Alias de facturación MP (excepciones payer CUIT/email → cliente) ───────────
+
+def _normalizar_alias(tipo: str, valor: str) -> str:
+    valor = (valor or "").strip()
+    if tipo == "cuit":
+        return valor.replace("-", "")
+    return valor.lower()
+
+
+def crear_alias_facturacion(tipo: str, valor: str, cliente_id: int) -> int:
+    """Registra que los pagos de MP identificados por este CUIT o email deben
+    facturarse al cliente indicado, en vez de al cliente que coincide directo
+    con esos datos (o de crear uno nuevo)."""
+    if tipo not in ("cuit", "email"):
+        raise ValueError("Tipo de alias inválido.")
+    valor_norm = _normalizar_alias(tipo, valor)
+    if not valor_norm:
+        raise ValueError("El valor del alias no puede estar vacío.")
+    if not get_client(cliente_id):
+        raise ValueError("El cliente destino no existe.")
+    with get_connection() as conn:
+        existente = conn.execute(
+            "SELECT fa.id, c.name FROM facturacion_alias fa JOIN clients c ON c.id = fa.cliente_id "
+            "WHERE fa.tipo=? AND fa.valor=? AND fa.activo=1",
+            (tipo, valor_norm),
+        ).fetchone()
+        if existente:
+            raise ValueError(
+                f'Ese {tipo.upper()} ya está asignado a "{existente["name"]}". '
+                "Eliminá ese alias primero si querés reasignarlo."
+            )
+        cur = conn.execute(
+            "INSERT INTO facturacion_alias (tipo, valor, cliente_id) VALUES (?,?,?)",
+            (tipo, valor_norm, cliente_id),
+        )
+        return cur.lastrowid
+
+
+def get_alias_facturacion_by_cliente(cliente_id: int) -> list[dict]:
+    with get_connection() as conn:
+        return [dict(r) for r in conn.execute(
+            "SELECT * FROM facturacion_alias WHERE cliente_id=? AND activo=1 ORDER BY created_at",
+            (cliente_id,),
+        ).fetchall()]
+
+
+def eliminar_alias_facturacion(alias_id: int):
+    with get_connection() as conn:
+        conn.execute("DELETE FROM facturacion_alias WHERE id=?", (alias_id,))
+
+
+def get_cliente_por_alias_pago(payer_email: str = "", payer_cuit: str = ""):
+    """Si el CUIT o el email del pagador tienen un alias de facturación
+    configurado, devuelve el cliente destino de ese alias."""
+    cuit_norm  = _normalizar_alias("cuit", payer_cuit)
+    email_norm = _normalizar_alias("email", payer_email)
+    with get_connection() as conn:
+        row = None
+        if cuit_norm:
+            row = conn.execute(
+                "SELECT cliente_id FROM facturacion_alias WHERE tipo='cuit' AND valor=? AND activo=1",
+                (cuit_norm,),
+            ).fetchone()
+        if not row and email_norm:
+            row = conn.execute(
+                "SELECT cliente_id FROM facturacion_alias WHERE tipo='email' AND valor=? AND activo=1",
+                (email_norm,),
+            ).fetchone()
+    return get_client(row["cliente_id"]) if row else None
+
+
+def resolver_cliente_pago(payer_email: str = "", payer_cuit: str = ""):
+    """Resuelve a qué cliente corresponde facturar un pago de MP: primero
+    respeta un alias explícito (excepción configurada), y si no hay,
+    matchea al cliente cuyo email o CUIT coincide con el del pagador."""
+    alias = get_cliente_por_alias_pago(payer_email, payer_cuit)
+    if alias:
+        return alias
+    client = get_client_by_email(payer_email) if payer_email else None
+    if not client and payer_cuit:
+        client = get_client_by_cuit(payer_cuit)
+    return client
 
 
 # ── MercadoPago movimientos (transferencias bancarias entrantes) ───────────────

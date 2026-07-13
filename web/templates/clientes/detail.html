@@ -110,6 +110,62 @@
   </div>
 </div>
 
+{# ── Alias de facturación MP (excepciones payer CUIT/email → este cliente) ── #}
+<div class="card mb-4">
+  <div class="card-header">
+    <i class="bi bi-arrow-left-right me-1"></i>Alias de facturación (Mercado Pago)
+  </div>
+  <div class="card-body">
+    <p class="text-muted small mb-3">
+      Si un pago de MP llega con un CUIT o email distinto al de este cliente (por ejemplo,
+      paga con otra cuenta), agregá ese CUIT o email acá para que se facture igual a
+      <strong>{{ cliente.name }}</strong> en vez de crear un cliente nuevo.
+    </p>
+
+    {% if alias_error %}
+    <div class="alert alert-danger py-2 small">{{ alias_error }}</div>
+    {% endif %}
+
+    {% if alias_facturacion %}
+    <ul class="list-group list-group-flush mb-3">
+      {% for a in alias_facturacion %}
+      <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+        <span>
+          <span class="badge bg-secondary me-2">{{ 'CUIT' if a.tipo == 'cuit' else 'Email' }}</span>
+          <span class="font-monospace">{{ a.valor|cuit if a.tipo == 'cuit' else a.valor }}</span>
+        </span>
+        <form method="post" action="/clientes/{{ cliente.id }}/alias-facturacion/{{ a.id }}/eliminar"
+              onsubmit="return confirm('¿Quitar este alias de facturación?')">
+          <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-muted small">Todavía no hay alias configurados para este cliente.</p>
+    {% endif %}
+
+    <form method="post" action="/clientes/{{ cliente.id }}/alias-facturacion" class="row g-2 align-items-end">
+      <div class="col-auto">
+        <label class="form-label small mb-1">Tipo</label>
+        <select name="tipo" class="form-select form-select-sm">
+          <option value="cuit">CUIT</option>
+          <option value="email">Email</option>
+        </select>
+      </div>
+      <div class="col-auto">
+        <label class="form-label small mb-1">Valor</label>
+        <input type="text" name="valor" class="form-control form-control-sm" placeholder="20-12345678-9 o correo@ejemplo.com" required>
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-sm btn-outline-primary">
+          <i class="bi bi-plus-lg me-1"></i>Agregar alias
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
 {# ── Facturas ── #}
 {% if facturas %}
 <div class="card mb-4">
