@@ -179,7 +179,10 @@ async def generar_factura_mp(
         logger.error("Error PDF factura MP %s: %s", factura_id, e)
 
     pv_str  = str(punto_venta).zfill(4)
-    num_str = str(numero).zfill(8)
+    # factura["numero"], no la variable local `numero`: create_factura() puede
+    # haber reintentado con un número distinto si el original chocó contra
+    # idx_facturas_numero_unico (race condition de numeración, ver database.py).
+    num_str = str(factura["numero"]).zfill(8)
     tipo_lb = _TIPO_LABEL.get(tipo, "Factura")
 
     db.create_caja_movimiento(

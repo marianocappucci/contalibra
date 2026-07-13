@@ -1,11 +1,14 @@
 import os
 import random
 import datetime
+import logging
 
 import database as db
 import config_manager
 import arca_wsaa
 import arca_wsfe
+
+logger = logging.getLogger(__name__)
 
 
 def _es_dev() -> bool:
@@ -46,7 +49,15 @@ async def get_next_numero_with_arca(punto_venta: int, tipo: int):
                 ta["token"], ta["sign"], arca["ambiente"],
             )
             numero = ultimo + 1
-        except Exception:
+        except Exception as e:
+            # Antes se silenciaba por completo (hallazgo cruzado desde la
+            # auditoría de Restolibra, "errores de ARCA se silencian") — si
+            # ARCA no responde o el auth falla, la factura sigue su curso sin
+            # que quede registro del motivo real.
+            logger.error(
+                "ARCA no disponible al pedir numero para PV=%s tipo=%s, "
+                "cae a numeracion local: %s", punto_venta, tipo, e,
+            )
             ta     = None
             numero = db.get_next_factura_numero(punto_venta, tipo)
     else:
@@ -74,5 +85,6 @@ async def solicitar_cae(factura_id: int, factura: dict, ta, arca) -> dict:
         )
         db.update_factura_cae(factura_id, cae_data["cae"], cae_data["cae_vto"])
         return db.get_factura(factura_id)
-    except Exception:
+    except Exception as e:
+        logger.error("Error al solicitar CAE para factura %s: %s", factura_id, e)
         return factura
