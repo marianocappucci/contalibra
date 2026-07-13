@@ -109,14 +109,14 @@ _MEDIO_LABEL = {
 }
 
 _MEDIO_ICON = {
-    "efectivo":         "bi-cash",
-    "transferencia":    "bi-bank",
-    "mercadopago":      "bi-phone",
-    "cuenta_dni":       "bi-person-vcard",
-    "billetera":        "bi-wallet2",
-    "cuenta_corriente": "bi-journal-text",
-    "cheque":           "bi-file-earmark-text",
-    "sin_especificar":  "bi-question-circle",
+    "efectivo":         "payments",
+    "transferencia":    "account_balance",
+    "mercadopago":      "call",
+    "cuenta_dni":       "perm_identity",
+    "billetera":        "account_balance_wallet",
+    "cuenta_corriente": "menu_book",
+    "cheque":           "description",
+    "sin_especificar":  "help",
 }
 
 

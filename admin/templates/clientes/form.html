@@ -3,8 +3,8 @@
 {% block content %}
 
 <div class="d-flex align-items-center gap-2 mb-3">
-  <a href="/" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
-  <h1 class="h4 m-0"><i class="bi bi-plus-circle me-2"></i>Nuevo cliente</h1>
+  <a href="/" class="btn btn-sm btn-outline-secondary"><span class="material-symbols-outlined">arrow_back</span></a>
+  <h1 class="h4 m-0"><span class="material-symbols-outlined me-2">add_circle</span>Nuevo cliente</h1>
 </div>
 
 <div class="card">
@@ -58,13 +58,13 @@
       </div>
 
       <div class="alert alert-warning mt-3 mb-3 py-2 small">
-        <i class="bi bi-info-circle me-1"></i>
+        <span class="material-symbols-outlined me-1">info</span>
         Se creará el directorio del cliente, se levantará su contenedor Docker y se aplicará el plan elegido.
         Puede tardar unos segundos (build de imagen la primera vez).
       </div>
 
       <div class="d-flex gap-2">
-        <button class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Crear cliente</button>
+        <button class="btn btn-primary"><span class="material-symbols-outlined me-1">check</span>Crear cliente</button>
         <a href="/" class="btn btn-outline-secondary">Cancelar</a>
       </div>
     </form>

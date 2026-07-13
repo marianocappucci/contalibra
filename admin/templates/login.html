@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ingresar — Backoffice Contalibra</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="/static/vendor/material-symbols/material-symbols-outlined.css" rel="stylesheet">
   <style> body { background:#1a1a2e; } </style>
 </head>
 <body>
   <div class="container" style="max-width:400px; margin-top:12vh;">
     <div class="card shadow">
       <div class="card-body p-4">
-        <h1 class="h4 text-center mb-1"><i class="bi bi-hdd-stack me-2"></i>Backoffice</h1>
+        <h1 class="h4 text-center mb-1"><span class="material-symbols-outlined me-2">dns</span>Backoffice</h1>
         <p class="text-center text-muted small mb-4">Contalibra · gestión de clientes y planes</p>
         {% if error == "2" %}
         <div class="alert alert-danger py-2 small">Demasiados intentos fallidos. Esperá unos minutos e intentá de nuevo.</div>
@@ -28,7 +28,7 @@
             <label class="form-label fw-semibold">Contraseña</label>
             <input type="password" name="password" class="form-control" required>
           </div>
-          <button class="btn btn-primary w-100"><i class="bi bi-box-arrow-in-right me-1"></i>Ingresar</button>
+          <button class="btn btn-primary w-100"><span class="material-symbols-outlined me-1">login</span>Ingresar</button>
         </form>
       </div>
     </div>

@@ -2,8 +2,8 @@
 {% block title %}Clientes — Contalibra{% endblock %}
 {% block content %}
 <div class="page-header">
-  <h1><i class="bi bi-people me-2 text-primary"></i>Clientes</h1>
-  <a href="/clientes/nuevo" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Nuevo cliente</a>
+  <h1><span class="material-symbols-outlined me-2 text-primary">group</span>Clientes</h1>
+  <a href="/clientes/nuevo" class="btn btn-primary"><span class="material-symbols-outlined me-1">add</span>Nuevo cliente</a>
 </div>
 
 {% if error %}
@@ -37,16 +37,16 @@
             <td><span class="text-muted small">{{ c.iva_condition or '—' }}</span></td>
             <td>{{ c.phone or '—' }}</td>
             <td class="text-end">
-              <a href="/clientes/{{ c.id }}" class="btn btn-sm btn-outline-primary" title="Ver ficha"><i class="bi bi-eye"></i></a>
+              <a href="/clientes/{{ c.id }}" class="btn btn-sm btn-outline-primary" title="Ver ficha"><span class="material-symbols-outlined">visibility</span></a>
               {% if c.activo %}
-              <a href="/clientes/{{ c.id }}/editar" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
+              <a href="/clientes/{{ c.id }}/editar" class="btn btn-sm btn-outline-secondary"><span class="material-symbols-outlined">edit</span></a>
               <form class="d-inline" method="post" action="/clientes/{{ c.id }}/eliminar"
                     onsubmit="return confirm('¿Eliminar a {{ c.name }}?')">
-                <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                <button class="btn btn-sm btn-outline-danger"><span class="material-symbols-outlined">delete</span></button>
               </form>
               {% else %}
               <form class="d-inline" method="post" action="/clientes/{{ c.id }}/activar">
-                <button class="btn btn-sm btn-outline-success" title="Reactivar cliente"><i class="bi bi-arrow-counterclockwise"></i></button>
+                <button class="btn btn-sm btn-outline-success" title="Reactivar cliente"><span class="material-symbols-outlined">undo</span></button>
               </form>
               {% endif %}
             </td>
