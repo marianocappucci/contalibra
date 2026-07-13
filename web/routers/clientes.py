@@ -27,7 +27,7 @@ IVA_CONDITIONS = [
 @router.get("/clientes")
 def clientes_list(request: Request, user: Auth):
     return templates.TemplateResponse(request, "clientes/list.html", {
-        "clientes": db.get_all_clients(), "active": "clientes",
+        "clientes": db.get_all_clients_including_inactive(), "active": "clientes",
     })
 
 
@@ -139,8 +139,17 @@ def cliente_eliminar(request: Request, cliente_id: int, user: Auth):
         db.desactivar_cliente(cliente_id)
     except ValueError as e:
         return templates.TemplateResponse(request, "clientes/list.html", {
-            "clientes": db.get_all_clients(), "error": str(e), "active": "clientes",
+            "clientes": db.get_all_clients_including_inactive(), "error": str(e), "active": "clientes",
         }, status_code=422)
+    return RedirectResponse("/clientes", status_code=303)
+
+
+@router.post("/clientes/{cliente_id}/activar")
+def cliente_activar(request: Request, cliente_id: int, user: Auth):
+    cliente = db.get_client(cliente_id)
+    if not cliente:
+        raise HTTPException(404)
+    db.activar_cliente(cliente_id)
     return RedirectResponse("/clientes", status_code=303)
 
 

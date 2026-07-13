@@ -3,11 +3,24 @@
 {% block content %}
 
 <div class="page-header">
-  <h1><i class="bi bi-person-circle me-2 text-primary"></i>{{ cliente.name }}</h1>
+  <h1>
+    <i class="bi bi-person-circle me-2 text-primary"></i>{{ cliente.name }}
+    {% if not cliente.activo %}
+    <span class="badge bg-secondary ms-2 align-middle">Inactivo</span>
+    {% endif %}
+  </h1>
   <div class="d-flex gap-2">
+    {% if cliente.activo %}
     <a href="/clientes/{{ cliente.id }}/editar" class="btn btn-outline-secondary">
       <i class="bi bi-pencil me-1"></i>Editar
     </a>
+    {% else %}
+    <form method="post" action="/clientes/{{ cliente.id }}/activar">
+      <button type="submit" class="btn btn-success">
+        <i class="bi bi-arrow-counterclockwise me-1"></i>Reactivar cliente
+      </button>
+    </form>
+    {% endif %}
     <a href="/clientes" class="btn btn-outline-secondary">
       <i class="bi bi-arrow-left me-1"></i>Volver
     </a>

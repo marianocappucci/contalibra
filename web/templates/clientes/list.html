@@ -26,20 +26,29 @@
         </thead>
         <tbody>
           {% for c in clientes %}
-          <tr>
+          <tr class="{{ 'opacity-50' if not c.activo }}">
             <td class="fw-semibold">
               <a href="/clientes/{{ c.id }}" class="text-decoration-none">{{ c.name }}</a>
+              {% if not c.activo %}
+              <span class="badge bg-secondary ms-1">Inactivo</span>
+              {% endif %}
             </td>
             <td>{{ c.cuit_dni|cuit if c.cuit_dni else '—' }}</td>
             <td><span class="text-muted small">{{ c.iva_condition or '—' }}</span></td>
             <td>{{ c.phone or '—' }}</td>
             <td class="text-end">
               <a href="/clientes/{{ c.id }}" class="btn btn-sm btn-outline-primary" title="Ver ficha"><i class="bi bi-eye"></i></a>
+              {% if c.activo %}
               <a href="/clientes/{{ c.id }}/editar" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
               <form class="d-inline" method="post" action="/clientes/{{ c.id }}/eliminar"
                     onsubmit="return confirm('¿Eliminar a {{ c.name }}?')">
                 <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
               </form>
+              {% else %}
+              <form class="d-inline" method="post" action="/clientes/{{ c.id }}/activar">
+                <button class="btn btn-sm btn-outline-success" title="Reactivar cliente"><i class="bi bi-arrow-counterclockwise"></i></button>
+              </form>
+              {% endif %}
             </td>
           </tr>
           {% endfor %}

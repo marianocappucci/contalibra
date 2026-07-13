@@ -581,6 +581,13 @@ def desactivar_cliente(client_id: int) -> bool:
         return True
 
 
+def activar_cliente(client_id: int) -> bool:
+    """Reactiva un cliente previamente desactivado."""
+    with get_connection() as conn:
+        conn.execute("UPDATE clients SET activo = 1 WHERE id = ?", (client_id,))
+        return True
+
+
 def tiene_presupuestos_aprobados(client_id: int) -> bool:
     """Verifica si un cliente tiene presupuestos en estado 'aceptado'."""
     with get_connection() as conn:
