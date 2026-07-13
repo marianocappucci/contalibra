@@ -159,12 +159,9 @@ async def webhook_mercadopago(request: Request):
             "Pago MP aprobado payment_id=%s monto=%.2f tipo=%s método=%s",
             payment_id, monto, payment_type, payment_method,
         )
-        # Buscar cliente por email o CUIT (normalizado, sin guiones)
-        client = (
-            db.get_client_by_email(payer_email) if payer_email else None
-        ) or (
-            db.get_client_by_cuit(payer_id_number) if payer_id_number else None
-        )
+        # Buscar cliente: primero por alias de facturación (excepción configurada
+        # para este CUIT/email de pagador), si no por email o CUIT directo.
+        client = db.resolver_cliente_pago(payer_email, payer_id_number)
 
         # Auto-facturación por flag del cliente
         if client and client.get("auto_facturar"):

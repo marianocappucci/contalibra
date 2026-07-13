@@ -242,6 +242,7 @@ async def mp_facturar(mp_pago_id: int, request: Request, _: Auth):
         referencia=f"MP#{pago['mp_payment_id']}",
         cfg=cfg,
         payment_type=pago.get("payment_type") or "",
+        payer_cuit=pago.get("payer_id_number") or "",
     )
     db.update_mp_pago_estado(mp_pago_id, "facturado", factura_id=factura_id)
     email_param = "" if email_sent else "&email_error=1" if pago.get("payer_email") else ""
@@ -321,6 +322,7 @@ async def mov_facturar(mov_id: int, request: Request, _: Auth):
         referencia=f"Transferencia MP#{mov['mp_movement_id']}",
         cfg=cfg,
         payment_type=mov.get("tipo") or "",
+        payer_cuit=mov.get("payer_id_number") or "",
     )
     db.update_mp_movimiento_estado(mov_id, "facturado", factura_id=factura_id)
     email_param = "" if email_sent else "&email_error=1" if payer_email else ""
