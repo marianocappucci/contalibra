@@ -24,6 +24,7 @@ def get_connection():
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA busy_timeout = 15000")
     return conn
 
 
@@ -515,6 +516,20 @@ def init_db():
                 usuario_id  INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
                 created_at  TEXT DEFAULT (datetime('now'))
             )
+        """)
+
+        conn.executescript("""
+            -- Índices mínimos sobre las tablas de mayor tráfico (reportes,
+            -- filtros por fecha/cliente) — el esquema no tenía ninguno
+            -- (hallazgo cruzado desde la auditoría de Restolibra, ver
+            -- wiki/analyses/restolibra-auditoria-produccion).
+            CREATE INDEX IF NOT EXISTS idx_clients_cuit_norm ON clients(REPLACE(cuit_dni, '-', ''));
+            CREATE INDEX IF NOT EXISTS idx_facturas_fecha ON facturas(fecha);
+            CREATE INDEX IF NOT EXISTS idx_facturas_cliente_cuit ON facturas(cliente_cuit);
+            CREATE INDEX IF NOT EXISTS idx_ventas_fecha ON ventas(fecha);
+            CREATE INDEX IF NOT EXISTS idx_caja_movimientos_fecha ON caja_movimientos(fecha);
+            CREATE INDEX IF NOT EXISTS idx_cc_pagos_cliente ON cc_pagos(cliente_id);
+            CREATE INDEX IF NOT EXISTS idx_movimientos_stock_producto ON movimientos_stock(producto_id);
         """)
 
         # Seed de módulos: inserta sólo los que no existen aún

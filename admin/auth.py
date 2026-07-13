@@ -11,7 +11,18 @@ import time
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from fastapi import Request, HTTPException
 
-SECRET_KEY   = os.environ.get("SECRET_KEY", "contalibra-admin-secret-change-me")
+SECRET_KEY = os.environ.get("SECRET_KEY", "")
+if not SECRET_KEY:
+    if os.environ.get("ENV", "production") == "development":
+        SECRET_KEY = "contalibra-admin-secret-change-me"
+    else:
+        # Fail-fast: este secreto gobierna la sesión del backoffice que administra
+        # TODOS los clientes — no puede arrancar con un valor público conocido
+        # (hallazgo cruzado desde la auditoría de Restolibra).
+        raise RuntimeError(
+            "SECRET_KEY no está seteado para el backoffice de superadmin. "
+            "Para desarrollo local sin uno, setear ENV=development."
+        )
 PANEL_USER   = os.environ.get("ADMIN_PANEL_USER", "superadmin")
 PANEL_PASS   = os.environ.get("ADMIN_PANEL_PASSWORD", "")
 COOKIE_NAME  = "cladmin_session"
@@ -60,7 +71,7 @@ def registrar_intento_fallido(ip: str):
 
 def create_session_cookie(response, username: str):
     response.set_cookie(COOKIE_NAME, _signer.dumps(username),
-                        httponly=True, samesite="lax")
+                        httponly=True, samesite="lax", secure=True)
 
 
 def clear_session_cookie(response):

@@ -41,7 +41,7 @@ from web.routers import libros_iva as libros_iva_router
 app = FastAPI(title="Contalibra")
 
 
-_BYPASS_PATHS = {"/suspendido", "/login", "/logout", "/favicon.ico", "/api/auth/verify"}
+_BYPASS_PATHS = {"/suspendido", "/login", "/logout", "/favicon.ico", "/api/auth/verify", "/health"}
 
 class CurrentUserMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -88,6 +88,15 @@ templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+@app.get("/health", include_in_schema=False)
+def health():
+    """Sin auth, sin lógica de negocio — para Docker HEALTHCHECK y monitoreo
+    externo (uptime-kuma). Ver wiki/analyses/restolibra-auditoria-produccion:
+    no había ningún endpoint determinístico para chequear que la instancia
+    de un cliente esté viva (hallazgo cruzado a este repo)."""
+    return {"status": "ok"}
 
 
 @app.get("/suspendido")
