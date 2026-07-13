@@ -48,14 +48,20 @@ async def cliente_nuevo_post(request: Request, user: Auth):
             "cliente": None, "error": "El nombre es obligatorio.",
             "active": "clientes", "iva_conditions": IVA_CONDITIONS,
         }, status_code=422)
-    db.create_client(
-        name,
-        str(form.get("address", "")).strip(),
-        str(form.get("cuit_dni", "")).strip(),
-        str(form.get("email", "")).strip(),
-        str(form.get("phone", "")).strip(),
-        str(form.get("iva_condition", "")).strip(),
-    )
+    try:
+        db.create_client(
+            name,
+            str(form.get("address", "")).strip(),
+            str(form.get("cuit_dni", "")).strip(),
+            str(form.get("email", "")).strip(),
+            str(form.get("phone", "")).strip(),
+            str(form.get("iva_condition", "")).strip(),
+        )
+    except ValueError as e:
+        return templates.TemplateResponse(request, "clientes/form.html", {
+            "cliente": None, "error": str(e),
+            "active": "clientes", "iva_conditions": IVA_CONDITIONS,
+        }, status_code=422)
     return RedirectResponse("/clientes", status_code=303)
 
 

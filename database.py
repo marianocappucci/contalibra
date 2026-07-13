@@ -550,6 +550,15 @@ def init_db():
 # ── Clients ────────────────────────────────────────────────────────────────────
 
 def create_client(name, address="", cuit_dni="", email="", phone="", iva_condition=""):
+    if (cuit_dni or "").replace("-", "").strip():
+        existing = get_client_by_cuit(cuit_dni)
+        if existing:
+            estado = "activo" if existing.get("activo") else "inactivo"
+            sugerencia = "Reactivalo desde /clientes en vez de crear uno nuevo." if not existing.get("activo") \
+                else "Editalo si necesitás cambiar sus datos."
+            raise ValueError(
+                f'Ya existe un cliente con el CUIT/DNI {cuit_dni}: "{existing["name"]}" ({estado}). {sugerencia}'
+            )
     with get_connection() as conn:
         cur = conn.execute(
             "INSERT INTO clients (name, address, cuit_dni, email, phone, iva_condition) VALUES (?,?,?,?,?,?)",
@@ -1482,13 +1491,15 @@ def get_client_by_email(email: str):
 
 
 def get_client_by_cuit(cuit: str):
-    """Busca cliente por CUIT normalizando guiones (ej: 20317819162 == 20-31781916-2)."""
+    """Busca cliente por CUIT normalizando guiones (ej: 20317819162 == 20-31781916-2).
+    Si hay más de un cliente con el mismo CUIT (duplicado), prioriza el activo
+    y, entre iguales, el más reciente."""
     normalized = (cuit or "").replace("-", "").strip()
     if not normalized:
         return None
     with get_connection() as conn:
         row = conn.execute(
-            "SELECT * FROM clients WHERE REPLACE(cuit_dni, '-', '') = ? LIMIT 1",
+            "SELECT * FROM clients WHERE REPLACE(cuit_dni, '-', '') = ? ORDER BY activo DESC, id DESC LIMIT 1",
             (normalized,),
         ).fetchone()
     return dict(row) if row else None
