@@ -118,6 +118,36 @@ from db_cuenta_corriente import (  # noqa: F401
     delete_cc_pago,
 )
 from db_libros_iva import get_facturas_para_iva, get_egresos_para_iva  # noqa: F401
+from db_reportes import (  # noqa: F401
+    get_reporte_ventas,
+    get_reporte_medios_pago,
+    get_reporte_productos_top,
+    get_reporte_caja,
+    get_reporte_caja_medios,
+    get_reporte_stock_bajo,
+    get_reporte_resumen,
+)
+from db_productos import (  # noqa: F401
+    get_all_depositos,
+    get_deposito,
+    get_default_deposito_id,
+    create_deposito,
+    update_deposito,
+    set_default_deposito,
+    delete_deposito,
+    get_stock_por_deposito,
+    get_stock_producto_todos_depositos,
+    transferir_stock,
+    get_categorias_producto,
+    create_categoria_producto,
+    delete_categoria_producto,
+    create_producto,
+    get_all_productos,
+    get_producto,
+    get_producto_by_codigo,
+    update_producto,
+    delete_producto,
+)
 
 
 def init_db():
@@ -1610,214 +1640,7 @@ def vincular_mp_pago_cliente(mp_pago_id: int, payer_email: str, payer_name: str)
 
 # ── Usuarios ── movido a db_usuarios.py, re-exportado arriba ──────────────────
 
-# ── Depósitos ─────────────────────────────────────────────────────────────────
-
-def get_all_depositos() -> list[dict]:
-    with get_connection() as conn:
-        rows = conn.execute(
-            "SELECT * FROM depositos ORDER BY es_default DESC, nombre"
-        ).fetchall()
-    return [dict(r) for r in rows]
-
-
-def get_deposito(did: int) -> dict | None:
-    with get_connection() as conn:
-        row = conn.execute("SELECT * FROM depositos WHERE id=?", (did,)).fetchone()
-    return dict(row) if row else None
-
-
-def get_default_deposito_id() -> int | None:
-    with get_connection() as conn:
-        row = conn.execute(
-            "SELECT id FROM depositos WHERE es_default=1 LIMIT 1"
-        ).fetchone()
-        if not row:
-            row = conn.execute("SELECT id FROM depositos ORDER BY id LIMIT 1").fetchone()
-    return row[0] if row else None
-
-
-def create_deposito(nombre: str, descripcion: str = "") -> int:
-    with get_connection() as conn:
-        cur = conn.execute(
-            "INSERT INTO depositos (nombre, descripcion) VALUES (?,?)",
-            (nombre, descripcion),
-        )
-        return cur.lastrowid
-
-
-def update_deposito(did: int, nombre: str, descripcion: str, activo: int):
-    with get_connection() as conn:
-        conn.execute(
-            "UPDATE depositos SET nombre=?, descripcion=?, activo=? WHERE id=?",
-            (nombre, descripcion, activo, did),
-        )
-
-
-def set_default_deposito(did: int):
-    with get_connection() as conn:
-        conn.execute("UPDATE depositos SET es_default=0")
-        conn.execute("UPDATE depositos SET es_default=1 WHERE id=?", (did,))
-
-
-def delete_deposito(did: int):
-    with get_connection() as conn:
-        tiene = conn.execute(
-            "SELECT COUNT(*) FROM movimientos_stock WHERE deposito_id=?", (did,)
-        ).fetchone()[0]
-        if tiene:
-            raise ValueError("No se puede eliminar un depósito con movimientos de stock.")
-        es_default = conn.execute(
-            "SELECT es_default FROM depositos WHERE id=?", (did,)
-        ).fetchone()
-        if es_default and es_default[0]:
-            raise ValueError("No se puede eliminar el depósito por defecto.")
-        conn.execute("DELETE FROM depositos WHERE id=?", (did,))
-
-
-def get_stock_por_deposito(deposito_id: int) -> list[dict]:
-    with get_connection() as conn:
-        rows = conn.execute("""
-            SELECT p.id, p.codigo, p.nombre, p.unidad, p.categoria,
-                   p.stock_minimo, p.activo,
-                   COALESCE(SUM(m.cantidad), 0) AS stock_actual
-            FROM productos p
-            LEFT JOIN movimientos_stock m ON m.producto_id = p.id AND m.deposito_id = ?
-            WHERE p.activo = 1
-            GROUP BY p.id
-            HAVING stock_actual != 0 OR p.stock_minimo > 0
-            ORDER BY p.nombre
-        """, (deposito_id,)).fetchall()
-    return [dict(r) for r in rows]
-
-
-def get_stock_producto_todos_depositos(producto_id: int) -> list[dict]:
-    with get_connection() as conn:
-        rows = conn.execute("""
-            SELECT d.id, d.nombre, d.es_default,
-                   COALESCE(SUM(m.cantidad), 0) AS stock_actual
-            FROM depositos d
-            LEFT JOIN movimientos_stock m ON m.deposito_id = d.id AND m.producto_id = ?
-            WHERE d.activo = 1
-            GROUP BY d.id
-            ORDER BY d.es_default DESC, d.nombre
-        """, (producto_id,)).fetchall()
-    return [dict(r) for r in rows]
-
-
-def transferir_stock(producto_id: int, origen_id: int, destino_id: int,
-                     cantidad: float, usuario_id: int | None = None,
-                     fecha: str = "", observaciones: str = ""):
-    from datetime import date as _date
-    _fecha = fecha or _date.today().isoformat()
-    stock_origen = 0.0
-    with get_connection() as conn:
-        row = conn.execute(
-            "SELECT COALESCE(SUM(cantidad),0) FROM movimientos_stock WHERE producto_id=? AND deposito_id=?",
-            (producto_id, origen_id),
-        ).fetchone()
-        stock_origen = float(row[0])
-    if cantidad > stock_origen:
-        raise ValueError(f"Stock insuficiente en depósito origen (disponible: {stock_origen}).")
-    ref = observaciones or "Transferencia entre depósitos"
-    with get_connection() as conn:
-        conn.execute(
-            """INSERT INTO movimientos_stock (producto_id, tipo, cantidad, referencia, usuario_id, fecha, deposito_id)
-               VALUES (?,?,?,?,?,?,?)""",
-            (producto_id, "transferencia_salida", -cantidad, ref, usuario_id, _fecha, origen_id),
-        )
-        conn.execute(
-            """INSERT INTO movimientos_stock (producto_id, tipo, cantidad, referencia, usuario_id, fecha, deposito_id)
-               VALUES (?,?,?,?,?,?,?)""",
-            (producto_id, "transferencia_entrada", cantidad, ref, usuario_id, _fecha, destino_id),
-        )
-
-
-# ── Categorías de producto ────────────────────────────────────────────────────
-
-def get_categorias_producto() -> list[dict]:
-    with get_connection() as conn:
-        rows = conn.execute("SELECT id, nombre FROM categorias_producto ORDER BY nombre").fetchall()
-    return [dict(r) for r in rows]
-
-
-def create_categoria_producto(nombre: str) -> int:
-    with get_connection() as conn:
-        cur = conn.execute("INSERT INTO categorias_producto (nombre) VALUES (?)", (nombre,))
-        return cur.lastrowid
-
-
-def delete_categoria_producto(cid: int):
-    with get_connection() as conn:
-        conn.execute("DELETE FROM categorias_producto WHERE id=?", (cid,))
-
-
-# ── Productos ─────────────────────────────────────────────────────────────────
-
-def create_producto(nombre: str, codigo: str = "", descripcion: str = "",
-                    precio_venta: float = 0, precio_costo: float = 0,
-                    unidad: str = "u", categoria: str = "",
-                    stock_minimo: float = 0) -> int:
-    with get_connection() as conn:
-        cur = conn.execute(
-            """INSERT INTO productos
-               (codigo, nombre, descripcion, precio_venta, precio_costo,
-                unidad, categoria, stock_minimo)
-               VALUES (?,?,?,?,?,?,?,?)""",
-            (codigo or None, nombre, descripcion, precio_venta, precio_costo,
-             unidad, categoria, stock_minimo),
-        )
-        return cur.lastrowid
-
-
-def get_all_productos(solo_activos: bool = False, q: str = "") -> list[dict]:
-    with get_connection() as conn:
-        where = []
-        params = []
-        if solo_activos:
-            where.append("activo=1")
-        if q:
-            where.append("(nombre LIKE ? OR codigo LIKE ? OR categoria LIKE ?)")
-            params += [f"%{q}%", f"%{q}%", f"%{q}%"]
-        sql = "SELECT * FROM productos"
-        if where:
-            sql += " WHERE " + " AND ".join(where)
-        sql += " ORDER BY nombre"
-        return [dict(r) for r in conn.execute(sql, params).fetchall()]
-
-
-def get_producto(pid: int) -> dict | None:
-    with get_connection() as conn:
-        row = conn.execute("SELECT * FROM productos WHERE id=?", (pid,)).fetchone()
-        return dict(row) if row else None
-
-
-def get_producto_by_codigo(codigo: str) -> dict | None:
-    with get_connection() as conn:
-        row = conn.execute(
-            "SELECT * FROM productos WHERE codigo=? AND activo=1", (codigo,)
-        ).fetchone()
-        return dict(row) if row else None
-
-
-def update_producto(pid: int, nombre: str, codigo: str, descripcion: str,
-                    precio_venta: float, precio_costo: float,
-                    unidad: str, categoria: str, activo: int,
-                    stock_minimo: float = 0):
-    with get_connection() as conn:
-        conn.execute(
-            """UPDATE productos SET nombre=?, codigo=?, descripcion=?,
-               precio_venta=?, precio_costo=?, unidad=?, categoria=?,
-               activo=?, stock_minimo=?
-               WHERE id=?""",
-            (nombre, codigo or None, descripcion, precio_venta, precio_costo,
-             unidad, categoria, activo, stock_minimo, pid),
-        )
-
-
-def delete_producto(pid: int):
-    with get_connection() as conn:
-        conn.execute("DELETE FROM productos WHERE id=?", (pid,))
-
+# ── Depósitos/Categorías de producto/Productos ── movido a db_productos.py, re-exportado arriba ─
 
 # ── Turnos de caja ── movido a db_turnos.py, re-exportado arriba ──────────────
 
@@ -2173,147 +1996,9 @@ def vincular_venta_remito(vid: int, remito_id: int):
 
 # ── Módulos ── movido a db_modulos.py, re-exportado arriba ────────────────────
 
-# ── Reportes ───────────────────────────────────────────────────────────────────
-
-def get_reporte_ventas(desde: str = "", hasta: str = "", agrupacion: str = "dia") -> list[dict]:
-    """Ventas agrupadas por día, semana o mes."""
-    fmt = {"dia": "%Y-%m-%d", "semana": "%Y-W%W", "mes": "%Y-%m"}.get(agrupacion, "%Y-%m-%d")
-    where, params = [], []
-    if desde:
-        where.append("fecha >= ?"); params.append(desde)
-    if hasta:
-        where.append("fecha <= ?"); params.append(hasta)
-    w = ("WHERE " + " AND ".join(where)) if where else ""
-    sql = f"""
-        SELECT strftime('{fmt}', fecha) AS periodo,
-               COUNT(*) AS cantidad,
-               ROUND(SUM(total), 2) AS total
-        FROM ventas {w}
-        GROUP BY periodo ORDER BY periodo
-    """
-    with get_connection() as conn:
-        return [dict(r) for r in conn.execute(sql, params).fetchall()]
-
-
-def get_reporte_medios_pago(desde: str = "", hasta: str = "") -> list[dict]:
-    """Totales por medio de pago en el período."""
-    where, params = [], []
-    if desde:
-        where.append("v.fecha >= ?"); params.append(desde)
-    if hasta:
-        where.append("v.fecha <= ?"); params.append(hasta)
-    w = ("WHERE " + " AND ".join(where)) if where else ""
-    sql = f"""
-        SELECT vp.medio, COUNT(DISTINCT vp.venta_id) AS operaciones,
-               ROUND(SUM(vp.monto), 2) AS total
-        FROM ventas_pagos vp
-        JOIN ventas v ON v.id = vp.venta_id {w}
-        GROUP BY vp.medio ORDER BY total DESC
-    """
-    with get_connection() as conn:
-        return [dict(r) for r in conn.execute(sql, params).fetchall()]
-
-
-def get_reporte_productos_top(desde: str = "", hasta: str = "", limit: int = 20) -> list[dict]:
-    """Productos más vendidos (por cantidad y por monto) en el período."""
-    where, params = [], []
-    if desde:
-        where.append("v.fecha >= ?"); params.append(desde)
-    if hasta:
-        where.append("v.fecha <= ?"); params.append(hasta)
-    w = ("WHERE " + " AND ".join(where)) if where else ""
-    sql = f"""
-        SELECT ji.value->>'$.nombre' AS nombre,
-               ROUND(SUM(CAST(ji.value->>'$.qty' AS REAL)), 2) AS cantidad,
-               ROUND(SUM(CAST(ji.value->>'$.qty' AS REAL) *
-                         CAST(ji.value->>'$.precio' AS REAL)), 2) AS total
-        FROM ventas v, json_each(v.items) ji {w}
-        GROUP BY nombre ORDER BY cantidad DESC LIMIT ?
-    """
-    params.append(limit)
-    with get_connection() as conn:
-        return [dict(r) for r in conn.execute(sql, params).fetchall()]
-
-
-def get_reporte_caja(desde: str = "", hasta: str = "") -> list[dict]:
-    """Movimientos de caja por tipo en el período."""
-    where, params = [], []
-    if desde:
-        where.append("fecha >= ?"); params.append(desde)
-    if hasta:
-        where.append("fecha <= ?"); params.append(hasta)
-    w = ("WHERE " + " AND ".join(where)) if where else ""
-    sql = f"""
-        SELECT tipo, COUNT(*) AS cantidad, ROUND(SUM(monto), 2) AS total
-        FROM caja_movimientos {w}
-        GROUP BY tipo ORDER BY total DESC
-    """
-    with get_connection() as conn:
-        return [dict(r) for r in conn.execute(sql, params).fetchall()]
-
-
-def get_reporte_caja_medios(desde: str = "", hasta: str = "", caja_id: int = 0) -> list[dict]:
-    """Movimientos de caja agrupados por caja y medio de pago."""
-    where, params = ["cm.fecha BETWEEN ? AND ?"], [desde or "1900-01-01", hasta or "2999-12-31"]
-    if caja_id:
-        where.append("cm.caja_id = ?"); params.append(caja_id)
-    sql = f"""
-        SELECT
-            COALESCE(c.nombre, 'Sin caja')  AS caja_nombre,
-            COALESCE(cm.caja_id, 0)         AS caja_id,
-            LOWER(COALESCE(NULLIF(cm.medio_pago,''), 'sin_especificar')) AS medio,
-            cm.tipo,
-            COUNT(*)                         AS operaciones,
-            ROUND(SUM(cm.monto), 2)          AS total
-        FROM caja_movimientos cm
-        LEFT JOIN cajas c ON c.id = cm.caja_id
-        WHERE {" AND ".join(where)}
-        GROUP BY cm.caja_id, c.nombre, LOWER(COALESCE(NULLIF(cm.medio_pago,''), 'sin_especificar')), cm.tipo
-        ORDER BY caja_nombre, cm.tipo DESC, medio
-    """
-    with get_connection() as conn:
-        return [dict(r) for r in conn.execute(sql, params).fetchall()]
-
-
-def get_reporte_stock_bajo() -> list[dict]:
-    """Productos con stock actual por debajo del mínimo."""
-    sql = """
-        SELECT p.id, p.nombre, p.codigo, p.stock_minimo,
-               ROUND(COALESCE(SUM(ms.cantidad), 0), 3) AS stock_actual
-        FROM productos p
-        LEFT JOIN movimientos_stock ms ON ms.producto_id = p.id
-        GROUP BY p.id
-        HAVING stock_actual < p.stock_minimo
-        ORDER BY (p.stock_minimo - stock_actual) DESC
-    """
-    with get_connection() as conn:
-        return [dict(r) for r in conn.execute(sql).fetchall()]
-
-
-def get_reporte_resumen(desde: str = "", hasta: str = "") -> dict:
-    """KPIs rápidos para el período."""
-    where, params = [], []
-    if desde:
-        where.append("fecha >= ?"); params.append(desde)
-    if hasta:
-        where.append("fecha <= ?"); params.append(hasta)
-    w = ("WHERE " + " AND ".join(where)) if where else ""
-    with get_connection() as conn:
-        v = conn.execute(
-            f"SELECT COUNT(*) cnt, ROUND(SUM(total),2) total FROM ventas {w}", params
-        ).fetchone()
-        f_row = conn.execute(
-            f"SELECT COUNT(*) cnt FROM facturas {w}", params
-        ).fetchone()
-        caja = conn.execute(
-            f"SELECT ROUND(SUM(CASE WHEN tipo='ingreso' THEN monto ELSE -monto END),2) saldo FROM caja_movimientos {w}", params
-        ).fetchone()
-    return {
-        "ventas_cantidad": v["cnt"] or 0,
-        "ventas_total":    v["total"] or 0.0,
-        "facturas_cantidad": f_row["cnt"] or 0,
-        "caja_saldo":      caja["saldo"] or 0.0,
-    }
+# ── Reportes ── movido a db_reportes.py, re-exportado arriba ──────────────────
+# (las 4 funciones de ventas/MP que estaban bajo este header quedan abajo,
+# no son reportes — pendientes para cuando se extraiga el dominio ventas/MP)
 
 
 def set_venta_mp_order(venta_id: int, mp_order_id: str) -> None:
