@@ -10,6 +10,15 @@
     body { background: #1a1a2e; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
     .login-card { width: 100%; max-width: 380px; border-radius: 16px; border: none; box-shadow: 0 4px 24px rgba(0,0,0,.3); }
     .login-brand { font-size: 1.6rem; font-weight: 700; color: #1a1a2e; letter-spacing: .03em; }
+    .password-field { position: relative; }
+    .password-field .form-control { padding-right: 2.75rem; }
+    .toggle-password {
+      position: absolute; top: 50%; right: .5rem; transform: translateY(-50%);
+      border: 0; background: transparent; padding: .25rem; line-height: 0;
+      color: #6c757d; display: flex; align-items: center;
+    }
+    .toggle-password svg { width: 1.15em; height: 1.15em; }
+    .toggle-password .material-symbols-outlined { font-size: 1.25rem; }
   </style>
 </head>
 <body>
@@ -28,10 +37,31 @@
       </div>
       <div class="mb-4">
         <label class="form-label fw-semibold">Contraseña</label>
-        <input type="password" name="password" class="form-control" autocomplete="current-password" required>
+        <div class="password-field">
+          <input type="password" id="password" name="password" class="form-control" autocomplete="current-password" required>
+          <button type="button" class="toggle-password" id="toggle-password" aria-label="Mostrar contraseña">
+            <span class="material-symbols-outlined" id="icon-eye-open">visibility</span>
+            <svg id="icon-eye-off" style="display:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+              <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+          </button>
+        </div>
       </div>
       <button type="submit" class="btn btn-primary w-100 fw-semibold">Ingresar</button>
     </form>
   </div>
+  <script>
+    document.getElementById('toggle-password').addEventListener('click', function () {
+      const input = document.getElementById('password');
+      const eyeOpen = document.getElementById('icon-eye-open');
+      const eyeOff = document.getElementById('icon-eye-off');
+      const isHidden = input.type === 'password';
+      input.type = isHidden ? 'text' : 'password';
+      eyeOpen.style.setProperty('display', isHidden ? 'none' : 'inline-block', 'important');
+      eyeOff.style.setProperty('display', isHidden ? 'block' : 'none', 'important');
+      this.setAttribute('aria-label', isHidden ? 'Ocultar contraseña' : 'Mostrar contraseña');
+    });
+  </script>
 </body>
 </html>
