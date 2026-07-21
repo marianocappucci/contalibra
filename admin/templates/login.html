@@ -60,8 +60,8 @@
       const eyeOff = document.getElementById('icon-eye-off');
       const isHidden = input.type === 'password';
       input.type = isHidden ? 'text' : 'password';
-      eyeOpen.style.display = isHidden ? 'none' : 'inline-block';
-      eyeOff.style.display = isHidden ? 'block' : 'none';
+      eyeOpen.style.setProperty('display', isHidden ? 'none' : 'inline-block', 'important');
+      eyeOff.style.setProperty('display', isHidden ? 'block' : 'none', 'important');
       this.setAttribute('aria-label', isHidden ? 'Ocultar contraseña' : 'Mostrar contraseña');
     });
   </script>
