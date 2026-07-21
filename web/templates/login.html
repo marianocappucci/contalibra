@@ -28,10 +28,25 @@
       </div>
       <div class="mb-4">
         <label class="form-label fw-semibold">Contraseña</label>
-        <input type="password" name="password" class="form-control" autocomplete="current-password" required>
+        <div class="input-group">
+          <input type="password" id="password" name="password" class="form-control" autocomplete="current-password" required>
+          <button type="button" class="btn btn-outline-secondary" id="toggle-password" aria-label="Mostrar contraseña">
+            <span class="material-symbols-outlined" id="toggle-password-icon">visibility</span>
+          </button>
+        </div>
       </div>
       <button type="submit" class="btn btn-primary w-100 fw-semibold">Ingresar</button>
     </form>
   </div>
+  <script>
+    document.getElementById('toggle-password').addEventListener('click', function () {
+      const input = document.getElementById('password');
+      const icon = document.getElementById('toggle-password-icon');
+      const isHidden = input.type === 'password';
+      input.type = isHidden ? 'text' : 'password';
+      icon.textContent = isHidden ? 'visibility_off' : 'visibility';
+      this.setAttribute('aria-label', isHidden ? 'Ocultar contraseña' : 'Mostrar contraseña');
+    });
+  </script>
 </body>
 </html>
