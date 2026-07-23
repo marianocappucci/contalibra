@@ -434,6 +434,44 @@ export type Venta = {
 
 export type ProductoBusqueda = { id: number; codigo: string; nombre: string; precio_venta: number; unidad: string }
 
+export type FacturaItem = { description: string; qty: number; unit_price: number; subtotal: number }
+
+export type Factura = {
+  id: number
+  tipo: number
+  punto_venta: number
+  numero: number
+  fecha: string
+  cliente_cuit: string
+  cliente_razon: string
+  items: FacturaItem[]
+  subtotal: number
+  iva_amount: number
+  total: number
+  concepto: number
+  cae: string
+  cae_vto: string
+  observaciones: string
+  condicion_venta: string
+  total_cobrado?: number
+}
+
+export type FacturaDetalle = {
+  factura: Factura
+  tipo_label: string
+  concepto_label: string
+  iva_label: string
+  notas_credito: Factura[]
+  notas_debito: Factura[]
+  factura_original: Factura | null
+  cobros: { id: number; monto: number; medio_pago: string; fecha: string; referencia: string }[]
+  total_cobrado: number
+  pendiente: number
+  cliente_email: string
+}
+
+export type TipoFactura = { value: number; label: string }
+
 export type DashboardData = {
   mes_desde: string
   mes_hasta: string

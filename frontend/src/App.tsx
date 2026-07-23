@@ -19,6 +19,7 @@ import { Caja } from './pages/Caja'
 import { Cajas } from './pages/Cajas'
 import { Turnos } from './pages/Turnos'
 import { Ventas } from './pages/Ventas'
+import { Facturas } from './pages/Facturas'
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth()
@@ -162,6 +163,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <Ventas />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/facturas"
+        element={
+          <ProtectedRoute>
+            <Facturas />
           </ProtectedRoute>
         }
       />

@@ -54,6 +54,7 @@ from web.api import caja as api_caja_router
 from web.api import cajas as api_cajas_router
 from web.api import turnos as api_turnos_router
 from web.api import ventas as api_ventas_router
+from web.api import facturas as api_facturas_router
 from web.api_auth import get_current_user_json, require_admin_json
 from web.modules_gate import require_module
 
@@ -221,6 +222,10 @@ app.include_router(
 app.include_router(
     api_ventas_router.router,
     dependencies=[_auth_json, Depends(require_module("ventas"))],
+)
+app.include_router(
+    api_facturas_router.router,
+    dependencies=[_auth_json, Depends(require_module("facturacion"))],
 )
 
 
