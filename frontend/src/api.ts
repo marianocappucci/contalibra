@@ -41,11 +41,27 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return data as T
 }
 
+async function requestForm<T>(method: string, path: string, form: FormData): Promise<T> {
+  const response = await fetch(path, { method, credentials: 'include', body: form })
+  const isJson = response.headers.get('content-type')?.includes('application/json')
+  const data = isJson ? await response.json() : undefined
+  if (!response.ok) {
+    const detail = (data && typeof data === 'object' && 'detail' in data)
+      ? String((data as { detail: unknown }).detail)
+      : response.statusText
+    throw new ApiError(response.status, detail)
+  }
+  return data as T
+}
+
 export const api = {
   get: <T>(path: string) => request<T>('GET', path),
   post: <T>(path: string, body?: unknown) => request<T>('POST', path, body ?? {}),
   put: <T>(path: string, body: unknown) => request<T>('PUT', path, body),
   del: <T>(path: string) => request<T>('DELETE', path),
+  // Uploads (logo, certificados ARCA, restore de DB) -- multipart, sin
+  // Content-Type explicito para que el browser agregue el boundary.
+  postForm: <T>(path: string, form: FormData) => requestForm<T>('POST', path, form),
 }
 
 export type User = {
@@ -210,6 +226,145 @@ export const TIPOS_COMPROBANTE = [
   { id: 'ticket', label: 'Ticket / Recibo' },
   { id: 'recibo', label: 'Recibo oficial' },
   { id: 'otro', label: 'Otro' },
+] as const
+
+export type Usuario = {
+  id: number
+  username: string
+  nombre: string
+  email: string
+  role: 'admin' | 'operador' | 'cajero'
+  activo: number
+}
+
+export const ROLES = [
+  { value: 'admin', label: 'Admin' },
+  { value: 'operador', label: 'Operador' },
+  { value: 'cajero', label: 'Cajero' },
+] as const
+
+export type ConfigCfg = {
+  servicio_estado: 'activo' | 'pausado' | 'suspendido'
+  servicio_mensaje: string
+  empresa_nombre: string
+  empresa_direccion: string
+  empresa_cuit: string
+  empresa_telefono: string
+  empresa_email: string
+  empresa_iibb: string
+  empresa_iva_condition: string
+  empresa_inicio_actividades: string
+  logo_path: string
+  mp_access_token: string
+  mp_webhook_secret: string
+  mp_concepto_descripcion: string
+  mp_iva_rate: string
+  mp_user_id: string
+  mp_pos_id: string
+  email_smtp_host: string
+  email_smtp_port: string
+  email_smtp_user: string
+  email_smtp_password: string
+  email_from: string
+  email_from_name: string
+  ticket_ancho_mm: string
+  ticket_fuente_size: string
+  ticket_mostrar_logo: string
+  ticket_linea_corte: string
+  ticket_pie: string
+}
+
+export type ArcaConfig = {
+  empresa: string
+  cuit: string
+  punto_venta: number
+  ambiente: string
+  alias: string
+  clave_path: string
+  certificado_path: string
+}
+
+export type ConfigData = { cfg: ConfigCfg; arca: ArcaConfig | Record<string, never> }
+
+export type Backup = { filename: string; size_mb: number; mtime: string }
+
+export type Deposito = {
+  id: number
+  nombre: string
+  descripcion: string
+  es_default: number
+  activo: number
+  total_productos?: number
+}
+
+export type StockItem = {
+  id: number
+  codigo: string | null
+  nombre: string
+  unidad: string
+  categoria: string
+  stock_minimo: number
+  activo: number
+  stock_actual: number
+}
+
+export type MovimientoStock = {
+  id: number
+  producto_id: number
+  producto_nombre: string
+  unidad: string
+  tipo: string
+  cantidad: number
+  referencia: string
+  fecha: string
+}
+
+export type StockPorDeposito = { id: number; nombre: string; es_default: number; stock_actual: number }
+
+export type ClienteConSaldoCC = { id: number; name: string; cuit_dni: string; saldo: number }
+
+export type MovimientoCC = {
+  fecha: string
+  tipo: 'debito' | 'credito'
+  concepto: string
+  monto: number
+  referencia: string
+  medio: string
+  cc_pago_id: number | null
+  usuario_nombre: string | null
+}
+
+export type CuentaTesoreria = {
+  id: number
+  nombre: string
+  tipo: string
+  banco: string
+  numero: string
+  descripcion: string
+  saldo_inicial: number
+  saldo: number
+  activa: number
+}
+
+export type MovimientoTesoreria = {
+  id: number
+  fecha: string
+  cuenta_id: number
+  cuenta_nombre: string
+  cuenta_destino_id: number | null
+  cuenta_destino_nombre: string | null
+  tipo: string
+  monto: number
+  concepto: string
+  referencia: string
+  transferencia_id: number | null
+}
+
+export const TIPOS_CUENTA_TESORERIA = [
+  { value: 'banco', label: 'Banco' },
+  { value: 'efectivo', label: 'Efectivo' },
+  { value: 'digital', label: 'Billetera digital' },
+  { value: 'otro', label: 'Otro' },
 ] as const
 
 export type DashboardData = {

@@ -44,7 +44,13 @@ from web.api import productos as api_productos_router
 from web.api import listas_precio as api_listas_precio_router
 from web.api import proveedores as api_proveedores_router
 from web.api import egresos as api_egresos_router
-from web.api_auth import get_current_user_json
+from web.api import usuarios as api_usuarios_router
+from web.api import config as api_config_router
+from web.api import depositos as api_depositos_router
+from web.api import stock as api_stock_router
+from web.api import cuenta_corriente as api_cc_router
+from web.api import tesoreria as api_tesoreria_router
+from web.api_auth import get_current_user_json, require_admin_json
 from web.modules_gate import require_module
 
 app = FastAPI(title="Contalibra")
@@ -171,6 +177,30 @@ app.include_router(
 app.include_router(
     api_egresos_router.router,
     dependencies=[_auth_json, Depends(require_module("egresos"))],
+)
+app.include_router(
+    api_usuarios_router.router,
+    dependencies=[Depends(require_admin_json)],
+)
+app.include_router(
+    api_config_router.router,
+    dependencies=[Depends(require_admin_json)],
+)
+app.include_router(
+    api_depositos_router.router,
+    dependencies=[_auth_json, Depends(require_module("depositos"))],
+)
+app.include_router(
+    api_stock_router.router,
+    dependencies=[_auth_json, Depends(require_module("stock"))],
+)
+app.include_router(
+    api_cc_router.router,
+    dependencies=[_auth_json, Depends(require_module("cuenta_corriente"))],
+)
+app.include_router(
+    api_tesoreria_router.router,
+    dependencies=[Depends(require_admin_json), Depends(require_module("tesoreria"))],
 )
 
 

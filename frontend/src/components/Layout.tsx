@@ -1,6 +1,6 @@
 import { type ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, LogOut, Package, Receipt, Tag, Truck, Users } from 'lucide-react'
+import { Boxes, Landmark, LayoutDashboard, LogOut, Package, Receipt, Settings, Tag, Truck, UserCog, Users, Wallet, Warehouse } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import {
   Sidebar,
@@ -32,6 +32,12 @@ const NAV_ITEMS = [
   { to: '/listas-precio', label: 'Listas de precio', icon: Tag },
   { to: '/proveedores', label: 'Proveedores', icon: Truck },
   { to: '/egresos', label: 'Egresos', icon: Receipt },
+  { to: '/usuarios', label: 'Usuarios', icon: UserCog, adminOnly: true },
+  { to: '/config', label: 'Configuración', icon: Settings, adminOnly: true },
+  { to: '/depositos', label: 'Depósitos', icon: Warehouse },
+  { to: '/stock', label: 'Stock', icon: Boxes },
+  { to: '/cuenta-corriente', label: 'Cuenta corriente', icon: Wallet },
+  { to: '/tesoreria', label: 'Tesorería', icon: Landmark, adminOnly: true },
 ]
 
 function initials(name: string): string {
@@ -62,7 +68,7 @@ function AppSidebar() {
           <SidebarGroupLabel>Menú</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {NAV_ITEMS.map((item) => (
+              {NAV_ITEMS.filter((item) => !item.adminOnly || user?.role === 'admin').map((item) => (
                 <SidebarMenuItem key={item.to}>
                   <SidebarMenuButton asChild isActive={location.pathname === item.to}>
                     <NavLink to={item.to}>
