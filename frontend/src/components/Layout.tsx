@@ -1,6 +1,6 @@
 import { type ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { Boxes, Clock, FileText, Landmark, LayoutDashboard, LogOut, Package, PiggyBank, Receipt, Settings, ShoppingCart, SquareStack, Tag, Truck, UserCog, Users, Wallet, Warehouse } from 'lucide-react'
+import { Boxes, Clock, ClipboardList, CreditCard, FileText, Landmark, LayoutDashboard, LogOut, Package, PackageCheck, PiggyBank, Receipt, Settings, ShoppingCart, SquareStack, Tag, Truck, UserCog, Users, Wallet, Warehouse } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import {
   Sidebar,
@@ -43,6 +43,9 @@ const NAV_ITEMS = [
   { to: '/turnos', label: 'Turnos', icon: Clock },
   { to: '/ventas', label: 'Ventas', icon: ShoppingCart },
   { to: '/facturas', label: 'Facturas', icon: FileText },
+  { to: '/remitos', label: 'Remitos', icon: PackageCheck },
+  { to: '/presupuestos', label: 'Presupuestos', icon: ClipboardList },
+  { to: '/mp-bandeja', label: 'Bandeja MercadoPago', icon: CreditCard },
 ]
 
 function initials(name: string): string {

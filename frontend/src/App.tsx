@@ -20,6 +20,9 @@ import { Cajas } from './pages/Cajas'
 import { Turnos } from './pages/Turnos'
 import { Ventas } from './pages/Ventas'
 import { Facturas } from './pages/Facturas'
+import { Remitos } from './pages/Remitos'
+import { Presupuestos } from './pages/Presupuestos'
+import { MpBandeja } from './pages/MpBandeja'
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth()
@@ -171,6 +174,30 @@ export default function App() {
         element={
           <ProtectedRoute>
             <Facturas />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/remitos"
+        element={
+          <ProtectedRoute>
+            <Remitos />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/presupuestos"
+        element={
+          <ProtectedRoute>
+            <Presupuestos />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/mp-bandeja"
+        element={
+          <ProtectedRoute>
+            <MpBandeja />
           </ProtectedRoute>
         }
       />

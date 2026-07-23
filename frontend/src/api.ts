@@ -472,6 +472,62 @@ export type FacturaDetalle = {
 
 export type TipoFactura = { value: number; label: string }
 
+export type Remito = {
+  id: number
+  number: string
+  date: string
+  client_id: number | null
+  client_name: string
+  items: { description: string; qty: number }[]
+  observations: string
+}
+
+export type Presupuesto = {
+  id: number
+  number: string
+  date: string
+  valid_until: string
+  status: string
+  client_id: number | null
+  client_name: string
+  items: { description: string; qty: number; unit_price: number; subtotal: number }[]
+  subtotal: number
+  tax_rate: number
+  tax_amount: number
+  total: number
+  observations: string
+  remito_id: number | null
+}
+
+export const ESTADOS_PRESUPUESTO = ['borrador', 'enviado', 'aceptado', 'rechazado', 'vencido', 'facturado'] as const
+
+export type MpPago = {
+  id: number
+  mp_payment_id: string
+  monto: number
+  payer_email: string
+  payer_name: string
+  payment_type: string | null
+  payer_id_number: string | null
+  estado_factura: string
+  cliente: Cliente | null
+}
+
+export type MpMovimiento = {
+  id: number
+  mp_movement_id: string
+  tipo: string
+  monto: number
+  fecha: string
+  descripcion: string
+  origen_nombre: string
+  payer_email: string
+  payer_name: string
+  payer_id_number: string
+  estado_factura: string
+  cliente: Cliente | null
+}
+
 export type DashboardData = {
   mes_desde: string
   mes_hasta: string
