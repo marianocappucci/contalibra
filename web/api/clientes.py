@@ -1,0 +1,91 @@
+"""API JSON de Clientes para la SPA (ver wiki/entities/contalibra.md,
+migracion a React). Mismo patron REST para toda la Etapa B: reusa la
+logica de negocio existente de `db_clients.py` (via `database.py`) tal
+cual, sin duplicarla. El detalle de cliente (facturas/presupuestos/
+remitos asociados, alias de facturacion) queda fuera de este modulo --
+no tiene sentido antes de que existan sus propias paginas (Etapa C).
+Auth y gating de modulo se aplican en el `app.include_router(...)` de
+web/app.py, no aca.
+"""
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+
+import database as db
+
+router = APIRouter(prefix="/api/clientes", tags=["clientes"])
+
+IVA_CONDITIONS = [
+    "Responsable Inscripto",
+    "Monotributista",
+    "IVA Exento",
+    "Consumidor Final",
+    "No Alcanzado",
+    "IVA No Responsable",
+]
+
+
+class ClientePayload(BaseModel):
+    name: str
+    address: str = ""
+    cuit_dni: str = ""
+    email: str = ""
+    phone: str = ""
+    iva_condition: str = ""
+
+
+@router.get("")
+def listar():
+    return db.get_all_clients_including_inactive()
+
+
+@router.post("")
+def crear(payload: ClientePayload):
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(422, "El nombre es obligatorio.")
+    try:
+        cliente_id = db.create_client(
+            name, payload.address.strip(), payload.cuit_dni.strip(),
+            payload.email.strip(), payload.phone.strip(), payload.iva_condition.strip(),
+        )
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    return db.get_client(cliente_id)
+
+
+@router.put("/{cliente_id}")
+def actualizar(cliente_id: int, payload: ClientePayload):
+    if not db.get_client(cliente_id):
+        raise HTTPException(404, "Cliente no encontrado")
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(422, "El nombre es obligatorio.")
+    db.update_client(
+        cliente_id, name=name, address=payload.address.strip(),
+        cuit_dni=payload.cuit_dni.strip(), email=payload.email.strip(),
+        phone=payload.phone.strip(), iva_condition=payload.iva_condition.strip(),
+    )
+    return db.get_client(cliente_id)
+
+
+@router.post("/{cliente_id}/desactivar")
+def desactivar(cliente_id: int):
+    cliente = db.get_client(cliente_id)
+    if not cliente:
+        raise HTTPException(404, "Cliente no encontrado")
+    if db.tiene_presupuestos_aprobados(cliente_id):
+        raise HTTPException(
+            422,
+            f"No se puede desactivar {cliente['name']} porque tiene presupuestos aprobados. "
+            "Primero hay que cancelar o rechazar esos presupuestos.",
+        )
+    db.desactivar_cliente(cliente_id)
+    return db.get_client(cliente_id)
+
+
+@router.post("/{cliente_id}/activar")
+def activar(cliente_id: int):
+    if not db.get_client(cliente_id):
+        raise HTTPException(404, "Cliente no encontrado")
+    db.activar_cliente(cliente_id)
+    return db.get_client(cliente_id)

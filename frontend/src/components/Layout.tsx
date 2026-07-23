@@ -1,6 +1,6 @@
 import { type ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, LogOut } from 'lucide-react'
+import { LayoutDashboard, LogOut, Package, Receipt, Tag, Truck, Users } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import {
   Sidebar,
@@ -27,6 +27,11 @@ import { Button } from '@/components/ui/button'
 // `modulos` (siempre visible, igual que en la version HTML).
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/clientes', label: 'Clientes', icon: Users },
+  { to: '/productos', label: 'Productos', icon: Package },
+  { to: '/listas-precio', label: 'Listas de precio', icon: Tag },
+  { to: '/proveedores', label: 'Proveedores', icon: Truck },
+  { to: '/egresos', label: 'Egresos', icon: Receipt },
 ]
 
 function initials(name: string): string {

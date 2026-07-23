@@ -86,6 +86,132 @@ export type MovimientoCaja = {
   medio_pago: string
 }
 
+export type Cliente = {
+  id: number
+  name: string
+  address: string
+  cuit_dni: string
+  email: string
+  phone: string
+  iva_condition: string
+  auto_facturar: number
+  activo: number
+}
+
+export const IVA_CONDITIONS = [
+  'Responsable Inscripto',
+  'Monotributista',
+  'IVA Exento',
+  'Consumidor Final',
+  'No Alcanzado',
+  'IVA No Responsable',
+] as const
+
+export type Producto = {
+  id: number
+  codigo: string | null
+  nombre: string
+  descripcion: string
+  precio_venta: number
+  precio_costo: number
+  unidad: string
+  categoria: string
+  stock_minimo: number
+  estacion: string
+  vendible: number
+  activo: number
+}
+
+export const UNIDADES = ['u', 'kg', 'g', 'lt', 'ml', 'm', 'cm', 'm²', 'caja', 'par', 'docena', 'pack'] as const
+
+export type ListaPrecio = {
+  id: number
+  nombre: string
+  descripcion: string
+  activa: number
+  es_default: number
+}
+
+export type ItemListaPrecio = {
+  id: number
+  codigo: string | null
+  nombre: string
+  unidad: string
+  categoria: string
+  precio_venta: number
+  precio_costo: number
+  precio_lista: number
+  en_lista: number
+}
+
+export type Proveedor = {
+  id: number
+  nombre: string
+  cuit_dni: string
+  email: string
+  phone: string
+  address: string
+  iva_condition: string
+}
+
+export type Egreso = {
+  id: number
+  fecha: string
+  proveedor_id: number | null
+  proveedor_nombre: string
+  tipo_comprobante: string
+  numero: string
+  categoria: string
+  concepto: string
+  monto_neto: number
+  iva_pct: number
+  iva_monto: number
+  total: number
+  estado: 'pendiente' | 'parcial' | 'pagado'
+  observaciones: string
+}
+
+export type ResumenEgresos = {
+  total_periodo: number
+  pagado: number
+  pendiente: number
+}
+
+export type CategoriaEgreso = { id: number; nombre: string }
+
+export type PagoEgreso = {
+  id: number
+  egreso_id: number
+  fecha: string
+  monto: number
+  caja_id: number | null
+  medio_pago: string
+  referencia: string
+}
+
+export type Caja = {
+  id: number
+  nombre: string
+  es_default: number
+  medios_pago: string[]
+}
+
+export const MEDIOS_PAGO_LABELS: Record<string, string> = {
+  efectivo: 'Efectivo',
+  transferencia: 'Transferencia',
+  mercadopago: 'Mercado Pago',
+  cuenta_dni: 'Cuenta DNI',
+  billetera: 'Otras billeteras',
+  cuenta_corriente: 'Cuenta corriente',
+}
+
+export const TIPOS_COMPROBANTE = [
+  { id: 'factura', label: 'Factura' },
+  { id: 'ticket', label: 'Ticket / Recibo' },
+  { id: 'recibo', label: 'Recibo oficial' },
+  { id: 'otro', label: 'Otro' },
+] as const
+
 export type DashboardData = {
   mes_desde: string
   mes_hasta: string

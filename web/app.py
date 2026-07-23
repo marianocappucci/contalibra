@@ -39,6 +39,13 @@ from web.routers import listas_precio as listas_precio_router
 from web.routers import libros_iva as libros_iva_router
 from web.api import auth as api_auth_router
 from web.api import dashboard as api_dashboard_router
+from web.api import clientes as api_clientes_router
+from web.api import productos as api_productos_router
+from web.api import listas_precio as api_listas_precio_router
+from web.api import proveedores as api_proveedores_router
+from web.api import egresos as api_egresos_router
+from web.api_auth import get_current_user_json
+from web.modules_gate import require_module
 
 app = FastAPI(title="Contalibra")
 
@@ -137,8 +144,34 @@ app.include_router(libros_iva_router.router)
 # API JSON de la SPA (React) -- migracion documentada en
 # wiki/entities/contalibra.md. Conviven con los routers HTML de arriba
 # hasta la etapa de corte; todo endpoint nuevo va bajo el prefijo /api/.
+# El gating (auth + modulo habilitado por plan) se declara aca, centralizado,
+# mismo patron que gestiolibra/app/main.py -- no en cada router. (auth.py y
+# dashboard.py son la excepcion: gatean via Depends embebido porque /api/me
+# necesita el usuario como valor de retorno; el resto de los modulos de la
+# Etapa B no lo necesitan, asi que van centralizados aca.)
+_auth_json = Depends(get_current_user_json)
 app.include_router(api_auth_router.router)
 app.include_router(api_dashboard_router.router)
+app.include_router(
+    api_clientes_router.router,
+    dependencies=[_auth_json, Depends(require_module("clientes"))],
+)
+app.include_router(
+    api_productos_router.router,
+    dependencies=[_auth_json, Depends(require_module("productos"))],
+)
+app.include_router(
+    api_listas_precio_router.router,
+    dependencies=[_auth_json, Depends(require_module("listas_precio"))],
+)
+app.include_router(
+    api_proveedores_router.router,
+    dependencies=[_auth_json, Depends(require_module("proveedores"))],
+)
+app.include_router(
+    api_egresos_router.router,
+    dependencies=[_auth_json, Depends(require_module("egresos"))],
+)
 
 
 @app.on_event("startup")

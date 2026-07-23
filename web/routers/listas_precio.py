@@ -150,11 +150,11 @@ async def lista_importar(
 
 
 # ── API para ventas ────────────────────────────────────────────────────────────
-
-@router.get("/api/listas-precio")
-def api_listas(user: Auth):
-    return JSONResponse(db.get_all_listas_precio(solo_activas=True))
-
+# GET /api/listas-precio (listado general) se removio de aca -- estaba sin
+# uso (nada lo llamaba, el combo de ventas/nueva.html se arma server-side
+# via Jinja) y colisionaba con el listado admin nuevo de la SPA
+# (web/api/listas_precio.py, ver wiki/entities/contalibra.md). Este
+# endpoint de precios de una lista puntual si esta en uso real, se deja.
 
 @router.get("/api/listas-precio/{lista_id}/precios")
 def api_precios_lista(lista_id: int, user: Auth):
