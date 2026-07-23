@@ -50,6 +50,10 @@ from web.api import depositos as api_depositos_router
 from web.api import stock as api_stock_router
 from web.api import cuenta_corriente as api_cc_router
 from web.api import tesoreria as api_tesoreria_router
+from web.api import caja as api_caja_router
+from web.api import cajas as api_cajas_router
+from web.api import turnos as api_turnos_router
+from web.api import ventas as api_ventas_router
 from web.api_auth import get_current_user_json, require_admin_json
 from web.modules_gate import require_module
 
@@ -201,6 +205,22 @@ app.include_router(
 app.include_router(
     api_tesoreria_router.router,
     dependencies=[Depends(require_admin_json), Depends(require_module("tesoreria"))],
+)
+app.include_router(
+    api_caja_router.router,
+    dependencies=[_auth_json, Depends(require_module("caja"))],
+)
+app.include_router(
+    api_cajas_router.router,
+    dependencies=[_auth_json, Depends(require_module("cajas"))],
+)
+app.include_router(
+    api_turnos_router.router,
+    dependencies=[_auth_json],
+)
+app.include_router(
+    api_ventas_router.router,
+    dependencies=[_auth_json, Depends(require_module("ventas"))],
 )
 
 

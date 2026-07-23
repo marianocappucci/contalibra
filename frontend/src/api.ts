@@ -367,6 +367,73 @@ export const TIPOS_CUENTA_TESORERIA = [
   { value: 'otro', label: 'Otro' },
 ] as const
 
+export type CajaMovimiento = {
+  id: number
+  fecha: string
+  tipo: string
+  concepto: string
+  monto: number
+  referencia: string
+  factura_id: number | null
+  caja_id: number | null
+  caja_nombre: string | null
+  usuario_nombre: string | null
+  medio_pago: string
+}
+
+export type ResumenCaja = { ingresos: number; egresos: number; saldo_periodo: number; saldo_total: number }
+
+export type CajaConfig = {
+  id: number
+  nombre: string
+  descripcion: string
+  medios_pago: string[]
+  es_default: number
+  activo: number
+}
+
+export type Turno = {
+  id: number
+  usuario_id: number
+  usuario_nombre: string
+  apertura: string
+  cierre: string | null
+  monto_inicial: number
+  monto_declarado_cierre: number | null
+  monto_esperado_cierre: number | null
+  estado: 'abierto' | 'cerrado'
+  notas: string
+}
+
+export type ResumenTurno = {
+  ventas: { id: number; numero: string; fecha: string; cliente_nombre: string; total: number; estado: string }[]
+  pagos_por_medio: Record<string, number>
+  total_ventas: number
+  efectivo_ventas: number
+}
+
+export type VentaItem = { nombre: string; qty: number; precio: number; subtotal: number; producto_id: number | null }
+export type VentaPago = { id?: number; medio: string; monto: number; referencia: string }
+
+export type Venta = {
+  id: number
+  numero: string
+  fecha: string
+  items: VentaItem[]
+  subtotal: number
+  descuento: number
+  total: number
+  cliente_id: number | null
+  cliente_nombre: string
+  observaciones: string
+  estado: 'pendiente' | 'parcial' | 'cobrada' | 'anulada'
+  pagos: VentaPago[]
+  factura_id: number | null
+  factura_display: string | null
+}
+
+export type ProductoBusqueda = { id: number; codigo: string; nombre: string; precio_venta: number; unidad: string }
+
 export type DashboardData = {
   mes_desde: string
   mes_hasta: string

@@ -15,6 +15,10 @@ import { Depositos } from './pages/Depositos'
 import { Stock } from './pages/Stock'
 import { CuentaCorriente } from './pages/CuentaCorriente'
 import { Tesoreria } from './pages/Tesoreria'
+import { Caja } from './pages/Caja'
+import { Cajas } from './pages/Cajas'
+import { Turnos } from './pages/Turnos'
+import { Ventas } from './pages/Ventas'
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth()
@@ -126,6 +130,38 @@ export default function App() {
         element={
           <ProtectedRoute>
             <Tesoreria />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/caja"
+        element={
+          <ProtectedRoute>
+            <Caja />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/cajas"
+        element={
+          <ProtectedRoute>
+            <Cajas />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/turnos"
+        element={
+          <ProtectedRoute>
+            <Turnos />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/ventas"
+        element={
+          <ProtectedRoute>
+            <Ventas />
           </ProtectedRoute>
         }
       />
