@@ -58,6 +58,8 @@ from web.api import facturas as api_facturas_router
 from web.api import remitos as api_remitos_router
 from web.api import presupuestos as api_presupuestos_router
 from web.api import mp_bandeja as api_mp_bandeja_router
+from web.api import libros_iva as api_libros_iva_router
+from web.api import reportes as api_reportes_router
 from web.api_auth import get_current_user_json, require_admin_json
 from web.modules_gate import require_module
 
@@ -241,6 +243,14 @@ app.include_router(
 app.include_router(
     api_mp_bandeja_router.router,
     dependencies=[_auth_json],
+)
+app.include_router(
+    api_libros_iva_router.router,
+    dependencies=[Depends(require_admin_json), Depends(require_module("libros_iva"))],
+)
+app.include_router(
+    api_reportes_router.router,
+    dependencies=[_auth_json, Depends(require_module("reportes"))],
 )
 
 

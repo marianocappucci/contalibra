@@ -528,6 +528,38 @@ export type MpMovimiento = {
   cliente: Cliente | null
 }
 
+export type LibroIvaFactura = {
+  id: number; tipo: number; punto_venta: number; numero: number; fecha: string
+  cliente_razon: string; cliente_cuit: string; subtotal: number; iva_amount: number; total: number
+}
+export type LibroIvaEgreso = {
+  id: number; fecha: string; proveedor_nombre: string; numero: string
+  monto_neto: number; iva_monto: number; total: number
+}
+export type ResumenIva = {
+  cbtes: number; neto: number; iva: number; total: number
+  por_tasa: Record<string, { neto: number; iva: number; cbtes: number }>
+}
+export type LibrosIvaData = {
+  desde: string; hasta: string; empresa_cuit: string
+  facturas: LibroIvaFactura[]; egresos: LibroIvaEgreso[]
+  resumen_v: ResumenIva; resumen_c: ResumenIva
+}
+
+export type ReporteResumen = {
+  ventas_cantidad: number; ventas_total: number; facturas_cantidad: number; caja_saldo: number
+}
+export type ReporteVentaTs = { periodo: string; cantidad: number; total: number }
+export type ReporteMedio = { medio: string; operaciones: number; total: number }
+export type ReporteProducto = { nombre: string; cantidad: number; total: number }
+export type ReporteCaja = { tipo: string; cantidad: number; total: number }
+export type ReporteStockBajo = { id: number; nombre: string; codigo: string | null; stock_actual: number; stock_minimo: number }
+export type ReportesData = {
+  desde: string; hasta: string; agrupacion: string
+  resumen: ReporteResumen; ventas_ts: ReporteVentaTs[]; medios: ReporteMedio[]
+  productos: ReporteProducto[]; caja: ReporteCaja[]; stock_bajo: ReporteStockBajo[]
+}
+
 export type DashboardData = {
   mes_desde: string
   mes_hasta: string
