@@ -5,11 +5,12 @@ import { z } from 'zod'
 import { type ColumnDef } from '@tanstack/react-table'
 import {
   api, ApiError, MEDIOS_PAGO_LABELS, TIPOS_COMPROBANTE,
-  type Caja, type Egreso, type Proveedor, type ResumenEgresos,
+  type Caja, type CategoriaEgreso, type Egreso, type PagoEgreso, type Proveedor, type ResumenEgresos,
 } from '../api'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -18,6 +19,10 @@ import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from '@/components/ui/form'
 import { DataTable, sortableHeader } from '@/components/data-table'
+import {
+  ArrowUpCircle, CheckCircle2, CreditCard, Eye, Filter, Hourglass,
+  ListChecks, Plus, Receipt, Trash2, X,
+} from 'lucide-react'
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10)
@@ -61,15 +66,21 @@ type PagoFormValues = z.infer<typeof pagoSchema>
 export function Egresos() {
   const [desde, setDesde] = useState(firstOfMonthIso())
   const [hasta, setHasta] = useState(todayIso())
+  const [categoriaFiltro, setCategoriaFiltro] = useState('')
+  const [estadoFiltro, setEstadoFiltro] = useState('')
   const [egresos, setEgresos] = useState<Egreso[]>([])
   const [resumen, setResumen] = useState<ResumenEgresos | null>(null)
   const [proveedores, setProveedores] = useState<Proveedor[]>([])
+  const [categorias, setCategorias] = useState<CategoriaEgreso[]>([])
   const [cajas, setCajas] = useState<Caja[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [saving, setSaving] = useState(false)
   const [payingId, setPayingId] = useState<number | null>(null)
+  const [abiertoId, setAbiertoId] = useState<number | null>(null)
+  const [pagos, setPagos] = useState<PagoEgreso[]>([])
+  const [pagosLoading, setPagosLoading] = useState(false)
 
   // Sin generic explícito en useForm (ver Productos.tsx): z.coerce.number()
   // hace que el tipo de entrada del resolver no coincida con el de salida.
@@ -82,12 +93,22 @@ export function Egresos() {
   useEffect(() => {
     api.get<Proveedor[]>('/api/proveedores').then(setProveedores).catch(() => {})
     api.get<Caja[]>('/api/egresos/cajas').then(setCajas).catch(() => {})
+    api.get<CategoriaEgreso[]>('/api/egresos/categorias').then(setCategorias).catch(() => {})
   }, [])
 
   useEffect(() => {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [desde, hasta])
+  }, [desde, hasta, categoriaFiltro, estadoFiltro])
+
+  useEffect(() => {
+    if (abiertoId === null) { setPagos([]); return }
+    setPagosLoading(true)
+    api.get<PagoEgreso[]>(`/api/egresos/${abiertoId}/pagos`)
+      .then(setPagos)
+      .catch(() => setPagos([]))
+      .finally(() => setPagosLoading(false))
+  }, [abiertoId])
 
   function describeError(err: unknown): string {
     if (err instanceof ApiError) return err.detail
@@ -98,8 +119,11 @@ export function Egresos() {
     setLoading(true)
     setError(null)
     try {
+      const params = new URLSearchParams({ desde, hasta })
+      if (categoriaFiltro) params.set('categoria', categoriaFiltro)
+      if (estadoFiltro) params.set('estado', estadoFiltro)
       const data = await api.get<{ items: Egreso[]; resumen: ResumenEgresos }>(
-        `/api/egresos?desde=${desde}&hasta=${hasta}`,
+        `/api/egresos?${params.toString()}`,
       )
       setEgresos(data.items)
       setResumen(data.resumen)
@@ -108,6 +132,11 @@ export function Egresos() {
     } finally {
       setLoading(false)
     }
+  }
+
+  function limpiarFiltros() {
+    setCategoriaFiltro('')
+    setEstadoFiltro('')
   }
 
   async function handleCreate(values: EgresoFormValues) {
@@ -169,73 +198,141 @@ export function Egresos() {
   }
 
   async function eliminar(egreso: Egreso) {
+    if (!window.confirm('¿Eliminar este egreso?')) return
     setError(null)
     try {
       await api.del(`/api/egresos/${egreso.id}`)
+      if (abiertoId === egreso.id) setAbiertoId(null)
       await load()
     } catch (err) {
       setError(describeError(err))
     }
   }
 
-  const estadoVariant: Record<Egreso['estado'], 'default' | 'secondary' | 'outline'> = {
-    pagado: 'default', parcial: 'secondary', pendiente: 'outline',
+  const estadoBadgeClass: Record<Egreso['estado'], string> = {
+    pagado: 'bg-emerald-600 text-white [a&]:hover:bg-emerald-600/90 dark:bg-emerald-500',
+    parcial: 'bg-amber-500 text-white [a&]:hover:bg-amber-500/90 dark:bg-amber-600',
+    pendiente: '',
   }
+  const estadoVariant: Record<Egreso['estado'], 'default' | 'secondary' | 'outline'> = {
+    pagado: 'default', parcial: 'default', pendiente: 'secondary',
+  }
+  const estadoLabel: Record<Egreso['estado'], string> = {
+    pagado: 'Pagado', parcial: 'Parcial', pendiente: 'Pendiente',
+  }
+  const tipoComprobanteLabel: Record<string, string> = Object.fromEntries(
+    TIPOS_COMPROBANTE.map((t) => [t.id, t.label]),
+  )
 
   const columns = useMemo<ColumnDef<Egreso>[]>(() => [
     { accessorKey: 'fecha', header: sortableHeader('Fecha') },
     { accessorKey: 'proveedor_nombre', header: 'Proveedor', cell: ({ row }) => row.original.proveedor_nombre || '—' },
     { accessorKey: 'concepto', header: 'Concepto', cell: ({ row }) => <span className="font-medium">{row.original.concepto}</span> },
     { accessorKey: 'categoria', header: 'Categoría', cell: ({ row }) => row.original.categoria || '—' },
-    { accessorKey: 'total', header: 'Total', cell: ({ row }) => formatCurrency(row.original.total) },
+    {
+      id: 'comprobante',
+      header: 'Comprobante',
+      cell: ({ row }) => row.original.numero ? <span className="font-mono text-sm">{row.original.numero}</span> : '—',
+    },
+    { accessorKey: 'total', header: 'Total', cell: ({ row }) => <span className="font-medium text-destructive">{formatCurrency(row.original.total)}</span> },
     {
       accessorKey: 'estado',
       header: 'Estado',
-      cell: ({ row }) => <Badge variant={estadoVariant[row.original.estado]}>{row.original.estado}</Badge>,
+      cell: ({ row }) => (
+        <Badge variant={estadoVariant[row.original.estado]} className={estadoBadgeClass[row.original.estado]}>
+          {estadoLabel[row.original.estado]}
+        </Badge>
+      ),
     },
     {
       id: 'actions',
       header: () => <div className="text-right">Acciones</div>,
       cell: ({ row }) => (
         <div className="flex justify-end gap-2">
+          <Button size="sm" variant="outline" onClick={() => setAbiertoId(abiertoId === row.original.id ? null : row.original.id)}>
+            <Eye />{abiertoId === row.original.id ? 'Ocultar' : 'Ver'}
+          </Button>
           {row.original.estado !== 'pagado' && (
-            <Button size="sm" variant="outline" onClick={() => startPagar(row.original)}>Pagar</Button>
+            <Button size="sm" variant="outline" onClick={() => startPagar(row.original)}><CreditCard />Pagar</Button>
           )}
-          <Button size="sm" variant="outline" onClick={() => eliminar(row.original)}>Eliminar</Button>
+          <Button size="sm" variant="outline" onClick={() => eliminar(row.original)}><Trash2 />Eliminar</Button>
         </div>
       ),
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [cajas])
+  ], [cajas, abiertoId])
+
+  const egresoAbierto = egresos.find((e) => e.id === abiertoId)
+  const totalPagado = pagos.reduce((sum, p) => sum + p.monto, 0)
 
   const cajaSeleccionada = cajas.find((c) => String(c.id) === pagoForm.watch('caja_id'))
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <h2 className="text-lg font-semibold">Egresos</h2>
-        <div className="flex items-end gap-3">
-          <div className="grid gap-1.5">
-            <label className="text-sm font-medium">Desde</label>
-            <Input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className="w-40" />
-          </div>
-          <div className="grid gap-1.5">
-            <label className="text-sm font-medium">Hasta</label>
-            <Input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className="w-40" />
-          </div>
-          {!creating && <Button onClick={() => setCreating(true)}>+ Nuevo egreso</Button>}
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <Receipt className="size-5 text-destructive" />Egresos
+        </h2>
+        {!creating && <Button onClick={() => setCreating(true)}><Plus />Nuevo egreso</Button>}
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       {resumen && (
         <div className="grid gap-4 sm:grid-cols-3">
-          <Card><CardHeader><CardDescription>Total del período</CardDescription><CardTitle className="text-2xl">{formatCurrency(resumen.total_periodo)}</CardTitle></CardHeader></Card>
-          <Card><CardHeader><CardDescription>Pagado</CardDescription><CardTitle className="text-2xl text-emerald-600 dark:text-emerald-400">{formatCurrency(resumen.pagado)}</CardTitle></CardHeader></Card>
-          <Card><CardHeader><CardDescription>Pendiente</CardDescription><CardTitle className="text-2xl text-destructive">{formatCurrency(resumen.pendiente)}</CardTitle></CardHeader></Card>
+          <Card><CardContent className="flex items-start justify-between gap-3">
+            <div><CardDescription>Total del período</CardDescription><p className="text-2xl font-bold">{formatCurrency(resumen.total_periodo)}</p></div>
+            <span className="shrink-0 rounded-lg bg-muted p-2 text-muted-foreground"><ArrowUpCircle /></span>
+          </CardContent></Card>
+          <Card><CardContent className="flex items-start justify-between gap-3">
+            <div><CardDescription>Pagado</CardDescription><p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(resumen.pagado)}</p></div>
+            <span className="shrink-0 rounded-lg bg-emerald-500/10 p-2 text-emerald-600 dark:text-emerald-400"><CheckCircle2 /></span>
+          </CardContent></Card>
+          <Card><CardContent className="flex items-start justify-between gap-3">
+            <div><CardDescription>Pendiente / Parcial</CardDescription><p className="text-2xl font-bold text-destructive">{formatCurrency(resumen.pendiente)}</p></div>
+            <span className="shrink-0 rounded-lg bg-destructive/10 p-2 text-destructive"><Hourglass /></span>
+          </CardContent></Card>
         </div>
       )}
+
+      <Card>
+        <CardContent className="flex flex-wrap items-end gap-3 py-3">
+          <div className="grid gap-1.5">
+            <Label>Desde</Label>
+            <Input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className="w-40" />
+          </div>
+          <div className="grid gap-1.5">
+            <Label>Hasta</Label>
+            <Input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className="w-40" />
+          </div>
+          <div className="grid gap-1.5">
+            <Label>Categoría</Label>
+            <Select value={categoriaFiltro || '__todas__'} onValueChange={(v) => setCategoriaFiltro(v === '__todas__' ? '' : v)}>
+              <SelectTrigger className="w-48"><SelectValue placeholder="Todas las categorías" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__todas__">Todas las categorías</SelectItem>
+                {categorias.map((c) => <SelectItem key={c.id} value={c.nombre}>{c.nombre}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-1.5">
+            <Label>Estado</Label>
+            <Select value={estadoFiltro || '__todos__'} onValueChange={(v) => setEstadoFiltro(v === '__todos__' ? '' : v)}>
+              <SelectTrigger className="w-40"><SelectValue placeholder="Todos los estados" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__todos__">Todos los estados</SelectItem>
+                <SelectItem value="pendiente">Pendiente</SelectItem>
+                <SelectItem value="parcial">Parcial</SelectItem>
+                <SelectItem value="pagado">Pagado</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button size="sm" variant="outline" onClick={load} title="Filtrar"><Filter /></Button>
+          {(categoriaFiltro || estadoFiltro) && (
+            <Button size="sm" variant="ghost" onClick={limpiarFiltros} title="Limpiar filtros"><X />Limpiar</Button>
+          )}
+        </CardContent>
+      </Card>
 
       {creating && (
         <Card>
@@ -358,6 +455,87 @@ export function Egresos() {
           )}
         </CardContent>
       </Card>
+
+      {egresoAbierto && (() => {
+        const e = egresoAbierto
+        const pendiente = Math.max(0, e.total - totalPagado)
+        return (
+          <div className="grid gap-4">
+            {e.estado === 'pagado' && (
+              <p className="flex items-center gap-2 rounded-md border border-emerald-600/30 bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-400">
+                <CheckCircle2 className="size-4 shrink-0" /><strong>Pagado completo</strong> — {formatCurrency(totalPagado)}
+              </p>
+            )}
+            {e.estado === 'parcial' && (
+              <p className="flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400">
+                <CreditCard className="size-4 shrink-0" /><strong>Pago parcial</strong> — Pagado: {formatCurrency(totalPagado)}
+                <span className="font-semibold text-destructive">Pendiente: {formatCurrency(pendiente)}</span>
+              </p>
+            )}
+            {e.estado === 'pendiente' && (
+              <p className="flex items-center gap-2 rounded-md border bg-muted/50 p-3 text-sm text-muted-foreground">
+                <Hourglass className="size-4 shrink-0" /><strong>Pendiente de pago</strong> — {formatCurrency(e.total)}
+              </p>
+            )}
+
+            {!pagosLoading && pagos.length > 0 && (
+              <Card className="border-l-4 border-l-destructive">
+                <CardContent className="py-3">
+                  <p className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-destructive">
+                    <ListChecks className="size-4" />Pagos registrados
+                  </p>
+                  <div className="grid gap-1">
+                    {pagos.map((p) => (
+                      <div key={p.id} className="flex items-center justify-between border-b py-1 text-sm last:border-0">
+                        <span className="text-muted-foreground">
+                          {p.fecha}
+                          {p.medio_pago && <Badge variant="outline" className="ml-1.5">{MEDIOS_PAGO_LABELS[p.medio_pago] ?? p.medio_pago}</Badge>}
+                          {p.referencia && <span className="ml-1.5">({p.referencia})</span>}
+                        </span>
+                        <span className="font-semibold text-destructive">- {formatCurrency(p.monto)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card>
+                <CardHeader><CardTitle className="text-base">Datos del egreso</CardTitle></CardHeader>
+                <CardContent className="grid gap-1.5 text-sm">
+                  <p><span className="text-muted-foreground">Fecha:</span> {e.fecha}</p>
+                  {e.proveedor_nombre && <p><span className="text-muted-foreground">Proveedor:</span> {e.proveedor_nombre}</p>}
+                  {e.categoria && <p><span className="text-muted-foreground">Categoría:</span> {e.categoria}</p>}
+                  <p>
+                    <span className="text-muted-foreground">Comprobante:</span> {tipoComprobanteLabel[e.tipo_comprobante] ?? e.tipo_comprobante}
+                    {e.numero && <span className="ml-1 font-mono">{e.numero}</span>}
+                  </p>
+                  {e.observaciones && <p><span className="text-muted-foreground">Observaciones:</span> {e.observaciones}</p>}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader><CardTitle className="text-base">Montos</CardTitle></CardHeader>
+                <CardContent className="grid gap-1.5 text-sm">
+                  {e.monto_neto > 0 && e.monto_neto !== e.total && (
+                    <>
+                      <p><span className="text-muted-foreground">Neto:</span> {formatCurrency(e.monto_neto)}</p>
+                      <p><span className="text-muted-foreground">IVA ({Math.round(e.iva_pct * 100)}%):</span> {formatCurrency(e.iva_monto)}</p>
+                    </>
+                  )}
+                  <p className="text-base"><span className="text-muted-foreground">Total:</span> <span className="font-bold text-destructive">{formatCurrency(e.total)}</span></p>
+                  {pagos.length > 0 && (
+                    <>
+                      <p><span className="text-muted-foreground">Pagado:</span> <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(totalPagado)}</span></p>
+                      {pendiente > 0 && <p><span className="text-muted-foreground">Pendiente:</span> <span className="font-semibold text-destructive">{formatCurrency(pendiente)}</span></p>}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

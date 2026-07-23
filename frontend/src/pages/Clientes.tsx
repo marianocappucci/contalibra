@@ -15,6 +15,9 @@ import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from '@/components/ui/form'
 import { DataTable, sortableHeader } from '@/components/data-table'
+import {
+  Users, Plus, Pencil, Eye, Ban, Undo2, Search, Loader2, CheckCircle2, XCircle, IdCard,
+} from 'lucide-react'
 
 const clienteSchema = z.object({
   name: z.string().trim().min(1, 'El nombre es obligatorio'),
@@ -37,6 +40,13 @@ export function Clientes() {
   const [error, setError] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<number | 'new' | null>(null)
   const [saving, setSaving] = useState(false)
+  const [viendoId, setViendoId] = useState<number | null>(null)
+
+  // Consulta ARCA por CUIT (restaurado desde web/templates/clientes/form.html
+  // -- pega contra el mismo endpoint viejo `/api/consultar-cuit/{cuit}`, que
+  // sigue vivo en web/app.py sin migrar a este router de la SPA).
+  const [consultando, setConsultando] = useState(false)
+  const [consultaMsg, setConsultaMsg] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null)
 
   const form = useForm<ClienteFormValues>({
     resolver: zodResolver(clienteSchema),
@@ -66,11 +76,15 @@ export function Clientes() {
 
   function startCreate() {
     setEditingId('new')
+    setViendoId(null)
+    setConsultaMsg(null)
     form.reset(EMPTY_VALUES)
   }
 
   function startEdit(cliente: Cliente) {
     setEditingId(cliente.id)
+    setViendoId(null)
+    setConsultaMsg(null)
     form.reset({
       name: cliente.name,
       address: cliente.address ?? '',
@@ -83,7 +97,12 @@ export function Clientes() {
 
   function cancelEdit() {
     setEditingId(null)
+    setConsultaMsg(null)
     form.reset(EMPTY_VALUES)
+  }
+
+  function toggleVer(cliente: Cliente) {
+    setViendoId((id) => (id === cliente.id ? null : cliente.id))
   }
 
   async function handleSubmit(values: ClienteFormValues) {
@@ -113,6 +132,7 @@ export function Clientes() {
   }
 
   async function toggleActivo(cliente: Cliente) {
+    if (cliente.activo && !window.confirm(`¿Desactivar a ${cliente.name}?`)) return
     setError(null)
     try {
       const path = cliente.activo
@@ -125,8 +145,47 @@ export function Clientes() {
     }
   }
 
+  // Restaurado desde web/templates/clientes/form.html (btn-consultar): trae
+  // nombre/domicilio/condición IVA desde ARCA por CUIT y completa el
+  // formulario. El endpoint devuelve {error} en vez de {detail} en fallas,
+  // por eso no se usa api.get acá -- se parsea la respuesta a mano igual
+  // que hacía el script vanilla original.
+  async function consultarCuit() {
+    const cuit = (form.getValues('cuit_dni') || '').replace(/\D/g, '')
+    if (cuit.length !== 11) {
+      setConsultaMsg({ tipo: 'error', texto: 'Ingresá un CUIT de 11 dígitos antes de consultar.' })
+      return
+    }
+    setConsultando(true)
+    setConsultaMsg(null)
+    try {
+      const resp = await fetch(`/api/consultar-cuit/${cuit}`, { credentials: 'include' })
+      const data = await resp.json()
+      if (!resp.ok || data.error) {
+        setConsultaMsg({ tipo: 'error', texto: data.error || 'Error al consultar ARCA.' })
+      } else {
+        if (data.nombre) form.setValue('name', data.nombre)
+        if (data.domicilio) form.setValue('address', data.domicilio)
+        if (data.iva_condition && (IVA_CONDITIONS as readonly string[]).includes(data.iva_condition)) {
+          form.setValue('iva_condition', data.iva_condition)
+        }
+        const estado = data.estado ? ` — Estado: ${data.estado}` : ''
+        setConsultaMsg({ tipo: 'ok', texto: `Datos importados desde ARCA${estado}.` })
+      }
+    } catch {
+      setConsultaMsg({ tipo: 'error', texto: 'No se pudo conectar con ARCA.' })
+    } finally {
+      setConsultando(false)
+    }
+  }
+
   const columns = useMemo<ColumnDef<Cliente>[]>(() => [
-    { accessorKey: 'name', header: sortableHeader('Nombre'), cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
+    { accessorKey: 'name', header: sortableHeader('Nombre'), cell: ({ row }) => (
+      <span className="font-medium">
+        {row.original.name}
+        {!row.original.activo && <Badge variant="outline" className="ml-2">Inactivo</Badge>}
+      </span>
+    ) },
     { accessorKey: 'cuit_dni', header: 'CUIT/DNI', cell: ({ row }) => row.original.cuit_dni || '—' },
     { accessorKey: 'phone', header: 'Teléfono', cell: ({ row }) => row.original.phone || '—' },
     { accessorKey: 'email', header: 'Email', cell: ({ row }) => row.original.email || '—' },
@@ -145,22 +204,29 @@ export function Clientes() {
       header: () => <div className="text-right">Acciones</div>,
       cell: ({ row }) => (
         <div className="flex justify-end gap-2">
-          <Button size="sm" variant="outline" onClick={() => startEdit(row.original)}>Editar</Button>
+          <Button size="sm" variant="outline" onClick={() => toggleVer(row.original)}>
+            <Eye />{viendoId === row.original.id ? 'Ocultar' : 'Ver'}
+          </Button>
+          {row.original.activo && (
+            <Button size="sm" variant="outline" onClick={() => startEdit(row.original)}><Pencil />Editar</Button>
+          )}
           <Button size="sm" variant="outline" onClick={() => toggleActivo(row.original)}>
-            {row.original.activo ? 'Desactivar' : 'Activar'}
+            {row.original.activo ? <><Ban />Desactivar</> : <><Undo2 />Reactivar</>}
           </Button>
         </div>
       ),
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [])
+  ], [viendoId])
+
+  const clienteViendo = clientes.find((c) => c.id === viendoId)
 
   return (
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Clientes</h2>
+        <h2 className="flex items-center gap-2 text-lg font-semibold"><Users className="size-5 text-primary" />Clientes</h2>
         {editingId === null && (
-          <Button onClick={startCreate}>+ Nuevo cliente</Button>
+          <Button onClick={startCreate}><Plus />Nuevo cliente</Button>
         )}
       </div>
 
@@ -193,9 +259,17 @@ export function Clientes() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>CUIT/DNI</FormLabel>
-                      <FormControl>
-                        <Input {...field} className="w-36" />
-                      </FormControl>
+                      <div className="flex gap-1.5">
+                        <FormControl>
+                          <Input {...field} className="w-36" placeholder="20-12345678-9" />
+                        </FormControl>
+                        <Button
+                          type="button" size="sm" variant="outline" disabled={consultando}
+                          onClick={consultarCuit} title="Consultar datos en ARCA"
+                        >
+                          {consultando ? <Loader2 className="animate-spin" /> : <Search />}
+                        </Button>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -259,6 +333,12 @@ export function Clientes() {
                     </FormItem>
                   )}
                 />
+                {consultaMsg && (
+                  <p className={`flex w-full items-center gap-1.5 text-sm ${consultaMsg.tipo === 'ok' ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
+                    {consultaMsg.tipo === 'ok' ? <CheckCircle2 className="size-4 shrink-0" /> : <XCircle className="size-4 shrink-0" />}
+                    {consultaMsg.texto}
+                  </p>
+                )}
                 <div className="flex gap-2 pt-6">
                   <Button type="submit" disabled={saving}>
                     {saving ? 'Guardando…' : editingId === 'new' ? 'Crear' : 'Guardar'}
@@ -280,6 +360,31 @@ export function Clientes() {
           )}
         </CardContent>
       </Card>
+
+      {clienteViendo && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <IdCard className="size-4 text-primary" />Ficha de {clienteViendo.name}
+              {!clienteViendo.activo && <Badge variant="outline">Inactivo</Badge>}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-1.5 text-sm">
+            <p><span className="text-muted-foreground">Nombre / Razón social:</span> <span className="font-medium">{clienteViendo.name}</span></p>
+            {clienteViendo.cuit_dni && <p><span className="text-muted-foreground">CUIT / DNI:</span> <span className="font-mono">{clienteViendo.cuit_dni}</span></p>}
+            {clienteViendo.iva_condition && <p><span className="text-muted-foreground">Condición IVA:</span> {clienteViendo.iva_condition}</p>}
+            {clienteViendo.address && <p><span className="text-muted-foreground">Domicilio:</span> {clienteViendo.address}</p>}
+            {clienteViendo.phone && <p><span className="text-muted-foreground">Teléfono:</span> {clienteViendo.phone}</p>}
+            {clienteViendo.email && <p><span className="text-muted-foreground">Email:</span> <a className="underline" href={`mailto:${clienteViendo.email}`}>{clienteViendo.email}</a></p>}
+            <p><span className="text-muted-foreground">Facturación automática MP:</span> {clienteViendo.auto_facturar ? 'Activa' : 'Inactiva'}</p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Las facturas, presupuestos y remitos asociados a este cliente, y los alias de facturación de
+              Mercado Pago, todavía no tienen un endpoint en la API de la SPA (existían en la página de
+              detalle Jinja2 vieja vía <code>/clientes/&#123;id&#125;</code>) — ver reporte de auditoría.
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

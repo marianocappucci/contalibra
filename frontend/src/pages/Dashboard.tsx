@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api, ApiError, type DashboardData } from '../api'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Button } from '@/components/ui/button'
+import {
+  Plus, Receipt, ArrowDownCircle, ArrowUpCircle, Wallet, ClipboardList,
+  Hourglass, CheckCircle2, Inbox, History,
+} from 'lucide-react'
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(value)
@@ -56,47 +62,69 @@ export function Dashboard() {
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Card>
-              <CardHeader>
-                <CardDescription>Facturado este mes</CardDescription>
-                <CardTitle className="text-2xl text-primary">{formatCurrency(data.facturado_mes)}</CardTitle>
-                <CardDescription>
-                  {data.cant_facturas_mes} factura{data.cant_facturas_mes !== 1 ? 's' : ''}
-                </CardDescription>
-              </CardHeader>
+              <CardContent className="flex items-start justify-between gap-3">
+                <div>
+                  <CardDescription>Facturado este mes</CardDescription>
+                  <p className="text-2xl font-bold text-primary">{formatCurrency(data.facturado_mes)}</p>
+                  <CardDescription>
+                    {data.cant_facturas_mes} factura{data.cant_facturas_mes !== 1 ? 's' : ''}
+                  </CardDescription>
+                </div>
+                <span className="shrink-0 rounded-lg bg-primary/10 p-2 text-primary"><Receipt /></span>
+              </CardContent>
             </Card>
             <Card>
-              <CardHeader>
-                <CardDescription>Cobrado este mes</CardDescription>
-                <CardTitle className="text-2xl text-emerald-600 dark:text-emerald-400">{formatCurrency(data.cobrado_mes)}</CardTitle>
-                <CardDescription>Ingresos en caja</CardDescription>
-              </CardHeader>
+              <CardContent className="flex items-start justify-between gap-3">
+                <div>
+                  <CardDescription>Cobrado este mes</CardDescription>
+                  <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(data.cobrado_mes)}</p>
+                  <CardDescription>Ingresos en caja</CardDescription>
+                </div>
+                <span className="shrink-0 rounded-lg bg-emerald-500/10 p-2 text-emerald-600 dark:text-emerald-400"><ArrowDownCircle /></span>
+              </CardContent>
             </Card>
             <Card>
-              <CardHeader>
-                <CardDescription>Egresos este mes</CardDescription>
-                <CardTitle className="text-2xl text-destructive">{formatCurrency(data.egresos_mes)}</CardTitle>
-                <CardDescription>Gastos en caja</CardDescription>
-              </CardHeader>
+              <CardContent className="flex items-start justify-between gap-3">
+                <div>
+                  <CardDescription>Egresos este mes</CardDescription>
+                  <p className="text-2xl font-bold text-destructive">{formatCurrency(data.egresos_mes)}</p>
+                  <CardDescription>Gastos en caja</CardDescription>
+                </div>
+                <span className="shrink-0 rounded-lg bg-destructive/10 p-2 text-destructive"><ArrowUpCircle /></span>
+              </CardContent>
             </Card>
             <Card>
-              <CardHeader>
-                <CardDescription>Saldo total en caja</CardDescription>
-                <CardTitle className={data.saldo_total >= 0 ? 'text-2xl text-emerald-600 dark:text-emerald-400' : 'text-2xl text-destructive'}>
-                  {formatCurrency(data.saldo_total)}
-                </CardTitle>
-                <CardDescription>Histórico acumulado</CardDescription>
-              </CardHeader>
+              <CardContent className="flex items-start justify-between gap-3">
+                <div>
+                  <CardDescription>Saldo total en caja</CardDescription>
+                  <p className={data.saldo_total >= 0 ? 'text-2xl font-bold text-emerald-600 dark:text-emerald-400' : 'text-2xl font-bold text-destructive'}>
+                    {formatCurrency(data.saldo_total)}
+                  </p>
+                  <CardDescription>Histórico acumulado</CardDescription>
+                </div>
+                <span className={`shrink-0 rounded-lg p-2 ${data.saldo_total >= 0 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-destructive/10 text-destructive'}`}><Wallet /></span>
+              </CardContent>
             </Card>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button asChild size="sm"><Link to="/facturas?nuevo=1"><Plus />Nueva factura</Link></Button>
+            <Button asChild size="sm" variant="outline"><Link to="/presupuestos?nuevo=1"><Plus />Nuevo presupuesto</Link></Button>
+            <Button asChild size="sm" variant="outline"><Link to="/remitos?nuevo=1"><Plus />Nuevo remito</Link></Button>
+            <Button asChild size="sm" variant="outline"><Link to="/caja?nuevo=1"><Plus />Movimiento de caja</Link></Button>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Facturas sin cobrar</CardTitle>
+              <CardHeader className="flex-row items-center justify-between space-y-0">
+                <CardTitle className="flex items-center gap-2 text-base"><Hourglass className="size-4 text-amber-500" />Facturas sin cobrar</CardTitle>
+                <Button asChild size="sm" variant="outline"><Link to="/facturas">Ver todas</Link></Button>
               </CardHeader>
               <CardContent>
                 {data.facturas_sin_cobrar.length === 0 ? (
-                  <p className="py-4 text-center text-sm text-muted-foreground">Todas las facturas están cobradas.</p>
+                  <p className="flex flex-col items-center gap-2 py-4 text-center text-sm text-muted-foreground">
+                    <CheckCircle2 className="size-6 text-emerald-500" />Todas las facturas están cobradas.
+                  </p>
                 ) : (
                   <ul className="divide-y">
                     {data.facturas_sin_cobrar.map((f) => (
@@ -107,7 +135,10 @@ export function Dashboard() {
                           </p>
                           <p className="truncate text-muted-foreground">{f.cliente_razon} — {formatDate(f.fecha)}</p>
                         </div>
-                        <span className="shrink-0 font-medium">{formatCurrency(f.total)}</span>
+                        <div className="flex shrink-0 items-center gap-3">
+                          <span className="font-medium">{formatCurrency(f.total)}</span>
+                          <Button asChild size="sm" variant="outline"><Link to={`/facturas?ver=${f.id}`}>Ver</Link></Button>
+                        </div>
                       </li>
                     ))}
                   </ul>
@@ -116,12 +147,15 @@ export function Dashboard() {
             </Card>
 
             <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Presupuestos sin respuesta</CardTitle>
+              <CardHeader className="flex-row items-center justify-between space-y-0">
+                <CardTitle className="flex items-center gap-2 text-base"><ClipboardList className="size-4 text-sky-500" />Presupuestos sin respuesta</CardTitle>
+                <Button asChild size="sm" variant="outline"><Link to="/presupuestos">Ver todos</Link></Button>
               </CardHeader>
               <CardContent>
                 {data.presupuestos_pendientes.length === 0 ? (
-                  <p className="py-4 text-center text-sm text-muted-foreground">Sin presupuestos pendientes.</p>
+                  <p className="flex flex-col items-center gap-2 py-4 text-center text-sm text-muted-foreground">
+                    <Inbox className="size-6" />Sin presupuestos pendientes.
+                  </p>
                 ) : (
                   <ul className="divide-y">
                     {data.presupuestos_pendientes.map((p) => (
@@ -130,7 +164,10 @@ export function Dashboard() {
                           <p className="font-medium">{p.number}</p>
                           <p className="truncate text-muted-foreground">{p.client_name}</p>
                         </div>
-                        <span className="shrink-0 font-medium">{formatCurrency(p.total)}</span>
+                        <div className="flex shrink-0 items-center gap-3">
+                          <span className="font-medium">{formatCurrency(p.total)}</span>
+                          <Button asChild size="sm" variant="outline"><Link to={`/presupuestos?ver=${p.id}`}>Ver</Link></Button>
+                        </div>
                       </li>
                     ))}
                   </ul>
@@ -140,12 +177,15 @@ export function Dashboard() {
           </div>
 
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Últimos movimientos de caja</CardTitle>
+            <CardHeader className="flex-row items-center justify-between space-y-0">
+              <CardTitle className="flex items-center gap-2 text-base"><History className="size-4" />Últimos movimientos de caja</CardTitle>
+              <Button asChild size="sm" variant="outline"><Link to="/caja">Ver caja completa</Link></Button>
             </CardHeader>
             <CardContent>
               {data.ultimos_movimientos.length === 0 ? (
-                <p className="py-4 text-center text-sm text-muted-foreground">Sin movimientos registrados.</p>
+                <p className="flex flex-col items-center gap-2 py-4 text-center text-sm text-muted-foreground">
+                  <Inbox className="size-6" />Sin movimientos registrados.
+                </p>
               ) : (
                 <ul className="divide-y">
                   {data.ultimos_movimientos.map((m) => (

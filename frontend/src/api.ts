@@ -140,6 +140,16 @@ export type Producto = {
 
 export const UNIDADES = ['u', 'kg', 'g', 'lt', 'ml', 'm', 'cm', 'm²', 'caja', 'par', 'docena', 'pack'] as const
 
+export type CategoriaProducto = { id: number; nombre: string }
+
+export type ConsultaCuit = {
+  nombre?: string
+  domicilio?: string
+  iva_condition?: string
+  estado?: string
+  error?: string
+}
+
 export type ListaPrecio = {
   id: number
   nombre: string
@@ -332,6 +342,8 @@ export type MovimientoCC = {
   medio: string
   cc_pago_id: number | null
   usuario_nombre: string | null
+  venta_id: number | null
+  factura_id: number | null
 }
 
 export type CuentaTesoreria = {
@@ -430,6 +442,7 @@ export type Venta = {
   pagos: VentaPago[]
   factura_id: number | null
   factura_display: string | null
+  remito_id: number | null
 }
 
 export type ProductoBusqueda = { id: number; codigo: string; nombre: string; precio_venta: number; unidad: string }
@@ -444,6 +457,7 @@ export type Factura = {
   fecha: string
   cliente_cuit: string
   cliente_razon: string
+  cliente_domicilio?: string
   items: FacturaItem[]
   subtotal: number
   iva_amount: number
@@ -454,6 +468,9 @@ export type Factura = {
   observaciones: string
   condicion_venta: string
   total_cobrado?: number
+  cbte_asoc_tipo?: number
+  cbte_asoc_pv?: number
+  cbte_asoc_nro?: number
 }
 
 export type FacturaDetalle = {
@@ -478,6 +495,10 @@ export type Remito = {
   date: string
   client_id: number | null
   client_name: string
+  client_address: string
+  client_cuit: string
+  client_email: string
+  client_phone: string
   items: { description: string; qty: number }[]
   observations: string
 }
@@ -490,6 +511,10 @@ export type Presupuesto = {
   status: string
   client_id: number | null
   client_name: string
+  client_address: string
+  client_cuit: string
+  client_email: string
+  client_phone: string
   items: { description: string; qty: number; unit_price: number; subtotal: number }[]
   subtotal: number
   tax_rate: number
@@ -508,8 +533,13 @@ export type MpPago = {
   payer_email: string
   payer_name: string
   payment_type: string | null
+  payment_method: string | null
+  descripcion_mp: string | null
+  payer_id_type: string | null
   payer_id_number: string | null
   estado_factura: string
+  factura_id: number | null
+  created_at: string
   cliente: Cliente | null
 }
 
@@ -521,20 +551,27 @@ export type MpMovimiento = {
   fecha: string
   descripcion: string
   origen_nombre: string
+  origen_banco: string | null
+  origen_cbu: string | null
   payer_email: string
   payer_name: string
+  payer_id_type: string | null
   payer_id_number: string
   estado_factura: string
+  factura_id: number | null
+  created_at: string
   cliente: Cliente | null
 }
 
 export type LibroIvaFactura = {
   id: number; tipo: number; punto_venta: number; numero: number; fecha: string
   cliente_razon: string; cliente_cuit: string; subtotal: number; iva_amount: number; total: number
+  cae?: string
 }
 export type LibroIvaEgreso = {
   id: number; fecha: string; proveedor_nombre: string; numero: string
   monto_neto: number; iva_monto: number; total: number
+  proveedor_cuit?: string; iva_pct?: number
 }
 export type ResumenIva = {
   cbtes: number; neto: number; iva: number; total: number
@@ -560,6 +597,19 @@ export type ReportesData = {
   productos: ReporteProducto[]; caja: ReporteCaja[]; stock_bajo: ReporteStockBajo[]
 }
 
+export type CajaMedioVals = { ingresos: number; ingresos_ops: number; egresos: number; egresos_ops: number }
+export type CajaMedioPivot = {
+  id: number; nombre: string; medios: Record<string, CajaMedioVals>
+  total_ingresos: number; total_egresos: number; saldo: number
+}
+export type CajaMediosData = {
+  desde: string; hasta: string
+  cajas_config: CajaConfig[]
+  cajas: CajaMedioPivot[]
+  totales: Record<string, CajaMedioVals>
+  medio_label: Record<string, string>
+}
+
 export type LogActividad = {
   fecha: string
   tipo: string
@@ -567,6 +617,13 @@ export type LogActividad = {
   monto: number
   usuario: string
   turno_id: number | null
+  // Campos opcionales: la version Jinja2 vieja (git 1a8808c, web/templates/admin/logs.html)
+  // los usaba para el link "Ver" por fila, pero no hay certeza de que
+  // db.get_actividad_log() los siga devolviendo tras la migracion a libracore
+  // (no se pudo inspeccionar el paquete instalado). Se declaran opcionales
+  // y el render se guarda contra undefined -- ver Logs.tsx.
+  ref_tabla?: string | null
+  ref_id?: number | null
 }
 
 export type LogAuth = { id: number; evento: string; username: string; ip: string; ts: string }

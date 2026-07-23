@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { type ColumnDef } from '@tanstack/react-table'
-import { api, ApiError, UNIDADES, type Producto } from '../api'
+import { api, ApiError, UNIDADES, type CategoriaProducto, type Producto } from '../api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,6 +15,9 @@ import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from '@/components/ui/form'
 import { DataTable, sortableHeader } from '@/components/data-table'
+import {
+  Package, Plus, Pencil, Trash2, Ban, Undo2, Search, X, TrendingUp,
+} from 'lucide-react'
 
 const productoSchema = z.object({
   nombre: z.string().trim().min(1, 'El nombre es obligatorio'),
@@ -40,10 +43,12 @@ function formatCurrency(value: number): string {
 
 export function Productos() {
   const [productos, setProductos] = useState<Producto[]>([])
+  const [categorias, setCategorias] = useState<CategoriaProducto[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<number | 'new' | null>(null)
   const [saving, setSaving] = useState(false)
+  const [q, setQ] = useState('')
 
   // Sin generic explícito en useForm: con z.coerce.number() el tipo de
   // entrada del resolver (string|unknown) difiere del tipo de salida
@@ -54,8 +59,15 @@ export function Productos() {
     defaultValues: EMPTY_VALUES,
   })
 
+  // Margen en vivo (restaurado desde web/templates/productos/form.html).
+  const precioVenta = Number(form.watch('precio_venta')) || 0
+  const precioCosto = Number(form.watch('precio_costo')) || 0
+  const margen = precioCosto > 0 && precioVenta > 0 ? ((precioVenta - precioCosto) / precioCosto) * 100 : null
+
   useEffect(() => {
     loadProductos()
+    api.get<CategoriaProducto[]>('/api/productos/categorias').then(setCategorias).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function describeError(err: unknown): string {
@@ -63,16 +75,22 @@ export function Productos() {
     return 'Error de conexión.'
   }
 
-  async function loadProductos() {
+  async function loadProductos(query = q) {
     setLoading(true)
     setError(null)
     try {
-      setProductos(await api.get<Producto[]>('/api/productos'))
+      const path = query ? `/api/productos?q=${encodeURIComponent(query)}` : '/api/productos'
+      setProductos(await api.get<Producto[]>(path))
     } catch (err) {
       setError(describeError(err))
     } finally {
       setLoading(false)
     }
+  }
+
+  function limpiarBusqueda() {
+    setQ('')
+    loadProductos('')
   }
 
   function startCreate() {
@@ -149,11 +167,26 @@ export function Productos() {
     }
   }
 
+  // Restaurado desde web/templates/productos/list.html -- el DELETE físico
+  // ya existe en el backend (web/api/productos.py) pero no estaba wireado
+  // en esta página, solo quedaba el toggle activo/inactivo.
+  async function eliminar(producto: Producto) {
+    if (!window.confirm(`¿Eliminar ${producto.nombre}?`)) return
+    setError(null)
+    try {
+      await api.del(`/api/productos/${producto.id}`)
+      await loadProductos()
+    } catch (err) {
+      setError(describeError(err))
+    }
+  }
+
   const columns = useMemo<ColumnDef<Producto>[]>(() => [
     { accessorKey: 'codigo', header: 'Código', cell: ({ row }) => <span className="font-mono text-xs">{row.original.codigo || '—'}</span> },
     { accessorKey: 'nombre', header: sortableHeader('Nombre'), cell: ({ row }) => <span className="font-medium">{row.original.nombre}</span> },
     { accessorKey: 'categoria', header: 'Categoría', cell: ({ row }) => row.original.categoria || '—' },
     { accessorKey: 'precio_venta', header: 'Precio venta', cell: ({ row }) => formatCurrency(row.original.precio_venta) },
+    { accessorKey: 'precio_costo', header: 'Precio costo', cell: ({ row }) => <span className="text-muted-foreground">{formatCurrency(row.original.precio_costo)}</span> },
     { accessorKey: 'unidad', header: 'Unidad' },
     {
       accessorKey: 'activo',
@@ -169,10 +202,11 @@ export function Productos() {
       header: () => <div className="text-right">Acciones</div>,
       cell: ({ row }) => (
         <div className="flex justify-end gap-2">
-          <Button size="sm" variant="outline" onClick={() => startEdit(row.original)}>Editar</Button>
+          <Button size="sm" variant="outline" onClick={() => startEdit(row.original)}><Pencil />Editar</Button>
           <Button size="sm" variant="outline" onClick={() => toggleActivo(row.original)}>
-            {row.original.activo ? 'Desactivar' : 'Activar'}
+            {row.original.activo ? <><Ban />Desactivar</> : <><Undo2 />Activar</>}
           </Button>
+          <Button size="sm" variant="outline" onClick={() => eliminar(row.original)}><Trash2 />Eliminar</Button>
         </div>
       ),
     },
@@ -181,14 +215,28 @@ export function Productos() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Productos</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-lg font-semibold"><Package className="size-5 text-primary" />Productos</h2>
         {editingId === null && (
-          <Button onClick={startCreate}>+ Nuevo producto</Button>
+          <Button onClick={startCreate}><Plus />Nuevo producto</Button>
         )}
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
+
+      <Card>
+        <CardContent className="flex flex-wrap items-center gap-2 py-3">
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && loadProductos()}
+            placeholder="Buscar por nombre, código o categoría…"
+            className="w-72"
+          />
+          <Button size="sm" variant="outline" onClick={() => loadProductos()}><Search />Buscar</Button>
+          {q && <Button size="sm" variant="ghost" onClick={limpiarBusqueda}><X />Limpiar</Button>}
+        </CardContent>
+      </Card>
 
       {editingId !== null && (
         <Card>
@@ -231,8 +279,11 @@ export function Productos() {
                     <FormItem>
                       <FormLabel>Categoría</FormLabel>
                       <FormControl>
-                        <Input {...field} className="w-40" />
+                        <Input {...field} className="w-40" list="categorias-producto" placeholder="Elegir o escribir…" />
                       </FormControl>
+                      <datalist id="categorias-producto">
+                        {categorias.map((c) => <option key={c.id} value={c.nombre} />)}
+                      </datalist>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -309,6 +360,11 @@ export function Productos() {
                     </FormItem>
                   )}
                 />
+                {margen !== null && (
+                  <p className={`flex w-full items-center gap-1.5 text-sm ${margen >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
+                    <TrendingUp className="size-4 shrink-0" />Margen: <strong>{margen.toFixed(1)}%</strong>
+                  </p>
+                )}
                 <div className="flex gap-2 pt-6">
                   <Button type="submit" disabled={saving}>
                     {saving ? 'Guardando…' : editingId === 'new' ? 'Crear' : 'Guardar'}
@@ -326,7 +382,11 @@ export function Productos() {
           {loading ? (
             <p className="py-6 text-center text-sm text-muted-foreground">Cargando…</p>
           ) : (
-            <DataTable columns={columns} data={productos} emptyMessage="Sin productos todavía." />
+            <DataTable
+              columns={columns}
+              data={productos}
+              emptyMessage={q ? `No se encontraron productos para "${q}".` : 'Sin productos todavía.'}
+            />
           )}
         </CardContent>
       </Card>

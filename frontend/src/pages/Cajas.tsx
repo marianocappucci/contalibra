@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { type ColumnDef } from '@tanstack/react-table'
 import { api, ApiError, MEDIOS_PAGO_LABELS, type CajaConfig } from '../api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -7,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { DataTable, sortableHeader } from '@/components/data-table'
+import { SquareStack, Plus, Eye, Pencil, Trash2, Star, Check } from 'lucide-react'
 
 const TODOS_MEDIOS = Object.keys(MEDIOS_PAGO_LABELS)
 
@@ -87,6 +89,7 @@ export function Cajas() {
   }
 
   async function eliminar(c: CajaConfig) {
+    if (!window.confirm(`¿Eliminar la caja «${c.nombre}»?`)) return
     setError(null)
     try {
       await api.del(`/api/cajas/${c.id}`)
@@ -114,10 +117,11 @@ export function Cajas() {
       id: 'actions',
       header: () => <div className="text-right">Acciones</div>,
       cell: ({ row }) => (
-        <div className="flex justify-end gap-2">
-          {!row.original.es_default && <Button size="sm" variant="outline" onClick={() => setDefault(row.original)}>Por defecto</Button>}
-          <Button size="sm" variant="outline" onClick={() => startEdit(row.original)}>Editar</Button>
-          <Button size="sm" variant="outline" onClick={() => eliminar(row.original)}>Eliminar</Button>
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button size="sm" variant="outline" asChild><Link to={`/caja?caja_id=${row.original.id}`}><Eye />Ver movimientos</Link></Button>
+          <Button size="sm" variant="outline" onClick={() => startEdit(row.original)}><Pencil />Editar</Button>
+          {!row.original.es_default && <Button size="sm" variant="outline" onClick={() => setDefault(row.original)} title="Usar como caja por defecto"><Star />Predeterminar</Button>}
+          {!row.original.es_default && <Button size="sm" variant="outline" onClick={() => eliminar(row.original)}><Trash2 /></Button>}
         </div>
       ),
     },
@@ -127,8 +131,8 @@ export function Cajas() {
   return (
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Cajas</h2>
-        {editingId === null && <Button onClick={startCreate}>+ Nueva caja</Button>}
+        <h2 className="flex items-center gap-2 text-lg font-semibold"><SquareStack className="size-5 text-primary" />Cajas</h2>
+        {editingId === null && <Button onClick={startCreate}><Plus />Nueva caja</Button>}
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
@@ -138,7 +142,7 @@ export function Cajas() {
           <CardHeader><CardTitle className="text-base">{editingId === 'new' ? 'Nueva caja' : 'Editar caja'}</CardTitle></CardHeader>
           <CardContent className="grid gap-3">
             <div className="flex flex-wrap items-end gap-3">
-              <div className="grid gap-1.5"><Label>Nombre</Label><Input value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} className="w-48" /></div>
+              <div className="grid gap-1.5"><Label>Nombre</Label><Input value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} className="w-48" placeholder="Ej: Caja mostrador, Caja online…" /></div>
               <div className="grid gap-1.5"><Label>Descripción</Label><Input value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })} className="w-64" /></div>
             </div>
             <div className="grid gap-1.5">
@@ -153,7 +157,7 @@ export function Cajas() {
               </div>
             </div>
             <div className="flex gap-2">
-              <Button disabled={saving} onClick={guardar}>{saving ? 'Guardando…' : editingId === 'new' ? 'Crear' : 'Guardar'}</Button>
+              <Button disabled={saving} onClick={guardar}><Check />{saving ? 'Guardando…' : editingId === 'new' ? 'Crear' : 'Guardar'}</Button>
               <Button type="button" variant="outline" onClick={() => setEditingId(null)}>Cancelar</Button>
             </div>
           </CardContent>

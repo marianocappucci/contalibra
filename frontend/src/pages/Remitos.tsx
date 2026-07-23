@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { type ColumnDef } from '@tanstack/react-table'
 import { api, ApiError, type Cliente, type Remito } from '../api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -9,6 +10,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { DataTable, sortableHeader } from '@/components/data-table'
+import {
+  FileText, Plus, Search, X, Eye, FileDown, Trash2,
+} from 'lucide-react'
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10)
@@ -18,6 +22,7 @@ type ItemRow = { description: string; qty: string }
 const EMPTY_ITEM: ItemRow = { description: '', qty: '1' }
 
 export function Remitos() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [remitos, setRemitos] = useState<Remito[]>([])
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [loading, setLoading] = useState(true)
@@ -31,11 +36,31 @@ export function Remitos() {
   const [items, setItems] = useState<ItemRow[]>([{ ...EMPTY_ITEM }])
   const [saving, setSaving] = useState(false)
 
+  const [abiertoId, setAbiertoId] = useState<number | null>(null)
+  const [detalle, setDetalle] = useState<Remito | null>(null)
+
   useEffect(() => {
     api.get<Cliente[]>('/api/clientes').then((c) => setClientes(c.filter((x) => x.activo))).catch(() => {})
   }, [])
 
   useEffect(() => { load() }, [])
+
+  // Deep-link desde accesos rapidos del Dashboard (?nuevo=1)
+  useEffect(() => {
+    if (searchParams.get('nuevo') === '1') {
+      setCreating(true)
+      setSearchParams((p) => { p.delete('nuevo'); return p }, { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Deep-link desde otros modulos (ej. Ventas): ?ver=<id> abre el detalle de ese remito
+  useEffect(() => {
+    const ver = searchParams.get('ver')
+    if (ver) verDetalle(Number(ver))
+    if (ver) setSearchParams((p) => { p.delete('ver'); return p }, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function describeError(err: unknown): string {
     if (err instanceof ApiError) return err.detail
@@ -51,6 +76,25 @@ export function Remitos() {
       setError(describeError(err))
     } finally {
       setLoading(false)
+    }
+  }
+
+  function limpiarBusqueda() {
+    setQ('')
+    setTimeout(load, 0)
+  }
+
+  async function verDetalle(id: number) {
+    if (abiertoId === id) {
+      setAbiertoId(null)
+      return
+    }
+    setAbiertoId(id)
+    setError(null)
+    try {
+      setDetalle(await api.get<Remito>(`/api/remitos/${id}`))
+    } catch (err) {
+      setError(describeError(err))
     }
   }
 
@@ -88,9 +132,11 @@ export function Remitos() {
   }
 
   async function eliminar(r: Remito) {
+    if (!window.confirm('¿Eliminar este remito? Esta acción no se puede deshacer.')) return
     setError(null)
     try {
       await api.del(`/api/remitos/${r.id}`)
+      if (abiertoId === r.id) setAbiertoId(null)
       await load()
     } catch (err) {
       setError(describeError(err))
@@ -107,20 +153,31 @@ export function Remitos() {
       header: () => <div className="text-right">Acciones</div>,
       cell: ({ row }) => (
         <div className="flex justify-end gap-2">
-          <Button asChild size="sm" variant="outline"><a href={`/remitos/${row.original.id}/pdf`} target="_blank" rel="noreferrer">PDF</a></Button>
-          <Button size="sm" variant="outline" onClick={() => eliminar(row.original)}>Eliminar</Button>
+          <Button size="sm" variant="outline" onClick={() => verDetalle(row.original.id)}>
+            <Eye />{abiertoId === row.original.id ? 'Ocultar' : 'Ver'}
+          </Button>
+          <Button asChild size="sm" variant="outline"><a href={`/remitos/${row.original.id}/pdf`} target="_blank" rel="noreferrer"><FileDown />PDF</a></Button>
+          <Button size="sm" variant="outline" onClick={() => eliminar(row.original)}><Trash2 />Eliminar</Button>
         </div>
       ),
     },
-  ], [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [abiertoId])
 
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <h2 className="text-lg font-semibold">Remitos</h2>
+        <h2 className="flex items-center gap-2 text-lg font-semibold"><FileText className="size-5" />Remitos</h2>
         <div className="flex items-end gap-3">
-          <div className="grid gap-1.5"><Label>Buscar</Label><Input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} className="w-48" /></div>
-          {!creating && <Button onClick={() => setCreating(true)}>+ Nuevo remito</Button>}
+          <div className="grid gap-1.5">
+            <Label>Buscar</Label>
+            <div className="flex gap-1">
+              <Input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} className="w-56" placeholder="Número, cliente u observaciones…" />
+              <Button size="icon" variant="outline" onClick={load}><Search /></Button>
+              {q && <Button size="icon" variant="outline" onClick={limpiarBusqueda}><X /></Button>}
+            </div>
+          </div>
+          {!creating && <Button onClick={() => setCreating(true)}><Plus />Nuevo remito</Button>}
         </div>
       </div>
 
@@ -152,14 +209,14 @@ export function Remitos() {
                 <div key={i} className="flex flex-wrap items-center gap-2">
                   <Input value={row.description} onChange={(e) => updateItem(i, 'description', e.target.value)} className="w-64" placeholder="Descripción" />
                   <Input type="number" step="0.01" value={row.qty} onChange={(e) => updateItem(i, 'qty', e.target.value)} className="w-20" placeholder="Cant." />
-                  {items.length > 1 && <Button size="sm" variant="ghost" onClick={() => removeItem(i)}>Quitar</Button>}
+                  {items.length > 1 && <Button size="sm" variant="ghost" onClick={() => removeItem(i)}><X />Quitar</Button>}
                 </div>
               ))}
-              <Button size="sm" variant="outline" className="w-fit" onClick={addItem}>+ Agregar ítem</Button>
+              <Button size="sm" variant="outline" className="w-fit" onClick={addItem}><Plus />Agregar ítem</Button>
             </div>
 
             <div className="flex gap-2">
-              <Button disabled={saving} onClick={crear}>{saving ? 'Guardando…' : 'Crear remito'}</Button>
+              <Button disabled={saving} onClick={crear}>{saving ? 'Guardando…' : 'Guardar y generar PDF'}</Button>
               <Button type="button" variant="outline" onClick={() => { setCreating(false); resetForm() }}>Cancelar</Button>
             </div>
           </CardContent>
@@ -175,6 +232,58 @@ export function Remitos() {
           )}
         </CardContent>
       </Card>
+
+      {abiertoId !== null && detalle && (
+        <div className="grid gap-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader><CardTitle className="text-base">Datos del cliente</CardTitle></CardHeader>
+              <CardContent className="grid gap-1.5 text-sm">
+                <p><span className="text-muted-foreground">Cliente:</span> {detalle.client_name}</p>
+                {detalle.client_cuit && <p><span className="text-muted-foreground">CUIT / DNI:</span> {detalle.client_cuit}</p>}
+                {detalle.client_address && <p><span className="text-muted-foreground">Domicilio:</span> {detalle.client_address}</p>}
+                {detalle.client_email && <p><span className="text-muted-foreground">Email:</span> {detalle.client_email}</p>}
+                {detalle.client_phone && <p><span className="text-muted-foreground">Teléfono:</span> {detalle.client_phone}</p>}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle className="text-base">Datos del remito</CardTitle></CardHeader>
+              <CardContent className="grid gap-1.5 text-sm">
+                <p><span className="text-muted-foreground">Número:</span> <span className="font-mono">{detalle.number}</span></p>
+                <p><span className="text-muted-foreground">Fecha:</span> {detalle.date}</p>
+                {detalle.observations && <p><span className="text-muted-foreground">Observaciones:</span> {detalle.observations}</p>}
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader><CardTitle className="text-base">Ítems</CardTitle></CardHeader>
+            <CardContent className="p-0">
+              <table className="w-full text-sm">
+                <thead className="border-b text-muted-foreground">
+                  <tr>
+                    <th className="p-3 text-left font-medium">Descripción</th>
+                    <th className="p-3 text-right font-medium">Cantidad</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {detalle.items.map((it, i) => (
+                    <tr key={i} className="border-b last:border-0">
+                      <td className="whitespace-pre-line p-3">{it.description}</td>
+                      <td className="p-3 text-right">{it.qty}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+
+          <div className="flex justify-end gap-2">
+            <Button asChild variant="outline"><a href={`/remitos/${detalle.id}/pdf`} target="_blank" rel="noreferrer"><FileDown />Ver PDF</a></Button>
+            <Button variant="outline" onClick={() => eliminar(detalle)}><Trash2 />Eliminar remito</Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

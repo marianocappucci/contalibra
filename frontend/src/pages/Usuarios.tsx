@@ -16,6 +16,7 @@ import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from '@/components/ui/form'
 import { DataTable, sortableHeader } from '@/components/data-table'
+import { Check, Pencil, Plus, PowerOff, Power, Trash2, UserCog } from 'lucide-react'
 
 const crearSchema = z.object({
   username: z.string().trim().min(1, 'El usuario es obligatorio'),
@@ -126,6 +127,7 @@ export function Usuarios() {
   }
 
   async function eliminar(usuario: Usuario) {
+    if (!window.confirm(`¿Eliminar usuario ${usuario.username}?`)) return
     setError(null)
     try {
       await api.del(`/api/usuarios/${usuario.id}`)
@@ -135,16 +137,31 @@ export function Usuarios() {
     }
   }
 
+  const roleLabel: Record<string, string> = { admin: 'Admin', operador: 'Operador', cajero: 'Cajero' }
+
   const columns = useMemo<ColumnDef<Usuario>[]>(() => [
     { accessorKey: 'username', header: sortableHeader('Usuario'), cell: ({ row }) => <span className="font-medium">{row.original.username}</span> },
     { accessorKey: 'nombre', header: 'Nombre' },
     { accessorKey: 'email', header: 'Email', cell: ({ row }) => row.original.email || '—' },
-    { accessorKey: 'role', header: 'Rol', cell: ({ row }) => <span className="capitalize">{row.original.role}</span> },
+    {
+      accessorKey: 'role',
+      header: 'Rol',
+      cell: ({ row }) => (
+        <Badge variant={row.original.role === 'admin' ? 'default' : 'secondary'}>
+          {roleLabel[row.original.role] ?? row.original.role}
+        </Badge>
+      ),
+    },
     {
       accessorKey: 'activo',
       header: 'Estado',
       cell: ({ row }) => (
-        <Badge variant={row.original.activo ? 'default' : 'outline'}>
+        <Badge
+          variant="outline"
+          className={row.original.activo
+            ? 'border-emerald-600/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+            : 'border-destructive/30 bg-destructive/10 text-destructive'}
+        >
           {row.original.activo ? 'Activo' : 'Inactivo'}
         </Badge>
       ),
@@ -154,12 +171,13 @@ export function Usuarios() {
       header: () => <div className="text-right">Acciones</div>,
       cell: ({ row }) => (
         <div className="flex justify-end gap-2">
-          <Button size="sm" variant="outline" onClick={() => startEdit(row.original)}>Editar</Button>
+          <Button size="sm" variant="outline" onClick={() => startEdit(row.original)}><Pencil />Editar</Button>
           <Button size="sm" variant="outline" onClick={() => toggleActivo(row.original)}>
+            {row.original.activo ? <PowerOff /> : <Power />}
             {row.original.activo ? 'Desactivar' : 'Activar'}
           </Button>
           {row.original.username !== me?.username && (
-            <Button size="sm" variant="outline" onClick={() => eliminar(row.original)}>Eliminar</Button>
+            <Button size="sm" variant="outline" onClick={() => eliminar(row.original)}><Trash2 />Eliminar</Button>
           )}
         </div>
       ),
@@ -170,9 +188,9 @@ export function Usuarios() {
   return (
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Usuarios</h2>
+        <h2 className="flex items-center gap-2 text-lg font-semibold"><UserCog className="size-5" />Usuarios</h2>
         {!creating && (
-          <Button onClick={() => { setCreating(true); setEditingId(null) }}>+ Nuevo usuario</Button>
+          <Button onClick={() => { setCreating(true); setEditingId(null) }}><Plus />Nuevo usuario</Button>
         )}
       </div>
 
@@ -209,7 +227,7 @@ export function Usuarios() {
                   </FormItem>
                 )} />
                 <div className="flex gap-2 pt-6">
-                  <Button type="submit" disabled={saving}>{saving ? 'Guardando…' : 'Crear'}</Button>
+                  <Button type="submit" disabled={saving}><Check />{saving ? 'Guardando…' : 'Crear'}</Button>
                   <Button type="button" variant="outline" onClick={() => { setCreating(false); createForm.reset(EMPTY_CREATE) }}>Cancelar</Button>
                 </div>
               </form>
@@ -246,7 +264,7 @@ export function Usuarios() {
                   <FormItem><FormLabel>Nueva contraseña (opcional)</FormLabel><FormControl><Input type="password" {...field} className="w-40" /></FormControl><FormMessage /></FormItem>
                 )} />
                 <div className="flex gap-2 pt-6">
-                  <Button type="submit" disabled={saving}>{saving ? 'Guardando…' : 'Guardar'}</Button>
+                  <Button type="submit" disabled={saving}><Check />{saving ? 'Guardando…' : 'Guardar'}</Button>
                   <Button type="button" variant="outline" onClick={() => setEditingId(null)}>Cancelar</Button>
                 </div>
               </form>

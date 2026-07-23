@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { type ColumnDef } from '@tanstack/react-table'
 import {
   api, ApiError, MEDIOS_PAGO_LABELS, type Caja, type ClienteConSaldoCC, type MovimientoCC,
@@ -8,10 +9,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { DataTable, sortableHeader } from '@/components/data-table'
+import {
+  BookOpen, Eye, EyeOff, CircleDollarSign, Trash2, ArrowUpCircle, ArrowDownCircle,
+  ShoppingCart, Receipt,
+} from 'lucide-react'
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10)
@@ -35,6 +41,8 @@ export function CuentaCorriente() {
   const [detalleLoading, setDetalleLoading] = useState(false)
 
   const [monto, setMonto] = useState('')
+  const [fecha, setFecha] = useState(todayIso())
+  const [concepto, setConcepto] = useState('Pago a cuenta')
   const [medioPago, setMedioPago] = useState('efectivo')
   const [cajaId, setCajaId] = useState('')
   const [referencia, setReferencia] = useState('')
@@ -72,7 +80,7 @@ export function CuentaCorriente() {
     setAbiertoId(cliente.id)
     setDetalleLoading(true)
     setError(null)
-    setMonto(''); setReferencia('')
+    setMonto(''); setReferencia(''); setFecha(todayIso()); setConcepto('Pago a cuenta')
     try {
       const data = await api.get<{ movimientos: MovimientoCC[]; saldo: number }>(`/api/cuenta-corriente/${cliente.id}`)
       setMovimientos(data.movimientos)
@@ -93,12 +101,12 @@ export function CuentaCorriente() {
     setError(null)
     try {
       const data = await api.post<{ movimientos: MovimientoCC[]; saldo: number }>(`/api/cuenta-corriente/${abiertoId}/pagar`, {
-        monto: Number(monto), fecha: todayIso(), referencia,
+        monto: Number(monto), fecha, concepto: concepto || 'Pago a cuenta', referencia,
         medio_pago: medioPago, caja_id: cajaId ? Number(cajaId) : null,
       })
       setMovimientos(data.movimientos)
       setSaldo(data.saldo)
-      setMonto(''); setReferencia('')
+      setMonto(''); setReferencia(''); setConcepto('Pago a cuenta')
       await load()
     } catch (err) {
       setError(describeError(err))
@@ -109,6 +117,7 @@ export function CuentaCorriente() {
 
   async function eliminarPago(pagoId: number) {
     if (abiertoId === null) return
+    if (!window.confirm('¿Eliminar este pago?')) return
     setError(null)
     try {
       await api.del(`/api/cuenta-corriente/pagos/${pagoId}`)
@@ -120,6 +129,16 @@ export function CuentaCorriente() {
       setError(describeError(err))
     }
   }
+
+  const totales = useMemo(() => {
+    let cargado = 0
+    let abonado = 0
+    for (const m of movimientos) {
+      if (m.tipo === 'debito') cargado += m.monto
+      else abonado += m.monto
+    }
+    return { cargado, abonado }
+  }, [movimientos])
 
   const columns = useMemo<ColumnDef<ClienteConSaldoCC>[]>(() => [
     { accessorKey: 'name', header: sortableHeader('Cliente'), cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
@@ -139,7 +158,7 @@ export function CuentaCorriente() {
       cell: ({ row }) => (
         <div className="flex justify-end">
           <Button size="sm" variant="outline" onClick={() => abrir(row.original)}>
-            {abiertoId === row.original.id ? 'Ocultar' : 'Ver movimientos'}
+            {abiertoId === row.original.id ? <><EyeOff />Ocultar</> : <><Eye />Ver movimientos</>}
           </Button>
         </div>
       ),
@@ -149,23 +168,54 @@ export function CuentaCorriente() {
 
   const movColumns = useMemo<ColumnDef<MovimientoCC>[]>(() => [
     { accessorKey: 'fecha', header: 'Fecha' },
-    { accessorKey: 'concepto', header: 'Concepto' },
+    {
+      accessorKey: 'tipo',
+      header: 'Tipo',
+      cell: ({ row }) => (
+        row.original.tipo === 'debito'
+          ? <Badge variant="destructive"><ArrowUpCircle />Cargo</Badge>
+          : <Badge className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-400"><ArrowDownCircle />Abono</Badge>
+      ),
+    },
+    {
+      accessorKey: 'concepto',
+      header: 'Concepto',
+      cell: ({ row }) => {
+        if (row.original.venta_id) {
+          return <Link to={`/ventas?ver=${row.original.venta_id}`} className="flex items-center gap-1 font-medium text-primary hover:underline"><ShoppingCart className="size-3.5" />{row.original.concepto}</Link>
+        }
+        if (row.original.factura_id) {
+          return <Link to={`/facturas?ver=${row.original.factura_id}`} className="flex items-center gap-1 font-medium text-primary hover:underline"><Receipt className="size-3.5" />{row.original.concepto}</Link>
+        }
+        return row.original.concepto
+      },
+    },
     {
       accessorKey: 'monto',
       header: 'Monto',
       cell: ({ row }) => (
-        <span className={row.original.tipo === 'debito' ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'}>
+        <span className={row.original.tipo === 'debito' ? 'font-medium text-destructive' : 'font-medium text-emerald-600 dark:text-emerald-400'}>
           {row.original.tipo === 'debito' ? '+' : '−'} {formatCurrency(row.original.monto)}
         </span>
       ),
     },
-    { accessorKey: 'referencia', header: 'Referencia', cell: ({ row }) => row.original.referencia || '—' },
+    { accessorKey: 'usuario_nombre', header: 'Usuario', cell: ({ row }) => row.original.usuario_nombre || '—' },
+    {
+      accessorKey: 'referencia',
+      header: 'Referencia / Medio',
+      cell: ({ row }) => (
+        <span className="flex flex-wrap items-center gap-1">
+          {row.original.referencia || '—'}
+          {row.original.medio && <Badge variant="outline">{MEDIOS_PAGO_LABELS[row.original.medio] ?? row.original.medio}</Badge>}
+        </span>
+      ),
+    },
     {
       id: 'actions',
       header: '',
       cell: ({ row }) => (
         row.original.cc_pago_id && user?.role === 'admin' ? (
-          <Button size="sm" variant="ghost" onClick={() => eliminarPago(row.original.cc_pago_id!)}>Eliminar</Button>
+          <Button size="sm" variant="ghost" onClick={() => eliminarPago(row.original.cc_pago_id!)}><Trash2 />Eliminar</Button>
         ) : null
       ),
     },
@@ -175,7 +225,7 @@ export function CuentaCorriente() {
   return (
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Cuenta corriente</h2>
+        <h2 className="flex items-center gap-2 text-lg font-semibold"><BookOpen className="size-5 text-primary" />Cuenta corriente</h2>
         <span className="text-sm text-muted-foreground">Deuda total: <span className="font-medium text-foreground">{formatCurrency(totalDeuda)}</span></span>
       </div>
 
@@ -202,29 +252,41 @@ export function CuentaCorriente() {
               <p className="py-6 text-center text-sm text-muted-foreground">Cargando…</p>
             ) : (
               <>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <Card><CardHeader><CardDescription>Total cargado</CardDescription><CardTitle className="text-xl text-destructive">{formatCurrency(totales.cargado)}</CardTitle></CardHeader></Card>
+                  <Card><CardHeader><CardDescription>Total abonado</CardDescription><CardTitle className="text-xl text-emerald-600 dark:text-emerald-400">{formatCurrency(totales.abonado)}</CardTitle></CardHeader></Card>
+                  <Card><CardHeader><CardDescription>Saldo actual</CardDescription><CardTitle className={saldo > 0 ? 'text-xl text-amber-600 dark:text-amber-400' : 'text-xl text-emerald-600 dark:text-emerald-400'}>{formatCurrency(saldo)}</CardTitle></CardHeader></Card>
+                </div>
+
                 <DataTable columns={movColumns} data={movimientos} emptyMessage="Sin movimientos." />
-                <div className="flex flex-wrap items-end gap-3 border-t pt-4">
-                  <div className="grid gap-1.5"><Label>Monto a pagar</Label><Input type="number" step="0.01" value={monto} onChange={(e) => setMonto(e.target.value)} className="w-32" /></div>
-                  <div className="grid gap-1.5">
-                    <Label>Caja</Label>
-                    <Select value={cajaId} onValueChange={setCajaId}>
-                      <SelectTrigger className="w-40"><SelectValue placeholder="Sin caja" /></SelectTrigger>
-                      <SelectContent>
-                        {cajas.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.nombre}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+
+                <div className="grid gap-3 border-t pt-4">
+                  <p className="flex items-center gap-2 text-sm font-medium"><CircleDollarSign className="size-4" />Registrar pago</p>
+                  <div className="flex flex-wrap items-end gap-3">
+                    <div className="grid gap-1.5"><Label>Monto</Label><Input type="number" step="0.01" value={monto} onChange={(e) => setMonto(e.target.value)} className="w-32" /></div>
+                    <div className="grid gap-1.5"><Label>Fecha</Label><Input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="w-40" /></div>
+                    <div className="grid gap-1.5"><Label>Concepto</Label><Input value={concepto} onChange={(e) => setConcepto(e.target.value)} className="w-48" /></div>
+                    <div className="grid gap-1.5">
+                      <Label>Caja</Label>
+                      <Select value={cajaId} onValueChange={setCajaId}>
+                        <SelectTrigger className="w-40"><SelectValue placeholder="Sin caja" /></SelectTrigger>
+                        <SelectContent>
+                          {cajas.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.nombre}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label>Medio de pago</Label>
+                      <Select value={medioPago} onValueChange={setMedioPago}>
+                        <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(MEDIOS_PAGO_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-1.5"><Label>Referencia</Label><Input value={referencia} onChange={(e) => setReferencia(e.target.value)} className="w-40" /></div>
+                    <Button disabled={pagando || !monto} onClick={pagar}><CircleDollarSign />{pagando ? 'Guardando…' : 'Registrar pago'}</Button>
                   </div>
-                  <div className="grid gap-1.5">
-                    <Label>Medio de pago</Label>
-                    <Select value={medioPago} onValueChange={setMedioPago}>
-                      <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(MEDIOS_PAGO_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-1.5"><Label>Referencia</Label><Input value={referencia} onChange={(e) => setReferencia(e.target.value)} className="w-40" /></div>
-                  <Button disabled={pagando || !monto} onClick={pagar}>{pagando ? 'Guardando…' : 'Registrar pago'}</Button>
                 </div>
               </>
             )}

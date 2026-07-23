@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { type ColumnDef } from '@tanstack/react-table'
 import { api, ApiError, ESTADOS_PRESUPUESTO, type Cliente, type Presupuesto } from '../api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -10,6 +11,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { DataTable, sortableHeader } from '@/components/data-table'
+import {
+  Send, XCircle, CheckCircle2, RefreshCw, Receipt, CheckCheck, Undo2, Mail, Trash2, FileDown, Eye,
+} from 'lucide-react'
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10)
@@ -27,6 +31,7 @@ const estadoVariant: Record<string, 'default' | 'secondary' | 'outline' | 'destr
 }
 
 export function Presupuestos() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [presupuestos, setPresupuestos] = useState<Presupuesto[]>([])
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [loading, setLoading] = useState(true)
@@ -54,6 +59,16 @@ export function Presupuestos() {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [estadoFiltro])
+
+  // Deep-link desde el Dashboard: ?nuevo=1 abre el alta, ?ver=<id> abre el detalle
+  useEffect(() => {
+    const nuevo = searchParams.get('nuevo')
+    const ver = searchParams.get('ver')
+    if (nuevo === '1') setCreating(true)
+    if (ver) setAbiertoId(Number(ver))
+    if (nuevo || ver) setSearchParams((p) => { p.delete('nuevo'); p.delete('ver'); return p }, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function describeError(err: unknown): string {
     if (err instanceof ApiError) return err.detail
@@ -154,9 +169,9 @@ export function Presupuestos() {
       cell: ({ row }) => (
         <div className="flex justify-end gap-2">
           <Button size="sm" variant="outline" onClick={() => { setAbiertoId(abiertoId === row.original.id ? null : row.original.id); setEmailTo('') }}>
-            {abiertoId === row.original.id ? 'Ocultar' : 'Gestionar'}
+            <Eye />{abiertoId === row.original.id ? 'Ocultar' : 'Ver'}
           </Button>
-          <Button asChild size="sm" variant="outline"><a href={`/presupuestos/${row.original.id}/pdf`} target="_blank" rel="noreferrer">PDF</a></Button>
+          <Button asChild size="sm" variant="outline"><a href={`/presupuestos/${row.original.id}/pdf`} target="_blank" rel="noreferrer"><FileDown />PDF</a></Button>
         </div>
       ),
     },
@@ -241,27 +256,115 @@ export function Presupuestos() {
         </CardContent>
       </Card>
 
-      {presupuestoAbierto && (
-        <Card>
-          <CardHeader><CardTitle className="text-base">{presupuestoAbierto.number} — {presupuestoAbierto.client_name}</CardTitle></CardHeader>
-          <CardContent className="grid gap-4">
-            <div className="flex flex-wrap gap-2">
-              {ESTADOS_PRESUPUESTO.filter((e) => e !== presupuestoAbierto.status).map((e) => (
-                <Button key={e} size="sm" variant="outline" onClick={() => cambiarEstado(presupuestoAbierto, e, e === 'aceptado')}>
-                  Marcar {e}{e === 'aceptado' ? ' y convertir a remito' : ''}
-                </Button>
-              ))}
-              {presupuestoAbierto.status === 'borrador' && (
-                <Button size="sm" variant="outline" onClick={() => eliminar(presupuestoAbierto)}>Eliminar</Button>
-              )}
+      {presupuestoAbierto && (() => {
+        const p = presupuestoAbierto
+        const st = p.status
+        return (
+          <div className="grid gap-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card>
+                <CardHeader><CardTitle className="text-base">Datos del cliente</CardTitle></CardHeader>
+                <CardContent className="grid gap-1.5 text-sm">
+                  <p><span className="text-muted-foreground">Cliente:</span> {p.client_name}</p>
+                  {p.client_cuit && <p><span className="text-muted-foreground">CUIT / DNI:</span> {p.client_cuit}</p>}
+                  {p.client_address && <p><span className="text-muted-foreground">Domicilio:</span> {p.client_address}</p>}
+                  {p.client_email && <p><span className="text-muted-foreground">Email:</span> {p.client_email}</p>}
+                  {p.client_phone && <p><span className="text-muted-foreground">Teléfono:</span> {p.client_phone}</p>}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader><CardTitle className="text-base">Datos del presupuesto</CardTitle></CardHeader>
+                <CardContent className="grid gap-1.5 text-sm">
+                  <p><span className="text-muted-foreground">Número:</span> <span className="font-mono">{p.number}</span></p>
+                  <p><span className="text-muted-foreground">Fecha:</span> {p.date}</p>
+                  <p><span className="text-muted-foreground">Válido hasta:</span> {p.valid_until || '—'}</p>
+                  <p><span className="text-muted-foreground">Estado:</span> <Badge variant={estadoVariant[st] ?? 'outline'}>{st}</Badge></p>
+                  {p.observations && <p><span className="text-muted-foreground">Observaciones:</span> {p.observations}</p>}
+                </CardContent>
+              </Card>
             </div>
-            <div className="flex flex-wrap items-end gap-3 border-t pt-4">
-              <div className="grid gap-1.5"><Label>Enviar por email</Label><Input type="email" value={emailTo} onChange={(e) => setEmailTo(e.target.value)} className="w-56" /></div>
-              <Button size="sm" variant="outline" disabled={saving || !emailTo.trim()} onClick={() => enviarEmail(presupuestoAbierto)}>Enviar</Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+
+            <Card>
+              <CardHeader><CardTitle className="text-base">Ítems</CardTitle></CardHeader>
+              <CardContent className="p-0">
+                <table className="w-full text-sm">
+                  <thead className="border-b text-muted-foreground">
+                    <tr>
+                      <th className="p-3 text-left font-medium">Descripción</th>
+                      <th className="p-3 text-right font-medium">Cantidad</th>
+                      <th className="p-3 text-right font-medium">Precio unit.</th>
+                      <th className="p-3 text-right font-medium">Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {p.items.map((it, i) => (
+                      <tr key={i} className="border-b last:border-0">
+                        <td className="whitespace-pre-line p-3">{it.description}</td>
+                        <td className="p-3 text-right">{it.qty}</td>
+                        <td className="p-3 text-right">{formatCurrency(it.unit_price)}</td>
+                        <td className="p-3 text-right">{formatCurrency(it.subtotal)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="font-medium">
+                    <tr><td colSpan={3} className="p-3 text-right text-muted-foreground">Subtotal</td><td className="p-3 text-right">{formatCurrency(p.subtotal)}</td></tr>
+                    <tr><td colSpan={3} className="p-3 text-right text-muted-foreground">IVA {Math.round(p.tax_rate * 100)}%</td><td className="p-3 text-right">{formatCurrency(p.tax_amount)}</td></tr>
+                    <tr className="text-base"><td colSpan={3} className="p-3 text-right font-semibold">TOTAL</td><td className="p-3 text-right font-semibold text-primary">{formatCurrency(p.total)}</td></tr>
+                  </tfoot>
+                </table>
+              </CardContent>
+            </Card>
+
+            {st !== 'facturado' && (
+              <Card>
+                <CardHeader><CardTitle className="text-base">Acciones</CardTitle></CardHeader>
+                <CardContent className="flex flex-wrap gap-2">
+                  {st === 'borrador' && (
+                    <>
+                      <Button size="sm" onClick={() => cambiarEstado(p, 'enviado')}><Send />Marcar como enviado</Button>
+                      <Button size="sm" variant="outline" onClick={() => cambiarEstado(p, 'rechazado')}><XCircle />Rechazar</Button>
+                    </>
+                  )}
+                  {(st === 'enviado') && (
+                    <>
+                      <Button size="sm" onClick={() => cambiarEstado(p, 'aceptado', false)}><CheckCircle2 />Aceptar</Button>
+                      <Button size="sm" variant="outline" onClick={() => cambiarEstado(p, 'aceptado', true)}><RefreshCw />Aceptar y convertir a remito</Button>
+                      <Button size="sm" variant="outline" onClick={() => cambiarEstado(p, 'rechazado')}><XCircle />Rechazar</Button>
+                    </>
+                  )}
+                  {st === 'aceptado' && (
+                    <>
+                      <Button asChild size="sm"><a href={`/facturas?nuevo=1`}><Receipt />Generar factura</a></Button>
+                      <Button size="sm" variant="outline" onClick={() => cambiarEstado(p, 'facturado')}><CheckCheck />Marcar como facturado</Button>
+                      <Button size="sm" variant="outline" onClick={() => cambiarEstado(p, 'rechazado')}><XCircle />Rechazar</Button>
+                    </>
+                  )}
+                  {(st === 'rechazado' || st === 'vencido') && (
+                    <Button size="sm" variant="outline" onClick={() => cambiarEstado(p, 'borrador')}><Undo2 />Reactivar como borrador</Button>
+                  )}
+                  {st === 'borrador' && (
+                    <Button size="sm" variant="outline" onClick={() => eliminar(p)}><Trash2 />Eliminar presupuesto</Button>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {st === 'facturado' && (
+              <p className="flex items-center gap-2 rounded-md border bg-muted/50 p-3 text-sm">
+                <CheckCheck className="size-4 shrink-0" />Este presupuesto está <strong>facturado</strong> y cerrado comercialmente.
+              </p>
+            )}
+
+            <Card>
+              <CardHeader><CardTitle className="text-base">Enviar por email</CardTitle></CardHeader>
+              <CardContent className="flex flex-wrap items-end gap-3">
+                <div className="grid gap-1.5"><Label>Destinatario</Label><Input type="email" value={emailTo} onChange={(e) => setEmailTo(e.target.value)} className="w-56" placeholder="email@ejemplo.com" /></div>
+                <Button size="sm" variant="outline" disabled={saving || !emailTo.trim()} onClick={() => enviarEmail(p)}><Mail />Enviar</Button>
+              </CardContent>
+            </Card>
+          </div>
+        )
+      })()}
     </div>
   )
 }

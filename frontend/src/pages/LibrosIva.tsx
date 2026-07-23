@@ -1,9 +1,13 @@
-import { useEffect, useState } from 'react'
-import { api, ApiError, type LibrosIvaData } from '../api'
+import { useEffect, useMemo, useState } from 'react'
+import { type ColumnDef } from '@tanstack/react-table'
+import { api, ApiError, type LibrosIvaData, type LibroIvaFactura, type LibroIvaEgreso, type ResumenIva } from '../api'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
+import { DataTable, sortableHeader } from '@/components/data-table'
+import { BookText, ArrowUpRight, ArrowDownLeft, Download, Info } from 'lucide-react'
 
 function firstOfMonthIso(): string {
   const d = new Date()
@@ -15,13 +19,57 @@ function todayIso(): string {
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value)
 }
+function formatCuit(cuit?: string | null): string {
+  if (!cuit) return '—'
+  const d = cuit.replace(/\D/g, '')
+  if (d.length !== 11) return cuit
+  return `${d.slice(0, 2)}-${d.slice(2, 10)}-${d.slice(10)}`
+}
 
-const EXPORTS = [
-  { path: '/libros-iva/export/ventas-cbte', label: 'Ventas — comprobantes' },
-  { path: '/libros-iva/export/ventas-alicuotas', label: 'Ventas — alícuotas' },
-  { path: '/libros-iva/export/compras-cbte', label: 'Compras — comprobantes' },
-  { path: '/libros-iva/export/compras-alicuotas', label: 'Compras — alícuotas' },
-]
+const TIPO_LABELS: Record<number, string> = {
+  1: 'FAC A', 2: 'ND A', 3: 'NC A',
+  6: 'FAC B', 7: 'ND B', 8: 'NC B',
+  11: 'FAC C', 12: 'ND C', 13: 'NC C',
+}
+
+function ResumenPorTasa({ resumen, ivaColorClass }: { resumen: ResumenIva; ivaColorClass: string }) {
+  const entries = Object.entries(resumen.por_tasa || {})
+  if (entries.length === 0) return null
+  return (
+    <Card>
+      <CardHeader><CardTitle className="text-base">Resumen por alícuota</CardTitle></CardHeader>
+      <CardContent className="p-0">
+        <table className="w-full text-sm">
+          <thead className="border-b text-muted-foreground">
+            <tr>
+              <th className="p-3 text-left font-medium">Alícuota IVA</th>
+              <th className="p-3 text-center font-medium">Comprobantes</th>
+              <th className="p-3 text-right font-medium">Neto gravado</th>
+              <th className="p-3 text-right font-medium">IVA</th>
+            </tr>
+          </thead>
+          <tbody>
+            {entries.map(([tasa, datos]) => (
+              <tr key={tasa} className="border-b last:border-0">
+                <td className="p-3"><Badge variant="outline">{Number(tasa)}%</Badge></td>
+                <td className="p-3 text-center">{datos.cbtes}</td>
+                <td className="p-3 text-right">{formatCurrency(datos.neto)}</td>
+                <td className={`p-3 text-right font-semibold ${ivaColorClass}`}>{formatCurrency(datos.iva)}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot className="font-semibold">
+            <tr>
+              <td colSpan={2} className="p-3 text-right text-muted-foreground">Total</td>
+              <td className="p-3 text-right">{formatCurrency(resumen.neto)}</td>
+              <td className={`p-3 text-right ${ivaColorClass}`}>{formatCurrency(resumen.iva)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </CardContent>
+    </Card>
+  )
+}
 
 export function LibrosIva() {
   const [desde, setDesde] = useState(firstOfMonthIso())
@@ -47,10 +95,39 @@ export function LibrosIva() {
     }
   }
 
+  const columnasVentas = useMemo<ColumnDef<LibroIvaFactura>[]>(() => [
+    { accessorKey: 'fecha', header: sortableHeader('Fecha') },
+    { accessorKey: 'tipo', header: 'Tipo', cell: ({ row }) => <Badge variant="outline">{TIPO_LABELS[row.original.tipo] ?? row.original.tipo}</Badge> },
+    {
+      id: 'pv_nro', header: 'PV-Nro',
+      cell: ({ row }) => <span className="font-mono text-xs">{String(row.original.punto_venta).padStart(4, '0')}-{String(row.original.numero).padStart(8, '0')}</span>,
+    },
+    { accessorKey: 'cae', header: 'CAE', cell: ({ row }) => <span className="font-mono text-xs text-muted-foreground">{row.original.cae || '—'}</span> },
+    { accessorKey: 'cliente_razon', header: 'Cliente' },
+    { accessorKey: 'cliente_cuit', header: 'CUIT', cell: ({ row }) => <span className="font-mono text-xs text-muted-foreground">{formatCuit(row.original.cliente_cuit)}</span> },
+    { accessorKey: 'subtotal', header: () => <div className="text-right">Neto</div>, cell: ({ row }) => <div className="text-right">{formatCurrency(row.original.subtotal)}</div> },
+    {
+      accessorKey: 'iva_amount', header: () => <div className="text-right">IVA</div>,
+      cell: ({ row }) => <div className={`text-right ${row.original.iva_amount > 0 ? 'text-primary' : 'text-muted-foreground'}`}>{formatCurrency(row.original.iva_amount)}</div>,
+    },
+    { accessorKey: 'total', header: () => <div className="text-right">Total</div>, cell: ({ row }) => <div className="text-right font-semibold">{formatCurrency(row.original.total)}</div> },
+  ], [])
+
+  const columnasCompras = useMemo<ColumnDef<LibroIvaEgreso>[]>(() => [
+    { accessorKey: 'fecha', header: sortableHeader('Fecha') },
+    { accessorKey: 'numero', header: 'Número', cell: ({ row }) => <span className="font-mono text-xs">{row.original.numero || '—'}</span> },
+    { accessorKey: 'proveedor_nombre', header: 'Proveedor', cell: ({ row }) => row.original.proveedor_nombre || '—' },
+    { accessorKey: 'proveedor_cuit', header: 'CUIT', cell: ({ row }) => <span className="font-mono text-xs text-muted-foreground">{formatCuit(row.original.proveedor_cuit)}</span> },
+    { accessorKey: 'monto_neto', header: () => <div className="text-right">Neto</div>, cell: ({ row }) => <div className="text-right">{formatCurrency(row.original.monto_neto)}</div> },
+    { accessorKey: 'iva_pct', header: () => <div className="text-right">IVA %</div>, cell: ({ row }) => <div className="text-right text-muted-foreground">{row.original.iva_pct ?? 0}%</div> },
+    { accessorKey: 'iva_monto', header: () => <div className="text-right">IVA $</div>, cell: ({ row }) => <div className="text-right font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(row.original.iva_monto)}</div> },
+    { accessorKey: 'total', header: () => <div className="text-right">Total</div>, cell: ({ row }) => <div className="text-right font-semibold">{formatCurrency(row.original.total)}</div> },
+  ], [])
+
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <h2 className="text-lg font-semibold">Libros IVA</h2>
+        <h2 className="flex items-center gap-2 text-lg font-semibold"><BookText className="size-5 text-primary" />Libros IVA</h2>
         <div className="flex items-end gap-3">
           <div className="grid gap-1.5"><Label>Desde</Label><Input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className="w-40" /></div>
           <div className="grid gap-1.5"><Label>Hasta</Label><Input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className="w-40" /></div>
@@ -59,77 +136,82 @@ export function LibrosIva() {
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <Card>
-        <CardHeader><CardTitle className="text-base">Exportar REGINFO</CardTitle><CardDescription>Archivos para los aplicativos de ARCA.</CardDescription></CardHeader>
-        <CardContent className="flex flex-wrap gap-2">
-          {EXPORTS.map((e) => (
-            <Button key={e.path} asChild size="sm" variant="outline">
-              <a href={`${e.path}?desde=${desde}&hasta=${hasta}`}>{e.label}</a>
-            </Button>
-          ))}
-        </CardContent>
-      </Card>
-
       {loading || !data ? (
         <p className="py-6 text-center text-sm text-muted-foreground">Cargando…</p>
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-2">
+          {/* ── VENTAS ── */}
+          <div className="grid gap-4">
+            <h3 className="flex items-center gap-2 text-base font-semibold">
+              <ArrowUpRight className="size-4 text-primary" />IVA Ventas
+              <Badge variant="secondary">{data.facturas.length}</Badge>
+            </h3>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <Card><CardHeader><CardDescription>Comprobantes</CardDescription><CardTitle className="text-2xl">{data.resumen_v.cbtes}</CardTitle></CardHeader></Card>
+              <Card><CardHeader><CardDescription>Neto gravado</CardDescription><CardTitle className="text-2xl">{formatCurrency(data.resumen_v.neto)}</CardTitle></CardHeader></Card>
+              <Card><CardHeader><CardDescription>IVA</CardDescription><CardTitle className="text-2xl text-primary">{formatCurrency(data.resumen_v.iva)}</CardTitle></CardHeader></Card>
+              <Card><CardHeader><CardDescription>Total facturado</CardDescription><CardTitle className="text-2xl">{formatCurrency(data.resumen_v.total)}</CardTitle></CardHeader></Card>
+            </div>
+
+            <ResumenPorTasa resumen={data.resumen_v} ivaColorClass="text-primary" />
+
             <Card>
-              <CardHeader><CardTitle className="text-base">Ventas</CardTitle></CardHeader>
-              <CardContent className="grid gap-1 text-sm">
-                <p>Comprobantes: <span className="font-medium">{data.resumen_v.cbtes}</span></p>
-                <p>Neto gravado: <span className="font-medium">{formatCurrency(data.resumen_v.neto)}</span></p>
-                <p>IVA: <span className="font-medium">{formatCurrency(data.resumen_v.iva)}</span></p>
-                <p>Total: <span className="font-medium">{formatCurrency(data.resumen_v.total)}</span></p>
+              <CardHeader className="flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base">Comprobantes emitidos</CardTitle>
+                <div className="flex flex-wrap gap-2">
+                  <Button asChild size="sm" variant="outline"><a href={`/libros-iva/export/ventas-cbte?desde=${desde}&hasta=${hasta}`}><Download />REGINFO_VENTAS_CBTE</a></Button>
+                  <Button asChild size="sm" variant="outline"><a href={`/libros-iva/export/ventas-alicuotas?desde=${desde}&hasta=${hasta}`}><Download />REGINFO_VENTAS_ALICUOTAS</a></Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <DataTable columns={columnasVentas} data={data.facturas} emptyMessage="No hay comprobantes en el período seleccionado." />
               </CardContent>
             </Card>
-            <Card>
-              <CardHeader><CardTitle className="text-base">Compras</CardTitle></CardHeader>
-              <CardContent className="grid gap-1 text-sm">
-                <p>Comprobantes: <span className="font-medium">{data.resumen_c.cbtes}</span></p>
-                <p>Neto gravado: <span className="font-medium">{formatCurrency(data.resumen_c.neto)}</span></p>
-                <p>IVA: <span className="font-medium">{formatCurrency(data.resumen_c.iva)}</span></p>
-                <p>Total: <span className="font-medium">{formatCurrency(data.resumen_c.total)}</span></p>
-              </CardContent>
-            </Card>
+
+            <p className="flex items-start gap-2 rounded-md border bg-muted/50 p-3 text-sm text-muted-foreground">
+              <Info className="mt-0.5 size-4 shrink-0" />
+              Los archivos <strong className="text-foreground">REGINFO_VENTAS_CBTE</strong> y <strong className="text-foreground">REGINFO_VENTAS_ALICUOTAS</strong> se
+              importan en el Aplicativo REGINFO de ARCA (RG 3685). Comprobantes tipo C (Monotributista) van con <code>cantAlicuotas=0</code>. Las notas de crédito se exportan con importes negativos.
+            </p>
           </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Facturas del período ({data.facturas.length})</CardTitle></CardHeader>
-            <CardContent>
-              {data.facturas.length === 0 ? (
-                <p className="py-4 text-center text-sm text-muted-foreground">Sin facturas en el período.</p>
-              ) : (
-                <ul className="divide-y">
-                  {data.facturas.map((f) => (
-                    <li key={f.id} className="flex items-center justify-between py-2 text-sm">
-                      <span>{f.fecha} — {f.cliente_razon}</span>
-                      <span className="font-medium">{formatCurrency(f.total)}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
+          {/* ── COMPRAS ── */}
+          <div className="grid gap-4">
+            <h3 className="flex items-center gap-2 text-base font-semibold">
+              <ArrowDownLeft className="size-4 text-emerald-600 dark:text-emerald-400" />IVA Compras
+              <Badge variant="secondary">{data.egresos.length}</Badge>
+            </h3>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Egresos del período ({data.egresos.length})</CardTitle></CardHeader>
-            <CardContent>
-              {data.egresos.length === 0 ? (
-                <p className="py-4 text-center text-sm text-muted-foreground">Sin egresos en el período.</p>
-              ) : (
-                <ul className="divide-y">
-                  {data.egresos.map((e) => (
-                    <li key={e.id} className="flex items-center justify-between py-2 text-sm">
-                      <span>{e.fecha} — {e.proveedor_nombre || 'Sin proveedor'}</span>
-                      <span className="font-medium">{formatCurrency(e.total)}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <Card><CardHeader><CardDescription>Comprobantes</CardDescription><CardTitle className="text-2xl">{data.resumen_c.cbtes}</CardTitle></CardHeader></Card>
+              <Card><CardHeader><CardDescription>Neto gravado</CardDescription><CardTitle className="text-2xl">{formatCurrency(data.resumen_c.neto)}</CardTitle></CardHeader></Card>
+              <Card><CardHeader><CardDescription>IVA crédito fiscal</CardDescription><CardTitle className="text-2xl text-emerald-600 dark:text-emerald-400">{formatCurrency(data.resumen_c.iva)}</CardTitle></CardHeader></Card>
+              <Card><CardHeader><CardDescription>Total</CardDescription><CardTitle className="text-2xl">{formatCurrency(data.resumen_c.total)}</CardTitle></CardHeader></Card>
+            </div>
+
+            <ResumenPorTasa resumen={data.resumen_c} ivaColorClass="text-emerald-600 dark:text-emerald-400" />
+
+            <Card>
+              <CardHeader className="flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base">Comprobantes recibidos</CardTitle>
+                <div className="flex flex-wrap gap-2">
+                  <Button asChild size="sm" variant="outline"><a href={`/libros-iva/export/compras-cbte?desde=${desde}&hasta=${hasta}`}><Download />REGINFO_COMPRAS_CBTE</a></Button>
+                  <Button asChild size="sm" variant="outline"><a href={`/libros-iva/export/compras-alicuotas?desde=${desde}&hasta=${hasta}`}><Download />REGINFO_COMPRAS_ALICUOTAS</a></Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <DataTable columns={columnasCompras} data={data.egresos} emptyMessage='No hay facturas de compra en el período. Solo se incluyen egresos con tipo "Factura".' />
+              </CardContent>
+            </Card>
+
+            <p className="flex items-start gap-2 rounded-md border bg-muted/50 p-3 text-sm text-muted-foreground">
+              <Info className="mt-0.5 size-4 shrink-0" />
+              Los archivos <strong className="text-foreground">REGINFO_COMPRAS_CBTE</strong> y <strong className="text-foreground">REGINFO_COMPRAS_ALICUOTAS</strong> se
+              importan en el Aplicativo REGINFO de ARCA (RG 3685). Solo se incluyen egresos registrados como Factura. El tipo de comprobante AFIP se asume
+              <code> 01 (Factura A)</code> por defecto; modificalo en el egreso si corresponde a otro tipo.
+            </p>
+          </div>
         </>
       )}
     </div>
