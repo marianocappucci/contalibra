@@ -5,13 +5,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 import csv
 import io
 import datetime
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from typing import Annotated
 
 import database as db
 from web.auth import require_auth
-from web.templates_config import templates
 
 router = APIRouter()
 
@@ -28,36 +27,17 @@ def _fechas_default(desde: str, hasta: str):
         hasta = _HOY()
     return desde, hasta
 
-
-@router.get("/reportes")
-def reportes_get(
-    request: Request, user: Auth,
-    desde: str = "", hasta: str = "",
-    agrupacion: str = "dia",
-):
-    desde, hasta = _fechas_default(desde, hasta)
-    resumen    = db.get_reporte_resumen(desde, hasta)
-    ventas_ts  = db.get_reporte_ventas(desde, hasta, agrupacion)
-    medios     = db.get_reporte_medios_pago(desde, hasta)
-    productos  = db.get_reporte_productos_top(desde, hasta)
-    caja       = db.get_reporte_caja(desde, hasta)
-    stock_bajo = db.get_reporte_stock_bajo()
-    return templates.TemplateResponse(request, "reportes/index.html", {
-        "active":     "reportes",
-        "desde":      desde,
-        "hasta":      hasta,
-        "agrupacion": agrupacion,
-        "resumen":    resumen,
-        "ventas_ts":  ventas_ts,
-        "medios":     medios,
-        "productos":  productos,
-        "caja":       caja,
-        "stock_bajo": stock_bajo,
-    })
+# La pagina Jinja2 principal (`/reportes`) y la de caja por medio
+# (`/reportes/caja-medios`) se removieron en el corte de la migracion a
+# React -- ver wiki/entities/contalibra.md, Etapa D. Quedan los exports
+# CSV, que la SPA nueva (Reportes.tsx) linkea directo. `_pivot_caja_medios`/
+# `_totales_por_medio`/`_MEDIO_LABEL` se mantienen porque
+# web/api/reportes.py los reusa tal cual (importados de aca, no
+# duplicados).
 
 
 @router.get("/reportes/export/ventas")
-def export_ventas(request: Request, user: Auth, desde: str = "", hasta: str = "", agrupacion: str = "dia"):
+def export_ventas(user: Auth, desde: str = "", hasta: str = "", agrupacion: str = "dia"):
     desde, hasta = _fechas_default(desde, hasta)
     rows = db.get_reporte_ventas(desde, hasta, agrupacion)
     buf = io.StringIO()
@@ -70,7 +50,7 @@ def export_ventas(request: Request, user: Auth, desde: str = "", hasta: str = ""
 
 
 @router.get("/reportes/export/medios")
-def export_medios(request: Request, user: Auth, desde: str = "", hasta: str = ""):
+def export_medios(user: Auth, desde: str = "", hasta: str = ""):
     desde, hasta = _fechas_default(desde, hasta)
     rows = db.get_reporte_medios_pago(desde, hasta)
     buf = io.StringIO()
@@ -83,7 +63,7 @@ def export_medios(request: Request, user: Auth, desde: str = "", hasta: str = ""
 
 
 @router.get("/reportes/export/productos")
-def export_productos(request: Request, user: Auth, desde: str = "", hasta: str = ""):
+def export_productos(user: Auth, desde: str = "", hasta: str = ""):
     desde, hasta = _fechas_default(desde, hasta)
     rows = db.get_reporte_productos_top(desde, hasta, limit=500)
     buf = io.StringIO()
@@ -95,8 +75,6 @@ def export_productos(request: Request, user: Auth, desde: str = "", hasta: str =
                              headers={"Content-Disposition": f'attachment; filename="{fn}"'})
 
 
-# ── Reporte Caja por Medio de Cobro ──────────────────────────────────────────
-
 _MEDIO_LABEL = {
     "efectivo":         "Efectivo",
     "transferencia":    "Transferencia",
@@ -106,17 +84,6 @@ _MEDIO_LABEL = {
     "cuenta_corriente": "Cuenta Corriente",
     "cheque":           "Cheque",
     "sin_especificar":  "Sin especificar",
-}
-
-_MEDIO_ICON = {
-    "efectivo":         "payments",
-    "transferencia":    "account_balance",
-    "mercadopago":      "call",
-    "cuenta_dni":       "perm_identity",
-    "billetera":        "account_balance_wallet",
-    "cuenta_corriente": "menu_book",
-    "cheque":           "description",
-    "sin_especificar":  "help",
 }
 
 
@@ -170,30 +137,6 @@ def _totales_por_medio(cajas_pivot: list) -> dict:
             totales[medio]["egresos"]      += vals["egresos"]
             totales[medio]["egresos_ops"]  += vals["egresos_ops"]
     return dict(sorted(totales.items()))
-
-
-@router.get("/reportes/caja-medios")
-def reporte_caja_medios(
-    request: Request, user: Auth,
-    desde: str = "", hasta: str = "",
-    caja_id: int = 0,
-):
-    desde, hasta = _fechas_default(desde, hasta)
-    cajas_config = db.get_all_cajas()
-    rows         = db.get_reporte_caja_medios(desde, hasta, caja_id)
-    cajas_pivot  = _pivot_caja_medios(rows)
-    totales      = _totales_por_medio(cajas_pivot)
-    return templates.TemplateResponse(request, "reportes/caja_medios.html", {
-        "active":        "reporte_caja_medios",
-        "desde":         desde,
-        "hasta":         hasta,
-        "caja_id":       caja_id,
-        "cajas_config":  cajas_config,
-        "cajas":         cajas_pivot,
-        "totales":       totales,
-        "medio_label":   _MEDIO_LABEL,
-        "medio_icon":    _MEDIO_ICON,
-    })
 
 
 @router.get("/reportes/caja-medios/export")

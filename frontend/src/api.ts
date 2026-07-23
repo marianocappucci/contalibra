@@ -560,6 +560,27 @@ export type ReportesData = {
   productos: ReporteProducto[]; caja: ReporteCaja[]; stock_bajo: ReporteStockBajo[]
 }
 
+export type LogActividad = {
+  fecha: string
+  tipo: string
+  descripcion: string
+  monto: number
+  usuario: string
+  turno_id: number | null
+}
+
+export type LogAuth = { id: number; evento: string; username: string; ip: string; ts: string }
+
+export type LogsData = {
+  actividad: LogActividad[]
+  tipo_meta: Record<string, { label: string; color: string }>
+  total: number
+  total_pages: number
+  page: number
+  usuarios: Usuario[]
+  auth_log: LogAuth[]
+}
+
 export type DashboardData = {
   mes_desde: string
   mes_hasta: string

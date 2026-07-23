@@ -25,6 +25,7 @@ import { Presupuestos } from './pages/Presupuestos'
 import { MpBandeja } from './pages/MpBandeja'
 import { LibrosIva } from './pages/LibrosIva'
 import { Reportes } from './pages/Reportes'
+import { Logs } from './pages/Logs'
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth()
@@ -216,6 +217,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <Reportes />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/logs"
+        element={
+          <ProtectedRoute>
+            <Logs />
           </ProtectedRoute>
         }
       />

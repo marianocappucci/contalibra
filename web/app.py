@@ -16,26 +16,12 @@ import config_manager
 import arca_wsaa
 import arca_wspadron
 from security_headers import SecurityHeadersMiddleware
-from web.auth import (
-    require_auth, check_credentials, get_current_user,
-    create_session_cookie, clear_session_cookie,
-)
-from web.routers import clientes, remitos, presupuestos, facturas, config as config_router, caja, webhooks, dashboard
-from web.routers import mp_bandeja as mp_bandeja_router
-from web.routers import usuarios as usuarios_router
+from web.auth import require_auth, get_current_user
+from web.routers import remitos, presupuestos, facturas, config as config_router, webhooks
 from web.routers import productos as productos_router
 from web.routers import ventas as ventas_router
-from web.routers import stock as stock_router
-from web.routers import turnos as turnos_router
 from web.routers import logs as logs_router
 from web.routers import reportes as reportes_router
-from web.routers import depositos as depositos_router
-from web.routers import cajas as cajas_router
-from web.routers import egresos as egresos_router
-from web.routers import proveedores as proveedores_router
-from web.routers import tesoreria as tesoreria_router
-from web.routers import cuenta_corriente as cc_router
-from web.routers import listas_precio as listas_precio_router
 from web.routers import libros_iva as libros_iva_router
 from web.api import auth as api_auth_router
 from web.api import dashboard as api_dashboard_router
@@ -60,13 +46,14 @@ from web.api import presupuestos as api_presupuestos_router
 from web.api import mp_bandeja as api_mp_bandeja_router
 from web.api import libros_iva as api_libros_iva_router
 from web.api import reportes as api_reportes_router
+from web.api import logs as api_logs_router
 from web.api_auth import get_current_user_json, require_admin_json
 from web.modules_gate import require_module
 
 app = FastAPI(title="Contalibra")
 
 
-_BYPASS_PATHS = {"/suspendido", "/login", "/logout", "/favicon.ico", "/api/auth/verify", "/health"}
+_BYPASS_PATHS = {"/suspendido", "/favicon.ico", "/api/auth/verify", "/health"}
 
 class CurrentUserMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -93,12 +80,19 @@ class CurrentUserMiddleware(BaseHTTPMiddleware):
         except Exception:
             request.state.mp_pending_count = 0
 
-        # Corte de servicio: redirigir todo excepto rutas de bypass y archivos estáticos
+        # Corte de servicio: redirigir todo excepto rutas de bypass y archivos estáticos.
+        # Para /api/* se devuelve JSON 503 en vez de un redirect -- un redirect a
+        # /suspendido (HTML) rompe cualquier fetch/XHR de la SPA, que espera JSON.
         estado = request.state.servicio_estado
         path   = request.url.path
         if (estado == "suspendido"
                 and path not in _BYPASS_PATHS
                 and not path.startswith("/static")):
+            if path.startswith("/api/"):
+                return JSONResponse(
+                    {"error": "servicio_suspendido", "mensaje": request.state.servicio_mensaje},
+                    status_code=503,
+                )
             from fastapi.responses import RedirectResponse as _RR
             return _RR("/suspendido")
 
@@ -132,29 +126,19 @@ def servicio_suspendido(request: Request):
     })
 
 
-app.include_router(dashboard.router)
-app.include_router(clientes.router)
+# Routers HTML/descarga viejos que sobreviven al corte de la Etapa D --
+# ver wiki/entities/contalibra.md. Cada uno quedo recortado a solo las
+# sub-rutas (PDF/ticket/CSV/backup/autocomplete) que la SPA nueva sigue
+# consumiendo; las paginas Jinja2 se removieron.
 app.include_router(remitos.router)
 app.include_router(presupuestos.router)
 app.include_router(facturas.router)
 app.include_router(config_router.router)
-app.include_router(caja.router)
 app.include_router(webhooks.router)
-app.include_router(usuarios_router.router)
 app.include_router(productos_router.router)
 app.include_router(ventas_router.router)
-app.include_router(stock_router.router)
-app.include_router(turnos_router.router)
 app.include_router(logs_router.router)
 app.include_router(reportes_router.router)
-app.include_router(mp_bandeja_router.router)
-app.include_router(depositos_router.router)
-app.include_router(cajas_router.router)
-app.include_router(egresos_router.router)
-app.include_router(proveedores_router.router)
-app.include_router(tesoreria_router.router)
-app.include_router(cc_router.router)
-app.include_router(listas_precio_router.router)
 app.include_router(libros_iva_router.router)
 
 # API JSON de la SPA (React) -- migracion documentada en
@@ -252,6 +236,10 @@ app.include_router(
     api_reportes_router.router,
     dependencies=[_auth_json, Depends(require_module("reportes"))],
 )
+app.include_router(
+    api_logs_router.router,
+    dependencies=[Depends(require_admin_json)],
+)
 
 
 @app.on_event("startup")
@@ -263,52 +251,6 @@ def startup():
 @app.get("/", include_in_schema=False)
 def root():
     return RedirectResponse("/dashboard")
-
-
-@app.get("/login", include_in_schema=False)
-def login_get(request: Request):
-    return templates.TemplateResponse(request, "login.html", {"error": None})
-
-
-LOGIN_MAX_INTENTOS = 5
-LOGIN_VENTANA_MINUTOS = 15
-
-
-@app.post("/login", include_in_schema=False)
-async def login_post(request: Request):
-    form = await request.form()
-    username = str(form.get("username", ""))
-    password = str(form.get("password", ""))
-    ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "")
-
-    if db.contar_login_fallidos_recientes(ip, LOGIN_VENTANA_MINUTOS) >= LOGIN_MAX_INTENTOS:
-        db.registrar_auth_event("login_bloqueado", username, ip)
-        return templates.TemplateResponse(
-            request, "login.html",
-            {"error": f"Demasiados intentos fallidos. Esperá {LOGIN_VENTANA_MINUTOS} minutos e intentá de nuevo."},
-            status_code=429,
-        )
-
-    if check_credentials(username, password):
-        db.registrar_auth_event("login", username, ip)
-        response = RedirectResponse("/dashboard", status_code=303)
-        create_session_cookie(response, username)
-        return response
-    db.registrar_auth_event("login_fallido", username, ip)
-    return templates.TemplateResponse(
-        request, "login.html", {"error": "Usuario o contraseña incorrectos"}, status_code=401
-    )
-
-
-@app.get("/logout", include_in_schema=False)
-def logout(request: Request):
-    username = get_current_user(request) or ""
-    ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "")
-    if username:
-        db.registrar_auth_event("logout", username, ip)
-    response = RedirectResponse("/login", status_code=303)
-    clear_session_cookie(response)
-    return response
 
 
 DOCS_AUTH_SECRET = os.environ.get("DOCS_AUTH_SECRET", "")
