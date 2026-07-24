@@ -39,6 +39,22 @@ export function CajaNueva() {
     }).catch(() => {})
   }, [])
 
+  // La caja seleccionada acota qué medios de pago tiene habilitados (igual
+  // que el form Jinja2 viejo, que pedía GET /cajas/{id}/medios al cambiar
+  // de caja). Los datos ya vienen en /api/cajas — no hace falta un
+  // endpoint aparte, solo filtrar client-side.
+  const cajaSeleccionada = cajas.find((c) => String(c.id) === cajaId)
+  const mediosDisponibles = cajaSeleccionada && cajaSeleccionada.medios_pago.length > 0
+    ? cajaSeleccionada.medios_pago
+    : Object.keys(MEDIOS_PAGO_LABELS)
+
+  useEffect(() => {
+    if (mediosDisponibles.length > 0 && !mediosDisponibles.includes(medioPago)) {
+      setMedioPago(mediosDisponibles[0])
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cajaId, cajas])
+
   function describeError(err: unknown): string {
     if (err instanceof ApiError) return err.detail
     return 'Error de conexión.'
@@ -101,7 +117,7 @@ export function CajaNueva() {
             <Select value={medioPago} onValueChange={setMedioPago}>
               <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {Object.entries(MEDIOS_PAGO_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                {mediosDisponibles.map((k) => <SelectItem key={k} value={k}>{MEDIOS_PAGO_LABELS[k] ?? k}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>

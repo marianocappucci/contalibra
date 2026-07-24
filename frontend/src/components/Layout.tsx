@@ -203,10 +203,16 @@ function AppSidebar() {
           <Avatar className="h-8 w-8">
             <AvatarFallback>{user ? initials(user.nombre) : '?'}</AvatarFallback>
           </Avatar>
-          <div className="flex flex-1 flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
-            <span className="truncate text-sm font-medium">{user?.nombre}</span>
+          {/* Link a /mi-cuenta -- igual que el nombre+rol clickeable del
+              sidebar-footer viejo (web/templates/base.html), que llevaba a
+              /mi-cuenta para cambiar la propia contraseña. */}
+          <NavLink
+            to="/mi-cuenta"
+            className="flex flex-1 flex-col overflow-hidden group-data-[collapsible=icon]:hidden"
+          >
+            <span className="truncate text-sm font-medium hover:underline">{user?.nombre}</span>
             <span className="truncate text-xs text-muted-foreground capitalize">{user?.role}</span>
-          </div>
+          </NavLink>
           <Button
             variant="ghost"
             size="icon"

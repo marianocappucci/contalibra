@@ -87,6 +87,19 @@ export function PresupuestoDetalle() {
     }
   }
 
+  function generarFactura() {
+    if (!p) return
+    navigate('/facturas/nueva', {
+      state: {
+        clienteId: p.client_id ? String(p.client_id) : '',
+        clienteNombreLibre: p.client_id ? '' : p.client_name,
+        concepto: '2',
+        observations: p.observations || '',
+        items: p.items.map((it) => ({ description: it.description, qty: String(it.qty), unit_price: String(it.unit_price) })),
+      },
+    })
+  }
+
   async function eliminar() {
     if (!window.confirm('¿Eliminar este presupuesto?')) return
     setError(null)
@@ -218,7 +231,7 @@ export function PresupuestoDetalle() {
                     )}
                     {st === 'aceptado' && (
                       <>
-                        <Button asChild size="sm"><Link to="/facturas/nueva"><Receipt />Generar factura</Link></Button>
+                        <Button size="sm" onClick={generarFactura}><Receipt />Generar factura</Button>
                         <Button size="sm" variant="outline" onClick={() => cambiarEstado('facturado')}><CheckCheck />Marcar como facturado</Button>
                         <Button size="sm" variant="outline" onClick={() => cambiarEstado('rechazado')}><XCircle />Rechazar</Button>
                       </>

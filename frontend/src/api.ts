@@ -125,6 +125,13 @@ export type AliasFacturacion = {
 
 export type ClienteConAlias = Cliente & {
   alias_facturacion: AliasFacturacion[]
+  // Restaurado desde web/templates/clientes/detail.html -- ver GET
+  // /api/clientes/{id} en web/api/clientes.py (auditoria campo por campo,
+  // 2026-07-24). Los tipos Factura/Presupuesto/Remito ya existian, se
+  // declaran mas abajo en este archivo (el orden no importa para types).
+  facturas: Factura[]
+  presupuestos: Presupuesto[]
+  remitos: Remito[]
 }
 
 export const IVA_CONDITIONS = [
@@ -242,6 +249,7 @@ export const MEDIOS_PAGO_LABELS: Record<string, string> = {
   cuenta_dni: 'Cuenta DNI',
   billetera: 'Otras billeteras',
   cuenta_corriente: 'Cuenta corriente',
+  cheque: 'Cheque',
 }
 
 export const TIPOS_COMPROBANTE = [
@@ -383,6 +391,7 @@ export type MovimientoTesoreria = {
   concepto: string
   referencia: string
   transferencia_id: number | null
+  usuario_nombre: string | null
 }
 
 export const TIPOS_CUENTA_TESORERIA = [
@@ -484,6 +493,9 @@ export type Factura = {
   cbte_asoc_tipo?: number
   cbte_asoc_pv?: number
   cbte_asoc_nro?: number
+  fch_serv_desde?: string
+  fch_serv_hasta?: string
+  fch_vto_pago?: string
 }
 
 export type FacturaDetalle = {
@@ -514,6 +526,7 @@ export type Remito = {
   client_phone: string
   items: { description: string; qty: number }[]
   observations: string
+  total: number
 }
 
 export type Presupuesto = {
@@ -624,17 +637,18 @@ export type CajaMediosData = {
 }
 
 export type LogActividad = {
+  ts: string
   fecha: string
   tipo: string
   descripcion: string
   monto: number
   usuario: string
   turno_id: number | null
-  // Campos opcionales: la version Jinja2 vieja (git 1a8808c, web/templates/admin/logs.html)
-  // los usaba para el link "Ver" por fila, pero no hay certeza de que
-  // db.get_actividad_log() los siga devolviendo tras la migracion a libracore
-  // (no se pudo inspeccionar el paquete instalado). Se declaran opcionales
-  // y el render se guarda contra undefined -- ver Logs.tsx.
+  // Confirmado presente en la respuesta real de db.get_actividad_log()
+  // (inspeccionado en vivo en el contenedor del VPS, 2026-07-24) -- la
+  // version Jinja2 vieja (git 1a8808c, web/templates/admin/logs.html) los
+  // usaba para el link "Ver" por fila. Se dejan opcionales igual por si
+  // algun registro viejo no los tuviera cargados.
   ref_tabla?: string | null
   ref_id?: number | null
 }

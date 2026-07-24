@@ -4,6 +4,7 @@ import { api, ApiError, type Deposito, type StockItem } from '../api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { formatEntero } from '@/lib/utils'
 import { ArrowLeft, ArrowLeftRight, Building2, Pencil } from 'lucide-react'
 
 function estadoStock(s: StockItem): { label: string; className: string } {
@@ -105,8 +106,8 @@ export function DepositoDetalle() {
                           <td className="p-3 font-medium">{s.nombre}</td>
                           <td className="p-3 text-muted-foreground">{s.categoria || '—'}</td>
                           <td className="p-3 text-center">{s.unidad}</td>
-                          <td className="p-3 text-right font-semibold">{s.stock_actual}</td>
-                          <td className="p-3 text-right text-muted-foreground">{s.stock_minimo}</td>
+                          <td className="p-3 text-right font-semibold">{formatEntero(s.stock_actual)}</td>
+                          <td className="p-3 text-right text-muted-foreground">{formatEntero(s.stock_minimo)}</td>
                           <td className="p-3 text-center"><Badge variant="outline" className={estado.className}>{estado.label}</Badge></td>
                         </tr>
                       )

@@ -155,6 +155,7 @@ export function TesoreriaDetalle() {
     { accessorKey: 'fecha', header: 'Fecha' },
     { accessorKey: 'tipo', header: 'Tipo', cell: ({ row }) => <MovTipoBadge m={row.original} /> },
     { accessorKey: 'concepto', header: 'Concepto' },
+    { accessorKey: 'usuario_nombre', header: 'Usuario', cell: ({ row }) => row.original.usuario_nombre || '—' },
     { accessorKey: 'referencia', header: 'Referencia', cell: ({ row }) => row.original.referencia || '' },
     {
       accessorKey: 'monto',

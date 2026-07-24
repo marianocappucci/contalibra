@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  api, ApiError, MEDIOS_PAGO_LABELS, type Cliente, type ListaPrecio, type ProductoBusqueda, type Venta,
+  api, ApiError, IVA_CONDITIONS, MEDIOS_PAGO_LABELS, type Cliente, type ListaPrecio, type ProductoBusqueda, type Venta,
 } from '../api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -44,6 +44,7 @@ export function VentaNueva() {
   const [nuevoCliente, setNuevoCliente] = useState(false)
   const [ncNombre, setNcNombre] = useState('')
   const [ncCuit, setNcCuit] = useState('')
+  const [ncIva, setNcIva] = useState('')
   const [ncEmail, setNcEmail] = useState('')
   const [ncPhone, setNcPhone] = useState('')
   const [ncSaving, setNcSaving] = useState(false)
@@ -135,12 +136,12 @@ export function VentaNueva() {
     setError(null)
     try {
       const nuevo = await api.post<Cliente>('/api/clientes', {
-        name: ncNombre.trim(), cuit_dni: ncCuit.trim(), email: ncEmail.trim(), phone: ncPhone.trim(),
+        name: ncNombre.trim(), cuit_dni: ncCuit.trim(), iva_condition: ncIva, email: ncEmail.trim(), phone: ncPhone.trim(),
       })
       setClientes((prev) => [...prev, nuevo])
       setClienteId(String(nuevo.id))
       setNuevoCliente(false)
-      setNcNombre(''); setNcCuit(''); setNcEmail(''); setNcPhone('')
+      setNcNombre(''); setNcCuit(''); setNcIva(''); setNcEmail(''); setNcPhone('')
     } catch (err) {
       setError(describeError(err))
     } finally {
@@ -191,6 +192,16 @@ export function VentaNueva() {
             <div className="flex flex-wrap items-end gap-3 rounded-md border bg-muted/30 p-3">
               <div className="grid gap-1.5"><Label>Nombre *</Label><Input value={ncNombre} onChange={(e) => setNcNombre(e.target.value)} className="w-44" /></div>
               <div className="grid gap-1.5"><Label>CUIT/DNI</Label><Input value={ncCuit} onChange={(e) => setNcCuit(e.target.value)} className="w-32" /></div>
+              <div className="grid gap-1.5">
+                <Label>Condición IVA</Label>
+                <Select value={ncIva || '__none__'} onValueChange={(v) => setNcIva(v === '__none__' ? '' : v)}>
+                  <SelectTrigger className="w-44"><SelectValue placeholder="— Sin especificar —" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— Sin especificar —</SelectItem>
+                    {IVA_CONDITIONS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="grid gap-1.5"><Label>Email</Label><Input type="email" value={ncEmail} onChange={(e) => setNcEmail(e.target.value)} className="w-44" /></div>
               <div className="grid gap-1.5"><Label>Teléfono</Label><Input value={ncPhone} onChange={(e) => setNcPhone(e.target.value)} className="w-36" /></div>
               <Button size="sm" disabled={ncSaving || !ncNombre.trim()} onClick={crearClienteRapido}><UserPlus />{ncSaving ? 'Guardando…' : 'Crear cliente'}</Button>

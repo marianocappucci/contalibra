@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import {
-  api, ApiError, MEDIOS_PAGO_LABELS, type Cliente, type Factura, type FacturaDetalle as FacturaDetalleType,
+  api, ApiError, MEDIOS_PAGO_LABELS, type Caja, type Cliente, type Factura, type FacturaDetalle as FacturaDetalleType,
 } from '../api'
 import { useAuth } from '../context/AuthContext'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -59,10 +59,28 @@ export function FacturaDetalle() {
   const [cobroOpen, setCobroOpen] = useState(false)
   const [cobroPagos, setCobroPagos] = useState<{ medio: string; monto: string; referencia: string }[]>([{ medio: 'efectivo', monto: '', referencia: '' }])
   const [clientes, setClientes] = useState<Cliente[]>([])
+  const [cajas, setCajas] = useState<Caja[]>([])
+  const [cajaId, setCajaId] = useState<string>('')
 
   useEffect(() => {
     api.get<Cliente[]>('/api/clientes').then((c) => setClientes(c.filter((x) => x.activo))).catch(() => {})
+    api.get<Caja[]>('/api/cajas').then((cs) => {
+      setCajas(cs)
+      const def = cs.find((c) => c.es_default) ?? cs[0]
+      if (def) setCajaId(String(def.id))
+    }).catch(() => {})
   }, [])
+
+  const cajaActual = cajas.find((c) => String(c.id) === cajaId)
+  const mediosDisponibles = cajaActual && cajaActual.medios_pago.length > 0
+    ? cajaActual.medios_pago
+    : Object.keys(MEDIOS_PAGO_LABELS)
+
+  useEffect(() => {
+    if (mediosDisponibles.length === 0) return
+    setCobroPagos((rows) => rows.map((r) => mediosDisponibles.includes(r.medio) ? r : { ...r, medio: mediosDisponibles[0] }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cajaId])
 
   useEffect(() => {
     cargar()
@@ -108,6 +126,7 @@ export function FacturaDetalle() {
     try {
       await api.post(`/api/facturas/${facturaId}/cobrar`, {
         fecha: todayIso(),
+        caja_id: cajaId ? Number(cajaId) : null,
         pagos: cobroPagos.filter((p) => Number(p.monto) > 0).map((p) => ({ medio_id: p.medio, monto: Number(p.monto), referencia: p.referencia })),
       })
       setCobroOpen(false)
@@ -168,6 +187,10 @@ export function FacturaDetalle() {
         condicionVenta: f.condicion_venta || 'Contado',
         taxRate: f.subtotal > 0 ? String(Math.round((f.iva_amount / f.subtotal) * 10000) / 10000) : '0.21',
         items: f.items.map((it) => ({ description: it.description, qty: String(it.qty), unit_price: String(it.unit_price) })),
+        observations: f.observaciones || '',
+        fchServDesde: f.fch_serv_desde || '',
+        fchServHasta: f.fch_serv_hasta || '',
+        fchVtoPago: f.fch_vto_pago || '',
       },
     })
   }
@@ -410,12 +433,23 @@ export function FacturaDetalle() {
                 <DialogTitle className="flex items-center gap-2"><CircleDollarSign className="size-4" />Registrar cobro</DialogTitle>
               </DialogHeader>
               <div className="grid gap-2">
+                {cajas.length > 1 && (
+                  <div className="grid gap-1.5">
+                    <Label>Caja</Label>
+                    <Select value={cajaId} onValueChange={setCajaId}>
+                      <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {cajas.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.nombre}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 {cobroPagos.map((p, i) => (
                   <div key={i} className="flex flex-wrap items-center gap-2">
                     <Select value={p.medio} onValueChange={(v) => setCobroPagos((rows) => rows.map((r, idx) => idx === i ? { ...r, medio: v } : r))}>
                       <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {Object.entries(MEDIOS_PAGO_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                        {mediosDisponibles.map((k) => <SelectItem key={k} value={k}>{medioLabel(k)}</SelectItem>)}
                       </SelectContent>
                     </Select>
                     <Input type="number" step="0.01" value={p.monto} onChange={(e) => setCobroPagos((rows) => rows.map((r, idx) => idx === i ? { ...r, monto: e.target.value } : r))} className="w-28" />

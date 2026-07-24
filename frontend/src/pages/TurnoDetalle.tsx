@@ -148,7 +148,7 @@ export function TurnoDetalle() {
                   <tbody>
                     {resumen.ventas.map((v) => (
                       <tr key={v.id} className="border-b last:border-0">
-                        <td className="p-3"><a href={`/ventas?ver=${v.id}`} className="font-mono font-medium text-primary hover:underline">{v.numero}</a></td>
+                        <td className="p-3"><Link to={`/ventas/${v.id}`} className="font-mono font-medium text-primary hover:underline">{v.numero}</Link></td>
                         <td className="p-3 text-muted-foreground">{v.fecha}</td>
                         <td className="p-3">{v.cliente_nombre || '— Consumidor final —'}</td>
                         <td className="p-3 text-right font-medium">{formatCurrency(v.total)}</td>

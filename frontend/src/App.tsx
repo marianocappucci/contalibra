@@ -20,6 +20,7 @@ import { EgresoNuevo } from './pages/EgresoNuevo'
 import { EgresoDetalle } from './pages/EgresoDetalle'
 import { Usuarios } from './pages/Usuarios'
 import { UsuarioForm } from './pages/UsuarioForm'
+import { MiCuenta } from './pages/MiCuenta'
 import { Config } from './pages/Config'
 import { Depositos } from './pages/Depositos'
 import { DepositoForm } from './pages/DepositoForm'
@@ -239,6 +240,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <UsuarioForm />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/mi-cuenta"
+        element={
+          <ProtectedRoute>
+            <MiCuenta />
           </ProtectedRoute>
         }
       />

@@ -29,6 +29,10 @@ class UsuarioUpdatePayload(BaseModel):
     new_password: str = ""
 
 
+class MiPasswordPayload(BaseModel):
+    new_password: str
+
+
 def _sin_password(usuario: dict) -> dict:
     return {k: v for k, v in usuario.items() if k != "password_hash"}
 
@@ -36,6 +40,24 @@ def _sin_password(usuario: dict) -> dict:
 @router.get("")
 def listar():
     return [_sin_password(u) for u in db.get_all_usuarios()]
+
+
+@router.put("/me/password")
+def cambiar_mi_password(payload: MiPasswordPayload, user: dict = Depends(get_current_user_json)):
+    """Faltaba -- equivalente a GET/POST /mi-cuenta del router HTML viejo
+    (web/routers/usuarios.py), que dejaba a un usuario logueado cambiar su
+    propia contraseña sin tocar el resto de sus datos. Se perdio por completo
+    en la migracion: el sidebar viejo (base.html) tenia un link "{{ nombre
+    }} ({{ role }})" -> /mi-cuenta en el footer, visible para cualquier
+    usuario logueado (no solo admin), pero la ruta en si estaba gateada con
+    require_admin -- se preserva ese mismo gateo aca via el
+    require_admin_json que ya aplica a todo este router en web/app.py, sin
+    inventar una regla de autorizacion nueva. Ver auditoria de campo por
+    campo, modulo Usuarios."""
+    if len(payload.new_password) < 6:
+        raise HTTPException(422, "La contraseña debe tener al menos 6 caracteres.")
+    db.update_usuario_password(user["id"], payload.new_password)
+    return _sin_password(db.get_usuario_by_id(user["id"]))
 
 
 @router.post("")

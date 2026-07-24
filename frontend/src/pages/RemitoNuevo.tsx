@@ -22,6 +22,7 @@ export function RemitoNuevo() {
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [clienteId, setClienteId] = useState('')
   const [clienteNombreLibre, setClienteNombreLibre] = useState('')
+  const [date, setDate] = useState(todayIso())
   const [observations, setObservations] = useState('')
   const [items, setItems] = useState<ItemRow[]>([{ ...EMPTY_ITEM }])
   const [saving, setSaving] = useState(false)
@@ -51,7 +52,7 @@ export function RemitoNuevo() {
     setError(null)
     try {
       const remito = await api.post<Remito>('/api/remitos', {
-        date: todayIso(), client_id: clienteId ? Number(clienteId) : null,
+        date, client_id: clienteId ? Number(clienteId) : null,
         client_name: clienteId ? '' : clienteNombreLibre, observations,
         items: items.filter((r) => r.description.trim()).map((r) => ({ description: r.description, qty: Number(r.qty) || 0 })),
       })
@@ -85,6 +86,7 @@ export function RemitoNuevo() {
             {!clienteId && (
               <div className="grid gap-1.5"><Label>o nombre libre</Label><Input value={clienteNombreLibre} onChange={(e) => setClienteNombreLibre(e.target.value)} className="w-48" /></div>
             )}
+            <div className="grid gap-1.5"><Label>Fecha</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40" /></div>
             <div className="grid gap-1.5 flex-1"><Label>Observaciones</Label><Input value={observations} onChange={(e) => setObservations(e.target.value)} /></div>
           </div>
 

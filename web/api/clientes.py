@@ -10,6 +10,14 @@ cliente) se agregan aca -- las funciones de `libracore.db` ya existian
 no estaban expuestas via JSON todavia (ver ronda de fidelidad de
 Clientes en wiki/entities/contalibra.md).
 
+El detalle (`GET /{cliente_id}`) tambien devuelve facturas, presupuestos
+y remitos del cliente -- mismo caso: `get_facturas_by_client`,
+`get_presupuestos_by_client` y `get_remitos_by_client` ya existian en
+libracore.db y se usaban en el router Jinja2 viejo
+(web/routers/clientes.py -> clientes/detail.html), pero se habian
+quedado afuera de la version JSON (auditoria campo por campo,
+2026-07-24).
+
 Auth y gating de modulo se aplican en el `app.include_router(...)` de
 web/app.py, no aca.
 """
@@ -67,12 +75,21 @@ def crear(payload: ClientePayload):
 
 @router.get("/{cliente_id}")
 def detalle(cliente_id: int):
+    """Incluye facturas, presupuestos y remitos del cliente (restaurado
+    desde web/templates/clientes/detail.html -- las funciones
+    `get_facturas_by_client`/`get_presupuestos_by_client`/
+    `get_remitos_by_client` ya existian en libracore.db, solo no estaban
+    expuestas via JSON. Ver ronda de fidelidad de Clientes en
+    wiki/entities/contalibra.md)."""
     cliente = db.get_client(cliente_id)
     if not cliente:
         raise HTTPException(404, "Cliente no encontrado")
     return {
         **cliente,
         "alias_facturacion": db.get_alias_facturacion_by_cliente(cliente_id),
+        "facturas": db.get_facturas_by_client(cliente.get("cuit_dni") or "", cliente.get("name") or ""),
+        "presupuestos": db.get_presupuestos_by_client(cliente_id),
+        "remitos": db.get_remitos_by_client(cliente_id),
     }
 
 

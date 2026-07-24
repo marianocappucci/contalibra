@@ -26,17 +26,19 @@ const CONDICIONES_VENTA = [
   'Cheque', 'Transferencia Bancaria', 'Otros medios de pago electrónico', 'Otra',
 ]
 
-// Prefill opcional para "Duplicar" desde FacturaDetalle.tsx (navigate con state,
-// en vez de query string, para no tener que serializar los items).
-type DuplicarState = {
-  tipo: string; clienteId: string; clienteNombreLibre: string; concepto: string
-  condicionVenta: string; taxRate: string; items: ItemRow[]
+// Prefill opcional para "Duplicar" (FacturaDetalle.tsx) o "Generar factura"
+// desde un presupuesto aceptado (PresupuestoDetalle.tsx) — navigate con
+// state, en vez de query string, para no tener que serializar los items.
+type PrefillState = {
+  tipo?: string; clienteId?: string; clienteNombreLibre?: string; concepto?: string
+  condicionVenta?: string; taxRate?: string; items?: ItemRow[]; observations?: string
+  fchServDesde?: string; fchServHasta?: string; fchVtoPago?: string
 }
 
 export function FacturaNueva() {
   const navigate = useNavigate()
   const location = useLocation()
-  const prefill = (location.state as DuplicarState | null) ?? null
+  const prefill = (location.state as PrefillState | null) ?? null
 
   const [tiposInfo, setTiposInfo] = useState<{ tipos: TipoFactura[]; conceptos: TipoFactura[]; punto_venta: number } | null>(null)
   const [clientes, setClientes] = useState<Cliente[]>([])
@@ -47,10 +49,15 @@ export function FacturaNueva() {
   const [concepto, setConcepto] = useState(prefill?.concepto ?? '1')
   const [condicionVenta, setCondicionVenta] = useState(prefill?.condicionVenta ?? 'Contado')
   const [taxRate, setTaxRate] = useState(prefill?.taxRate ?? '0.21')
-  const [observations, setObservations] = useState('')
+  const [observations, setObservations] = useState(prefill?.observations ?? '')
   const [items, setItems] = useState<ItemRow[]>(prefill?.items ?? [{ ...EMPTY_ITEM }])
+  const [fchServDesde, setFchServDesde] = useState(prefill?.fchServDesde ?? todayIso())
+  const [fchServHasta, setFchServHasta] = useState(prefill?.fchServHasta ?? todayIso())
+  const [fchVtoPago, setFchVtoPago] = useState(prefill?.fchVtoPago ?? todayIso())
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const requiereFechasServicio = concepto === '2' || concepto === '3'
 
   useEffect(() => {
     api.get<{ tipos: TipoFactura[]; conceptos: TipoFactura[]; punto_venta: number }>('/api/facturas/tipos').then(setTiposInfo).catch(() => {})
@@ -87,6 +94,9 @@ export function FacturaNueva() {
         items: items.filter((r) => r.description.trim()).map((r) => ({
           description: r.description, qty: Number(r.qty) || 0, unit_price: Number(r.unit_price) || 0,
         })),
+        ...(requiereFechasServicio
+          ? { fch_serv_desde: fchServDesde, fch_serv_hasta: fchServHasta, fch_vto_pago: fchVtoPago }
+          : {}),
       })
       navigate(`/facturas/${factura.id}`)
     } catch (err) {
@@ -150,6 +160,19 @@ export function FacturaNueva() {
                 <div className="grid gap-1.5"><Label>IVA</Label><Input type="number" step="0.01" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} className="w-24" /></div>
               )}
             </div>
+
+            {requiereFechasServicio && (
+              <div className="grid gap-3 rounded-md border border-amber-300 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/40">
+                <p className="text-sm font-medium">
+                  Período de servicio <span className="font-normal text-muted-foreground">— requerido por ARCA cuando el concepto es Servicios</span>
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <div className="grid gap-1.5"><Label>Fecha desde</Label><Input type="date" value={fchServDesde} onChange={(e) => setFchServDesde(e.target.value)} className="w-40" /></div>
+                  <div className="grid gap-1.5"><Label>Fecha hasta</Label><Input type="date" value={fchServHasta} onChange={(e) => setFchServHasta(e.target.value)} className="w-40" /></div>
+                  <div className="grid gap-1.5"><Label>Vto. de pago</Label><Input type="date" value={fchVtoPago} onChange={(e) => setFchVtoPago(e.target.value)} className="w-40" /></div>
+                </div>
+              </div>
+            )}
 
             <div className="grid gap-2">
               <Label>Ítems</Label>

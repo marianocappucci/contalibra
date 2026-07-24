@@ -35,6 +35,30 @@ def listar_categorias():
     return db.get_categorias_producto()
 
 
+class CategoriaPayload(BaseModel):
+    nombre: str
+
+
+@router.post("/categorias")
+def crear_categoria(payload: CategoriaPayload):
+    """Faltaba -- el tab "Categorías" de Config (frontend/src/pages/Config.tsx,
+    CategoriasTab) ya llamaba a este endpoint para el lado de productos, pero
+    nunca se habia expuesto aca (el router viejo lo tenia en
+    web/routers/config.py -> POST /config/categorias-producto). Ver auditoria
+    de campo por campo, modulo Listas de precio/Egresos/Usuarios/Config."""
+    nombre = payload.nombre.strip()
+    if not nombre:
+        raise HTTPException(422, "El nombre es obligatorio.")
+    db.create_categoria_producto(nombre)
+    return db.get_categorias_producto()
+
+
+@router.delete("/categorias/{cid}")
+def eliminar_categoria(cid: int):
+    db.delete_categoria_producto(cid)
+    return db.get_categorias_producto()
+
+
 @router.post("")
 def crear(payload: ProductoPayload):
     nombre = payload.nombre.strip()

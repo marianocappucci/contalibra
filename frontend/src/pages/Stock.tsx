@@ -11,6 +11,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { DataTable, sortableHeader } from '@/components/data-table'
+import { formatEntero } from '@/lib/utils'
 import {
   Archive, AlertTriangle, Pencil, History, RefreshCw, ArrowDownToLine, ArrowUpFromLine,
   ShoppingCart, RotateCcw, X, Filter,
@@ -180,7 +181,7 @@ export function Stock() {
     },
     { accessorKey: 'categoria', header: 'Categoría', cell: ({ row }) => <span className="text-muted-foreground">{row.original.categoria || '—'}</span> },
     { accessorKey: 'unidad', header: 'Unidad', cell: ({ row }) => <span className="text-muted-foreground">{row.original.unidad}</span> },
-    { accessorKey: 'stock_minimo', header: 'Stock mínimo', cell: ({ row }) => row.original.stock_minimo > 0 ? row.original.stock_minimo : '—' },
+    { accessorKey: 'stock_minimo', header: 'Stock mínimo', cell: ({ row }) => row.original.stock_minimo > 0 ? formatEntero(row.original.stock_minimo) : '—' },
     {
       accessorKey: 'stock_actual',
       header: 'Stock actual',
@@ -188,7 +189,7 @@ export function Stock() {
         const critico = row.original.stock_actual <= 0
         const bajo = row.original.stock_minimo > 0 && row.original.stock_actual <= row.original.stock_minimo
         const cls = critico ? 'font-bold text-lg text-destructive' : bajo ? 'font-bold text-lg text-amber-600 dark:text-amber-400' : 'font-bold text-lg text-emerald-600 dark:text-emerald-400'
-        return <span className={cls}>{row.original.stock_actual}</span>
+        return <span className={cls}>{formatEntero(row.original.stock_actual)}</span>
       },
     },
     { id: 'estado', header: 'Estado', cell: ({ row }) => <EstadoBadge p={row.original} /> },
@@ -222,7 +223,7 @@ export function Stock() {
       header: 'Cantidad',
       cell: ({ row }) => (
         <span className={row.original.cantidad >= 0 ? 'font-semibold text-emerald-600 dark:text-emerald-400' : 'font-semibold text-destructive'}>
-          {row.original.cantidad >= 0 ? '+' : ''}{row.original.cantidad}
+          {row.original.cantidad >= 0 ? '+' : ''}{formatEntero(row.original.cantidad)}
         </span>
       ),
     },
@@ -231,6 +232,19 @@ export function Stock() {
   ], [])
 
   const productoAjustando = productos.find((p) => p.id === ajustandoId)
+
+  // Preview en vivo del stock resultante, igual que calcResultado() en el
+  // stock/ajuste.html viejo: toma el stock actual del producto (fijo al
+  // abrir el ajuste) y aplica el modo sobre la cantidad tipeada.
+  function resultadoAjuste(): number | null {
+    if (!productoAjustando) return null
+    const val = parseFloat(cantidad) || 0
+    const base = productoAjustando.stock_actual
+    if (modo === 'absoluto') return val
+    if (modo === 'entrada') return base + val
+    return base - val
+  }
+  const resultado = resultadoAjuste()
 
   return (
     <div className="grid gap-4">
@@ -247,7 +261,7 @@ export function Stock() {
           <p>
             <strong>{alertas.length} producto{alertas.length > 1 ? 's' : ''} con stock bajo mínimo:</strong>{' '}
             {alertas.map((a) => (
-              <Badge key={a.id} className="ml-1 bg-amber-500/15 text-amber-700 hover:bg-amber-500/15 dark:text-amber-400">{a.nombre} ({a.stock_actual} {a.unidad})</Badge>
+              <Badge key={a.id} className="ml-1 bg-amber-500/15 text-amber-700 hover:bg-amber-500/15 dark:text-amber-400">{a.nombre} ({formatEntero(a.stock_actual)} {a.unidad})</Badge>
             ))}
           </p>
         </div>
@@ -274,13 +288,13 @@ export function Stock() {
             <div className="flex gap-4">
               <div className="text-center">
                 <div className={`text-3xl font-bold ${(productoAjustando?.stock_actual ?? 0) <= 0 ? 'text-destructive' : (productoAjustando?.stock_minimo ?? 0) > 0 && (productoAjustando?.stock_actual ?? 0) <= (productoAjustando?.stock_minimo ?? 0) ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                  {productoAjustando?.stock_actual}
+                  {formatEntero(productoAjustando?.stock_actual ?? 0)}
                 </div>
                 <div className="text-sm text-muted-foreground">Stock actual ({productoAjustando?.unidad})</div>
               </div>
               {(productoAjustando?.stock_minimo ?? 0) > 0 && (
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-muted-foreground">{productoAjustando?.stock_minimo}</div>
+                  <div className="text-3xl font-bold text-muted-foreground">{formatEntero(productoAjustando?.stock_minimo ?? 0)}</div>
                   <div className="text-sm text-muted-foreground">Mínimo</div>
                 </div>
               )}
@@ -313,6 +327,11 @@ export function Stock() {
               <Button disabled={saving} onClick={guardarAjuste}>{saving ? 'Guardando…' : 'Guardar movimiento'}</Button>
               <Button type="button" variant="outline" onClick={() => setAjustandoId(null)}>Cancelar</Button>
             </div>
+            {resultado !== null && (
+              <p className={`text-sm ${resultado < 0 ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                Stock resultante: {resultado.toFixed(3)} {productoAjustando?.unidad}
+              </p>
+            )}
           </CardContent>
         </Card>
       )}

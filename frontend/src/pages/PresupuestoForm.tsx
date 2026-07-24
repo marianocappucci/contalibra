@@ -33,7 +33,12 @@ export function PresupuestoForm() {
 
   const [clienteId, setClienteId] = useState('')
   const [clienteNombreLibre, setClienteNombreLibre] = useState('')
-  const [validUntil, setValidUntil] = useState('')
+  const [date, setDate] = useState(todayIso())
+  const [validUntil, setValidUntil] = useState(() => {
+    const plus30 = new Date()
+    plus30.setDate(plus30.getDate() + 30)
+    return plus30.toISOString().slice(0, 10)
+  })
   const [taxRate, setTaxRate] = useState('0.21')
   const [observations, setObservations] = useState('')
   const [items, setItems] = useState<ItemRow[]>([{ ...EMPTY_ITEM }])
@@ -49,6 +54,7 @@ export function PresupuestoForm() {
     api.get<Presupuesto>(`/api/presupuestos/${editingId}`).then((p) => {
       setClienteId(p.client_id ? String(p.client_id) : '')
       setClienteNombreLibre(p.client_id ? '' : p.client_name)
+      setDate(p.date)
       setValidUntil(p.valid_until)
       setTaxRate(String(p.tax_rate))
       setObservations(p.observations)
@@ -73,7 +79,7 @@ export function PresupuestoForm() {
     setError(null)
     try {
       const payload = {
-        date: todayIso(), valid_until: validUntil, client_id: clienteId ? Number(clienteId) : null,
+        date, valid_until: validUntil, client_id: clienteId ? Number(clienteId) : null,
         client_name: clienteId ? '' : clienteNombreLibre, tax_rate: Number(taxRate) || 0, observations,
         items: items.filter((r) => r.description.trim()).map((r) => ({
           description: r.description, qty: Number(r.qty) || 0, unit_price: Number(r.unit_price) || 0,
@@ -120,6 +126,7 @@ export function PresupuestoForm() {
               {!clienteId && (
                 <div className="grid gap-1.5"><Label>o nombre libre</Label><Input value={clienteNombreLibre} onChange={(e) => setClienteNombreLibre(e.target.value)} className="w-48" /></div>
               )}
+              <div className="grid gap-1.5"><Label>Fecha</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40" /></div>
               <div className="grid gap-1.5"><Label>Válido hasta</Label><Input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} className="w-40" /></div>
               <div className="grid gap-1.5"><Label>IVA</Label><Input type="number" step="0.01" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} className="w-24" /></div>
             </div>

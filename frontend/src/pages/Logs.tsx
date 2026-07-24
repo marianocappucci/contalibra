@@ -25,14 +25,19 @@ const TIPO_ICONS: Record<string, typeof ShoppingCart> = {
   turno: Clock, remito: PackageCheck, presupuesto: ClipboardList,
 }
 
-// Deep-links de "Ver" por fila: solo Facturas y Presupuestos soportan
-// `?ver=<id>` en la SPA (ver Facturas.tsx / Presupuestos.tsx). Ventas,
-// Remitos y Turnos todavia no tienen esa ruta de detalle -- no se arma un
-// link para esos casos (gap documentado en el reporte final, no es un bug
-// de Logs sino de esos otros modulos).
+// Deep-links de "Ver" por fila, uno por cada ref_tabla que puede aparecer
+// en db.get_actividad_log() -- misma cobertura que el template Jinja2
+// viejo (git 1a8808c, web/templates/admin/logs.html: ventas, facturas,
+// remitos, presupuestos y turnos_caja). Las rutas de detalle son por
+// path param (`/modulo/:id`, ver App.tsx), no por query string `?ver=`
+// -- Facturas.tsx/Presupuestos.tsx no leen ese query param, asi que un
+// link `?ver=` no abre nada; se usa el path real en todos los casos.
 const VER_PATHS: Record<string, string> = {
+  ventas: '/ventas',
   facturas: '/facturas',
+  remitos: '/remitos',
   presupuestos: '/presupuestos',
+  turnos_caja: '/turnos',
 }
 
 const EVENTO_META: Record<string, { label: string; icon: typeof LogIn; className: string }> = {
@@ -43,6 +48,14 @@ const EVENTO_META: Record<string, { label: string; icon: typeof LogIn; className
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value)
+}
+
+// La version Jinja2 vieja mostraba la hora (HH:MM:SS) de cada evento en la
+// primera columna, dado que el separador de fila ya agrupa por fecha
+// (web/templates/admin/logs.html: `r.ts[11:19]`). db.get_actividad_log()
+// sigue devolviendo `ts` -- confirmado en vivo en el contenedor del VPS.
+function horaDe(ts: string): string {
+  return ts && ts.length > 10 ? ts.slice(11, 19) : '—'
 }
 
 export function Logs() {
@@ -201,6 +214,7 @@ export function Logs() {
                   <table className="w-full text-sm">
                     <thead className="border-b text-muted-foreground">
                       <tr>
+                        <th className="w-20 p-3 text-left font-medium">Hora</th>
                         <th className="w-28 p-3 text-left font-medium">Tipo</th>
                         <th className="p-3 text-left font-medium">Descripción</th>
                         <th className="w-28 p-3 text-right font-medium">Monto</th>
@@ -213,7 +227,7 @@ export function Logs() {
                       {grupos.map((g) => (
                         <Fragment key={g.fecha}>
                           <tr className="bg-muted/50">
-                            <td colSpan={6} className="px-3 py-1.5">
+                            <td colSpan={7} className="px-3 py-1.5">
                               <span className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
                                 <CalendarDays className="size-3.5" />{g.fecha}
                               </span>
@@ -225,6 +239,7 @@ export function Logs() {
                             const verPath = r.ref_tabla ? VER_PATHS[r.ref_tabla] : undefined
                             return (
                               <tr key={`${g.fecha}-${i}`} className="border-b last:border-0 hover:bg-muted/30">
+                                <td className="p-3 font-mono text-xs text-muted-foreground">{horaDe(r.ts)}</td>
                                 <td className="p-3">
                                   <Badge style={{ backgroundColor: meta?.color }} className="gap-1 text-white">
                                     <Icon className="size-3.5" />{meta?.label ?? r.tipo}
@@ -238,12 +253,16 @@ export function Logs() {
                                   {r.usuario ? <span className="flex items-center gap-1"><UserIcon className="size-3.5" />{r.usuario}</span> : '—'}
                                 </td>
                                 <td className="p-3 text-center">
-                                  {r.turno_id != null ? <Badge variant="outline">#{r.turno_id}</Badge> : '—'}
+                                  {r.turno_id != null ? (
+                                    <Link to={`/turnos/${r.turno_id}`}>
+                                      <Badge variant="outline" className="hover:bg-muted">#{r.turno_id}</Badge>
+                                    </Link>
+                                  ) : '—'}
                                 </td>
                                 <td className="p-3 text-right">
                                   {verPath && r.ref_id != null && (
                                     <Button asChild size="icon" variant="ghost" className="size-7 text-muted-foreground" title="Ver">
-                                      <Link to={`${verPath}?ver=${r.ref_id}`}><ExternalLink /></Link>
+                                      <Link to={`${verPath}/${r.ref_id}`}><ExternalLink /></Link>
                                     </Button>
                                   )}
                                 </td>

@@ -19,7 +19,7 @@ import {
 import { DataTable } from '@/components/data-table'
 import {
   ArrowLeft, BookOpen, CircleDollarSign, Trash2, ArrowUpCircle, ArrowDownCircle,
-  ShoppingCart, Receipt,
+  ShoppingCart, Receipt, User,
 } from 'lucide-react'
 
 function todayIso(): string {
@@ -262,6 +262,7 @@ export function CuentaCorrienteDetalle() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+            <Button asChild size="sm" variant="outline"><Link to={`/clientes/${cliente.id}`}><User />Ficha cliente</Link></Button>
             <Button asChild size="sm" variant="outline"><Link to="/cuenta-corriente"><ArrowLeft />Volver</Link></Button>
           </div>
         )}

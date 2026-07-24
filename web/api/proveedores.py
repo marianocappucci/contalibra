@@ -1,7 +1,12 @@
 """API JSON de Proveedores para la SPA (ver wiki/entities/contalibra.md,
 migracion a React). Reusa `db_egresos.py` (via `database.py`) tal cual --
 ver web/api/clientes.py para el patron general de esta etapa. El detalle
-con egresos asociados queda para cuando se migre el modulo Egresos."""
+con egresos asociados (web/templates/proveedores/detail.html) ya no
+depende de este router: el modulo Egresos se migro despues y
+frontend/src/pages/ProveedorDetalle.tsx trae los egresos del proveedor
+llamando a GET /api/egresos con el filtro proveedor_id que ya existe en
+web/api/egresos.py (comentario desactualizado corregido en la auditoria
+campo por campo, 2026-07-24)."""
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 

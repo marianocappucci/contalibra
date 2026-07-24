@@ -10,12 +10,36 @@ import { Switch } from '@/components/ui/switch'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import { IdCard, Pencil, Undo2, ArrowLeft, ArrowLeftRight, Plus, Trash2 } from 'lucide-react'
+import {
+  IdCard, Pencil, Undo2, ArrowLeft, ArrowLeftRight, Plus, Trash2,
+  BarChart3, Receipt, FileText, Truck, Inbox, Eye,
+} from 'lucide-react'
+
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value)
+}
+
+const TIPO_LABELS: Record<number, string> = {
+  1: 'Factura A', 6: 'Factura B', 11: 'Factura C',
+  2: 'ND A', 7: 'ND B', 12: 'ND C',
+  3: 'NC A', 8: 'NC B', 13: 'NC C',
+}
+
+const ESTADO_PRESUPUESTO_VARIANT: Record<string, 'default' | 'secondary' | 'destructive'> = {
+  aprobado: 'default', aceptado: 'default', rechazado: 'destructive',
+}
+
+const ESTADO_PRESUPUESTO_LABEL: Record<string, string> = {
+  aprobado: 'Aprobado', aceptado: 'Aceptado', rechazado: 'Rechazado',
+}
 
 // Restaurado desde web/templates/clientes/detail.html: auto-factura MP
-// (toggle) y alias de facturacion (CUIT/email -> este cliente) ya tienen
-// endpoint real en web/api/clientes.py (GET/{id}, toggle-auto-facturar,
-// alias-facturacion) -- ver wiki/entities/contalibra.md.
+// (toggle), alias de facturacion (CUIT/email -> este cliente), el resumen
+// de facturas/presupuestos/remitos y las tres tablas de comprobantes
+// asociados ya tienen datos reales en GET /api/clientes/{id} (ver
+// web/api/clientes.py -- get_facturas_by_client/get_presupuestos_by_client/
+// get_remitos_by_client ya existian en libracore.db, auditoria campo por
+// campo 2026-07-24) -- ver wiki/entities/contalibra.md.
 export function ClienteDetalle() {
   const { id } = useParams<{ id: string }>()
   const clienteId = Number(id)
@@ -133,24 +157,56 @@ export function ClienteDetalle() {
         <p className="py-6 text-center text-sm text-muted-foreground">Cargando…</p>
       ) : cliente && (
         <>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Datos del cliente</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-1.5 text-sm">
-              <p><span className="text-muted-foreground">Nombre / Razón social:</span> <span className="font-medium">{cliente.name}</span></p>
-              {cliente.cuit_dni && <p><span className="text-muted-foreground">CUIT / DNI:</span> <span className="font-mono">{cliente.cuit_dni}</span></p>}
-              {cliente.iva_condition && <p><span className="text-muted-foreground">Condición IVA:</span> {cliente.iva_condition}</p>}
-              {cliente.address && <p><span className="text-muted-foreground">Domicilio:</span> {cliente.address}</p>}
-              {cliente.phone && <p><span className="text-muted-foreground">Teléfono:</span> {cliente.phone}</p>}
-              {cliente.email && <p><span className="text-muted-foreground">Email:</span> <a className="underline" href={`mailto:${cliente.email}`}>{cliente.email}</a></p>}
-              <div className="flex items-center gap-2 pt-1">
-                <span className="text-muted-foreground">Auto-factura MP:</span>
-                <Switch checked={Boolean(cliente.auto_facturar)} disabled={toggling} onCheckedChange={toggleAutoFacturar} />
-                <span className="text-xs text-muted-foreground">{cliente.auto_facturar ? 'Activa' : 'Inactiva'}</span>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Datos del cliente</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-1.5 text-sm">
+                <p><span className="text-muted-foreground">Nombre / Razón social:</span> <span className="font-medium">{cliente.name}</span></p>
+                {cliente.cuit_dni && <p><span className="text-muted-foreground">CUIT / DNI:</span> <span className="font-mono">{cliente.cuit_dni}</span></p>}
+                {cliente.iva_condition && <p><span className="text-muted-foreground">Condición IVA:</span> {cliente.iva_condition}</p>}
+                {cliente.address && <p><span className="text-muted-foreground">Domicilio:</span> {cliente.address}</p>}
+                {cliente.phone && <p><span className="text-muted-foreground">Teléfono:</span> {cliente.phone}</p>}
+                {cliente.email && <p><span className="text-muted-foreground">Email:</span> <a className="underline" href={`mailto:${cliente.email}`}>{cliente.email}</a></p>}
+                <div className="flex items-center gap-2 pt-1">
+                  <span className="text-muted-foreground">Auto-factura MP:</span>
+                  <Switch checked={Boolean(cliente.auto_facturar)} disabled={toggling} onCheckedChange={toggleAutoFacturar} />
+                  <span className="text-xs text-muted-foreground">{cliente.auto_facturar ? 'Activa' : 'Inactiva'}</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base"><BarChart3 className="size-4" />Resumen</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-3">
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <p className="text-2xl font-bold text-primary">{cliente.facturas.length}</p>
+                    <p className="text-xs text-muted-foreground">Facturas</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{cliente.presupuestos.length}</p>
+                    <p className="text-xs text-muted-foreground">Presupuestos</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{cliente.remitos.length}</p>
+                    <p className="text-xs text-muted-foreground">Remitos</p>
+                  </div>
+                </div>
+                {cliente.facturas.length > 0 && (
+                  <div className="border-t pt-3 text-center">
+                    <p className="text-xs text-muted-foreground">Total facturado</p>
+                    <p className="text-lg font-bold text-primary">
+                      {formatCurrency(cliente.facturas.reduce((sum, f) => sum + f.total, 0))}
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
           <Card>
             <CardHeader>
@@ -202,6 +258,134 @@ export function ClienteDetalle() {
               </div>
             </CardContent>
           </Card>
+
+          {cliente.facturas.length > 0 && (
+            <Card>
+              <CardHeader className="flex items-center justify-between space-y-0">
+                <CardTitle className="flex items-center gap-2 text-base"><Receipt className="size-4" />Facturas y comprobantes</CardTitle>
+                <Button asChild size="sm" variant="outline"><Link to="/facturas/nueva"><Plus />Nueva factura</Link></Button>
+              </CardHeader>
+              <CardContent className="p-0">
+                <table className="w-full text-sm">
+                  <thead className="border-b text-muted-foreground">
+                    <tr>
+                      <th className="p-3 text-left font-medium">Tipo</th>
+                      <th className="p-3 text-left font-medium">Número</th>
+                      <th className="p-3 text-left font-medium">Fecha</th>
+                      <th className="p-3 text-right font-medium">Total</th>
+                      <th className="p-3 text-center font-medium">CAE</th>
+                      <th className="p-3"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cliente.facturas.map((f) => (
+                      <tr key={f.id} className="border-b last:border-0">
+                        <td className="p-3"><Badge variant="secondary">{TIPO_LABELS[f.tipo] ?? 'Cbte.'}</Badge></td>
+                        <td className="p-3 font-mono text-xs">{String(f.punto_venta).padStart(4, '0')}-{String(f.numero).padStart(8, '0')}</td>
+                        <td className="p-3 text-muted-foreground">{f.fecha}</td>
+                        <td className="p-3 text-right font-medium">{formatCurrency(f.total)}</td>
+                        <td className="p-3 text-center">
+                          {f.cae && f.cae !== 'PENDIENTE' ? (
+                            <Badge className="bg-emerald-600 text-white dark:bg-emerald-500">Autorizada</Badge>
+                          ) : (
+                            <Badge className="bg-amber-500 text-white dark:bg-amber-600">Pendiente</Badge>
+                          )}
+                        </td>
+                        <td className="p-3 text-right">
+                          <Button asChild size="icon" variant="outline"><Link to={`/facturas/${f.id}`}><Eye /></Link></Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          )}
+
+          {cliente.presupuestos.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base"><FileText className="size-4" />Presupuestos</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <table className="w-full text-sm">
+                  <thead className="border-b text-muted-foreground">
+                    <tr>
+                      <th className="p-3 text-left font-medium">N°</th>
+                      <th className="p-3 text-left font-medium">Fecha</th>
+                      <th className="p-3 text-left font-medium">Válido hasta</th>
+                      <th className="p-3 text-right font-medium">Total</th>
+                      <th className="p-3 text-center font-medium">Estado</th>
+                      <th className="p-3"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cliente.presupuestos.map((p) => (
+                      <tr key={p.id} className="border-b last:border-0">
+                        <td className="p-3 font-mono text-xs">{p.number}</td>
+                        <td className="p-3 text-muted-foreground">{p.date}</td>
+                        <td className="p-3 text-muted-foreground">{p.valid_until || '—'}</td>
+                        <td className="p-3 text-right font-medium">{formatCurrency(p.total)}</td>
+                        <td className="p-3 text-center">
+                          <Badge variant={ESTADO_PRESUPUESTO_VARIANT[p.status] ?? 'secondary'}>
+                            {ESTADO_PRESUPUESTO_LABEL[p.status] ?? p.status ?? 'Borrador'}
+                          </Badge>
+                        </td>
+                        <td className="p-3 text-right">
+                          <Button asChild size="icon" variant="outline"><Link to={`/presupuestos/${p.id}`}><Eye /></Link></Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          )}
+
+          {cliente.remitos.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base"><Truck className="size-4" />Remitos</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <table className="w-full text-sm">
+                  <thead className="border-b text-muted-foreground">
+                    <tr>
+                      <th className="p-3 text-left font-medium">N°</th>
+                      <th className="p-3 text-left font-medium">Fecha</th>
+                      <th className="p-3 text-right font-medium">Total</th>
+                      <th className="p-3"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cliente.remitos.map((r) => (
+                      <tr key={r.id} className="border-b last:border-0">
+                        <td className="p-3 font-mono text-xs">{r.number}</td>
+                        <td className="p-3 text-muted-foreground">{r.date}</td>
+                        <td className="p-3 text-right font-medium">{formatCurrency(r.total)}</td>
+                        <td className="p-3 text-right">
+                          <Button asChild size="icon" variant="outline"><Link to={`/remitos/${r.id}`}><Eye /></Link></Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          )}
+
+          {cliente.facturas.length === 0 && cliente.presupuestos.length === 0 && cliente.remitos.length === 0 && (
+            <Card>
+              <CardContent className="flex flex-col items-center gap-3 py-10 text-center text-sm text-muted-foreground">
+                <Inbox className="size-8 opacity-50" />
+                <p>Este cliente no tiene comprobantes asociados todavía.</p>
+                <div className="flex gap-2">
+                  <Button asChild size="sm" variant="outline"><Link to="/facturas/nueva"><Receipt />Nueva factura</Link></Button>
+                  <Button asChild size="sm" variant="outline"><Link to="/presupuestos/nuevo"><FileText />Nuevo presupuesto</Link></Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </>
       )}
 
