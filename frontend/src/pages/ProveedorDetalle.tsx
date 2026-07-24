@@ -1,10 +1,24 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm } from 'react-hook-form'
+import { z } from 'zod'
 import { type ColumnDef } from '@tanstack/react-table'
-import { api, ApiError, type Egreso, type Proveedor } from '../api'
+import { api, ApiError, IVA_CONDITIONS, type Egreso, type Proveedor } from '../api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select'
+import {
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
+} from '@/components/ui/form'
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose,
+} from '@/components/ui/dialog'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { DataTable, sortableHeader } from '@/components/data-table'
 import { Truck, Pencil, ArrowLeft, Plus, Inbox, Trash2 } from 'lucide-react'
 
@@ -24,6 +38,19 @@ const estadoLabel: Record<Egreso['estado'], string> = {
   pagado: 'Pagado', parcial: 'Parcial', pendiente: 'Pendiente',
 }
 
+const proveedorSchema = z.object({
+  nombre: z.string().trim().min(1, 'El nombre es obligatorio'),
+  cuit_dni: z.string().trim().optional(),
+  email: z.string().trim().email('Email inválido').optional().or(z.literal('')),
+  phone: z.string().trim().optional(),
+  address: z.string().trim().optional(),
+  iva_condition: z.string().optional(),
+})
+type ProveedorFormValues = z.infer<typeof proveedorSchema>
+const EMPTY_VALUES: ProveedorFormValues = {
+  nombre: '', cuit_dni: '', email: '', phone: '', address: '', iva_condition: '',
+}
+
 // Restaurado desde web/templates/proveedores/detail.html. No existe un GET
 // /api/proveedores/{id} en el backend (ver web/api/proveedores.py) -- se
 // trae la lista completa y se busca el id. Los egresos asociados usan el
@@ -31,6 +58,10 @@ const estadoLabel: Record<Egreso['estado'], string> = {
 // web/api/egresos.py); ese endpoint usa el mes actual como rango por
 // defecto, así que acá se pide un rango amplio explícito para traer el
 // historial completo, igual que mostraba la página vieja.
+//
+// El botón "Editar" abre el modal de edición inline (antes navegaba a
+// /proveedores/:id/editar, página ProveedorForm.tsx ahora eliminada)
+// precargado con los datos del proveedor ya cargados en esta página.
 export function ProveedorDetalle() {
   const { id } = useParams<{ id: string }>()
   const proveedorId = Number(id)
@@ -41,6 +72,16 @@ export function ProveedorDetalle() {
   const [error, setError] = useState<string | null>(null)
   const [egresos, setEgresos] = useState<Egreso[]>([])
   const [egresosLoading, setEgresosLoading] = useState(true)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  const [editOpen, setEditOpen] = useState(false)
+  const [guardando, setGuardando] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
+
+  const form = useForm<ProveedorFormValues>({
+    resolver: zodResolver(proveedorSchema),
+    defaultValues: EMPTY_VALUES,
+  })
 
   useEffect(() => {
     cargar()
@@ -87,13 +128,49 @@ export function ProveedorDetalle() {
   }
 
   async function eliminar() {
-    if (!window.confirm('¿Eliminar este proveedor? Solo es posible si no tiene egresos asociados.')) return
     setError(null)
     try {
       await api.del(`/api/proveedores/${proveedorId}`)
       navigate('/proveedores')
     } catch (err) {
       setError(describeError(err))
+    }
+  }
+
+  function abrirEditar() {
+    if (!proveedor) return
+    form.reset({
+      nombre: proveedor.nombre,
+      cuit_dni: proveedor.cuit_dni ?? '',
+      email: proveedor.email ?? '',
+      phone: proveedor.phone ?? '',
+      address: proveedor.address ?? '',
+      iva_condition: proveedor.iva_condition ?? '',
+    })
+    setFormError(null)
+    setEditOpen(true)
+  }
+
+  async function guardarEdicion(values: ProveedorFormValues) {
+    if (!proveedor) return
+    setGuardando(true)
+    setFormError(null)
+    const payload = {
+      nombre: values.nombre,
+      cuit_dni: values.cuit_dni || '',
+      email: values.email || '',
+      phone: values.phone || '',
+      address: values.address || '',
+      iva_condition: values.iva_condition || '',
+    }
+    try {
+      await api.put<Proveedor>(`/api/proveedores/${proveedor.id}`, payload)
+      setEditOpen(false)
+      await cargar()
+    } catch (err) {
+      setFormError(describeError(err))
+    } finally {
+      setGuardando(false)
     }
   }
 
@@ -124,7 +201,110 @@ export function ProveedorDetalle() {
         </h2>
         <div className="flex flex-wrap gap-2">
           {proveedor && (
-            <Button asChild size="sm" variant="outline"><Link to={`/proveedores/${proveedor.id}/editar`}><Pencil />Editar</Link></Button>
+            <Dialog open={editOpen} onOpenChange={setEditOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline" onClick={abrirEditar}><Pencil />Editar</Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2"><Pencil className="size-4" />Editar proveedor — {proveedor.nombre}</DialogTitle>
+                </DialogHeader>
+                <Form {...form}>
+                  <form className="flex flex-wrap items-start gap-3" onSubmit={form.handleSubmit(guardarEdicion)}>
+                    {formError && <p className="w-full text-sm text-destructive">{formError}</p>}
+                    <FormField
+                      control={form.control}
+                      name="nombre"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nombre</FormLabel>
+                          <FormControl>
+                            <Input {...field} className="w-48" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="cuit_dni"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>CUIT/DNI</FormLabel>
+                          <FormControl>
+                            <Input {...field} className="w-36" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="phone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Teléfono</FormLabel>
+                          <FormControl>
+                            <Input {...field} className="w-36" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email</FormLabel>
+                          <FormControl>
+                            <Input type="email" {...field} className="w-52" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="address"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Dirección</FormLabel>
+                          <FormControl>
+                            <Input {...field} className="w-52" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="iva_condition"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Condición de IVA</FormLabel>
+                          <Select value={field.value} onValueChange={field.onChange}>
+                            <FormControl>
+                              <SelectTrigger className="w-52">
+                                <SelectValue placeholder="Condición de IVA…" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {IVA_CONDITIONS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <DialogFooter className="w-full">
+                      <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
+                      <Button type="submit" disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar cambios'}</Button>
+                    </DialogFooter>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
           )}
           <Button asChild size="sm" variant="outline"><Link to="/proveedores"><ArrowLeft />Volver</Link></Button>
         </div>
@@ -176,12 +356,23 @@ export function ProveedorDetalle() {
           {/* "Eliminar proveedor" -- en la página vieja vivía al pie del
               detalle, no en la fila de la lista. */}
           <div className="flex justify-end">
-            <Button variant="outline" className="text-destructive hover:text-destructive" onClick={eliminar}>
+            <Button variant="outline" className="text-destructive hover:text-destructive" onClick={() => setConfirmDelete(true)}>
               <Trash2 />Eliminar proveedor
             </Button>
           </div>
         </>
       )}
+
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title="¿Eliminar este proveedor?"
+        description="Solo es posible si no tiene egresos asociados."
+        onConfirm={() => {
+          eliminar()
+          setConfirmDelete(false)
+        }}
+      />
     </div>
   )
 }

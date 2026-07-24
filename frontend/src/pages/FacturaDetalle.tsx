@@ -15,6 +15,7 @@ import {
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose,
 } from '@/components/ui/dialog'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
   ArrowLeft, FileDown, Printer, ReceiptText, Mail, RefreshCw, FileMinus, FilePlus, Copy, Trash2,
   CheckCircle2, Hourglass, CircleDollarSign, AlertTriangle, Info, CornerDownLeft, ListChecks, Plus,
@@ -44,6 +45,14 @@ function estaAutorizada(f: Factura): boolean {
   return Boolean(f.cae) && f.cae !== 'PENDIENTE'
 }
 
+function notaLabel(kind: 'nota-credito' | 'nota-debito'): string {
+  return kind === 'nota-credito' ? 'Nota de Crédito' : 'Nota de Débito'
+}
+
+function notaRelacion(kind: 'nota-credito' | 'nota-debito'): string {
+  return kind === 'nota-credito' ? 'anula' : 'está asociada a'
+}
+
 export function FacturaDetalle() {
   const { id } = useParams<{ id: string }>()
   const facturaId = Number(id)
@@ -61,6 +70,8 @@ export function FacturaDetalle() {
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [cajas, setCajas] = useState<Caja[]>([])
   const [cajaId, setCajaId] = useState<string>('')
+  const [confirmNota, setConfirmNota] = useState<'nota-credito' | 'nota-debito' | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   useEffect(() => {
     api.get<Cliente[]>('/api/clientes').then((c) => setClientes(c.filter((x) => x.activo))).catch(() => {})
@@ -154,14 +165,6 @@ export function FacturaDetalle() {
 
   async function crearNota(kind: 'nota-credito' | 'nota-debito') {
     if (!detalle) return
-    const label = kind === 'nota-credito' ? 'Nota de Crédito' : 'Nota de Débito'
-    const relacion = kind === 'nota-credito' ? 'anula' : 'está asociada a'
-    const confirmado = window.confirm(
-      `Estás por generar una ${label} que ${relacion} el comprobante ${labelComprobante(detalle.factura)} `
-      + `(${detalle.factura.cliente_razon}) por ${formatCurrency(detalle.factura.total)}.\n\n`
-      + 'Esta acción no se puede deshacer y enviará el comprobante a ARCA para su autorización.',
-    )
-    if (!confirmado) return
     setSaving(true)
     setError(null)
     try {
@@ -197,7 +200,6 @@ export function FacturaDetalle() {
   }
 
   async function eliminar() {
-    if (!window.confirm('¿Eliminar esta factura? Esta acción no se puede deshacer.')) return
     setSaving(true)
     setError(null)
     try {
@@ -418,13 +420,13 @@ export function FacturaDetalle() {
           <div className="flex flex-wrap justify-end gap-2">
             {user?.role === 'admin' && [1, 6, 11].includes(detalle.factura.tipo) && (
               <>
-                <Button size="sm" variant="outline" disabled={saving} onClick={() => crearNota('nota-debito')}><FilePlus />Nota de Débito</Button>
-                <Button size="sm" variant="outline" disabled={saving} onClick={() => crearNota('nota-credito')}><FileMinus />Nota de Crédito</Button>
+                <Button size="sm" variant="outline" disabled={saving} onClick={() => setConfirmNota('nota-debito')}><FilePlus />Nota de Débito</Button>
+                <Button size="sm" variant="outline" disabled={saving} onClick={() => setConfirmNota('nota-credito')}><FileMinus />Nota de Crédito</Button>
               </>
             )}
             <Button size="sm" variant="outline" onClick={duplicar}><Copy />Duplicar</Button>
             {user?.role === 'admin' && !estaAutorizada(detalle.factura) && (
-              <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" disabled={saving} onClick={eliminar}><Trash2 />Eliminar</Button>
+              <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" disabled={saving} onClick={() => setConfirmDelete(true)}><Trash2 />Eliminar</Button>
             )}
           </div>
 
@@ -465,6 +467,27 @@ export function FacturaDetalle() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          <ConfirmDialog
+            open={confirmNota !== null}
+            onOpenChange={(o) => !o && setConfirmNota(null)}
+            title={`¿Generar ${confirmNota ? notaLabel(confirmNota) : ''}?`}
+            description={confirmNota ? (
+              `Estás por generar una ${notaLabel(confirmNota)} que ${notaRelacion(confirmNota)} el comprobante `
+              + `${labelComprobante(detalle.factura)} (${detalle.factura.cliente_razon}) por ${formatCurrency(detalle.factura.total)}. `
+              + 'Esta acción no se puede deshacer y enviará el comprobante a ARCA para su autorización.'
+            ) : undefined}
+            confirmLabel="Generar"
+            onConfirm={() => { if (confirmNota) crearNota(confirmNota); setConfirmNota(null) }}
+          />
+
+          <ConfirmDialog
+            open={confirmDelete}
+            onOpenChange={(o) => !o && setConfirmDelete(false)}
+            title="¿Eliminar esta factura?"
+            description="Esta acción no se puede deshacer."
+            onConfirm={() => { eliminar(); setConfirmDelete(false) }}
+          />
         </>
       )}
     </div>

@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose,
 } from '@/components/ui/dialog'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
   Send, XCircle, CheckCircle2, RefreshCw, Receipt, CheckCheck, Undo2, Mail, Trash2, ArrowLeft,
   FileDown, Pencil,
@@ -38,6 +39,7 @@ export function PresupuestoDetalle() {
   const [saving, setSaving] = useState(false)
   const [emailTo, setEmailTo] = useState('')
   const [emailOpen, setEmailOpen] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   useEffect(() => {
     cargar()
@@ -101,7 +103,6 @@ export function PresupuestoDetalle() {
   }
 
   async function eliminar() {
-    if (!window.confirm('¿Eliminar este presupuesto?')) return
     setError(null)
     try {
       await api.del(`/api/presupuestos/${presId}`)
@@ -240,7 +241,7 @@ export function PresupuestoDetalle() {
                       <Button size="sm" variant="outline" onClick={() => cambiarEstado('borrador')}><Undo2 />Reactivar como borrador</Button>
                     )}
                     {st === 'borrador' && (
-                      <Button size="sm" variant="outline" onClick={eliminar}><Trash2 />Eliminar presupuesto</Button>
+                      <Button size="sm" variant="outline" onClick={() => setConfirmDelete(true)}><Trash2 />Eliminar presupuesto</Button>
                     )}
                   </CardContent>
                 </Card>
@@ -255,6 +256,13 @@ export function PresupuestoDetalle() {
           )
         })()
       )}
+
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={(o) => !o && setConfirmDelete(false)}
+        title="¿Eliminar este presupuesto?"
+        onConfirm={() => { eliminar(); setConfirmDelete(false) }}
+      />
     </div>
   )
 }

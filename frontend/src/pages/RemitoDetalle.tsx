@@ -3,6 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom'
 import { api, ApiError, type Remito } from '../api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { ArrowLeft, FileDown, Trash2 } from 'lucide-react'
 
 export function RemitoDetalle() {
@@ -13,6 +14,7 @@ export function RemitoDetalle() {
   const [detalle, setDetalle] = useState<Remito | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   useEffect(() => {
     cargar()
@@ -38,7 +40,6 @@ export function RemitoDetalle() {
 
   async function eliminar() {
     if (!detalle) return
-    if (!window.confirm('¿Eliminar este remito? Esta acción no se puede deshacer.')) return
     setError(null)
     try {
       await api.del(`/api/remitos/${detalle.id}`)
@@ -108,10 +109,18 @@ export function RemitoDetalle() {
           </Card>
 
           <div className="flex justify-end border-t pt-4">
-            <Button variant="outline" className="text-destructive hover:text-destructive" onClick={eliminar}><Trash2 />Eliminar remito</Button>
+            <Button variant="outline" className="text-destructive hover:text-destructive" onClick={() => setConfirmDelete(true)}><Trash2 />Eliminar remito</Button>
           </div>
         </>
       )}
+
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={(o) => !o && setConfirmDelete(false)}
+        title="¿Eliminar este remito?"
+        description="Esta acción no se puede deshacer."
+        onConfirm={() => { eliminar(); setConfirmDelete(false) }}
+      />
     </div>
   )
 }

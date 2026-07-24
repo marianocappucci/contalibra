@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react'
 import { api, ApiError, type ArcaConfig, type Backup, type CategoriaEgreso, type ConfigCfg } from '../api'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -10,10 +10,11 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
-  Ban, Building2, Check, CheckCircle2, Copy, Database, Download,
-  Mail, Package, Pause, Phone, Plus, Power, Printer, Receipt, Save, Send, Settings,
-  ShieldCheck, Tag, ToggleRight, Trash2, Upload,
+  Ban, Building2, Check, CheckCircle2, ChevronDown, Copy, Database, Download,
+  ExternalLink, Info, Mail, Package, Pause, Phone, Plus, Power, Printer, Receipt, Save, Send,
+  Settings, ShieldCheck, Tag, ToggleRight, Trash2, Upload,
 } from 'lucide-react'
 
 type CategoriaProducto = { id: number; nombre: string }
@@ -34,6 +35,59 @@ const TABS = [
   { id: 'datos', label: 'Datos / Backup', icon: Database },
 ] as const
 type TabId = typeof TABS[number]['id']
+
+// Tutoriales colapsables restaurados de web/templates/config.html (recuperado
+// vía `git show 1a8808c:web/templates/config.html`) -- contenido fiel al
+// original (mismos pasos, mismos links), adaptado de Bootstrap/collapse a
+// <details>/Tailwind. Ver DatosTab/MpTab/ArcaTab/EmailTab más abajo.
+function Tutorial({ badge, badgeClassName, title, children }: {
+  badge: string; badgeClassName: string; title: string; children: ReactNode
+}) {
+  return (
+    <details className="group mb-4 rounded-md border bg-muted/30 px-4 py-3 text-sm">
+      <summary className="flex cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
+        <span className={`rounded px-2 py-0.5 text-xs font-semibold text-white ${badgeClassName}`}>{badge}</span>
+        <span className="font-medium">{title}</span>
+        <ChevronDown className="ml-auto size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+      </summary>
+      <div className="mt-3 grid gap-3 border-t pt-3">{children}</div>
+    </details>
+  )
+}
+
+function TutorialStep({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div>
+      <p className="mb-1 text-sm font-semibold text-foreground">{title}</p>
+      <ol className="ml-4 list-decimal space-y-1.5 text-sm text-muted-foreground">{children}</ol>
+    </div>
+  )
+}
+
+function TutorialLink({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <a href={href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-primary hover:underline">
+      {children}<ExternalLink className="size-3" />
+    </a>
+  )
+}
+
+function TutorialCode({ children }: { children: ReactNode }) {
+  return <code className="mt-1 mb-1 block rounded border bg-background px-2 py-1 font-mono text-xs">{children}</code>
+}
+
+function TutorialNote({ tone = 'info', children }: { tone?: 'info' | 'warning' | 'success'; children: ReactNode }) {
+  const styles: Record<string, string> = {
+    info: 'border-blue-300 bg-blue-50 text-blue-800 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300',
+    warning: 'border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300',
+    success: 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300',
+  }
+  return (
+    <p className={`flex items-start gap-2 rounded-md border px-3 py-2 text-xs ${styles[tone]}`}>
+      <Info className="mt-0.5 size-3.5 shrink-0" />{children}
+    </p>
+  )
+}
 
 export function Config() {
   const [tab, setTab] = useState<TabId>('empresa')
@@ -262,6 +316,33 @@ function MpTab({ cfg, setCfg, saving, guardar }: {
     <Card>
       <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Phone className="size-4" />MercadoPago</CardTitle></CardHeader>
       <CardContent className="grid gap-3 sm:grid-cols-2">
+        <div className="col-span-full">
+          <Tutorial badge="MercadoPago" badgeClassName="bg-[#009ee3]" title="¿Cómo obtener el Access Token, User ID, POS ID y Webhook Secret?">
+            <TutorialStep title="1 — Access Token (token de producción)">
+              <li>Ingresá a <TutorialLink href="https://www.mercadopago.com.ar/developers/panel/app">mercadopago.com.ar/developers/panel/app</TutorialLink></li>
+              <li>Creá una nueva aplicación (o seleccioná una existente)</li>
+              <li>En la aplicación, andá a la pestaña <strong>Credenciales de producción</strong></li>
+              <li>Copiá el <strong>Access token</strong> (empieza con <code className="rounded bg-background px-1 py-0.5 font-mono text-xs">APP_USR-</code>) y pegalo abajo</li>
+            </TutorialStep>
+            <TutorialStep title="2 — User ID del vendedor">
+              <li>Iniciá sesión en <TutorialLink href="https://www.mercadopago.com.ar">mercadopago.com.ar</TutorialLink></li>
+              <li>Hacé clic en tu avatar (arriba a la derecha) → <strong>Tu perfil</strong></li>
+              <li>El <strong>User ID</strong> es el número que aparece abajo de tu nombre (ej: <code className="rounded bg-background px-1 py-0.5 font-mono text-xs">123456789</code>)</li>
+              <li>También lo encontrás en el panel de desarrolladores al ver las credenciales de tu app</li>
+            </TutorialStep>
+            <TutorialStep title="3 — POS ID (External ID del punto de venta)">
+              <li>En <TutorialLink href="https://www.mercadopago.com.ar/stores">mercadopago.com.ar/stores</TutorialLink> creá o seleccioná una <strong>Sucursal</strong></li>
+              <li>Dentro de la sucursal, creá un <strong>Punto de venta</strong> (tipo: <em>PDV</em>)</li>
+              <li>Al crearlo, completá el campo <strong>External ID</strong> con un código propio (ej: <code className="rounded bg-background px-1 py-0.5 font-mono text-xs">CAJA01</code>) — ese valor es el que va acá</li>
+            </TutorialStep>
+            <TutorialStep title="4 — Webhook Secret">
+              <li>En el panel de desarrolladores, entrá a tu aplicación y luego a <strong>Webhooks</strong></li>
+              <li>Registrá la URL: <code className="rounded bg-background px-1 py-0.5 font-mono text-xs">https://tu-dominio/webhooks/mercadopago</code> y seleccioná el evento <strong>Pagos (payment)</strong></li>
+              <li>MercadoPago te mostrará una <strong>firma secreta (secret)</strong> — copiala y pegala en el campo Webhook Secret</li>
+            </TutorialStep>
+            <TutorialNote tone="warning">Usá siempre las credenciales de <strong>producción</strong>, no las de prueba, para cobros reales.</TutorialNote>
+          </Tutorial>
+        </div>
         <Field label="Access Token" type="password" value={cfg.mp_access_token} onChange={(v) => setCfg({ ...cfg, mp_access_token: v })} />
         <Field label="Webhook Secret" type="password" value={cfg.mp_webhook_secret} onChange={(v) => setCfg({ ...cfg, mp_webhook_secret: v })} />
         <Field label="Descripción del cobro" value={cfg.mp_concepto_descripcion} onChange={(v) => setCfg({ ...cfg, mp_concepto_descripcion: v })} />
@@ -331,6 +412,26 @@ function EmailTab({ cfg, setCfg, saving, guardar }: {
     <Card>
       <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Mail className="size-4" />Email (SMTP)</CardTitle></CardHeader>
       <CardContent className="grid gap-3 sm:grid-cols-2">
+        <div className="col-span-full">
+          <Tutorial badge="Gmail" badgeClassName="bg-destructive" title="¿Cómo configurar Gmail con una contraseña de aplicación?">
+            <p className="text-sm text-muted-foreground">
+              Gmail <strong>no permite usar tu contraseña normal</strong> para enviar emails desde apps externas.
+              Necesitás generar una <strong>contraseña de aplicación</strong> de 16 caracteres. Seguí estos pasos:
+            </p>
+            <ol className="ml-4 list-decimal space-y-1.5 text-sm text-muted-foreground">
+              <li>Ingresá a tu cuenta de Google en <TutorialLink href="https://myaccount.google.com">myaccount.google.com</TutorialLink></li>
+              <li>En el menú izquierdo hacé clic en <strong>Seguridad</strong></li>
+              <li>Asegurate de tener activada la <strong>Verificación en dos pasos</strong> (es un requisito de Google)</li>
+              <li>Buscá <em>&quot;contraseñas de aplicación&quot;</em> en el buscador de configuración de Google o ingresá directamente a <TutorialLink href="https://myaccount.google.com/apppasswords">myaccount.google.com/apppasswords</TutorialLink></li>
+              <li>En el campo <strong>Nombre de la app</strong> escribí <em>Contalibra</em> y hacé clic en <strong>Crear</strong></li>
+              <li>Google te mostrará una contraseña de <strong>16 caracteres</strong> — copiala en ese momento (no se vuelve a mostrar)</li>
+              <li>Pegá esa contraseña en el campo <strong>Contraseña</strong> del formulario de abajo y guardá</li>
+            </ol>
+            <TutorialNote tone="info">
+              <strong>Valores recomendados para Gmail:</strong> Servidor: <code className="rounded bg-background px-1 py-0.5 font-mono text-xs">smtp.gmail.com</code> · Puerto: <code className="rounded bg-background px-1 py-0.5 font-mono text-xs">587</code> · Usuario: tu dirección de Gmail completa
+            </TutorialNote>
+          </Tutorial>
+        </div>
         <Field label="Host SMTP" value={cfg.email_smtp_host} onChange={(v) => setCfg({ ...cfg, email_smtp_host: v })} />
         <Field label="Puerto" value={cfg.email_smtp_port} onChange={(v) => setCfg({ ...cfg, email_smtp_port: v })} />
         <Field label="Usuario" value={cfg.email_smtp_user} onChange={(v) => setCfg({ ...cfg, email_smtp_user: v })} />
@@ -382,6 +483,55 @@ function ArcaTab({ arca, setArca, saving, guardar, subirArchivo }: {
     <Card>
       <CardHeader><CardTitle className="flex items-center gap-2 text-base"><ShieldCheck className="size-4" />ARCA (facturación electrónica)</CardTitle></CardHeader>
       <CardContent className="grid gap-3 sm:grid-cols-2">
+        <div className="col-span-full">
+          <Tutorial badge="ARCA / AFIP" badgeClassName="bg-[#1a3a5c]" title="¿Cómo obtener el certificado digital y la clave privada?">
+            <TutorialStep title="1 — Generar la clave privada y el CSR (en tu PC)">
+              <li>Instalá <strong>OpenSSL</strong> (en Windows podés usar Git Bash o WSL; en Linux/Mac ya viene incluido)</li>
+              <li>
+                Abrí una terminal y ejecutá:
+                <TutorialCode>openssl genrsa -out clave_privada.key 2048</TutorialCode>
+              </li>
+              <li>
+                Luego generá el CSR (pedido de certificado):
+                <TutorialCode>openssl req -new -key clave_privada.key -subj "/C=AR/O=Mi Empresa/CN=CUIT 20123456789" -out mi_empresa.csr</TutorialCode>
+                Reemplazá <em>CUIT 20123456789</em> con tu CUIT sin guiones.
+              </li>
+              <li>Guardá bien el archivo <strong>clave_privada.key</strong> — es el que subís al campo <em>Clave privada</em> de abajo</li>
+            </TutorialStep>
+            <TutorialStep title="2 — Obtener el certificado desde el portal ARCA">
+              <li>Ingresá con CUIT y Clave Fiscal (nivel 3 o superior) a <TutorialLink href="https://auth.afip.gob.ar">auth.afip.gob.ar</TutorialLink></li>
+              <li>Buscá el servicio <strong>&quot;Administración de Certificados Digitales&quot;</strong> en el listado de servicios habilitados</li>
+              <li>Hacé clic en <strong>Nueva solicitud de certificado</strong></li>
+              <li>Pegá el contenido del archivo <code className="rounded bg-background px-1 py-0.5 font-mono text-xs">mi_empresa.csr</code> generado en el paso anterior</li>
+              <li>Descargá el certificado resultante (<code className="rounded bg-background px-1 py-0.5 font-mono text-xs">.crt</code> o <code className="rounded bg-background px-1 py-0.5 font-mono text-xs">.pem</code>) — ese archivo es el que subís al campo <em>Certificado</em> de abajo</li>
+            </TutorialStep>
+            <TutorialStep title="3 — Punto de venta">
+              <li>En el portal ARCA / AFIP, buscá el servicio <strong>&quot;ABM de Puntos de Venta&quot;</strong></li>
+              <li>Creá un punto de venta de tipo <strong>Facturación electrónica — Web Services</strong></li>
+              <li>El número asignado es el que ingresás en el campo <em>Punto de venta</em> de abajo (ej: <code className="rounded bg-background px-1 py-0.5 font-mono text-xs">5</code>)</li>
+            </TutorialStep>
+            <TutorialNote tone="info">Usá el ambiente <strong>Homologación</strong> para hacer pruebas sin emitir comprobantes reales. Cambiá a <strong>Producción</strong> recién cuando todo funcione correctamente.</TutorialNote>
+            <TutorialNote tone="warning">La <strong>clave privada</strong> nunca se comparte ni se sube a ningún sitio externo. Solo la subís una vez a este servidor, que es tuyo.</TutorialNote>
+          </Tutorial>
+          <Tutorial badge="ARCA / AFIP" badgeClassName="bg-[#1a3a5c]" title="¿Qué servicio debo habilitar para consultar datos de clientes por CUIT?">
+            <p className="text-sm text-muted-foreground">
+              El botón <strong>&quot;Consultar ARCA&quot;</strong> en el formulario de clientes completa automáticamente nombre, domicilio y condición de IVA a partir del CUIT.
+              Para que funcione, tu certificado debe tener acceso al webservice de Padrón Alcance 13.
+            </p>
+            <TutorialStep title="1 — Ingresar al Administrador de Relaciones">
+              <li>Ingresá con CUIT y Clave Fiscal a <TutorialLink href="https://auth.afip.gob.ar">auth.afip.gob.ar</TutorialLink></li>
+              <li>Buscá y abrí el servicio <strong>&quot;Administrador de Relaciones de Clave Fiscal&quot;</strong></li>
+              <li>Hacé clic en <strong>Nueva Relación</strong></li>
+            </TutorialStep>
+            <TutorialStep title="2 — Crear la relación para Padrón Alcance 13">
+              <li>En <em>Servicio</em>, buscá y seleccioná: <strong>Consulta a Padrón Alcance 13</strong> (ws_sr_padron_a13)</li>
+              <li>En <em>Representante</em>, seleccioná el certificado que ya configuraste en Contalibra</li>
+              <li>Confirmá la relación</li>
+            </TutorialStep>
+            <TutorialNote tone="success">Una vez habilitado, el botón <strong>&quot;Consultar ARCA&quot;</strong> en el alta de clientes funcionará automáticamente.</TutorialNote>
+            <TutorialNote tone="info">Este servicio es distinto al de facturación (WSFE). Necesitás habilitarlos por separado usando el mismo certificado.</TutorialNote>
+          </Tutorial>
+        </div>
         <Field label="CUIT" value={a.cuit} onChange={(v) => setArca({ ...a, cuit: v })} />
         <Field label="Punto de venta" value={String(a.punto_venta)} onChange={(v) => setArca({ ...a, punto_venta: Number(v) || 1 })} />
         <div className="grid gap-1.5">
@@ -546,6 +696,8 @@ function CategoriasTab() {
   const [nuevoProducto, setNuevoProducto] = useState('')
   const [nuevoEgreso, setNuevoEgreso] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [confirmProducto, setConfirmProducto] = useState<CategoriaProducto | null>(null)
+  const [confirmEgreso, setConfirmEgreso] = useState<CategoriaEgreso | null>(null)
 
   useEffect(() => { cargar() }, [])
 
@@ -563,12 +715,10 @@ function CategoriasTab() {
   }
 
   async function eliminarProducto(c: CategoriaProducto) {
-    if (!window.confirm(`¿Eliminar la categoría «${c.nombre}»?`)) return
     setProductoCats(await api.del<CategoriaProducto[]>(`/api/productos/categorias/${c.id}`))
   }
 
   async function eliminarEgreso(c: CategoriaEgreso) {
-    if (!window.confirm(`¿Eliminar la categoría «${c.nombre}»?`)) return
     setEgresoCats(await api.del<CategoriaEgreso[]>(`/api/egresos/categorias/${c.id}`))
   }
 
@@ -593,7 +743,7 @@ function CategoriasTab() {
               {productoCats.map((c) => (
                 <li key={c.id} className="flex items-center justify-between py-1.5 text-sm">
                   <span className="flex items-center gap-2"><Tag className="size-3.5 text-muted-foreground" />{c.nombre}</span>
-                  <Button size="sm" variant="ghost" onClick={() => eliminarProducto(c)}><Trash2 /></Button>
+                  <Button size="sm" variant="ghost" onClick={() => setConfirmProducto(c)}><Trash2 /></Button>
                 </li>
               ))}
             </ul>
@@ -618,13 +768,26 @@ function CategoriasTab() {
               {egresoCats.map((c) => (
                 <li key={c.id} className="flex items-center justify-between py-1.5 text-sm">
                   <span className="flex items-center gap-2"><Tag className="size-3.5 text-muted-foreground" />{c.nombre}</span>
-                  <Button size="sm" variant="ghost" onClick={() => eliminarEgreso(c)}><Trash2 /></Button>
+                  <Button size="sm" variant="ghost" onClick={() => setConfirmEgreso(c)}><Trash2 /></Button>
                 </li>
               ))}
             </ul>
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={confirmProducto !== null}
+        onOpenChange={(o) => !o && setConfirmProducto(null)}
+        title={`¿Eliminar la categoría «${confirmProducto?.nombre ?? ''}»?`}
+        onConfirm={() => { if (confirmProducto) eliminarProducto(confirmProducto); setConfirmProducto(null) }}
+      />
+      <ConfirmDialog
+        open={confirmEgreso !== null}
+        onOpenChange={(o) => !o && setConfirmEgreso(null)}
+        title={`¿Eliminar la categoría «${confirmEgreso?.nombre ?? ''}»?`}
+        onConfirm={() => { if (confirmEgreso) eliminarEgreso(confirmEgreso); setConfirmEgreso(null) }}
+      />
     </div>
   )
 }
@@ -635,6 +798,9 @@ function DatosTab({ saving, setSaving, setError, describeError }: {
 }) {
   const [backups, setBackups] = useState<Backup[]>([])
   const [restoreMsg, setRestoreMsg] = useState<string | null>(null)
+  const [restoreFile, setRestoreFile] = useState<File | null>(null)
+  const [confirmRestore, setConfirmRestore] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { cargar() }, [])
 
@@ -646,19 +812,27 @@ function DatosTab({ saving, setSaving, setError, describeError }: {
     }
   }
 
-  async function restaurar(e: ChangeEvent<HTMLInputElement>) {
+  function seleccionarArchivo(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    if (!window.confirm('¿Estás seguro? Se reemplazarán TODOS los datos actuales.')) {
-      e.target.value = ''
-      return
-    }
+    setRestoreFile(file)
+    setConfirmRestore(true)
+  }
+
+  function cancelarRestauracion() {
+    setConfirmRestore(false)
+    setRestoreFile(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  async function restaurar() {
+    if (!restoreFile) return
     setSaving(true)
     setError(null)
     setRestoreMsg(null)
     try {
       const form = new FormData()
-      form.append('backup_file', file)
+      form.append('backup_file', restoreFile)
       await api.postForm('/api/config/restore-db', form)
       setRestoreMsg('Base de datos restaurada correctamente. Se guardó un backup automático antes de reemplazar.')
       await cargar()
@@ -666,7 +840,8 @@ function DatosTab({ saving, setSaving, setError, describeError }: {
       setError(describeError(err))
     } finally {
       setSaving(false)
-      e.target.value = ''
+      setRestoreFile(null)
+      if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
 
@@ -693,7 +868,7 @@ function DatosTab({ saving, setSaving, setError, describeError }: {
         <CardContent className="grid gap-3">
           <div className="grid gap-1.5">
             <Label>Archivo de backup (.db)</Label>
-            <Input type="file" accept=".db" disabled={saving} onChange={restaurar} />
+            <Input ref={fileInputRef} type="file" accept=".db" disabled={saving} onChange={seleccionarArchivo} />
           </div>
           {restoreMsg && <p className="text-sm text-emerald-600 dark:text-emerald-400">{restoreMsg}</p>}
         </CardContent>
@@ -724,6 +899,15 @@ function DatosTab({ saving, setSaving, setError, describeError }: {
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={confirmRestore}
+        onOpenChange={(o) => !o && cancelarRestauracion()}
+        title="¿Estás seguro?"
+        description="Se reemplazarán TODOS los datos actuales."
+        confirmLabel="Restaurar"
+        onConfirm={() => { setConfirmRestore(false); restaurar() }}
+      />
     </div>
   )
 }

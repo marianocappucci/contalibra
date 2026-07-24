@@ -1,17 +1,22 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { type ColumnDef } from '@tanstack/react-table'
 import { api, ApiError, MEDIOS_PAGO_LABELS, type CajaConfig, type CajaMovimiento, type ResumenCaja } from '../api'
 import { Card, CardContent, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose,
+} from '@/components/ui/dialog'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { DataTable, sortableHeader } from '@/components/data-table'
 import {
-  PiggyBank, Plus, Trash2, Receipt, ArrowDownCircle, ArrowUpCircle, Wallet, Filter, X,
+  PiggyBank, Plus, Trash2, Receipt, ArrowDownCircle, ArrowUpCircle, Wallet, Filter, X, Check,
 } from 'lucide-react'
 
 function todayIso(): string {
@@ -28,7 +33,9 @@ function formatCurrency(value: number): string {
 }
 
 export function Caja() {
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const facturaId = searchParams.get('factura_id')
   const [desde, setDesde] = useState(firstOfMonthIso())
   const [hasta, setHasta] = useState(todayIso())
   // Deep-link desde Cajas ("Ver movimientos" de una caja puntual): ?caja_id=X
@@ -38,9 +45,27 @@ export function Caja() {
   const [resumen, setResumen] = useState<ResumenCaja | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<CajaMovimiento | null>(null)
+
+  // --- Dialog "Nuevo movimiento" (antes página /caja/nuevo) ---
+  const [nuevoOpen, setNuevoOpen] = useState(false)
+  const [tipoMov, setTipoMov] = useState('ingreso')
+  const [fechaMov, setFechaMov] = useState(todayIso())
+  const [conceptoMov, setConceptoMov] = useState('')
+  const [montoMov, setMontoMov] = useState('')
+  const [referenciaMov, setReferenciaMov] = useState('')
+  const [cajaIdMov, setCajaIdMov] = useState('')
+  const [medioPagoMov, setMedioPagoMov] = useState('efectivo')
+  const [creando, setCreando] = useState(false)
 
   useEffect(() => {
     api.get<CajaConfig[]>('/api/cajas').then(setCajas).catch(() => {})
+  }, [])
+
+  // Deep-link desde el acceso rápido del Dashboard: ?nuevo=1 abre el diálogo directo.
+  useEffect(() => {
+    if (searchParams.get('nuevo') === '1') setNuevoOpen(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -70,13 +95,63 @@ export function Caja() {
   }
 
   async function eliminar(mov: CajaMovimiento) {
-    if (!window.confirm('¿Eliminar este movimiento?')) return
     setError(null)
     try {
       await api.del(`/api/caja/${mov.id}`)
       await load()
     } catch (err) {
       setError(describeError(err))
+    }
+  }
+
+  function abrirNuevo() {
+    setTipoMov('ingreso')
+    setFechaMov(todayIso())
+    setConceptoMov('')
+    setMontoMov('')
+    setReferenciaMov('')
+    const def = cajas.find((c) => c.es_default) ?? cajas[0]
+    setCajaIdMov(def ? String(def.id) : '')
+    setMedioPagoMov('efectivo')
+    setNuevoOpen(true)
+  }
+
+  // La caja seleccionada acota qué medios de pago tiene habilitados (igual
+  // que el form Jinja2 viejo, que pedía GET /cajas/{id}/medios al cambiar
+  // de caja). Los datos ya vienen en /api/cajas — no hace falta un
+  // endpoint aparte, solo filtrar client-side.
+  const cajaSeleccionadaMov = cajas.find((c) => String(c.id) === cajaIdMov)
+  const mediosDisponiblesMov = cajaSeleccionadaMov && cajaSeleccionadaMov.medios_pago.length > 0
+    ? cajaSeleccionadaMov.medios_pago
+    : Object.keys(MEDIOS_PAGO_LABELS)
+
+  useEffect(() => {
+    if (mediosDisponiblesMov.length > 0 && !mediosDisponiblesMov.includes(medioPagoMov)) {
+      setMedioPagoMov(mediosDisponiblesMov[0])
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cajaIdMov, cajas])
+
+  async function crearMovimiento() {
+    if (!conceptoMov.trim() || !montoMov) return
+    setCreando(true)
+    setError(null)
+    try {
+      await api.post('/api/caja', {
+        fecha: fechaMov, tipo: tipoMov, concepto: conceptoMov, monto: Number(montoMov), referencia: referenciaMov,
+        caja_id: cajaIdMov ? Number(cajaIdMov) : null, medio_pago: medioPagoMov,
+        factura_id: facturaId ? Number(facturaId) : null,
+      })
+      setNuevoOpen(false)
+      if (facturaId) {
+        navigate(`/facturas/${facturaId}`)
+      } else {
+        await load()
+      }
+    } catch (err) {
+      setError(describeError(err))
+    } finally {
+      setCreando(false)
     }
   }
 
@@ -134,7 +209,7 @@ export function Caja() {
       {
         id: 'actions',
         header: '',
-        cell: ({ row }) => <Button size="sm" variant="ghost" onClick={() => eliminar(row.original)}><Trash2 />Eliminar</Button>,
+        cell: ({ row }) => <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(row.original)}><Trash2 />Eliminar</Button>,
       },
     )
     return cols
@@ -145,7 +220,60 @@ export function Caja() {
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-lg font-semibold"><PiggyBank className="size-5 text-primary" />Caja</h2>
-        <Button asChild><Link to="/caja/nuevo"><Plus />Nuevo movimiento</Link></Button>
+        <Dialog open={nuevoOpen} onOpenChange={setNuevoOpen}>
+          <DialogTrigger asChild>
+            <Button onClick={abrirNuevo}><Plus />Nuevo movimiento</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2"><PiggyBank className="size-4 text-primary" />Nuevo movimiento de caja</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-1.5">
+                  <Label>Tipo</Label>
+                  <Select value={tipoMov} onValueChange={setTipoMov}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ingreso"><ArrowDownCircle />Ingreso</SelectItem>
+                      <SelectItem value="egreso"><ArrowUpCircle />Egreso</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-1.5"><Label>Fecha</Label><Input type="date" value={fechaMov} onChange={(e) => setFechaMov(e.target.value)} /></div>
+              </div>
+              <div className="grid gap-1.5"><Label>Concepto</Label><Input value={conceptoMov} onChange={(e) => setConceptoMov(e.target.value)} placeholder="Ej: Cobro factura cliente / Pago servicios" /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-1.5"><Label>Monto</Label><Input type="number" step="0.01" value={montoMov} onChange={(e) => setMontoMov(e.target.value)} /></div>
+                <div className="grid gap-1.5"><Label>Referencia</Label><Input value={referenciaMov} onChange={(e) => setReferenciaMov(e.target.value)} placeholder="Opcional — N° factura, proveedor, etc." /></div>
+              </div>
+              {cajas.length > 1 && (
+                <div className="grid gap-1.5">
+                  <Label>Caja</Label>
+                  <Select value={cajaIdMov} onValueChange={setCajaIdMov}>
+                    <SelectTrigger><SelectValue placeholder="Por defecto" /></SelectTrigger>
+                    <SelectContent>
+                      {cajas.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.nombre}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <div className="grid gap-1.5">
+                <Label>Medio de pago</Label>
+                <Select value={medioPagoMov} onValueChange={setMedioPagoMov}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {mediosDisponiblesMov.map((k) => <SelectItem key={k} value={k}>{MEDIOS_PAGO_LABELS[k] ?? k}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
+              <Button disabled={creando || !conceptoMov.trim() || !montoMov} onClick={crearMovimiento}><Check />{creando ? 'Guardando…' : 'Guardar movimiento'}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
@@ -190,6 +318,13 @@ export function Caja() {
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onOpenChange={(o) => !o && setConfirmDelete(null)}
+        title="¿Eliminar este movimiento?"
+        onConfirm={() => { if (confirmDelete) { eliminar(confirmDelete); setConfirmDelete(null) } }}
+      />
     </div>
   )
 }

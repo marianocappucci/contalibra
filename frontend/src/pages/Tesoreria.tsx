@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dialog'
 import { DataTable } from '@/components/data-table'
 import {
-  Landmark, Plus, Pencil, List, ArrowLeftRight, ArrowDownLeft, ArrowUpRight, ArrowDownCircle, ArrowUpCircle,
+  Landmark, Plus, Pencil, List, ArrowLeftRight, ArrowDownLeft, ArrowUpRight, ArrowDownCircle, ArrowUpCircle, Check,
 } from 'lucide-react'
 
 function todayIso(): string {
@@ -27,6 +27,8 @@ function todayIso(): string {
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value)
 }
+
+const EMPTY_CUENTA_FORM = { nombre: '', tipo: 'banco', banco: '', numero: '', descripcion: '', saldo_inicial: '0' }
 
 export function MovTipoBadge({ m }: { m: MovimientoTesoreria }) {
   if (m.tipo === 'ingreso') {
@@ -59,6 +61,10 @@ export function Tesoreria() {
   const [tConcepto, setTConcepto] = useState('Transferencia entre cuentas')
   const [tReferencia, setTReferencia] = useState('')
   const [transfiriendo, setTransfiriendo] = useState(false)
+
+  const [showNueva, setShowNueva] = useState(false)
+  const [cuentaForm, setCuentaForm] = useState(EMPTY_CUENTA_FORM)
+  const [savingCuenta, setSavingCuenta] = useState(false)
 
   useEffect(() => { load() }, [])
 
@@ -102,6 +108,27 @@ export function Tesoreria() {
       setError(describeError(err))
     } finally {
       setTransfiriendo(false)
+    }
+  }
+
+  function abrirNuevaCuenta() {
+    setCuentaForm(EMPTY_CUENTA_FORM)
+    setShowNueva(true)
+  }
+
+  async function crearCuenta() {
+    if (!cuentaForm.nombre.trim()) return
+    setSavingCuenta(true)
+    setError(null)
+    try {
+      const payload = { ...cuentaForm, saldo_inicial: Number(cuentaForm.saldo_inicial) || 0 }
+      await api.post<CuentaTesoreria>('/api/tesoreria/cuentas', payload)
+      setShowNueva(false)
+      await load()
+    } catch (err) {
+      setError(describeError(err))
+    } finally {
+      setSavingCuenta(false)
     }
   }
 
@@ -177,7 +204,55 @@ export function Tesoreria() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          <Button asChild size="sm"><Link to="/tesoreria/nueva-cuenta"><Plus />Nueva cuenta</Link></Button>
+          <Dialog open={showNueva} onOpenChange={setShowNueva}>
+            <DialogTrigger asChild>
+              <Button size="sm" onClick={abrirNuevaCuenta}><Plus />Nueva cuenta</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2"><Landmark className="size-4" />Nueva cuenta</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-3">
+                <div className="grid gap-1.5">
+                  <Label>Nombre <span className="text-destructive">*</span></Label>
+                  <Input
+                    value={cuentaForm.nombre} onChange={(e) => setCuentaForm({ ...cuentaForm, nombre: e.target.value })} autoFocus
+                    placeholder="Ej: Banco Galicia Cta. Cte., Caja chica, MercadoPago…"
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label>Tipo</Label>
+                  <Select value={cuentaForm.tipo} onValueChange={(v) => setCuentaForm({ ...cuentaForm, tipo: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {TIPOS_CUENTA_TESORERIA.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {cuentaForm.tipo !== 'efectivo' && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="grid gap-1.5"><Label>Banco / Entidad</Label><Input value={cuentaForm.banco} onChange={(e) => setCuentaForm({ ...cuentaForm, banco: e.target.value })} placeholder="Ej: Galicia, BBVA, MP…" /></div>
+                    <div className="grid gap-1.5"><Label>N° de cuenta / CBU / alias</Label><Input value={cuentaForm.numero} onChange={(e) => setCuentaForm({ ...cuentaForm, numero: e.target.value })} placeholder="Últimos 4 dígitos o alias" /></div>
+                  </div>
+                )}
+                <div className="grid gap-1.5">
+                  <Label>Saldo inicial</Label>
+                  <Input type="number" step="0.01" value={cuentaForm.saldo_inicial} onChange={(e) => setCuentaForm({ ...cuentaForm, saldo_inicial: e.target.value })} placeholder="0.00" />
+                  <p className="text-xs text-muted-foreground">Saldo al momento de dar de alta la cuenta en el sistema.</p>
+                </div>
+                <div className="grid gap-1.5">
+                  <Label>Descripción <span className="font-normal text-muted-foreground">(opcional)</span></Label>
+                  <Input value={cuentaForm.descripcion} onChange={(e) => setCuentaForm({ ...cuentaForm, descripcion: e.target.value })} placeholder="Nota interna sobre esta cuenta" />
+                </div>
+              </div>
+              <DialogFooter>
+                <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
+                <Button disabled={savingCuenta || !cuentaForm.nombre.trim()} onClick={crearCuenta}>
+                  <Check />{savingCuenta ? 'Guardando…' : 'Crear cuenta'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -214,7 +289,7 @@ export function Tesoreria() {
                 {!c.activa && <Badge variant="outline" className="w-fit">Archivada</Badge>}
                 <div className="mt-2 flex gap-2">
                   <Button asChild size="sm" variant="outline" className="flex-1"><Link to={`/tesoreria/${c.id}`}><List />Movimientos</Link></Button>
-                  <Button asChild size="sm" variant="outline"><Link to={`/tesoreria/${c.id}/editar`}><Pencil /></Link></Button>
+                  <Button asChild size="sm" variant="outline"><Link to={`/tesoreria/${c.id}`}><Pencil /></Link></Button>
                 </div>
               </CardContent>
             </Card>
@@ -225,7 +300,7 @@ export function Tesoreria() {
           <CardContent className="py-10 text-center text-muted-foreground">
             <Landmark className="mx-auto mb-3 size-10 opacity-25" />
             No hay cuentas creadas aún.
-            <div className="mt-3"><Button asChild><Link to="/tesoreria/nueva-cuenta"><Plus />Crear primera cuenta</Link></Button></div>
+            <div className="mt-3"><Button onClick={abrirNuevaCuenta}><Plus />Crear primera cuenta</Button></div>
           </CardContent>
         </Card>
       )}

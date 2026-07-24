@@ -16,6 +16,7 @@ import {
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter, SheetClose, SheetTrigger,
 } from '@/components/ui/sheet'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { DataTable } from '@/components/data-table'
 import {
   ArrowLeft, Tag, Percent, Download, Settings, Trash2, Check,
@@ -67,6 +68,7 @@ export function ListaPrecioDetalle() {
   const [configDescripcion, setConfigDescripcion] = useState('')
   const [configActiva, setConfigActiva] = useState(true)
   const [configSaving, setConfigSaving] = useState(false)
+  const [confirmDeleteLista, setConfirmDeleteLista] = useState(false)
 
   useEffect(() => {
     cargarLista()
@@ -223,7 +225,6 @@ export function ListaPrecioDetalle() {
   }
 
   async function eliminarLista() {
-    if (!window.confirm('¿Eliminar esta lista y todos sus precios?')) return
     setConfigSaving(true)
     setError(null)
     try {
@@ -392,7 +393,7 @@ export function ListaPrecioDetalle() {
                   </label>
                 </div>
                 <DialogFooter className="sm:justify-between">
-                  <Button type="button" variant="outline" className="text-destructive hover:text-destructive" disabled={configSaving} onClick={eliminarLista}>
+                  <Button type="button" variant="outline" className="text-destructive hover:text-destructive" disabled={configSaving} onClick={() => setConfirmDeleteLista(true)}>
                     <Trash2 />Eliminar lista
                   </Button>
                   <div className="flex gap-2">
@@ -443,6 +444,16 @@ export function ListaPrecioDetalle() {
           </Card>
         </>
       )}
+
+      <ConfirmDialog
+        open={confirmDeleteLista}
+        onOpenChange={setConfirmDeleteLista}
+        title="¿Eliminar esta lista y todos sus precios?"
+        onConfirm={() => {
+          setConfirmDeleteLista(false)
+          eliminarLista()
+        }}
+      />
     </div>
   )
 }

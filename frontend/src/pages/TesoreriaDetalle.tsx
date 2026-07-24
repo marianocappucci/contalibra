@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useNavigate, useParams, Link } from 'react-router-dom'
 import { type ColumnDef } from '@tanstack/react-table'
 import {
   api, ApiError, TIPOS_CUENTA_TESORERIA, type CuentaTesoreria, type MovimientoTesoreria,
@@ -16,9 +16,10 @@ import {
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose,
 } from '@/components/ui/dialog'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { DataTable } from '@/components/data-table'
 import {
-  ArrowLeft, ArrowLeftRight, Check, Landmark, Pencil, Plus, Trash2,
+  ArrowLeft, ArrowLeftRight, Archive, Check, Landmark, Pencil, Plus, Trash2,
 } from 'lucide-react'
 
 function todayIso(): string {
@@ -29,9 +30,12 @@ function formatCurrency(value: number): string {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value)
 }
 
+const EMPTY_CUENTA_FORM = { nombre: '', tipo: 'banco', banco: '', numero: '', descripcion: '', saldo_inicial: '0' }
+
 export function TesoreriaDetalle() {
   const { id } = useParams<{ id: string }>()
   const cuentaId = Number(id)
+  const navigate = useNavigate()
 
   const [cuenta, setCuenta] = useState<CuentaTesoreria | null>(null)
   const [movimientos, setMovimientos] = useState<MovimientoTesoreria[]>([])
@@ -57,6 +61,13 @@ export function TesoreriaDetalle() {
   const [tConcepto, setTConcepto] = useState('Transferencia entre cuentas')
   const [tReferencia, setTReferencia] = useState('')
   const [transfiriendo, setTransfiriendo] = useState(false)
+
+  const [editOpen, setEditOpen] = useState(false)
+  const [editForm, setEditForm] = useState(EMPTY_CUENTA_FORM)
+  const [savingEdit, setSavingEdit] = useState(false)
+
+  const [confirmArchivar, setConfirmArchivar] = useState(false)
+  const [confirmDeleteMov, setConfirmDeleteMov] = useState<number | null>(null)
 
   useEffect(() => {
     cargar()
@@ -108,7 +119,6 @@ export function TesoreriaDetalle() {
   }
 
   async function eliminarMovimiento(mid: number) {
-    if (!window.confirm('¿Eliminar este movimiento?')) return
     setError(null)
     try {
       await api.del(`/api/tesoreria/movimientos/${mid}`)
@@ -142,6 +152,42 @@ export function TesoreriaDetalle() {
     }
   }
 
+  function abrirEditar() {
+    if (!cuenta) return
+    setEditForm({
+      nombre: cuenta.nombre, tipo: cuenta.tipo, banco: cuenta.banco ?? '', numero: cuenta.numero ?? '',
+      descripcion: cuenta.descripcion ?? '', saldo_inicial: String(cuenta.saldo_inicial),
+    })
+    setEditOpen(true)
+  }
+
+  async function guardarEdit() {
+    if (!cuenta || !editForm.nombre.trim()) return
+    setSavingEdit(true)
+    setError(null)
+    try {
+      const payload = { ...editForm, saldo_inicial: Number(editForm.saldo_inicial) || 0 }
+      await api.put<CuentaTesoreria>(`/api/tesoreria/cuentas/${cuenta.id}`, payload)
+      setEditOpen(false)
+      await cargar()
+    } catch (err) {
+      setError(describeError(err))
+    } finally {
+      setSavingEdit(false)
+    }
+  }
+
+  async function archivarCuenta() {
+    if (!cuenta) return
+    setError(null)
+    try {
+      await api.del(`/api/tesoreria/cuentas/${cuenta.id}`)
+      navigate('/tesoreria')
+    } catch (err) {
+      setError(describeError(err))
+    }
+  }
+
   function filtrar() {
     cargar()
   }
@@ -168,7 +214,7 @@ export function TesoreriaDetalle() {
     {
       id: 'actions',
       header: '',
-      cell: ({ row }) => <Button size="sm" variant="ghost" onClick={() => eliminarMovimiento(row.original.id)}><Trash2 />Eliminar</Button>,
+      cell: ({ row }) => <Button size="sm" variant="ghost" onClick={() => setConfirmDeleteMov(row.original.id)}><Trash2 />Eliminar</Button>,
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [])
@@ -264,7 +310,58 @@ export function TesoreriaDetalle() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-            <Button asChild size="sm" variant="outline"><Link to={`/tesoreria/${cuenta.id}/editar`}><Pencil />Editar</Link></Button>
+            <Dialog open={editOpen} onOpenChange={setEditOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline" onClick={abrirEditar}><Pencil />Editar</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2"><Pencil className="size-4" />Editar cuenta</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-3">
+                  <div className="grid gap-1.5">
+                    <Label>Nombre <span className="text-destructive">*</span></Label>
+                    <Input
+                      value={editForm.nombre} onChange={(e) => setEditForm({ ...editForm, nombre: e.target.value })}
+                      placeholder="Ej: Banco Galicia Cta. Cte., Caja chica, MercadoPago…"
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label>Tipo</Label>
+                    <Select value={editForm.tipo} onValueChange={(v) => setEditForm({ ...editForm, tipo: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {TIPOS_CUENTA_TESORERIA.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {editForm.tipo !== 'efectivo' && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="grid gap-1.5"><Label>Banco / Entidad</Label><Input value={editForm.banco} onChange={(e) => setEditForm({ ...editForm, banco: e.target.value })} placeholder="Ej: Galicia, BBVA, MP…" /></div>
+                      <div className="grid gap-1.5"><Label>N° de cuenta / CBU / alias</Label><Input value={editForm.numero} onChange={(e) => setEditForm({ ...editForm, numero: e.target.value })} placeholder="Últimos 4 dígitos o alias" /></div>
+                    </div>
+                  )}
+                  <div className="grid gap-1.5">
+                    <Label>Saldo inicial</Label>
+                    <Input type="number" step="0.01" value={editForm.saldo_inicial} onChange={(e) => setEditForm({ ...editForm, saldo_inicial: e.target.value })} placeholder="0.00" />
+                    <p className="text-xs text-muted-foreground">Saldo al momento de dar de alta la cuenta en el sistema.</p>
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label>Descripción <span className="font-normal text-muted-foreground">(opcional)</span></Label>
+                    <Input value={editForm.descripcion} onChange={(e) => setEditForm({ ...editForm, descripcion: e.target.value })} placeholder="Nota interna sobre esta cuenta" />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
+                  <Button disabled={savingEdit || !editForm.nombre.trim()} onClick={guardarEdit}>
+                    <Check />{savingEdit ? 'Guardando…' : 'Guardar cambios'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setConfirmArchivar(true)}>
+              <Archive />Archivar cuenta
+            </Button>
             <Button asChild size="sm" variant="outline"><Link to="/tesoreria"><ArrowLeft />Volver</Link></Button>
           </div>
         )}
@@ -315,6 +412,21 @@ export function TesoreriaDetalle() {
           </Card>
         </>
       )}
+
+      <ConfirmDialog
+        open={confirmArchivar}
+        onOpenChange={setConfirmArchivar}
+        title="¿Archivar esta cuenta?"
+        description="Los movimientos se conservan."
+        confirmLabel="Archivar"
+        onConfirm={() => { archivarCuenta(); setConfirmArchivar(false) }}
+      />
+      <ConfirmDialog
+        open={confirmDeleteMov !== null}
+        onOpenChange={(o) => !o && setConfirmDeleteMov(null)}
+        title="¿Eliminar este movimiento?"
+        onConfirm={() => { if (confirmDeleteMov !== null) eliminarMovimiento(confirmDeleteMov); setConfirmDeleteMov(null) }}
+      />
     </div>
   )
 }

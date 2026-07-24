@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
   ArrowLeft, Printer, FileCheck, CheckCircle2, Ban, ReceiptText, PackageCheck, QrCode,
 } from 'lucide-react'
@@ -32,6 +33,7 @@ export function VentaDetalle() {
   const [detalle, setDetalle] = useState<Venta | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [confirmAnular, setConfirmAnular] = useState(false)
 
   useEffect(() => {
     cargar()
@@ -57,7 +59,6 @@ export function VentaDetalle() {
 
   async function anular() {
     if (!detalle) return
-    if (!window.confirm('¿Anular esta venta? Se repondrá el stock, se revertirán los movimientos de caja y, si tenía pago a cuenta corriente, se acreditará la deuda del cliente.')) return
     setError(null)
     try {
       await api.post(`/api/ventas/${detalle.id}/anular`)
@@ -178,12 +179,21 @@ export function VentaDetalle() {
               {!detalle.factura_id && <Button asChild size="sm" variant="outline"><Link to="/facturas/nueva"><ReceiptText />Generar factura</Link></Button>}
               {!detalle.remito_id && <Button asChild size="sm" variant="outline"><Link to="/remitos/nuevo"><PackageCheck />Generar remito</Link></Button>}
               {user?.role === 'admin' && (
-                <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={anular}><Ban />Anular venta</Button>
+                <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setConfirmAnular(true)}><Ban />Anular venta</Button>
               )}
             </div>
           )}
         </>
       )}
+
+      <ConfirmDialog
+        open={confirmAnular}
+        onOpenChange={setConfirmAnular}
+        title="¿Anular esta venta?"
+        description="Se repondrá el stock, se revertirán los movimientos de caja y, si tenía pago a cuenta corriente, se acreditará la deuda del cliente."
+        confirmLabel="Anular"
+        onConfirm={() => { anular(); setConfirmAnular(false) }}
+      />
     </div>
   )
 }

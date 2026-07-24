@@ -10,6 +10,9 @@ import { Badge } from '@/components/ui/badge'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogClose,
+} from '@/components/ui/dialog'
 import { DataTable, sortableHeader } from '@/components/data-table'
 import { formatEntero } from '@/lib/utils'
 import {
@@ -281,10 +284,12 @@ export function Stock() {
         </CardContent>
       </Card>
 
-      {ajustandoId !== null && (
-        <Card>
-          <CardHeader><CardTitle className="text-base">Ajuste de stock — {productoAjustando?.nombre}</CardTitle></CardHeader>
-          <CardContent className="grid gap-4">
+      <Dialog open={ajustandoId !== null} onOpenChange={(o) => { if (!o) setAjustandoId(null) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Pencil className="size-4" />Ajuste de stock — {productoAjustando?.nombre}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4">
             <div className="flex gap-4">
               <div className="text-center">
                 <div className={`text-3xl font-bold ${(productoAjustando?.stock_actual ?? 0) <= 0 ? 'text-destructive' : (productoAjustando?.stock_minimo ?? 0) > 0 && (productoAjustando?.stock_actual ?? 0) <= (productoAjustando?.stock_minimo ?? 0) ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
@@ -324,17 +329,19 @@ export function Stock() {
               </div>
               <div className="grid gap-1.5"><Label>Fecha</Label><Input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="w-40" /></div>
               <div className="grid gap-1.5"><Label>Motivo / Referencia</Label><Input value={referencia} onChange={(e) => setReferencia(e.target.value)} className="w-56" placeholder="Ej: Compra, conteo físico, rotura…" /></div>
-              <Button disabled={saving} onClick={guardarAjuste}>{saving ? 'Guardando…' : 'Guardar movimiento'}</Button>
-              <Button type="button" variant="outline" onClick={() => setAjustandoId(null)}>Cancelar</Button>
             </div>
             {resultado !== null && (
               <p className={`text-sm ${resultado < 0 ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'}`}>
                 Stock resultante: {resultado.toFixed(3)} {productoAjustando?.unidad}
               </p>
             )}
-          </CardContent>
-        </Card>
-      )}
+          </div>
+          <DialogFooter>
+            <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
+            <Button disabled={saving} onClick={guardarAjuste}>{saving ? 'Guardando…' : 'Guardar movimiento'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {movimientosVisible && (
         <Card>

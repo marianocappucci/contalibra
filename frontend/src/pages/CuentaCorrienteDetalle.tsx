@@ -16,6 +16,7 @@ import {
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose,
 } from '@/components/ui/dialog'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { DataTable } from '@/components/data-table'
 import {
   ArrowLeft, BookOpen, CircleDollarSign, Trash2, ArrowUpCircle, ArrowDownCircle,
@@ -50,6 +51,7 @@ export function CuentaCorrienteDetalle() {
   const [cajaId, setCajaId] = useState('')
   const [referencia, setReferencia] = useState('')
   const [pagando, setPagando] = useState(false)
+  const [confirmDeletePago, setConfirmDeletePago] = useState<number | null>(null)
 
   useEffect(() => {
     api.get<Caja[]>('/api/cuenta-corriente/cajas').then(setCajas).catch(() => {})
@@ -111,7 +113,6 @@ export function CuentaCorrienteDetalle() {
   }
 
   async function eliminarPago(pagoId: number) {
-    if (!window.confirm('¿Eliminar este pago?')) return
     setError(null)
     try {
       await api.del(`/api/cuenta-corriente/pagos/${pagoId}`)
@@ -182,7 +183,7 @@ export function CuentaCorrienteDetalle() {
       header: '',
       cell: ({ row }) => (
         row.original.cc_pago_id && user?.role === 'admin' ? (
-          <Button size="sm" variant="ghost" onClick={() => eliminarPago(row.original.cc_pago_id!)}><Trash2 />Eliminar</Button>
+          <Button size="sm" variant="ghost" onClick={() => setConfirmDeletePago(row.original.cc_pago_id!)}><Trash2 />Eliminar</Button>
         ) : null
       ),
     },
@@ -288,6 +289,13 @@ export function CuentaCorrienteDetalle() {
           </Card>
         </>
       )}
+
+      <ConfirmDialog
+        open={confirmDeletePago !== null}
+        onOpenChange={(o) => !o && setConfirmDeletePago(null)}
+        title="¿Eliminar este pago?"
+        onConfirm={() => { if (confirmDeletePago !== null) eliminarPago(confirmDeletePago); setConfirmDeletePago(null) }}
+      />
     </div>
   )
 }

@@ -3,13 +3,32 @@ import { Link } from 'react-router-dom'
 import { api, ApiError, MEDIOS_PAGO_LABELS, type CajaConfig } from '../api'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { SquareStack, Plus, Eye, Pencil, Trash2, Star, Wallet } from 'lucide-react'
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogClose,
+} from '@/components/ui/dialog'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { SquareStack, Plus, Eye, Pencil, Trash2, Star, Wallet, Check } from 'lucide-react'
+
+const TODOS_MEDIOS = Object.keys(MEDIOS_PAGO_LABELS)
 
 export function Cajas() {
   const [cajas, setCajas] = useState<CajaConfig[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<CajaConfig | null>(null)
+
+  // --- Dialog "Nueva caja" / "Editar caja" (antes páginas /cajas/nueva y
+  // /cajas/:id/editar, ambas servidas por el mismo componente CajaForm) ---
+  const [formOpen, setFormOpen] = useState(false)
+  const [editingCaja, setEditingCaja] = useState<CajaConfig | null>(null)
+  const [nombre, setNombre] = useState('')
+  const [descripcion, setDescripcion] = useState('')
+  const [mediosPago, setMediosPago] = useState<string[]>([])
+  const [activo, setActivo] = useState(true)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => { load() }, [])
 
@@ -41,7 +60,6 @@ export function Cajas() {
   }
 
   async function eliminar(c: CajaConfig) {
-    if (!window.confirm(`¿Eliminar la caja «${c.nombre}»?`)) return
     setError(null)
     try {
       await api.del(`/api/cajas/${c.id}`)
@@ -51,11 +69,53 @@ export function Cajas() {
     }
   }
 
+  function abrirNueva() {
+    setEditingCaja(null)
+    setNombre('')
+    setDescripcion('')
+    setMediosPago([])
+    setActivo(true)
+    setFormOpen(true)
+  }
+
+  function abrirEditar(c: CajaConfig) {
+    setEditingCaja(c)
+    setNombre(c.nombre)
+    setDescripcion(c.descripcion ?? '')
+    setMediosPago(c.medios_pago)
+    setActivo(!!c.activo)
+    setFormOpen(true)
+  }
+
+  function toggleMedio(medio: string) {
+    setMediosPago((m) => m.includes(medio) ? m.filter((x) => x !== medio) : [...m, medio])
+  }
+
+  async function guardar() {
+    if (!nombre.trim()) return
+    setSaving(true)
+    setError(null)
+    try {
+      const payload = { nombre, descripcion, medios_pago: mediosPago, activo }
+      if (editingCaja) {
+        await api.put(`/api/cajas/${editingCaja.id}`, payload)
+      } else {
+        await api.post('/api/cajas', payload)
+      }
+      setFormOpen(false)
+      await load()
+    } catch (err) {
+      setError(describeError(err))
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-lg font-semibold"><SquareStack className="size-5 text-primary" />Cajas</h2>
-        <Button asChild><Link to="/cajas/nueva"><Plus />Nueva caja</Link></Button>
+        <Button onClick={abrirNueva}><Plus />Nueva caja</Button>
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
@@ -90,11 +150,11 @@ export function Cajas() {
 
                 <div className="flex flex-wrap gap-2 pt-1">
                   <Button size="sm" variant="outline" asChild><Link to={`/caja?caja_id=${c.id}`}><Eye />Ver movimientos</Link></Button>
-                  <Button size="sm" variant="outline" asChild><Link to={`/cajas/${c.id}/editar`}><Pencil />Editar</Link></Button>
+                  <Button size="sm" variant="outline" onClick={() => abrirEditar(c)}><Pencil />Editar</Button>
                   {!c.es_default && (
                     <>
                       <Button size="sm" variant="outline" onClick={() => setDefault(c)} title="Usar como caja por defecto"><Star />Predeterminar</Button>
-                      <Button size="sm" variant="outline" onClick={() => eliminar(c)}><Trash2 /></Button>
+                      <Button size="sm" variant="outline" onClick={() => setConfirmDelete(c)}><Trash2 /></Button>
                     </>
                   )}
                 </div>
@@ -105,6 +165,50 @@ export function Cajas() {
       ) : (
         <Card><CardContent className="py-6 text-center text-muted-foreground">No hay cajas configuradas.</CardContent></Card>
       )}
+
+      <Dialog open={formOpen} onOpenChange={setFormOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wallet className="size-4 text-primary" />{editingCaja ? 'Editar caja' : 'Nueva caja'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1.5"><Label>Nombre</Label><Input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej: Caja mostrador, Caja online…" /></div>
+              <div className="grid gap-1.5"><Label>Descripción</Label><Input value={descripcion} onChange={(e) => setDescripcion(e.target.value)} /></div>
+            </div>
+            <div className="grid gap-1.5">
+              <Label>Medios de pago habilitados</Label>
+              <div className="flex flex-wrap gap-3">
+                {TODOS_MEDIOS.map((m) => (
+                  <label key={m} className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={mediosPago.includes(m)} onChange={() => toggleMedio(m)} />
+                    {MEDIOS_PAGO_LABELS[m]}
+                  </label>
+                ))}
+              </div>
+            </div>
+            {editingCaja !== null && (
+              <label className="flex w-fit items-center gap-2 text-sm">
+                <input type="checkbox" checked={activo} onChange={(e) => setActivo(e.target.checked)} />
+                Activa
+              </label>
+            )}
+          </div>
+          <DialogFooter>
+            <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
+            <Button disabled={saving || !nombre.trim()} onClick={guardar}><Check />{saving ? 'Guardando…' : editingCaja ? 'Guardar cambios' : 'Crear caja'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onOpenChange={(o) => !o && setConfirmDelete(null)}
+        title={confirmDelete ? `¿Eliminar la caja «${confirmDelete.nombre}»?` : '¿Eliminar caja?'}
+        onConfirm={() => { if (confirmDelete) { eliminar(confirmDelete); setConfirmDelete(null) } }}
+      />
     </div>
   )
 }

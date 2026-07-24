@@ -20,6 +20,7 @@ import {
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from '@/components/ui/form'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
   ArrowLeft, ArrowUpCircle, CheckCircle2, CreditCard, Hourglass, ListChecks, Trash2,
 } from 'lucide-react'
@@ -57,6 +58,7 @@ export function EgresoDetalle() {
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [pagoOpen, setPagoOpen] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const pagoForm = useForm({
     resolver: zodResolver(pagoSchema),
@@ -148,7 +150,6 @@ export function EgresoDetalle() {
   }
 
   async function eliminar() {
-    if (!window.confirm('¿Eliminar este egreso?')) return
     setSaving(true)
     setError(null)
     try {
@@ -261,10 +262,17 @@ export function EgresoDetalle() {
           </div>
 
           <div className="flex justify-end pb-4">
-            <Button variant="outline" className="text-destructive hover:text-destructive" disabled={saving} onClick={eliminar}>
+            <Button variant="outline" className="text-destructive hover:text-destructive" disabled={saving} onClick={() => setConfirmDelete(true)}>
               <Trash2 />Eliminar
             </Button>
           </div>
+
+          <ConfirmDialog
+            open={confirmDelete}
+            onOpenChange={setConfirmDelete}
+            title="¿Eliminar este egreso?"
+            onConfirm={() => { setConfirmDelete(false); eliminar() }}
+          />
 
           <Dialog open={pagoOpen} onOpenChange={setPagoOpen}>
             <DialogContent>

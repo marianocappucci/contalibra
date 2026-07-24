@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { api, ApiError, type AliasFacturacion, type ClienteConAlias } from '../api'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm } from 'react-hook-form'
+import { z } from 'zod'
+import { api, ApiError, IVA_CONDITIONS, type AliasFacturacion, type Cliente, type ClienteConAlias } from '../api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -11,8 +14,15 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import {
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
+} from '@/components/ui/form'
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose,
+} from '@/components/ui/dialog'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import {
   IdCard, Pencil, Undo2, ArrowLeft, ArrowLeftRight, Plus, Trash2,
-  BarChart3, Receipt, FileText, Truck, Inbox, Eye,
+  BarChart3, Receipt, FileText, Truck, Inbox, Eye, Search, Loader2, CheckCircle2, XCircle,
 } from 'lucide-react'
 
 function formatCurrency(value: number): string {
@@ -33,6 +43,22 @@ const ESTADO_PRESUPUESTO_LABEL: Record<string, string> = {
   aprobado: 'Aprobado', aceptado: 'Aceptado', rechazado: 'Rechazado',
 }
 
+const clienteSchema = z.object({
+  name: z.string().trim().min(1, 'El nombre es obligatorio'),
+  address: z.string().trim().optional(),
+  cuit_dni: z.string().trim().optional(),
+  email: z.string().trim().email('Email inválido').optional().or(z.literal('')),
+  phone: z.string().trim().optional(),
+  iva_condition: z.string().optional(),
+  auto_facturar: z.boolean().optional(),
+})
+
+type ClienteFormValues = z.infer<typeof clienteSchema>
+
+const EMPTY_VALUES: ClienteFormValues = {
+  name: '', address: '', cuit_dni: '', email: '', phone: '', iva_condition: '', auto_facturar: false,
+}
+
 // Restaurado desde web/templates/clientes/detail.html: auto-factura MP
 // (toggle), alias de facturacion (CUIT/email -> este cliente), el resumen
 // de facturas/presupuestos/remitos y las tres tablas de comprobantes
@@ -40,6 +66,11 @@ const ESTADO_PRESUPUESTO_LABEL: Record<string, string> = {
 // web/api/clientes.py -- get_facturas_by_client/get_presupuestos_by_client/
 // get_remitos_by_client ya existian en libracore.db, auditoria campo por
 // campo 2026-07-24) -- ver wiki/entities/contalibra.md.
+//
+// El botón "Editar" abre el modal de edición inline (antes navegaba a
+// /clientes/:id/editar, página ClienteForm.tsx ahora eliminada) precargado
+// con los datos del cliente ya cargados en esta página -- no hace falta un
+// segundo fetch.
 export function ClienteDetalle() {
   const { id } = useParams<{ id: string }>()
   const clienteId = Number(id)
@@ -53,6 +84,18 @@ export function ClienteDetalle() {
   const [aliasValor, setAliasValor] = useState('')
   const [aliasError, setAliasError] = useState<string | null>(null)
   const [savingAlias, setSavingAlias] = useState(false)
+  const [confirmDeleteAlias, setConfirmDeleteAlias] = useState<AliasFacturacion | null>(null)
+
+  const [editOpen, setEditOpen] = useState(false)
+  const [guardando, setGuardando] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [consultando, setConsultando] = useState(false)
+  const [consultaMsg, setConsultaMsg] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null)
+
+  const form = useForm<ClienteFormValues>({
+    resolver: zodResolver(clienteSchema),
+    defaultValues: EMPTY_VALUES,
+  })
 
   useEffect(() => {
     cargar()
@@ -120,13 +163,86 @@ export function ClienteDetalle() {
 
   async function eliminarAlias(aliasId: number) {
     if (!cliente) return
-    if (!window.confirm('¿Quitar este alias de facturación?')) return
     setAliasError(null)
     try {
       const alias = await api.del<AliasFacturacion[]>(`/api/clientes/${cliente.id}/alias-facturacion/${aliasId}`)
       setCliente({ ...cliente, alias_facturacion: alias })
     } catch (err) {
       setAliasError(describeError(err))
+    }
+  }
+
+  function abrirEditar() {
+    if (!cliente) return
+    form.reset({
+      name: cliente.name,
+      address: cliente.address ?? '',
+      cuit_dni: cliente.cuit_dni ?? '',
+      email: cliente.email ?? '',
+      phone: cliente.phone ?? '',
+      iva_condition: cliente.iva_condition ?? '',
+      auto_facturar: Boolean(cliente.auto_facturar),
+    })
+    setFormError(null)
+    setConsultaMsg(null)
+    setEditOpen(true)
+  }
+
+  async function guardarEdicion(values: ClienteFormValues) {
+    if (!cliente) return
+    setGuardando(true)
+    setFormError(null)
+    const payload = {
+      name: values.name,
+      address: values.address || '',
+      cuit_dni: values.cuit_dni || '',
+      email: values.email || '',
+      phone: values.phone || '',
+      iva_condition: values.iva_condition || '',
+      auto_facturar: Boolean(values.auto_facturar),
+    }
+    try {
+      await api.put<Cliente>(`/api/clientes/${cliente.id}`, payload)
+      setEditOpen(false)
+      await cargar()
+    } catch (err) {
+      setFormError(describeError(err))
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  // Restaurado desde web/templates/clientes/form.html (btn-consultar): trae
+  // nombre/domicilio/condición IVA desde ARCA por CUIT y completa el
+  // formulario. El endpoint devuelve {error} en vez de {detail} en fallas,
+  // por eso no se usa api.get acá -- se parsea la respuesta a mano igual
+  // que hacía el script vanilla original.
+  async function consultarCuit() {
+    const cuit = (form.getValues('cuit_dni') || '').replace(/\D/g, '')
+    if (cuit.length !== 11) {
+      setConsultaMsg({ tipo: 'error', texto: 'Ingresá un CUIT de 11 dígitos antes de consultar.' })
+      return
+    }
+    setConsultando(true)
+    setConsultaMsg(null)
+    try {
+      const resp = await fetch(`/api/consultar-cuit/${cuit}`, { credentials: 'include' })
+      const data = await resp.json()
+      if (!resp.ok || data.error) {
+        setConsultaMsg({ tipo: 'error', texto: data.error || 'Error al consultar ARCA.' })
+      } else {
+        if (data.nombre) form.setValue('name', data.nombre)
+        if (data.domicilio) form.setValue('address', data.domicilio)
+        if (data.iva_condition && (IVA_CONDITIONS as readonly string[]).includes(data.iva_condition)) {
+          form.setValue('iva_condition', data.iva_condition)
+        }
+        const estado = data.estado ? ` — Estado: ${data.estado}` : ''
+        setConsultaMsg({ tipo: 'ok', texto: `Datos importados desde ARCA${estado}.` })
+      }
+    } catch {
+      setConsultaMsg({ tipo: 'error', texto: 'No se pudo conectar con ARCA.' })
+    } finally {
+      setConsultando(false)
     }
   }
 
@@ -142,7 +258,142 @@ export function ClienteDetalle() {
         </div>
         <div className="flex flex-wrap gap-2">
           {cliente && cliente.activo && (
-            <Button asChild size="sm" variant="outline"><Link to={`/clientes/${cliente.id}/editar`}><Pencil />Editar</Link></Button>
+            <Dialog open={editOpen} onOpenChange={setEditOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline" onClick={abrirEditar}><Pencil />Editar</Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2"><Pencil className="size-4" />Editar cliente — {cliente.name}</DialogTitle>
+                </DialogHeader>
+                <Form {...form}>
+                  <form className="flex flex-wrap items-start gap-3" onSubmit={form.handleSubmit(guardarEdicion)}>
+                    {formError && <p className="w-full text-sm text-destructive">{formError}</p>}
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nombre</FormLabel>
+                          <FormControl>
+                            <Input {...field} className="w-48" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="cuit_dni"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>CUIT/DNI</FormLabel>
+                          <div className="flex gap-1.5">
+                            <FormControl>
+                              <Input {...field} className="w-36" placeholder="20-12345678-9" />
+                            </FormControl>
+                            <Button
+                              type="button" size="sm" variant="outline" disabled={consultando}
+                              onClick={consultarCuit} title="Consultar datos en ARCA"
+                            >
+                              {consultando ? <Loader2 className="animate-spin" /> : <Search />}
+                            </Button>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="phone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Teléfono</FormLabel>
+                          <FormControl>
+                            <Input {...field} className="w-36" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email</FormLabel>
+                          <FormControl>
+                            <Input type="email" {...field} className="w-52" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="address"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Dirección</FormLabel>
+                          <FormControl>
+                            <Input {...field} className="w-52" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="iva_condition"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Condición de IVA</FormLabel>
+                          <Select value={field.value} onValueChange={field.onChange}>
+                            <FormControl>
+                              <SelectTrigger className="w-52">
+                                <SelectValue placeholder="Condición de IVA…" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {IVA_CONDITIONS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="auto_facturar"
+                      render={({ field }) => (
+                        <FormItem className="w-full rounded-md border bg-muted/40 p-3">
+                          <div className="flex items-center gap-2">
+                            <FormControl>
+                              <Switch checked={field.value} onCheckedChange={field.onChange} />
+                            </FormControl>
+                            <FormLabel className="!mt-0">Facturación automática por MercadoPago</FormLabel>
+                          </div>
+                          <p className="pl-11 text-xs text-muted-foreground">
+                            Cuando llegue un pago aprobado de MP para este cliente, se generará la factura y se
+                            enviará por email automáticamente.
+                          </p>
+                        </FormItem>
+                      )}
+                    />
+                    {consultaMsg && (
+                      <p className={`flex w-full items-center gap-1.5 text-sm ${consultaMsg.tipo === 'ok' ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
+                        {consultaMsg.tipo === 'ok' ? <CheckCircle2 className="size-4 shrink-0" /> : <XCircle className="size-4 shrink-0" />}
+                        {consultaMsg.texto}
+                      </p>
+                    )}
+                    <DialogFooter className="w-full">
+                      <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
+                      <Button type="submit" disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar cambios'}</Button>
+                    </DialogFooter>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
           )}
           {cliente && !cliente.activo && (
             <Button size="sm" variant="outline" onClick={reactivar}><Undo2 />Reactivar cliente</Button>
@@ -229,7 +480,7 @@ export function ClienteDetalle() {
                         <Badge variant="secondary">{a.tipo === 'cuit' ? 'CUIT' : 'Email'}</Badge>
                         <span className="font-mono">{a.valor}</span>
                       </span>
-                      <Button size="icon" variant="outline" onClick={() => eliminarAlias(a.id)}><Trash2 /></Button>
+                      <Button size="icon" variant="outline" onClick={() => setConfirmDeleteAlias(a)}><Trash2 /></Button>
                     </li>
                   ))}
                 </ul>
@@ -397,6 +648,16 @@ export function ClienteDetalle() {
           <Button variant="outline" onClick={() => navigate('/clientes')}>Volver al listado</Button>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!confirmDeleteAlias}
+        onOpenChange={(o) => !o && setConfirmDeleteAlias(null)}
+        title="¿Quitar este alias de facturación?"
+        onConfirm={() => {
+          if (confirmDeleteAlias) eliminarAlias(confirmDeleteAlias.id)
+          setConfirmDeleteAlias(null)
+        }}
+      />
     </div>
   )
 }
