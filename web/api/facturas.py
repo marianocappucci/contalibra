@@ -7,13 +7,14 @@ web/api/clientes.py para el patron general de esta etapa.
 El PDF (`GET /facturas/{id}/pdf`), el ticket (`GET /facturas/{id}/ticket`)
 y el recibo (`GET /facturas/{id}/recibo`) siguen viviendo en
 `web/routers/facturas.py` sin tocar (descargas autenticadas por cookie,
-la SPA los linkea directo). La generacion de un PDF de borrador antes de
-guardar (`POST /facturas/borrador-pdf`) queda fuera de esta etapa --
-conveniencia de UI, no bloquea el flujo central de emitir/cobrar.
+la SPA los linkea directo). `POST /api/facturas/borrador-pdf` reimplementa
+en JSON la logica de `POST /facturas/borrador-pdf` del router viejo
+(genera un PDF sin guardar ni llamar a ARCA, para previsualizar antes de
+emitir).
 """
 import datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 
 import config_manager
@@ -176,6 +177,60 @@ def listar(q: str = "", vista: str = "facturas", desde: str = "", hasta: str = "
         "total_pages": max(1, (result["total"] + _PAGE_SIZE - 1) // _PAGE_SIZE),
         "page": page,
     }
+
+
+@router.post("/borrador-pdf")
+async def borrador_pdf(payload: FacturaPayload):
+    """Genera un PDF de borrador con los datos del formulario, sin guardar ni
+    llamar a ARCA (paridad con POST /facturas/borrador-pdf del router viejo,
+    ver web/routers/facturas.py -- misma logica, en JSON en vez de form-data)."""
+    import os as _os
+    import tempfile
+
+    cliente = _resolve_cliente(payload)
+    items = [
+        {"description": i.description.strip(), "qty": i.qty, "unit_price": i.unit_price, "subtotal": round(i.qty * i.unit_price, 2)}
+        for i in payload.items if i.description.strip()
+    ]
+    if not items:
+        items = [{"description": "Ejemplo de servicio", "qty": 1, "unit_price": 1000.0, "subtotal": 1000.0}]
+
+    tax_rate = 0.0 if payload.tipo == 11 else payload.tax_rate
+    totals = calculate_totals(items, tax_rate)
+    iva_code = IVA_CODES.get(cliente["client_iva"], 0)
+
+    factura_draft = {
+        "id": 0, "tipo": payload.tipo, "punto_venta": payload.punto_venta, "numero": 0,
+        "fecha": payload.fecha, "cliente_cuit": cliente["client_cuit"],
+        "cliente_razon": cliente["client_name"] or "BORRADOR",
+        "cliente_iva_cond": iva_code, "cliente_domicilio": cliente["client_address"],
+        "items": items, "subtotal": totals["subtotal"], "iva_amount": totals["iva_amount"],
+        "total": totals["total"], "concepto": payload.concepto,
+        "observaciones": payload.observations.strip(), "condicion_venta": payload.condicion_venta,
+        "fch_serv_desde": payload.fch_serv_desde, "fch_serv_hasta": payload.fch_serv_hasta,
+        "fch_vto_pago": payload.fch_vto_pago, "cae": "", "cae_vto": "",
+    }
+
+    tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+    tmp.close()
+    try:
+        pdf_gen.generate_pdf_factura(factura_draft, output_dir=_os.path.dirname(tmp.name))
+        pv = str(payload.punto_venta).zfill(4)
+        pdf_path = _os.path.join(_os.path.dirname(tmp.name), f"factura_{pv}_00000000.pdf")
+        if not _os.path.exists(pdf_path):
+            pdf_path = tmp.name
+        with open(pdf_path, "rb") as f:
+            content = f.read()
+        if pdf_path != tmp.name and _os.path.exists(pdf_path):
+            _os.unlink(pdf_path)
+    except Exception as e:
+        raise HTTPException(500, f"Error generando borrador: {e}")
+    finally:
+        if _os.path.exists(tmp.name):
+            _os.unlink(tmp.name)
+
+    return Response(content, media_type="application/pdf",
+                     headers={"Content-Disposition": 'inline; filename="borrador.pdf"'})
 
 
 @router.post("")

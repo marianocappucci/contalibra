@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { api, ApiError, type Cliente, type Factura, type TipoFactura } from '../api'
+import { api, ApiError, type Cliente, type Factura, type ProductoBusqueda, type TipoFactura } from '../api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import { Plus, Receipt, X } from 'lucide-react'
+import { Eye, Plus, Receipt, Trash2 } from 'lucide-react'
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10)
@@ -57,7 +57,9 @@ export function FacturaNueva() {
   const [fchServHasta, setFchServHasta] = useState(prefill?.fchServHasta ?? todayIso())
   const [fchVtoPago, setFchVtoPago] = useState(prefill?.fchVtoPago ?? todayIso())
   const [saving, setSaving] = useState(false)
+  const [previewing, setPreviewing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [sugerencias, setSugerencias] = useState<{ index: number; items: ProductoBusqueda[] } | null>(null)
 
   const requiereFechasServicio = concepto === '2' || concepto === '3'
 
@@ -78,31 +80,75 @@ export function FacturaNueva() {
     setItems((rows) => [...rows, { ...EMPTY_ITEM }])
   }
   function removeItemRow(i: number) {
+    if (items.length <= 1) return
     setItems((rows) => rows.filter((_, idx) => idx !== i))
   }
   function updateItem(i: number, field: keyof ItemRow, value: string) {
     setItems((rows) => rows.map((r, idx) => idx === i ? { ...r, [field]: value } : r))
   }
 
+  async function buscarProducto(i: number, texto: string) {
+    updateItem(i, 'description', texto)
+    if (texto.trim().length < 2) {
+      setSugerencias(null)
+      return
+    }
+    try {
+      const res = await api.get<ProductoBusqueda[]>(`/productos/buscar?q=${encodeURIComponent(texto)}`)
+      setSugerencias({ index: i, items: res })
+    } catch {
+      setSugerencias(null)
+    }
+  }
+
+  function elegirProducto(i: number, p: ProductoBusqueda) {
+    setItems((rows) => rows.map((r, idx) => idx === i ? { ...r, description: p.nombre, unit_price: String(p.precio_venta) } : r))
+    setSugerencias(null)
+  }
+
   const subtotalCalc = items.reduce((acc, r) => acc + (Number(r.qty) || 0) * (Number(r.unit_price) || 0), 0)
   const ivaCalc = tiposInfo?.es_monotributista ? 0 : subtotalCalc * (Number(taxRate) || 0)
+
+  function payloadBase() {
+    return {
+      tipo: Number(tipo) || 11, punto_venta: Number(puntoVenta) || tiposInfo?.punto_venta || 1, concepto: Number(concepto),
+      condicion_venta: condicionVenta, fecha, observations, tax_rate: Number(taxRate) || 0,
+      client_id: clienteId ? Number(clienteId) : null, client_name: clienteId ? '' : clienteNombreLibre,
+      items: items.filter((r) => r.description.trim()).map((r) => ({
+        description: r.description, qty: Number(r.qty) || 0, unit_price: Number(r.unit_price) || 0,
+      })),
+      ...(requiereFechasServicio
+        ? { fch_serv_desde: fchServDesde, fch_serv_hasta: fchServHasta, fch_vto_pago: fchVtoPago }
+        : {}),
+    }
+  }
+
+  async function previsualizarBorrador() {
+    setPreviewing(true)
+    setError(null)
+    try {
+      const response = await fetch('/api/facturas/borrador-pdf', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payloadBase()),
+      })
+      if (!response.ok) throw new Error('No se pudo generar el borrador.')
+      const blob = await response.blob()
+      window.open(URL.createObjectURL(blob), '_blank')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error de conexión.')
+    } finally {
+      setPreviewing(false)
+    }
+  }
 
   async function crear() {
     if (!tipo) return
     setSaving(true)
     setError(null)
     try {
-      const factura = await api.post<Factura>('/api/facturas', {
-        tipo: Number(tipo), punto_venta: Number(puntoVenta) || tiposInfo?.punto_venta || 1, concepto: Number(concepto),
-        condicion_venta: condicionVenta, fecha, observations, tax_rate: Number(taxRate) || 0,
-        client_id: clienteId ? Number(clienteId) : null, client_name: clienteId ? '' : clienteNombreLibre,
-        items: items.filter((r) => r.description.trim()).map((r) => ({
-          description: r.description, qty: Number(r.qty) || 0, unit_price: Number(r.unit_price) || 0,
-        })),
-        ...(requiereFechasServicio
-          ? { fch_serv_desde: fchServDesde, fch_serv_hasta: fchServHasta, fch_vto_pago: fchVtoPago }
-          : {}),
-      })
+      const factura = await api.post<Factura>('/api/facturas', payloadBase())
       navigate(`/facturas/${factura.id}`)
     } catch (err) {
       setError(describeError(err))
@@ -206,23 +252,57 @@ export function FacturaNueva() {
                 <tbody>
                   {items.map((row, i) => (
                     <tr key={i} className="border-b last:border-0">
-                      <td className="p-2"><Input value={row.description} onChange={(e) => updateItem(i, 'description', e.target.value)} placeholder="Descripción" /></td>
+                      <td className="relative p-2">
+                        <Input value={row.description} onChange={(e) => buscarProducto(i, e.target.value)} placeholder="Descripción o producto…" />
+                        {sugerencias?.index === i && sugerencias.items.length > 0 && (
+                          <div className="absolute left-2 top-11 z-10 w-64 rounded-md border bg-popover shadow-md">
+                            {sugerencias.items.map((p) => (
+                              <button
+                                key={p.id} type="button"
+                                className="block w-full px-3 py-1.5 text-left text-sm hover:bg-accent"
+                                onClick={() => elegirProducto(i, p)}
+                              >
+                                {p.nombre} — {formatCurrency(p.precio_venta)}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </td>
                       <td className="p-2"><Input type="number" step="0.01" value={row.qty} onChange={(e) => updateItem(i, 'qty', e.target.value)} /></td>
                       <td className="p-2"><Input type="number" step="0.01" value={row.unit_price} onChange={(e) => updateItem(i, 'unit_price', e.target.value)} /></td>
                       <td className="p-2 text-right font-medium">{formatCurrency((Number(row.qty) || 0) * (Number(row.unit_price) || 0))}</td>
                       <td className="p-2 text-right">
-                        {items.length > 1 && <Button size="icon" variant="ghost" onClick={() => removeItemRow(i)}><X /></Button>}
+                        <Button size="icon" variant="ghost" onClick={() => removeItemRow(i)}><Trash2 /></Button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
+                <tfoot>
+                  <tr>
+                    <td colSpan={3} className="p-2 text-right font-medium text-muted-foreground">Subtotal</td>
+                    <td className="p-2 text-right font-medium">{formatCurrency(subtotalCalc)}</td>
+                    <td></td>
+                  </tr>
+                  {!tiposInfo.es_monotributista && (
+                    <tr>
+                      <td colSpan={3} className="p-2 text-right font-medium text-muted-foreground">IVA ({Math.round((Number(taxRate) || 0) * 100)}%)</td>
+                      <td className="p-2 text-right font-medium">{formatCurrency(ivaCalc)}</td>
+                      <td></td>
+                    </tr>
+                  )}
+                  <tr>
+                    <td colSpan={3} className="p-2 text-right text-base font-bold">TOTAL</td>
+                    <td className="p-2 text-right text-base font-bold text-primary">{formatCurrency(subtotalCalc + ivaCalc)}</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
 
-            <div className="flex flex-wrap items-end gap-4 border-t pt-4">
-              <p className="text-sm">Subtotal: <span className="font-medium">{formatCurrency(subtotalCalc)}</span></p>
-              <p className="text-sm">IVA: <span className="font-medium">{formatCurrency(ivaCalc)}</span></p>
-              <p className="text-sm">Total: <span className="font-medium">{formatCurrency(subtotalCalc + ivaCalc)}</span></p>
+            <div className="flex flex-wrap items-end gap-2 border-t pt-4">
+              <Button type="button" variant="outline" disabled={previewing} onClick={previsualizarBorrador}>
+                <Eye />{previewing ? 'Generando…' : 'Previsualizar borrador'}
+              </Button>
               <Button disabled={saving || !tipo} onClick={crear}>{saving ? 'Emitiendo…' : 'Emitir factura'}</Button>
               <Button type="button" variant="outline" onClick={() => navigate('/facturas')}>Cancelar</Button>
             </div>

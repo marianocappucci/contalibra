@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { api, ApiError, type Cliente, type Presupuesto } from '../api'
+import { api, ApiError, type Cliente, type Presupuesto, type ProductoBusqueda } from '../api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import { Calculator, X } from 'lucide-react'
+import { Calculator, Trash2 } from 'lucide-react'
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10)
@@ -44,6 +44,7 @@ export function PresupuestoForm() {
   const [items, setItems] = useState<ItemRow[]>([{ ...EMPTY_ITEM }])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [sugerencias, setSugerencias] = useState<{ index: number; items: ProductoBusqueda[] } | null>(null)
 
   useEffect(() => {
     api.get<Cliente[]>('/api/clientes').then((c) => setClientes(c.filter((x) => x.activo))).catch(() => {})
@@ -69,9 +70,31 @@ export function PresupuestoForm() {
   }
 
   function addItem() { setItems((rows) => [...rows, { ...EMPTY_ITEM }]) }
-  function removeItem(i: number) { setItems((rows) => rows.filter((_, idx) => idx !== i)) }
+  function removeItem(i: number) {
+    if (items.length <= 1) return
+    setItems((rows) => rows.filter((_, idx) => idx !== i))
+  }
   function updateItem(i: number, field: keyof ItemRow, value: string) {
     setItems((rows) => rows.map((r, idx) => idx === i ? { ...r, [field]: value } : r))
+  }
+
+  async function buscarProducto(i: number, texto: string) {
+    updateItem(i, 'description', texto)
+    if (texto.trim().length < 2) {
+      setSugerencias(null)
+      return
+    }
+    try {
+      const res = await api.get<ProductoBusqueda[]>(`/productos/buscar?q=${encodeURIComponent(texto)}`)
+      setSugerencias({ index: i, items: res })
+    } catch {
+      setSugerencias(null)
+    }
+  }
+
+  function elegirProducto(i: number, p: ProductoBusqueda) {
+    setItems((rows) => rows.map((r, idx) => idx === i ? { ...r, description: p.nombre, unit_price: String(p.precio_venta) } : r))
+    setSugerencias(null)
   }
 
   async function guardar() {
@@ -149,25 +172,54 @@ export function PresupuestoForm() {
                 <tbody>
                   {items.map((row, i) => (
                     <tr key={i} className="border-b last:border-0">
-                      <td className="p-2"><Input value={row.description} onChange={(e) => updateItem(i, 'description', e.target.value)} placeholder="Descripción" /></td>
+                      <td className="relative p-2">
+                        <Input value={row.description} onChange={(e) => buscarProducto(i, e.target.value)} placeholder="Descripción o producto…" />
+                        {sugerencias?.index === i && sugerencias.items.length > 0 && (
+                          <div className="absolute left-2 top-11 z-10 w-64 rounded-md border bg-popover shadow-md">
+                            {sugerencias.items.map((p) => (
+                              <button
+                                key={p.id} type="button"
+                                className="block w-full px-3 py-1.5 text-left text-sm hover:bg-accent"
+                                onClick={() => elegirProducto(i, p)}
+                              >
+                                {p.nombre} — {formatCurrency(p.precio_venta)}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </td>
                       <td className="p-2"><Input type="number" step="0.01" value={row.qty} onChange={(e) => updateItem(i, 'qty', e.target.value)} /></td>
                       <td className="p-2"><Input type="number" step="0.01" value={row.unit_price} onChange={(e) => updateItem(i, 'unit_price', e.target.value)} /></td>
                       <td className="p-2 text-right font-medium">{formatCurrency((Number(row.qty) || 0) * (Number(row.unit_price) || 0))}</td>
                       <td className="p-2 text-right">
-                        {items.length > 1 && <Button size="icon" variant="ghost" onClick={() => removeItem(i)}><X /></Button>}
+                        <Button size="icon" variant="ghost" onClick={() => removeItem(i)}><Trash2 /></Button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
+                <tfoot>
+                  <tr>
+                    <td colSpan={3} className="p-2 text-right font-medium text-muted-foreground">Subtotal</td>
+                    <td className="p-2 text-right font-medium">{formatCurrency(subtotalCalc)}</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td colSpan={3} className="p-2 text-right font-medium text-muted-foreground">IVA ({Math.round((Number(taxRate) || 0) * 100)}%)</td>
+                    <td className="p-2 text-right font-medium">{formatCurrency(ivaCalc)}</td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td colSpan={3} className="p-2 text-right text-base font-bold">TOTAL</td>
+                    <td className="p-2 text-right text-base font-bold text-primary">{formatCurrency(subtotalCalc + ivaCalc)}</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
 
             <div className="grid gap-1.5"><Label>Observaciones</Label><Input value={observations} onChange={(e) => setObservations(e.target.value)} /></div>
 
-            <div className="flex flex-wrap items-end gap-4 border-t pt-4">
-              <p className="text-sm">Subtotal: <span className="font-medium">{formatCurrency(subtotalCalc)}</span></p>
-              <p className="text-sm">IVA: <span className="font-medium">{formatCurrency(ivaCalc)}</span></p>
-              <p className="text-sm">Total: <span className="font-medium">{formatCurrency(subtotalCalc + ivaCalc)}</span></p>
+            <div className="flex flex-wrap items-end gap-2 border-t pt-4">
               <Button disabled={saving} onClick={guardar}>{saving ? 'Guardando…' : editingId ? 'Guardar cambios' : 'Crear presupuesto'}</Button>
               <Button type="button" variant="outline" onClick={() => navigate('/presupuestos')}>Cancelar</Button>
             </div>
