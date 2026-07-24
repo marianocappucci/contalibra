@@ -90,16 +90,31 @@ export function RemitoNuevo() {
             <div className="grid gap-1.5 flex-1"><Label>Observaciones</Label><Input value={observations} onChange={(e) => setObservations(e.target.value)} /></div>
           </div>
 
-          <div className="grid gap-2">
-            <Label>Ítems</Label>
-            {items.map((row, i) => (
-              <div key={i} className="flex flex-wrap items-center gap-2">
-                <Input value={row.description} onChange={(e) => updateItem(i, 'description', e.target.value)} className="w-64" placeholder="Descripción" />
-                <Input type="number" step="0.01" value={row.qty} onChange={(e) => updateItem(i, 'qty', e.target.value)} className="w-20" placeholder="Cant." />
-                {items.length > 1 && <Button size="sm" variant="ghost" onClick={() => removeItem(i)}><X />Quitar</Button>}
-              </div>
-            ))}
-            <Button size="sm" variant="outline" className="w-fit" onClick={addItem}><Plus />Agregar ítem</Button>
+          <div className="rounded-md border">
+            <div className="flex items-center justify-between border-b p-3">
+              <Label>Ítems</Label>
+              <Button size="sm" variant="outline" onClick={addItem}><Plus />Agregar ítem</Button>
+            </div>
+            <table className="w-full text-sm">
+              <thead className="border-b text-muted-foreground">
+                <tr>
+                  <th className="p-2 text-left font-medium">Descripción</th>
+                  <th className="w-24 p-2 text-left font-medium">Cantidad</th>
+                  <th className="w-10 p-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((row, i) => (
+                  <tr key={i} className="border-b last:border-0">
+                    <td className="p-2"><Input value={row.description} onChange={(e) => updateItem(i, 'description', e.target.value)} placeholder="Descripción" /></td>
+                    <td className="p-2"><Input type="number" step="0.01" value={row.qty} onChange={(e) => updateItem(i, 'qty', e.target.value)} /></td>
+                    <td className="p-2 text-right">
+                      {items.length > 1 && <Button size="icon" variant="ghost" onClick={() => removeItem(i)}><X /></Button>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
 
           <div className="flex gap-2">

@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import { Calculator } from 'lucide-react'
+import { Calculator, X } from 'lucide-react'
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10)
@@ -131,18 +131,35 @@ export function PresupuestoForm() {
               <div className="grid gap-1.5"><Label>IVA</Label><Input type="number" step="0.01" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} className="w-24" /></div>
             </div>
 
-            <div className="grid gap-2">
-              <Label>Ítems</Label>
-              {items.map((row, i) => (
-                <div key={i} className="flex flex-wrap items-center gap-2">
-                  <Input value={row.description} onChange={(e) => updateItem(i, 'description', e.target.value)} className="w-64" placeholder="Descripción" />
-                  <Input type="number" step="0.01" value={row.qty} onChange={(e) => updateItem(i, 'qty', e.target.value)} className="w-20" placeholder="Cant." />
-                  <Input type="number" step="0.01" value={row.unit_price} onChange={(e) => updateItem(i, 'unit_price', e.target.value)} className="w-28" placeholder="Precio" />
-                  <span className="w-28 text-sm text-muted-foreground">{formatCurrency((Number(row.qty) || 0) * (Number(row.unit_price) || 0))}</span>
-                  {items.length > 1 && <Button size="sm" variant="ghost" onClick={() => removeItem(i)}>Quitar</Button>}
-                </div>
-              ))}
-              <Button size="sm" variant="outline" className="w-fit" onClick={addItem}>+ Agregar ítem</Button>
+            <div className="rounded-md border">
+              <div className="flex items-center justify-between border-b p-3">
+                <Label>Ítems</Label>
+                <Button size="sm" variant="outline" onClick={addItem}>+ Agregar ítem</Button>
+              </div>
+              <table className="w-full text-sm">
+                <thead className="border-b text-muted-foreground">
+                  <tr>
+                    <th className="p-2 text-left font-medium">Descripción</th>
+                    <th className="w-24 p-2 text-left font-medium">Cantidad</th>
+                    <th className="w-32 p-2 text-left font-medium">Precio unit.</th>
+                    <th className="w-28 p-2 text-right font-medium">Subtotal</th>
+                    <th className="w-10 p-2"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((row, i) => (
+                    <tr key={i} className="border-b last:border-0">
+                      <td className="p-2"><Input value={row.description} onChange={(e) => updateItem(i, 'description', e.target.value)} placeholder="Descripción" /></td>
+                      <td className="p-2"><Input type="number" step="0.01" value={row.qty} onChange={(e) => updateItem(i, 'qty', e.target.value)} /></td>
+                      <td className="p-2"><Input type="number" step="0.01" value={row.unit_price} onChange={(e) => updateItem(i, 'unit_price', e.target.value)} /></td>
+                      <td className="p-2 text-right font-medium">{formatCurrency((Number(row.qty) || 0) * (Number(row.unit_price) || 0))}</td>
+                      <td className="p-2 text-right">
+                        {items.length > 1 && <Button size="icon" variant="ghost" onClick={() => removeItem(i)}><X /></Button>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
 
             <div className="grid gap-1.5"><Label>Observaciones</Label><Input value={observations} onChange={(e) => setObservations(e.target.value)} /></div>
