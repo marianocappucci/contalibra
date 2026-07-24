@@ -151,7 +151,17 @@ export function PresupuestoForm() {
               )}
               <div className="grid gap-1.5"><Label>Fecha</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40" /></div>
               <div className="grid gap-1.5"><Label>Válido hasta</Label><Input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} className="w-40" /></div>
-              <div className="grid gap-1.5"><Label>IVA</Label><Input type="number" step="0.01" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} className="w-24" /></div>
+              <div className="grid gap-1.5">
+                <Label>IVA</Label>
+                <Select value={taxRate} onValueChange={setTaxRate}>
+                  <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0.21">21%</SelectItem>
+                    <SelectItem value="0.105">10.5%</SelectItem>
+                    <SelectItem value="0.0">0%</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="rounded-md border">

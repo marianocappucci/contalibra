@@ -229,7 +229,17 @@ export function FacturaNueva() {
 
             <div className="flex flex-wrap items-end gap-3">
               {!tiposInfo.es_monotributista && (
-                <div className="grid gap-1.5"><Label>IVA</Label><Input type="number" step="0.01" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} className="w-24" /></div>
+                <div className="grid gap-1.5">
+                  <Label>IVA</Label>
+                  <Select value={taxRate} onValueChange={setTaxRate}>
+                    <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0.21">21%</SelectItem>
+                      <SelectItem value="0.105">10.5%</SelectItem>
+                      <SelectItem value="0.0">0%</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               )}
               <div className="grid flex-1 gap-1.5"><Label>Observaciones</Label><Input value={observations} onChange={(e) => setObservations(e.target.value)} /></div>
             </div>
