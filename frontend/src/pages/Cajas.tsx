@@ -1,18 +1,16 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { type ColumnDef } from '@tanstack/react-table'
 import { api, ApiError, MEDIOS_PAGO_LABELS, type CajaConfig } from '../api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { DataTable, sortableHeader } from '@/components/data-table'
-import { SquareStack, Plus, Eye, Pencil, Trash2, Star, Check } from 'lucide-react'
+import { SquareStack, Plus, Eye, Pencil, Trash2, Star, Check, Wallet } from 'lucide-react'
 
 const TODOS_MEDIOS = Object.keys(MEDIOS_PAGO_LABELS)
 
-const EMPTY = { nombre: '', descripcion: '', medios_pago: [] as string[] }
+const EMPTY = { nombre: '', descripcion: '', medios_pago: [] as string[], activo: true }
 
 export function Cajas() {
   const [cajas, setCajas] = useState<CajaConfig[]>([])
@@ -48,7 +46,7 @@ export function Cajas() {
 
   function startEdit(c: CajaConfig) {
     setEditingId(c.id)
-    setForm({ nombre: c.nombre, descripcion: c.descripcion ?? '', medios_pago: c.medios_pago })
+    setForm({ nombre: c.nombre, descripcion: c.descripcion ?? '', medios_pago: c.medios_pago, activo: !!c.activo })
   }
 
   function toggleMedio(medio: string) {
@@ -66,8 +64,7 @@ export function Cajas() {
       if (editingId === 'new') {
         await api.post('/api/cajas', form)
       } else if (editingId) {
-        const original = cajas.find((c) => c.id === editingId)
-        await api.put(`/api/cajas/${editingId}`, { ...form, activo: !!original?.activo })
+        await api.put(`/api/cajas/${editingId}`, form)
       }
       setEditingId(null)
       await load()
@@ -99,35 +96,6 @@ export function Cajas() {
     }
   }
 
-  const columns = useMemo<ColumnDef<CajaConfig>[]>(() => [
-    { accessorKey: 'nombre', header: sortableHeader('Nombre'), cell: ({ row }) => (
-      <span className="font-medium">
-        {row.original.nombre}
-        {row.original.es_default ? <Badge variant="secondary" className="ml-2">Por defecto</Badge> : null}
-      </span>
-    ) },
-    { accessorKey: 'descripcion', header: 'Descripción', cell: ({ row }) => row.original.descripcion || '—' },
-    { accessorKey: 'medios_pago', header: 'Medios habilitados', cell: ({ row }) => row.original.medios_pago.map((m) => MEDIOS_PAGO_LABELS[m] ?? m).join(', ') || '—' },
-    {
-      accessorKey: 'activo',
-      header: 'Estado',
-      cell: ({ row }) => <Badge variant={row.original.activo ? 'default' : 'outline'}>{row.original.activo ? 'Activa' : 'Inactiva'}</Badge>,
-    },
-    {
-      id: 'actions',
-      header: () => <div className="text-right">Acciones</div>,
-      cell: ({ row }) => (
-        <div className="flex flex-wrap justify-end gap-2">
-          <Button size="sm" variant="outline" asChild><Link to={`/caja?caja_id=${row.original.id}`}><Eye />Ver movimientos</Link></Button>
-          <Button size="sm" variant="outline" onClick={() => startEdit(row.original)}><Pencil />Editar</Button>
-          {!row.original.es_default && <Button size="sm" variant="outline" onClick={() => setDefault(row.original)} title="Usar como caja por defecto"><Star />Predeterminar</Button>}
-          {!row.original.es_default && <Button size="sm" variant="outline" onClick={() => eliminar(row.original)}><Trash2 /></Button>}
-        </div>
-      ),
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [])
-
   return (
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
@@ -156,6 +124,12 @@ export function Cajas() {
                 ))}
               </div>
             </div>
+            {editingId !== 'new' && (
+              <label className="flex w-fit items-center gap-2 text-sm">
+                <input type="checkbox" checked={form.activo} onChange={(e) => setForm({ ...form, activo: e.target.checked })} />
+                Activa
+              </label>
+            )}
             <div className="flex gap-2">
               <Button disabled={saving} onClick={guardar}><Check />{saving ? 'Guardando…' : editingId === 'new' ? 'Crear' : 'Guardar'}</Button>
               <Button type="button" variant="outline" onClick={() => setEditingId(null)}>Cancelar</Button>
@@ -164,15 +138,51 @@ export function Cajas() {
         </Card>
       )}
 
-      <Card>
-        <CardContent>
-          {loading ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">Cargando…</p>
-          ) : (
-            <DataTable columns={columns} data={cajas} emptyMessage="Sin cajas todavía." />
-          )}
-        </CardContent>
-      </Card>
+      {loading ? (
+        <p className="py-6 text-center text-sm text-muted-foreground">Cargando…</p>
+      ) : cajas.length > 0 ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {cajas.map((c) => (
+            <Card key={c.id} className={c.activo ? undefined : 'opacity-50'}>
+              <CardContent className="grid gap-2 pt-6">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="flex items-center gap-2 font-semibold"><Wallet className="size-4 text-emerald-600 dark:text-emerald-400" />{c.nombre}</p>
+                  <div className="flex gap-1">
+                    {!!c.es_default && <Badge className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-400">Por defecto</Badge>}
+                    {!c.activo && <Badge variant="secondary">Inactiva</Badge>}
+                  </div>
+                </div>
+
+                {c.descripcion && <p className="text-sm text-muted-foreground">{c.descripcion}</p>}
+
+                <div>
+                  <p className="mb-1 text-sm text-muted-foreground">Medios de pago:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {c.medios_pago.length > 0 ? (
+                      c.medios_pago.map((m) => <Badge key={m} variant="outline">{MEDIOS_PAGO_LABELS[m] ?? m}</Badge>)
+                    ) : (
+                      <span className="text-sm text-muted-foreground">Sin medios configurados</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <Button size="sm" variant="outline" asChild><Link to={`/caja?caja_id=${c.id}`}><Eye />Ver movimientos</Link></Button>
+                  <Button size="sm" variant="outline" onClick={() => startEdit(c)}><Pencil />Editar</Button>
+                  {!c.es_default && (
+                    <>
+                      <Button size="sm" variant="outline" onClick={() => setDefault(c)} title="Usar como caja por defecto"><Star />Predeterminar</Button>
+                      <Button size="sm" variant="outline" onClick={() => eliminar(c)}><Trash2 /></Button>
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <Card><CardContent className="py-6 text-center text-muted-foreground">No hay cajas configuradas.</CardContent></Card>
+      )}
     </div>
   )
 }

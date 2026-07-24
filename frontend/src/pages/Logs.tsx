@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, ApiError, type LogsData, type LogActividad } from '../api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,7 +11,8 @@ import {
 } from '@/components/ui/select'
 import {
   Download, ShoppingCart, PiggyBank, Boxes, FileText, Clock, PackageCheck, ClipboardList,
-  ChevronLeft, ChevronRight, CalendarDays, Shield, LogIn, LogOut, XCircle, Inbox, Eye, User as UserIcon,
+  ChevronLeft, ChevronRight, CalendarDays, Shield, LogIn, LogOut, XCircle, Inbox, ExternalLink,
+  User as UserIcon, BookText,
 } from 'lucide-react'
 
 // Orden y set canonico de tipos -- coincide con TIPO_META de
@@ -120,7 +121,7 @@ export function Logs() {
   return (
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Logs de actividad</h2>
+        <h2 className="flex items-center gap-2 text-lg font-semibold"><BookText className="size-5 text-primary" />Logs de actividad</h2>
         <Button asChild size="sm" variant="outline">
           <a href={`/admin/logs/export${(() => { const qs = queryString(); return qs ? `?${qs}` : '' })()}`}><Download />Exportar CSV</a>
         </Button>
@@ -196,41 +197,63 @@ export function Logs() {
                   <Inbox className="size-6" />No hay registros para los filtros seleccionados.
                 </p>
               ) : (
-                <div className="divide-y">
-                  {grupos.map((g) => (
-                    <div key={g.fecha}>
-                      <div className="flex items-center gap-2 bg-muted/50 px-4 py-1.5 text-xs font-semibold text-muted-foreground">
-                        <CalendarDays className="size-3.5" />{g.fecha}
-                      </div>
-                      {g.rows.map((r, i) => {
-                        const meta = data.tipo_meta[r.tipo]
-                        const Icon = TIPO_ICONS[r.tipo] ?? ShoppingCart
-                        const verPath = r.ref_tabla ? VER_PATHS[r.ref_tabla] : undefined
-                        return (
-                          <div key={i} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-sm hover:bg-muted/30">
-                            <div className="flex min-w-0 items-center gap-3">
-                              <Badge style={{ backgroundColor: meta?.color }} className="shrink-0 gap-1 text-white">
-                                <Icon className="size-3.5" />{meta?.label ?? r.tipo}
-                              </Badge>
-                              <span className="truncate">{r.descripcion}</span>
-                            </div>
-                            <div className="flex shrink-0 items-center gap-3 text-muted-foreground">
-                              {r.usuario && <span className="flex items-center gap-1"><UserIcon className="size-3.5" />{r.usuario}</span>}
-                              {r.turno_id != null && <Badge variant="outline">#{r.turno_id}</Badge>}
-                              <span className={r.tipo === 'stock' ? '' : 'font-medium text-foreground'}>
-                                {r.monto ? (r.tipo === 'stock' ? r.monto : formatCurrency(r.monto)) : '—'}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="border-b text-muted-foreground">
+                      <tr>
+                        <th className="w-28 p-3 text-left font-medium">Tipo</th>
+                        <th className="p-3 text-left font-medium">Descripción</th>
+                        <th className="w-28 p-3 text-right font-medium">Monto</th>
+                        <th className="w-32 p-3 text-left font-medium">Usuario</th>
+                        <th className="w-20 p-3 text-center font-medium">Turno</th>
+                        <th className="w-10 p-3"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {grupos.map((g) => (
+                        <Fragment key={g.fecha}>
+                          <tr className="bg-muted/50">
+                            <td colSpan={6} className="px-3 py-1.5">
+                              <span className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                                <CalendarDays className="size-3.5" />{g.fecha}
                               </span>
-                              {verPath && r.ref_id != null && (
-                                <Button asChild size="sm" variant="ghost" className="h-7 px-2">
-                                  <Link to={`${verPath}?ver=${r.ref_id}`}><Eye />Ver</Link>
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  ))}
+                            </td>
+                          </tr>
+                          {g.rows.map((r, i) => {
+                            const meta = data.tipo_meta[r.tipo]
+                            const Icon = TIPO_ICONS[r.tipo] ?? ShoppingCart
+                            const verPath = r.ref_tabla ? VER_PATHS[r.ref_tabla] : undefined
+                            return (
+                              <tr key={`${g.fecha}-${i}`} className="border-b last:border-0 hover:bg-muted/30">
+                                <td className="p-3">
+                                  <Badge style={{ backgroundColor: meta?.color }} className="gap-1 text-white">
+                                    <Icon className="size-3.5" />{meta?.label ?? r.tipo}
+                                  </Badge>
+                                </td>
+                                <td className="p-3">{r.descripcion}</td>
+                                <td className={`p-3 text-right ${r.tipo === 'stock' ? 'text-muted-foreground' : 'font-medium'}`}>
+                                  {r.monto ? (r.tipo === 'stock' ? r.monto : formatCurrency(r.monto)) : '—'}
+                                </td>
+                                <td className="p-3 text-muted-foreground">
+                                  {r.usuario ? <span className="flex items-center gap-1"><UserIcon className="size-3.5" />{r.usuario}</span> : '—'}
+                                </td>
+                                <td className="p-3 text-center">
+                                  {r.turno_id != null ? <Badge variant="outline">#{r.turno_id}</Badge> : '—'}
+                                </td>
+                                <td className="p-3 text-right">
+                                  {verPath && r.ref_id != null && (
+                                    <Button asChild size="icon" variant="ghost" className="size-7 text-muted-foreground" title="Ver">
+                                      <Link to={`${verPath}?ver=${r.ref_id}`}><ExternalLink /></Link>
+                                    </Button>
+                                  )}
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </Fragment>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </CardContent>

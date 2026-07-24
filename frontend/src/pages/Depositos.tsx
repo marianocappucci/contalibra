@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
-import { type ColumnDef } from '@tanstack/react-table'
+import { useEffect, useState } from 'react'
 import { api, ApiError, type Deposito, type Producto, type StockItem, type StockPorDeposito } from '../api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -9,9 +8,8 @@ import { Badge } from '@/components/ui/badge'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import { DataTable, sortableHeader } from '@/components/data-table'
 import {
-  ArrowLeftRight, Check, Eye, Pencil, Plus, Star, Trash2, Warehouse,
+  ArrowLeftRight, Building2, Check, Eye, Info, Package, Pencil, Plus, Star, Trash2,
 } from 'lucide-react'
 
 function todayIso(): string {
@@ -26,12 +24,14 @@ export function Depositos() {
   const [editingId, setEditingId] = useState<number | 'new' | null>(null)
   const [nombre, setNombre] = useState('')
   const [descripcion, setDescripcion] = useState('')
+  const [activoEdit, setActivoEdit] = useState(true)
   const [saving, setSaving] = useState(false)
 
   const [productoId, setProductoId] = useState('')
   const [origenId, setOrigenId] = useState('')
   const [destinoId, setDestinoId] = useState('')
   const [cantidad, setCantidad] = useState('')
+  const [fechaTransf, setFechaTransf] = useState(todayIso())
   const [observaciones, setObservaciones] = useState('')
   const [stockOrigen, setStockOrigen] = useState<StockPorDeposito[]>([])
   const [transfiriendo, setTransfiriendo] = useState(false)
@@ -83,12 +83,14 @@ export function Depositos() {
     setEditingId('new')
     setNombre('')
     setDescripcion('')
+    setActivoEdit(true)
   }
 
   function startEdit(d: Deposito) {
     setEditingId(d.id)
     setNombre(d.nombre)
     setDescripcion(d.descripcion ?? '')
+    setActivoEdit(!!d.activo)
   }
 
   async function guardar() {
@@ -99,8 +101,7 @@ export function Depositos() {
       if (editingId === 'new') {
         await api.post('/api/depositos', { nombre, descripcion })
       } else if (editingId) {
-        const original = depositos.find((d) => d.id === editingId)
-        await api.put(`/api/depositos/${editingId}`, { nombre, descripcion, activo: !!original?.activo })
+        await api.put(`/api/depositos/${editingId}`, { nombre, descripcion, activo: activoEdit })
       }
       setEditingId(null)
       await load()
@@ -139,7 +140,7 @@ export function Depositos() {
     try {
       await api.post('/api/depositos/transferir', {
         producto_id: Number(productoId), origen_id: Number(origenId), destino_id: Number(destinoId),
-        cantidad: Number(cantidad), fecha: todayIso(), observaciones,
+        cantidad: Number(cantidad), fecha: fechaTransf, observaciones,
       })
       setCantidad('')
       setObservaciones('')
@@ -155,41 +156,6 @@ export function Depositos() {
     }
   }
 
-  const columns = useMemo<ColumnDef<Deposito>[]>(() => [
-    { accessorKey: 'nombre', header: sortableHeader('Nombre'), cell: ({ row }) => (
-      <span className="font-medium">
-        {row.original.nombre}
-        {row.original.es_default ? <Badge variant="secondary" className="ml-2">Por defecto</Badge> : null}
-      </span>
-    ) },
-    { accessorKey: 'descripcion', header: 'Descripción', cell: ({ row }) => row.original.descripcion || '—' },
-    { accessorKey: 'total_productos', header: 'Productos con stock' },
-    {
-      accessorKey: 'activo',
-      header: 'Estado',
-      cell: ({ row }) => <Badge variant={row.original.activo ? 'default' : 'outline'}>{row.original.activo ? 'Activo' : 'Inactivo'}</Badge>,
-    },
-    {
-      id: 'actions',
-      header: () => <div className="text-right">Acciones</div>,
-      cell: ({ row }) => (
-        <div className="flex justify-end gap-2">
-          <Button size="sm" variant="outline" onClick={() => setVerStockId(verStockId === row.original.id ? null : row.original.id)}>
-            <Eye />{verStockId === row.original.id ? 'Ocultar' : 'Ver stock'}
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => startEdit(row.original)}><Pencil />Editar</Button>
-          {!row.original.es_default && (
-            <>
-              <Button size="sm" variant="outline" title="Usar como depósito por defecto" onClick={() => setDefault(row.original)}><Star />Predeterminar</Button>
-              <Button size="sm" variant="outline" onClick={() => eliminar(row.original)}><Trash2 />Eliminar</Button>
-            </>
-          )}
-        </div>
-      ),
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [verStockId])
-
   const estadoStock = (s: StockItem): { label: string; className: string } => {
     if (s.stock_actual <= 0) return { label: 'Sin stock', className: 'border-destructive/30 bg-destructive/10 text-destructive' }
     if (s.stock_minimo > 0 && s.stock_actual < s.stock_minimo) return { label: 'Bajo mínimo', className: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400' }
@@ -200,7 +166,7 @@ export function Depositos() {
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-lg font-semibold"><Warehouse className="size-5" />Depósitos</h2>
+        <h2 className="flex items-center gap-2 text-lg font-semibold"><Building2 className="size-5" />Depósitos</h2>
         <div className="flex items-center gap-2">
           {editingId === null && <Button variant="outline" onClick={() => document.getElementById('transferir-stock')?.scrollIntoView({ behavior: 'smooth' })}><ArrowLeftRight />Transferir stock</Button>}
           {editingId === null && <Button onClick={startCreate}><Plus />Nuevo depósito</Button>}
@@ -211,25 +177,62 @@ export function Depositos() {
 
       {editingId !== null && (
         <Card>
-          <CardHeader><CardTitle className="text-base">{editingId === 'new' ? 'Nuevo depósito' : 'Editar depósito'}</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">
+              {editingId === 'new' ? 'Nuevo depósito' : `Editar: ${depositos.find((d) => d.id === editingId)?.nombre ?? ''}`}
+            </CardTitle>
+          </CardHeader>
           <CardContent className="flex flex-wrap items-end gap-3">
             <div className="grid gap-1.5"><Label>Nombre</Label><Input value={nombre} onChange={(e) => setNombre(e.target.value)} className="w-48" /></div>
-            <div className="grid gap-1.5"><Label>Descripción</Label><Input value={descripcion} onChange={(e) => setDescripcion(e.target.value)} className="w-64" /></div>
-            <Button disabled={saving} onClick={guardar}><Check />{saving ? 'Guardando…' : editingId === 'new' ? 'Crear' : 'Guardar'}</Button>
+            <div className="grid gap-1.5"><Label>Descripción</Label><Input value={descripcion} onChange={(e) => setDescripcion(e.target.value)} className="w-64" placeholder="Ej: Almacén norte, Depósito de materias primas…" /></div>
+            {editingId !== 'new' && (
+              <label className="flex items-center gap-2 pb-2 text-sm">
+                <input type="checkbox" checked={activoEdit} onChange={(e) => setActivoEdit(e.target.checked)} />Activo
+              </label>
+            )}
+            <Button disabled={saving} onClick={guardar}><Check />{saving ? 'Guardando…' : 'Guardar'}</Button>
             <Button type="button" variant="outline" onClick={() => setEditingId(null)}>Cancelar</Button>
           </CardContent>
         </Card>
       )}
 
-      <Card>
-        <CardContent>
-          {loading ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">Cargando…</p>
-          ) : (
-            <DataTable columns={columns} data={depositos} emptyMessage="Sin depósitos todavía." />
-          )}
-        </CardContent>
-      </Card>
+      {loading ? (
+        <p className="py-6 text-center text-sm text-muted-foreground">Cargando…</p>
+      ) : depositos.length === 0 ? (
+        <Card><CardContent className="py-6 text-center text-sm text-muted-foreground">No hay depósitos creados.</CardContent></Card>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {depositos.map((d) => (
+            <Card key={d.id} className={d.activo ? '' : 'opacity-50'}>
+              <CardContent className="grid gap-3">
+                <div>
+                  <p className="flex items-center gap-2 font-semibold"><Building2 className="size-4 text-primary" />{d.nombre}</p>
+                  <div className="mt-1 flex gap-1.5">
+                    {d.es_default && <Badge variant="default">Por defecto</Badge>}
+                    {!d.activo && <Badge variant="secondary">Inactivo</Badge>}
+                  </div>
+                </div>
+                {d.descripcion && <p className="text-sm text-muted-foreground">{d.descripcion}</p>}
+                <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Package className="size-4" />{d.total_productos} producto{d.total_productos !== 1 ? 's' : ''} con stock
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" onClick={() => setVerStockId(verStockId === d.id ? null : d.id)}>
+                    <Eye />{verStockId === d.id ? 'Ocultar' : 'Ver stock'}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => startEdit(d)}><Pencil />Editar</Button>
+                  {!d.es_default && (
+                    <>
+                      <Button size="sm" variant="outline" title="Usar como depósito por defecto" onClick={() => setDefault(d)}><Star />Predeterminar</Button>
+                      <Button size="sm" variant="outline" onClick={() => eliminar(d)}><Trash2 /></Button>
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {depositoAbierto && (
         <Card>
@@ -285,43 +288,19 @@ export function Depositos() {
       <Card id="transferir-stock">
         <CardHeader><CardTitle className="flex items-center gap-2 text-base"><ArrowLeftRight className="size-4" />Transferir stock entre depósitos</CardTitle></CardHeader>
         <CardContent className="grid gap-3">
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="grid gap-1.5">
-              <Label>Producto</Label>
-              <Select value={productoId} onValueChange={setProductoId}>
-                <SelectTrigger className="w-52"><SelectValue placeholder="Elegir producto…" /></SelectTrigger>
-                <SelectContent>
-                  {productos.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.nombre}{p.codigo ? ` (${p.codigo})` : ''}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-1.5">
-              <Label>Origen</Label>
-              <Select value={origenId} onValueChange={setOrigenId}>
-                <SelectTrigger className="w-40"><SelectValue placeholder="Depósito…" /></SelectTrigger>
-                <SelectContent>
-                  {depositos.filter((d) => d.activo).map((d) => <SelectItem key={d.id} value={String(d.id)}>{d.nombre}{d.es_default ? ' ★' : ''}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-1.5">
-              <Label>Destino</Label>
-              <Select value={destinoId} onValueChange={setDestinoId}>
-                <SelectTrigger className="w-40"><SelectValue placeholder="Depósito…" /></SelectTrigger>
-                <SelectContent>
-                  {depositos.filter((d) => d.activo).map((d) => <SelectItem key={d.id} value={String(d.id)}>{d.nombre}{d.es_default ? ' ★' : ''}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-1.5"><Label>Cantidad</Label><Input type="number" step="0.01" value={cantidad} onChange={(e) => setCantidad(e.target.value)} className="w-28" /></div>
-            <div className="grid gap-1.5"><Label>Observaciones</Label><Input value={observaciones} onChange={(e) => setObservaciones(e.target.value)} placeholder="Opcional" className="w-48" /></div>
-            <Button disabled={transfiriendo || !productoId || !origenId || !destinoId || !cantidad} onClick={transferir}>
-              <ArrowLeftRight />{transfiriendo ? 'Transfiriendo…' : 'Confirmar transferencia'}
-            </Button>
+          <div className="grid gap-1.5 max-w-sm">
+            <Label>Producto</Label>
+            <Select value={productoId} onValueChange={setProductoId}>
+              <SelectTrigger><SelectValue placeholder="Elegir producto…" /></SelectTrigger>
+              <SelectContent>
+                {productos.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.nombre}{p.codigo ? ` (${p.codigo})` : ''}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
+
           {stockOrigen.length > 0 && (
             <div className="rounded-md border bg-muted/40 p-3 text-sm">
-              <p className="mb-1 font-medium text-muted-foreground">Stock disponible por depósito:</p>
+              <p className="mb-1 flex items-center gap-1.5 font-medium text-muted-foreground"><Info className="size-4" />Stock disponible por depósito:</p>
               <ul className="flex flex-wrap gap-x-4 gap-y-1">
                 {stockOrigen.map((s) => (
                   <li key={s.id}>{s.nombre}{s.es_default ? ' ★' : ''}: <span className="font-medium text-foreground">{s.stock_actual}</span></li>
@@ -329,6 +308,35 @@ export function Depositos() {
               </ul>
             </div>
           )}
+
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="grid gap-1.5">
+              <Label>Depósito origen</Label>
+              <Select value={origenId} onValueChange={setOrigenId}>
+                <SelectTrigger className="w-40"><SelectValue placeholder="Origen…" /></SelectTrigger>
+                <SelectContent>
+                  {depositos.filter((d) => d.activo).map((d) => <SelectItem key={d.id} value={String(d.id)}>{d.nombre}{d.es_default ? ' ★' : ''}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-1.5">
+              <Label>Depósito destino</Label>
+              <Select value={destinoId} onValueChange={setDestinoId}>
+                <SelectTrigger className="w-40"><SelectValue placeholder="Destino…" /></SelectTrigger>
+                <SelectContent>
+                  {depositos.filter((d) => d.activo).map((d) => <SelectItem key={d.id} value={String(d.id)}>{d.nombre}{d.es_default ? ' ★' : ''}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="grid gap-1.5"><Label>Cantidad</Label><Input type="number" step="0.01" value={cantidad} onChange={(e) => setCantidad(e.target.value)} className="w-28" /></div>
+            <div className="grid gap-1.5"><Label>Fecha</Label><Input type="date" value={fechaTransf} onChange={(e) => setFechaTransf(e.target.value)} className="w-40" /></div>
+            <div className="grid gap-1.5"><Label>Observaciones</Label><Input value={observaciones} onChange={(e) => setObservaciones(e.target.value)} placeholder="Opcional" className="w-48" /></div>
+            <Button disabled={transfiriendo || !productoId || !origenId || !destinoId || !cantidad} onClick={transferir}>
+              <ArrowLeftRight />{transfiriendo ? 'Transfiriendo…' : 'Confirmar transferencia'}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

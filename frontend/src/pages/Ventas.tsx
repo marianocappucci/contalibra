@@ -13,10 +13,11 @@ import { Badge } from '@/components/ui/badge'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { DataTable, sortableHeader } from '@/components/data-table'
 import {
   ShoppingCart, Plus, Eye, Printer, FileCheck, Ban, UserPlus, X, CheckCircle2,
-  ReceiptText, PackageCheck, QrCode,
+  ReceiptText, PackageCheck, QrCode, ListChecks,
 } from 'lucide-react'
 
 function todayIso(): string {
@@ -35,6 +36,13 @@ const EMPTY_PAGO: PagoRow = { medio: 'efectivo', monto: '', referencia: '' }
 
 const estadoVariant: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
   cobrada: 'default', parcial: 'secondary', pendiente: 'outline', anulada: 'destructive',
+}
+
+const ESTADO_LABELS: Record<string, string> = {
+  cobrada: 'Cobrada', parcial: 'Pago parcial', pendiente: 'Pendiente', anulada: 'Anulada',
+}
+function estadoLabel(estado: string): string {
+  return ESTADO_LABELS[estado] ?? estado
 }
 
 export function Ventas() {
@@ -239,16 +247,16 @@ export function Ventas() {
   }
 
   const columns = useMemo<ColumnDef<Venta>[]>(() => [
-    { accessorKey: 'numero', header: sortableHeader('Número'), cell: ({ row }) => <span className="font-mono text-sm">{row.original.numero}</span> },
+    { accessorKey: 'numero', header: sortableHeader('N°'), cell: ({ row }) => <span className="font-mono text-sm font-semibold text-primary">{row.original.numero}</span> },
     { accessorKey: 'fecha', header: 'Fecha' },
-    { accessorKey: 'cliente_nombre', header: 'Cliente', cell: ({ row }) => row.original.cliente_nombre || 'Consumidor Final' },
+    { accessorKey: 'cliente_nombre', header: 'Cliente', cell: ({ row }) => row.original.cliente_nombre || '—' },
     {
       id: 'pagos',
       header: 'Medios de pago',
       cell: ({ row }) => (
         <div className="flex flex-wrap gap-1">
           {row.original.pagos.length === 0
-            ? <span className="text-muted-foreground">—</span>
+            ? null
             : row.original.pagos.map((p, i) => (
               <Badge key={i} variant="outline" className="font-normal">{MEDIOS_PAGO_LABELS[p.medio] ?? p.medio}: {formatCurrency(p.monto)}</Badge>
             ))}
@@ -257,6 +265,11 @@ export function Ventas() {
     },
     { accessorKey: 'total', header: 'Total', cell: ({ row }) => <span className="font-medium">{formatCurrency(row.original.total)}</span> },
     {
+      accessorKey: 'estado',
+      header: 'Estado',
+      cell: ({ row }) => <Badge variant={estadoVariant[row.original.estado] ?? 'outline'}>{estadoLabel(row.original.estado)}</Badge>,
+    },
+    {
       id: 'factura',
       header: 'Factura',
       cell: ({ row }) => row.original.factura_display
@@ -264,11 +277,6 @@ export function Ventas() {
         : row.original.estado !== 'anulada'
           ? <Badge variant="outline" className="text-amber-700 dark:text-amber-400">Sin facturar</Badge>
           : <span className="text-muted-foreground">—</span>,
-    },
-    {
-      accessorKey: 'estado',
-      header: 'Estado',
-      cell: ({ row }) => <Badge variant={estadoVariant[row.original.estado] ?? 'outline'}>{row.original.estado}</Badge>,
     },
     {
       id: 'actions',
@@ -291,33 +299,39 @@ export function Ventas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [user, abiertoId])
 
+  const emptyMessage = tab === 'sin_facturar'
+    ? 'No hay ventas pendientes de facturar.'
+    : tab === 'facturadas'
+      ? 'No hay ventas facturadas aún.'
+      : 'No hay ventas registradas aún.'
+
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-lg font-semibold"><ShoppingCart className="size-5" />Ventas</h2>
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="grid gap-1.5">
-            <Label>Buscar</Label>
-            <Input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} className="w-44" placeholder="Número o cliente…" />
-          </div>
+      <div className="flex items-center justify-between">
+        <h2 className="flex items-center gap-2 text-lg font-semibold"><ShoppingCart className="size-5 text-primary" />Ventas</h2>
+        {!creating && <Button onClick={() => setCreating(true)}><Plus />Nueva venta</Button>}
+      </div>
+
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList>
+          <TabsTrigger value="todas"><ListChecks />Todas</TabsTrigger>
+          <TabsTrigger value="sin_facturar"><ReceiptText />Sin facturar</TabsTrigger>
+          <TabsTrigger value="facturadas"><FileCheck />Facturadas</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      <Card>
+        <CardContent className="flex flex-wrap items-end gap-2 py-3">
           <div className="grid gap-1.5"><Label>Desde</Label><Input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className="w-40" /></div>
           <div className="grid gap-1.5"><Label>Hasta</Label><Input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className="w-40" /></div>
-          <Button size="sm" variant="outline" onClick={load}>Filtrar</Button>
-          {(q || desde || hasta) && <Button size="sm" variant="ghost" onClick={limpiarFiltros}>Limpiar</Button>}
           <div className="grid gap-1.5">
-            <Label>Vista</Label>
-            <Select value={tab} onValueChange={setTab}>
-              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todas">Todas</SelectItem>
-                <SelectItem value="sin_facturar">Sin facturar</SelectItem>
-                <SelectItem value="facturadas">Facturadas</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label>Buscar</Label>
+            <Input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} className="min-w-48" placeholder="Buscar…" />
           </div>
-          {!creating && <Button onClick={() => setCreating(true)}><Plus />Nueva venta</Button>}
-        </div>
-      </div>
+          <Button size="sm" variant="outline" onClick={load}>Filtrar</Button>
+          {(q || desde || hasta) && <Button size="sm" variant="outline" onClick={limpiarFiltros}>Limpiar</Button>}
+        </CardContent>
+      </Card>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
@@ -435,106 +449,117 @@ export function Ventas() {
           {loading ? (
             <p className="py-6 text-center text-sm text-muted-foreground">Cargando…</p>
           ) : (
-            <DataTable columns={columns} data={ventas} emptyMessage="Sin ventas todavía." />
+            <DataTable columns={columns} data={ventas} emptyMessage={emptyMessage} />
           )}
         </CardContent>
       </Card>
 
       {abiertoId !== null && detalle && (
-        <div className="grid gap-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader><CardTitle className="text-base">Datos de la venta</CardTitle></CardHeader>
-              <CardContent className="grid gap-1.5 text-sm">
-                <p><span className="text-muted-foreground">Fecha:</span> {detalle.fecha}</p>
-                <p><span className="text-muted-foreground">Cliente:</span> {detalle.cliente_nombre || 'Consumidor final'}</p>
-                {detalle.observaciones && <p><span className="text-muted-foreground">Obs.:</span> {detalle.observaciones}</p>}
-                <p><span className="text-muted-foreground">Estado:</span> <Badge variant={estadoVariant[detalle.estado] ?? 'outline'}>{detalle.estado}</Badge></p>
+        <Card>
+          <CardHeader className="flex-row items-center justify-between space-y-0">
+            <CardTitle className="flex items-center gap-2 text-base">
+              Venta {detalle.numero}
+              <Badge variant={estadoVariant[detalle.estado] ?? 'outline'}>{estadoLabel(detalle.estado)}</Badge>
+            </CardTitle>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild size="sm" variant="outline"><a href={`/ventas/${detalle.id}/ticket`} target="_blank" rel="noreferrer"><Printer />Ticket</a></Button>
+              {detalle.pagos.length > 0 && <Button asChild size="sm" variant="outline"><a href={`/ventas/${detalle.id}/recibo`} target="_blank" rel="noreferrer"><FileCheck />Recibo</a></Button>}
+            </div>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card>
+                <CardHeader><CardTitle className="text-base">Datos de la venta</CardTitle></CardHeader>
+                <CardContent className="grid gap-1.5 text-sm">
+                  <p><span className="text-muted-foreground">Fecha:</span> {detalle.fecha}</p>
+                  <p><span className="text-muted-foreground">Cliente:</span> {detalle.cliente_nombre || '— Consumidor final —'}</p>
+                  {detalle.observaciones && <p><span className="text-muted-foreground">Obs.:</span> {detalle.observaciones}</p>}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader><CardTitle className="flex items-center gap-2 text-base"><CheckCircle2 className="size-4" />Pagos recibidos</CardTitle></CardHeader>
+                <CardContent className="grid gap-1.5 text-sm">
+                  {detalle.pagos.length === 0 ? (
+                    <p className="text-muted-foreground">Sin pagos registrados.</p>
+                  ) : (
+                    <>
+                      {detalle.pagos.map((p, i) => (
+                        <div key={i} className="grid gap-0.5">
+                          <div className="flex justify-between">
+                            <Badge variant="outline">{MEDIOS_PAGO_LABELS[p.medio] ?? p.medio}</Badge>
+                            <span className="font-medium">{formatCurrency(p.monto)}</span>
+                          </div>
+                          {p.referencia && <p className="flex items-center gap-1 text-xs text-muted-foreground"><CheckCircle2 className="size-3.5 text-emerald-600" />Ref: {p.referencia}</p>}
+                        </div>
+                      ))}
+                      <div className="mt-1 flex justify-between border-t pt-1.5 font-semibold">
+                        <span>Total cobrado</span><span>{formatCurrency(detalle.pagos.reduce((a, p) => a + p.monto, 0))}</span>
+                      </div>
+                      {detalle.pagos.some((p) => ['mercadopago', 'billetera', 'cuenta_dni'].includes(p.medio)) && detalle.estado === 'cobrada' && (
+                        <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground"><QrCode className="size-3.5" />Cobro con QR dinámico de MercadoPago: alcance recortado deliberadamente en esta etapa (ver wiki/entities/contalibra.md, Etapa C).</p>
+                      )}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {(detalle.factura_display || detalle.remito_id) && (
+              <div className="grid gap-2 sm:grid-cols-2">
                 {detalle.factura_display && (
-                  <p><span className="text-muted-foreground">Factura:</span> <a href={`/facturas?ver=${detalle.factura_id}`} className="font-medium text-emerald-600 hover:underline dark:text-emerald-400">{detalle.factura_display}</a></p>
+                  <p className="flex items-center gap-2 rounded-md border bg-muted/50 p-3 text-sm"><ReceiptText className="size-4 text-emerald-600" />Factura generada: <a href={`/facturas?ver=${detalle.factura_id}`} className="font-semibold text-emerald-600 hover:underline dark:text-emerald-400">ver factura</a></p>
                 )}
                 {detalle.remito_id && (
-                  <p><span className="text-muted-foreground">Remito:</span> <a href={`/remitos?ver=${detalle.remito_id}`} className="font-medium text-primary hover:underline">ver remito</a></p>
+                  <p className="flex items-center gap-2 rounded-md border bg-muted/50 p-3 text-sm"><PackageCheck className="size-4 text-primary" />Remito generado: <a href={`/remitos?ver=${detalle.remito_id}`} className="font-semibold text-primary hover:underline">ver remito</a></p>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            )}
 
             <Card>
-              <CardHeader><CardTitle className="text-base">Pagos recibidos</CardTitle></CardHeader>
-              <CardContent className="grid gap-1.5 text-sm">
-                {detalle.pagos.length === 0 ? (
-                  <p className="text-muted-foreground">Sin pagos registrados.</p>
-                ) : (
-                  <>
-                    {detalle.pagos.map((p, i) => (
-                      <div key={i} className="grid gap-0.5">
-                        <div className="flex justify-between">
-                          <Badge variant="outline">{MEDIOS_PAGO_LABELS[p.medio] ?? p.medio}</Badge>
-                          <span className="font-medium">{formatCurrency(p.monto)}</span>
-                        </div>
-                        {p.referencia && <p className="flex items-center gap-1 text-xs text-muted-foreground"><CheckCircle2 className="size-3.5 text-emerald-600" />Ref: {p.referencia}</p>}
-                      </div>
-                    ))}
-                    <div className="mt-1 flex justify-between border-t pt-1.5 font-semibold">
-                      <span>Total cobrado</span><span>{formatCurrency(detalle.pagos.reduce((a, p) => a + p.monto, 0))}</span>
-                    </div>
-                    {detalle.pagos.some((p) => ['mercadopago', 'billetera', 'cuenta_dni'].includes(p.medio)) && detalle.estado === 'cobrada' && (
-                      <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground"><QrCode className="size-3.5" />Cobro con QR dinámico de MercadoPago: alcance recortado deliberadamente en esta etapa (ver wiki/entities/contalibra.md, Etapa C).</p>
-                    )}
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card>
-            <CardHeader><CardTitle className="text-base">Artículos vendidos</CardTitle></CardHeader>
-            <CardContent className="p-0">
-              <table className="w-full text-sm">
-                <thead className="border-b text-muted-foreground">
-                  <tr>
-                    <th className="p-3 text-left font-medium">Descripción</th>
-                    <th className="p-3 text-right font-medium">Cant.</th>
-                    <th className="p-3 text-right font-medium">Precio unit.</th>
-                    <th className="p-3 text-right font-medium">Subtotal</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {detalle.items.map((it, i) => (
-                    <tr key={i} className="border-b last:border-0">
-                      <td className="p-3">{it.nombre}</td>
-                      <td className="p-3 text-right">{it.qty}</td>
-                      <td className="p-3 text-right">{formatCurrency(it.precio)}</td>
-                      <td className="p-3 text-right font-medium">{formatCurrency(it.subtotal)}</td>
+              <CardHeader><CardTitle className="text-base">Artículos vendidos</CardTitle></CardHeader>
+              <CardContent className="p-0">
+                <table className="w-full text-sm">
+                  <thead className="border-b text-muted-foreground">
+                    <tr>
+                      <th className="p-3 text-left font-medium">Descripción</th>
+                      <th className="p-3 text-right font-medium">Cant.</th>
+                      <th className="p-3 text-right font-medium">Precio unit.</th>
+                      <th className="p-3 text-right font-medium">Subtotal</th>
                     </tr>
-                  ))}
-                </tbody>
-                <tfoot className="font-medium">
-                  <tr><td colSpan={3} className="p-3 text-right text-muted-foreground">Subtotal</td><td className="p-3 text-right">{formatCurrency(detalle.subtotal)}</td></tr>
-                  {detalle.descuento > 0 && (
-                    <tr><td colSpan={3} className="p-3 text-right text-muted-foreground">Descuento</td><td className="p-3 text-right text-destructive">− {formatCurrency(detalle.descuento)}</td></tr>
-                  )}
-                  <tr className="text-base"><td colSpan={3} className="p-3 text-right font-semibold">TOTAL</td><td className="p-3 text-right font-semibold text-primary">{formatCurrency(detalle.total)}</td></tr>
-                </tfoot>
-              </table>
-            </CardContent>
-          </Card>
+                  </thead>
+                  <tbody>
+                    {detalle.items.map((it, i) => (
+                      <tr key={i} className="border-b last:border-0">
+                        <td className="p-3">{it.nombre}</td>
+                        <td className="p-3 text-right">{it.qty}</td>
+                        <td className="p-3 text-right">{formatCurrency(it.precio)}</td>
+                        <td className="p-3 text-right font-medium">{formatCurrency(it.subtotal)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="font-medium">
+                    <tr><td colSpan={3} className="p-3 text-right text-muted-foreground">Subtotal</td><td className="p-3 text-right">{formatCurrency(detalle.subtotal)}</td></tr>
+                    {detalle.descuento > 0 && (
+                      <tr><td colSpan={3} className="p-3 text-right text-muted-foreground">Descuento</td><td className="p-3 text-right text-destructive">− {formatCurrency(detalle.descuento)}</td></tr>
+                    )}
+                    <tr className="text-base"><td colSpan={3} className="p-3 text-right font-semibold">TOTAL</td><td className="p-3 text-right font-semibold text-primary">{formatCurrency(detalle.total)}</td></tr>
+                  </tfoot>
+                </table>
+              </CardContent>
+            </Card>
 
-          {(detalle.estado === 'cobrada' || detalle.estado === 'parcial') && (
-            <Card>
-              <CardHeader><CardTitle className="text-base">Acciones</CardTitle></CardHeader>
-              <CardContent className="flex flex-wrap gap-2">
+            {(detalle.estado === 'cobrada' || detalle.estado === 'parcial') && (
+              <div className="flex flex-wrap gap-2 border-t pt-4">
                 {!detalle.factura_id && <Button asChild size="sm" variant="outline"><a href="/facturas?nuevo=1"><ReceiptText />Generar factura</a></Button>}
                 {!detalle.remito_id && <Button asChild size="sm" variant="outline"><a href="/remitos?nuevo=1"><PackageCheck />Generar remito</a></Button>}
-                <Button asChild size="sm" variant="outline"><a href={`/ventas/${detalle.id}/ticket`} target="_blank" rel="noreferrer"><Printer />Ticket</a></Button>
-                {detalle.pagos.length > 0 && <Button asChild size="sm" variant="outline"><a href={`/ventas/${detalle.id}/recibo`} target="_blank" rel="noreferrer"><FileCheck />Recibo</a></Button>}
                 {user?.role === 'admin' && (
-                  <Button size="sm" variant="destructive" onClick={() => anular(detalle)}><Ban />Anular venta</Button>
+                  <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => anular(detalle)}><Ban />Anular venta</Button>
                 )}
-              </CardContent>
-            </Card>
-          )}
-        </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
     </div>
   )

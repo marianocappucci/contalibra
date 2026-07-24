@@ -182,11 +182,15 @@ export function Proveedores() {
     }
   }
 
+  // Orden igual a web/templates/proveedores/list.html: Nombre, CUIT/DNI,
+  // Email, Teléfono, acciones. Esa fila solo tenía Ver + Editar -- "Eliminar
+  // proveedor" vivía como botón aparte al pie de la página de detalle
+  // (proveedores/detail.html), no en la fila de la lista.
   const columns = useMemo<ColumnDef<Proveedor>[]>(() => [
     { accessorKey: 'nombre', header: sortableHeader('Nombre'), cell: ({ row }) => <span className="font-medium">{row.original.nombre}</span> },
     { accessorKey: 'cuit_dni', header: 'CUIT/DNI', cell: ({ row }) => row.original.cuit_dni || '—' },
-    { accessorKey: 'phone', header: 'Teléfono', cell: ({ row }) => row.original.phone || '—' },
     { accessorKey: 'email', header: 'Email', cell: ({ row }) => row.original.email || '—' },
+    { accessorKey: 'phone', header: 'Teléfono', cell: ({ row }) => row.original.phone || '—' },
     {
       id: 'actions',
       header: () => <div className="text-right">Acciones</div>,
@@ -196,7 +200,6 @@ export function Proveedores() {
             <Eye />{viendoId === row.original.id ? 'Ocultar' : 'Ver'}
           </Button>
           <Button size="sm" variant="outline" onClick={() => startEdit(row.original)}><Pencil />Editar</Button>
-          <Button size="sm" variant="outline" onClick={() => eliminar(row.original)}><Trash2 />Eliminar</Button>
         </div>
       ),
     },
@@ -242,8 +245,8 @@ export function Proveedores() {
             placeholder="Buscar por nombre o CUIT…"
             className="w-72"
           />
-          <Button size="sm" variant="outline" onClick={() => loadProveedores()}><Search />Buscar</Button>
-          {q && <Button size="sm" variant="ghost" onClick={limpiarBusqueda}><X />Limpiar</Button>}
+          <Button variant="outline" size="icon" onClick={() => loadProveedores()}><Search /></Button>
+          {q && <Button variant="outline" size="icon" onClick={limpiarBusqueda}><X /></Button>}
         </CardContent>
       </Card>
 
@@ -360,35 +363,61 @@ export function Proveedores() {
             <DataTable
               columns={columns}
               data={proveedores}
-              emptyMessage={q ? `No se encontraron proveedores para "${q}".` : 'Sin proveedores todavía.'}
+              emptyMessage={q ? `No se encontraron proveedores para "${q}".` : 'No hay proveedores registrados aún.'}
             />
           )}
         </CardContent>
       </Card>
 
       {proveedorViendo && (
-        <Card>
-          <CardHeader className="flex items-center justify-between space-y-0">
-            <CardTitle className="text-base">Egresos de {proveedorViendo.nombre}</CardTitle>
-            <div className="flex items-center gap-3">
-              {egresos.length > 0 && (
-                <span className="text-sm text-muted-foreground">Total: <span className="font-semibold text-destructive">{formatCurrency(totalEgresos)}</span></span>
+        <>
+          {/* Restaurado desde web/templates/proveedores/detail.html -- la
+              tarjeta "Datos del proveedor" no tenía equivalente en la SPA. */}
+          <Card>
+            <CardHeader><CardTitle className="text-base">Datos del proveedor</CardTitle></CardHeader>
+            <CardContent className="grid gap-1.5 text-sm">
+              {proveedorViendo.cuit_dni && <p><span className="text-muted-foreground">CUIT / DNI:</span> <span className="font-mono">{proveedorViendo.cuit_dni}</span></p>}
+              {proveedorViendo.iva_condition && <p><span className="text-muted-foreground">Condición IVA:</span> {proveedorViendo.iva_condition}</p>}
+              {proveedorViendo.address && <p><span className="text-muted-foreground">Domicilio:</span> {proveedorViendo.address}</p>}
+              {proveedorViendo.email && <p><span className="text-muted-foreground">Email:</span> <a className="underline" href={`mailto:${proveedorViendo.email}`}>{proveedorViendo.email}</a></p>}
+              {proveedorViendo.phone && <p><span className="text-muted-foreground">Teléfono:</span> {proveedorViendo.phone}</p>}
+              {!proveedorViendo.cuit_dni && !proveedorViendo.iva_condition && !proveedorViendo.address && !proveedorViendo.email && !proveedorViendo.phone && (
+                <p className="text-muted-foreground">Sin datos adicionales cargados.</p>
               )}
-              <Button asChild size="sm" variant="outline"><Link to="/egresos"><Plus />Nuevo egreso</Link></Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {egresosLoading ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">Cargando…</p>
-            ) : egresos.length === 0 ? (
-              <p className="flex flex-col items-center gap-2 py-6 text-center text-sm text-muted-foreground">
-                <Inbox className="size-6" />No hay egresos registrados para este proveedor.
-              </p>
-            ) : (
-              <DataTable columns={egresoColumns} data={egresos} emptyMessage="Sin egresos." />
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex items-center justify-between space-y-0">
+              <CardTitle className="text-base">Egresos registrados</CardTitle>
+              <div className="flex items-center gap-3">
+                {egresos.length > 0 && (
+                  <span className="text-sm text-muted-foreground">Total: <span className="font-semibold text-destructive">{formatCurrency(totalEgresos)}</span></span>
+                )}
+                <Button asChild size="sm" variant="outline"><Link to="/egresos"><Plus />Nuevo egreso</Link></Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {egresosLoading ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">Cargando…</p>
+              ) : egresos.length === 0 ? (
+                <p className="flex flex-col items-center gap-2 py-6 text-center text-sm text-muted-foreground">
+                  <Inbox className="size-6" />No hay egresos registrados para este proveedor.
+                </p>
+              ) : (
+                <DataTable columns={egresoColumns} data={egresos} emptyMessage="Sin egresos." />
+              )}
+            </CardContent>
+          </Card>
+
+          {/* "Eliminar proveedor" -- en la página vieja vivía al pie del
+              detalle, no en la fila de la lista. */}
+          <div className="flex justify-end">
+            <Button variant="outline" className="text-destructive hover:text-destructive" onClick={() => eliminar(proveedorViendo)}>
+              <Trash2 />Eliminar proveedor
+            </Button>
+          </div>
+        </>
       )}
     </div>
   )

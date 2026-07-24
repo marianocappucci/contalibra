@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { type ColumnDef } from '@tanstack/react-table'
-import { api, ApiError, ESTADOS_PRESUPUESTO, type Cliente, type Presupuesto } from '../api'
+import { api, ApiError, type Cliente, type Presupuesto } from '../api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,9 +10,11 @@ import { Badge } from '@/components/ui/badge'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { DataTable, sortableHeader } from '@/components/data-table'
 import {
   Send, XCircle, CheckCircle2, RefreshCw, Receipt, CheckCheck, Undo2, Mail, Trash2, FileDown, Eye,
+  Calculator, Plus, Pencil, Search, X,
 } from 'lucide-react'
 
 function todayIso(): string {
@@ -30,6 +32,17 @@ const estadoVariant: Record<string, 'default' | 'secondary' | 'outline' | 'destr
   aceptado: 'default', enviado: 'secondary', borrador: 'outline', rechazado: 'destructive', vencido: 'destructive', facturado: 'default',
 }
 
+const ESTADO_LABELS: Record<string, string> = {
+  borrador: 'Borrador', enviado: 'Enviado', pendiente: 'Enviado', aceptado: 'Aceptado',
+  rechazado: 'Rechazado', vencido: 'Vencido', facturado: 'Facturado',
+}
+
+const ESTADO_TABS: { slug: string; label: string }[] = [
+  { slug: 'borrador', label: 'Borrador' }, { slug: 'enviado', label: 'Enviado' },
+  { slug: 'aceptado', label: 'Aceptado' }, { slug: 'rechazado', label: 'Rechazado' },
+  { slug: 'vencido', label: 'Vencido' }, { slug: 'facturado', label: 'Facturado' },
+]
+
 export function Presupuestos() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [presupuestos, setPresupuestos] = useState<Presupuesto[]>([])
@@ -38,8 +51,10 @@ export function Presupuestos() {
   const [error, setError] = useState<string | null>(null)
   const [q, setQ] = useState('')
   const [estadoFiltro, setEstadoFiltro] = useState('')
+  const [counts, setCounts] = useState<Record<string, number>>({})
 
   const [creating, setCreating] = useState(false)
+  const [editingId, setEditingId] = useState<number | null>(null)
   const [clienteId, setClienteId] = useState('')
   const [clienteNombreLibre, setClienteNombreLibre] = useState('')
   const [validUntil, setValidUntil] = useState('')
@@ -79,8 +94,9 @@ export function Presupuestos() {
     setLoading(true)
     setError(null)
     try {
-      const data = await api.get<{ items: Presupuesto[] }>(`/api/presupuestos?estado=${estadoFiltro}${q ? `&q=${encodeURIComponent(q)}` : ''}`)
+      const data = await api.get<{ items: Presupuesto[]; counts: Record<string, number> }>(`/api/presupuestos?estado=${estadoFiltro}${q ? `&q=${encodeURIComponent(q)}` : ''}`)
       setPresupuestos(data.items)
+      setCounts(data.counts || {})
     } catch (err) {
       setError(describeError(err))
     } finally {
@@ -95,21 +111,39 @@ export function Presupuestos() {
   }
 
   function resetForm() {
+    setEditingId(null)
     setClienteId(''); setClienteNombreLibre(''); setValidUntil(''); setTaxRate('0.21')
     setObservations(''); setItems([{ ...EMPTY_ITEM }])
   }
 
-  async function crear() {
+  function editar(p: Presupuesto) {
+    setEditingId(p.id)
+    setClienteId(p.client_id ? String(p.client_id) : '')
+    setClienteNombreLibre(p.client_id ? '' : p.client_name)
+    setValidUntil(p.valid_until)
+    setTaxRate(String(p.tax_rate))
+    setObservations(p.observations)
+    setItems(p.items.map((it) => ({ description: it.description, qty: String(it.qty), unit_price: String(it.unit_price) })))
+    setAbiertoId(null)
+    setCreating(true)
+  }
+
+  async function guardar() {
     setSaving(true)
     setError(null)
     try {
-      await api.post('/api/presupuestos', {
+      const payload = {
         date: todayIso(), valid_until: validUntil, client_id: clienteId ? Number(clienteId) : null,
         client_name: clienteId ? '' : clienteNombreLibre, tax_rate: Number(taxRate) || 0, observations,
         items: items.filter((r) => r.description.trim()).map((r) => ({
           description: r.description, qty: Number(r.qty) || 0, unit_price: Number(r.unit_price) || 0,
         })),
-      })
+      }
+      if (editingId) {
+        await api.put(`/api/presupuestos/${editingId}`, payload)
+      } else {
+        await api.post('/api/presupuestos', payload)
+      }
       setCreating(false)
       resetForm()
       await load()
@@ -157,12 +191,13 @@ export function Presupuestos() {
     { accessorKey: 'number', header: sortableHeader('Número'), cell: ({ row }) => <span className="font-mono text-sm">{row.original.number}</span> },
     { accessorKey: 'date', header: 'Fecha' },
     { accessorKey: 'client_name', header: 'Cliente' },
-    { accessorKey: 'total', header: 'Total', cell: ({ row }) => <span className="font-medium">{formatCurrency(row.original.total)}</span> },
     {
       accessorKey: 'status',
       header: 'Estado',
-      cell: ({ row }) => <Badge variant={estadoVariant[row.original.status] ?? 'outline'}>{row.original.status}</Badge>,
+      cell: ({ row }) => <Badge variant={estadoVariant[row.original.status] ?? 'outline'}>{ESTADO_LABELS[row.original.status] ?? row.original.status}</Badge>,
     },
+    { accessorKey: 'valid_until', header: 'Válido hasta', cell: ({ row }) => row.original.valid_until || '—' },
+    { accessorKey: 'total', header: 'Total', cell: ({ row }) => <span className="font-medium">{formatCurrency(row.original.total)}</span> },
     {
       id: 'actions',
       header: () => <div className="text-right">Acciones</div>,
@@ -171,6 +206,9 @@ export function Presupuestos() {
           <Button size="sm" variant="outline" onClick={() => { setAbiertoId(abiertoId === row.original.id ? null : row.original.id); setEmailTo('') }}>
             <Eye />{abiertoId === row.original.id ? 'Ocultar' : 'Ver'}
           </Button>
+          {row.original.status === 'borrador' && (
+            <Button size="sm" variant="outline" title="Editar" onClick={() => editar(row.original)}><Pencil /></Button>
+          )}
           <Button asChild size="sm" variant="outline"><a href={`/presupuestos/${row.original.id}/pdf`} target="_blank" rel="noreferrer"><FileDown />PDF</a></Button>
         </div>
       ),
@@ -180,31 +218,49 @@ export function Presupuestos() {
 
   const presupuestoAbierto = presupuestos.find((p) => p.id === abiertoId)
 
+  const totalCount = Object.values(counts).reduce((a, b) => a + b, 0)
+  const countFor = (slug: string) => {
+    let c = counts[slug] ?? 0
+    if (slug === 'enviado') c += counts['pendiente'] ?? 0
+    return c
+  }
+
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <h2 className="text-lg font-semibold">Presupuestos</h2>
-        <div className="flex items-end gap-3">
-          <div className="grid gap-1.5"><Label>Buscar</Label><Input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} className="w-48" /></div>
-          <div className="grid gap-1.5">
-            <Label>Estado</Label>
-            <Select value={estadoFiltro || '__todos__'} onValueChange={(v) => setEstadoFiltro(v === '__todos__' ? '' : v)}>
-              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__todos__">Todos</SelectItem>
-                {ESTADOS_PRESUPUESTO.map((e) => <SelectItem key={e} value={e}>{e}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          {!creating && <Button onClick={() => setCreating(true)}>+ Nuevo presupuesto</Button>}
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-lg font-semibold"><Calculator className="size-5 text-primary" />Presupuestos</h2>
+        {!creating && <Button onClick={() => setCreating(true)}><Plus />Nuevo presupuesto</Button>}
       </div>
+
+      <Tabs value={estadoFiltro || 'todos'} onValueChange={(v) => setEstadoFiltro(v === 'todos' ? '' : v)}>
+        <TabsList className="h-auto flex-wrap">
+          <TabsTrigger value="todos">
+            Todos{totalCount > 0 && <Badge variant="secondary" className="ml-1">{totalCount}</Badge>}
+          </TabsTrigger>
+          {ESTADO_TABS.map(({ slug, label }) => (
+            <TabsTrigger key={slug} value={slug}>
+              {label}{countFor(slug) > 0 && <Badge variant="secondary" className="ml-1">{countFor(slug)}</Badge>}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+
+      <Card>
+        <CardContent className="flex flex-wrap items-center gap-2 py-3">
+          <Input
+            value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()}
+            placeholder="Buscar por número, cliente u observaciones…" className="min-w-48 flex-1"
+          />
+          <Button variant="outline" size="icon" onClick={() => load()}><Search /></Button>
+          {q && <Button variant="outline" size="icon" onClick={() => { setQ(''); setTimeout(load, 0) }}><X /></Button>}
+        </CardContent>
+      </Card>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       {creating && (
         <Card>
-          <CardHeader><CardTitle className="text-base">Nuevo presupuesto</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">{editingId ? 'Editar presupuesto' : 'Nuevo presupuesto'}</CardTitle></CardHeader>
           <CardContent className="grid gap-4">
             <div className="flex flex-wrap items-end gap-3">
               <div className="grid gap-1.5">
@@ -239,7 +295,7 @@ export function Presupuestos() {
             <div className="grid gap-1.5"><Label>Observaciones</Label><Input value={observations} onChange={(e) => setObservations(e.target.value)} /></div>
 
             <div className="flex gap-2">
-              <Button disabled={saving} onClick={crear}>{saving ? 'Guardando…' : 'Crear presupuesto'}</Button>
+              <Button disabled={saving} onClick={guardar}>{saving ? 'Guardando…' : editingId ? 'Guardar cambios' : 'Crear presupuesto'}</Button>
               <Button type="button" variant="outline" onClick={() => { setCreating(false); resetForm() }}>Cancelar</Button>
             </div>
           </CardContent>
@@ -251,7 +307,15 @@ export function Presupuestos() {
           {loading ? (
             <p className="py-6 text-center text-sm text-muted-foreground">Cargando…</p>
           ) : (
-            <DataTable columns={columns} data={presupuestos} emptyMessage="Sin presupuestos todavía." />
+            <DataTable
+              columns={columns}
+              data={presupuestos}
+              emptyMessage={
+                q ? `No se encontraron presupuestos para "${q}".`
+                  : estadoFiltro ? `No hay presupuestos con estado "${estadoFiltro}".`
+                  : 'No hay presupuestos registrados aún.'
+              }
+            />
           )}
         </CardContent>
       </Card>
@@ -278,7 +342,7 @@ export function Presupuestos() {
                   <p><span className="text-muted-foreground">Número:</span> <span className="font-mono">{p.number}</span></p>
                   <p><span className="text-muted-foreground">Fecha:</span> {p.date}</p>
                   <p><span className="text-muted-foreground">Válido hasta:</span> {p.valid_until || '—'}</p>
-                  <p><span className="text-muted-foreground">Estado:</span> <Badge variant={estadoVariant[st] ?? 'outline'}>{st}</Badge></p>
+                  <p><span className="text-muted-foreground">Estado:</span> <Badge variant={estadoVariant[st] ?? 'outline'}>{ESTADO_LABELS[st] ?? st}</Badge></p>
                   {p.observations && <p><span className="text-muted-foreground">Observaciones:</span> {p.observations}</p>}
                 </CardContent>
               </Card>

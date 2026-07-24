@@ -3,28 +3,35 @@ import { api, ApiError, type ArcaConfig, type Backup, type CategoriaEgreso, type
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
-  Ban, Building2, Check, CheckCircle2, Copy, CreditCard, Database, Download,
-  Mail, Package, Pause, Plus, Power, Printer, Receipt, Save, Send, Settings,
-  ShieldCheck, Tag, Trash2, Upload,
+  Ban, Building2, Check, CheckCircle2, Copy, Database, Download,
+  Mail, Package, Pause, Phone, Plus, Power, Printer, Receipt, Save, Send, Settings,
+  ShieldCheck, Tag, ToggleRight, Trash2, Upload,
 } from 'lucide-react'
 
 type CategoriaProducto = { id: number; nombre: string }
 
+// Estructura de navegación calcada de la vieja config.html: 5 tabs de primer
+// nivel (Empresa / Integraciones / Servicio / Ticket / Datos) + el botón
+// "Backup rápido" fijo al final de la barra. "Integraciones" agrupaba
+// MercadoPago/ARCA/Email en una sub-navegación lateral, no como tabs propias.
+// "Categorías" no existía dentro de config.html (eran páginas standalone
+// linkeadas desde Egresos/Productos) — se mantiene acá como tab adicional
+// por practicidad de la SPA; ver reporte de fidelidad.
 const TABS = [
   { id: 'empresa', label: 'Empresa', icon: Building2 },
-  { id: 'mp', label: 'MercadoPago', icon: CreditCard },
-  { id: 'email', label: 'Email', icon: Mail },
-  { id: 'arca', label: 'ARCA', icon: ShieldCheck },
-  { id: 'servicio', label: 'Servicio', icon: Power },
-  { id: 'ticket', label: 'Ticket', icon: Printer },
+  { id: 'integraciones', label: 'Integraciones', icon: Power },
+  { id: 'servicio', label: 'Servicio', icon: ToggleRight },
+  { id: 'ticket', label: 'Ticket / Impresora', icon: Printer },
   { id: 'categorias', label: 'Categorías', icon: Tag },
-  { id: 'datos', label: 'Datos', icon: Database },
+  { id: 'datos', label: 'Datos / Backup', icon: Database },
 ] as const
 type TabId = typeof TABS[number]['id']
 
@@ -99,28 +106,66 @@ export function Config() {
     <div className="grid gap-4">
       <h2 className="flex items-center gap-2 text-lg font-semibold"><Settings className="size-5" />Configuración</h2>
 
-      <div className="flex flex-wrap gap-1 border-b pb-2">
-        {TABS.map((t) => (
-          <Button
-            key={t.id} size="sm" variant={tab === t.id ? 'default' : 'ghost'}
-            onClick={() => { setTab(t.id); setSaved(null); setError(null) }}
-          >
-            <t.icon />{t.label}
-          </Button>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2">
+        <Tabs value={tab} onValueChange={(v) => { setTab(v as TabId); setSaved(null); setError(null) }}>
+          <TabsList>
+            {TABS.map((t) => (
+              <TabsTrigger key={t.id} value={t.id}><t.icon />{t.label}</TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+        <Button asChild size="sm" variant="outline">
+          <a href="/config/backup-db" download><Download />Backup rápido</a>
+        </Button>
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
       {saved === tab && <p className="text-sm text-emerald-600 dark:text-emerald-400">Guardado.</p>}
 
       {tab === 'empresa' && <EmpresaTab cfg={cfg} setCfg={setCfg} saving={saving} guardar={guardar} subirArchivo={subirArchivo} />}
-      {tab === 'mp' && <MpTab cfg={cfg} setCfg={setCfg} saving={saving} guardar={guardar} />}
-      {tab === 'email' && <EmailTab cfg={cfg} setCfg={setCfg} saving={saving} guardar={guardar} />}
-      {tab === 'arca' && <ArcaTab arca={arca} setArca={setArca} saving={saving} guardar={guardar} subirArchivo={subirArchivo} />}
+      {tab === 'integraciones' && (
+        <IntegracionesTab cfg={cfg} setCfg={setCfg} arca={arca} setArca={setArca} saving={saving} guardar={guardar} subirArchivo={subirArchivo} />
+      )}
       {tab === 'servicio' && <ServicioTab cfg={cfg} setCfg={setCfg} saving={saving} guardar={guardar} />}
       {tab === 'ticket' && <TicketTab cfg={cfg} setCfg={setCfg} saving={saving} guardar={guardar} />}
       {tab === 'categorias' && <CategoriasTab />}
       {tab === 'datos' && <DatosTab saving={saving} setSaving={setSaving} setError={setError} describeError={describeError} />}
+    </div>
+  )
+}
+
+function IntegracionesTab({ cfg, setCfg, arca, setArca, saving, guardar, subirArchivo }: {
+  cfg: ConfigCfg; setCfg: (c: ConfigCfg) => void
+  arca: ArcaConfig | null; setArca: (a: ArcaConfig) => void
+  saving: boolean; guardar: GuardarFn
+  subirArchivo: (path: string, field: string, file: File) => Promise<void>
+}) {
+  const SUB = [
+    { id: 'mp', label: 'MercadoPago', icon: Phone },
+    { id: 'arca', label: 'ARCA / AFIP', icon: ShieldCheck },
+    { id: 'mail', label: 'Email / SMTP', icon: Mail },
+  ] as const
+  const [seccion, setSeccion] = useState<typeof SUB[number]['id']>('mp')
+
+  return (
+    <div className="flex flex-col gap-4 sm:flex-row">
+      <div className="flex shrink-0 flex-row gap-1 sm:w-48 sm:flex-col sm:border-r sm:pr-2">
+        {SUB.map((s) => (
+          <button
+            key={s.id} type="button" onClick={() => setSeccion(s.id)}
+            className={`flex items-center gap-2 rounded-md border-l-2 px-3 py-2 text-left text-sm transition-colors ${
+              seccion === s.id ? 'border-primary bg-primary/5 font-medium text-primary' : 'border-transparent text-muted-foreground hover:bg-muted'
+            }`}
+          >
+            <s.icon className="size-4" />{s.label}
+          </button>
+        ))}
+      </div>
+      <div className="max-w-2xl flex-1">
+        {seccion === 'mp' && <MpTab cfg={cfg} setCfg={setCfg} saving={saving} guardar={guardar} />}
+        {seccion === 'arca' && <ArcaTab arca={arca} setArca={setArca} saving={saving} guardar={guardar} subirArchivo={subirArchivo} />}
+        {seccion === 'mail' && <EmailTab cfg={cfg} setCfg={setCfg} saving={saving} guardar={guardar} />}
+      </div>
     </div>
   )
 }
@@ -215,7 +260,7 @@ function MpTab({ cfg, setCfg, saving, guardar }: {
 
   return (
     <Card>
-      <CardHeader><CardTitle className="flex items-center gap-2 text-base"><CreditCard className="size-4" />MercadoPago</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Phone className="size-4" />MercadoPago</CardTitle></CardHeader>
       <CardContent className="grid gap-3 sm:grid-cols-2">
         <Field label="Access Token" type="password" value={cfg.mp_access_token} onChange={(v) => setCfg({ ...cfg, mp_access_token: v })} />
         <Field label="Webhook Secret" type="password" value={cfg.mp_webhook_secret} onChange={(v) => setCfg({ ...cfg, mp_webhook_secret: v })} />
@@ -389,36 +434,43 @@ function ArcaTab({ arca, setArca, saving, guardar, subirArchivo }: {
 function ServicioTab({ cfg, setCfg, saving, guardar }: {
   cfg: ConfigCfg; setCfg: (c: ConfigCfg) => void; saving: boolean; guardar: GuardarFn
 }) {
-  const estadoInfo: Record<ConfigCfg['servicio_estado'], { icon: typeof CheckCircle2; color: string; desc: string }> = {
-    activo: { icon: CheckCircle2, color: 'text-emerald-600 dark:text-emerald-400', desc: 'Operación normal. Todos los usuarios tienen acceso completo.' },
-    pausado: { icon: Pause, color: 'text-amber-600 dark:text-amber-400', desc: 'Los usuarios pueden ingresar pero ven un banner de aviso.' },
-    suspendido: { icon: Ban, color: 'text-destructive', desc: 'Acceso bloqueado por completo. Se muestra la página de suspensión.' },
-  }
-  const Icon = estadoInfo[cfg.servicio_estado].icon
+  const ESTADOS: { value: ConfigCfg['servicio_estado']; icon: typeof CheckCircle2; color: string; border: string; label: string; desc: string }[] = [
+    { value: 'activo', icon: CheckCircle2, color: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-600/40 bg-emerald-500/5', label: 'Activo', desc: 'Operación normal. Todos los usuarios tienen acceso completo.' },
+    { value: 'pausado', icon: Pause, color: 'text-amber-600 dark:text-amber-400', border: 'border-amber-500/40 bg-amber-500/5', label: 'Pausado', desc: 'Los usuarios pueden ingresar pero ven un banner de aviso. Útil para avisar antes de un corte.' },
+    { value: 'suspendido', icon: Ban, color: 'text-destructive', border: 'border-destructive/40 bg-destructive/5', label: 'Suspendido', desc: 'Acceso bloqueado por completo. Se muestra la página de suspensión.' },
+  ]
 
   return (
-    <Card>
+    <Card className="max-w-xl">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base"><Power className="size-4" />Estado del servicio</CardTitle>
-        <CardDescription>Suspender bloquea el acceso de los usuarios a todo el sistema.</CardDescription>
+        <CardTitle className="flex items-center gap-2 text-base"><ToggleRight className="size-4" />Estado del servicio</CardTitle>
+        <CardDescription>Controlá el acceso al sistema para esta instancia.</CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-3 sm:grid-cols-2">
-        <div className="grid gap-1.5">
-          <Label>Estado</Label>
-          <Select value={cfg.servicio_estado} onValueChange={(v) => setCfg({ ...cfg, servicio_estado: v as ConfigCfg['servicio_estado'] })}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="activo"><CheckCircle2 className="text-emerald-600" />Activo</SelectItem>
-              <SelectItem value="pausado"><Pause className="text-amber-600" />Pausado</SelectItem>
-              <SelectItem value="suspendido"><Ban className="text-destructive" />Suspendido</SelectItem>
-            </SelectContent>
-          </Select>
-          <p className={`flex items-center gap-1.5 text-xs ${estadoInfo[cfg.servicio_estado].color}`}>
-            <Icon className="size-3.5 shrink-0" />{estadoInfo[cfg.servicio_estado].desc}
-          </p>
+      <CardContent className="grid gap-4">
+        <div className="grid gap-2">
+          <Label>Estado actual</Label>
+          {ESTADOS.map((e) => (
+            <label
+              key={e.value}
+              className={`flex cursor-pointer items-start gap-2 rounded-md border p-3 text-sm ${cfg.servicio_estado === e.value ? e.border : ''}`}
+            >
+              <input
+                type="radio" name="servicio_estado" className="mt-1" checked={cfg.servicio_estado === e.value}
+                onChange={() => setCfg({ ...cfg, servicio_estado: e.value })}
+              />
+              <span>
+                <span className={`flex items-center gap-1.5 font-semibold ${e.color}`}><e.icon className="size-4" />{e.label}</span>
+                <span className="mt-0.5 block text-muted-foreground">{e.desc}</span>
+              </span>
+            </label>
+          ))}
         </div>
-        <Field label="Mensaje (opcional)" value={cfg.servicio_mensaje} onChange={(v) => setCfg({ ...cfg, servicio_mensaje: v })} />
-        <div className="col-span-full">
+        <div className="grid gap-1.5">
+          <Label>Mensaje personalizado <span className="font-normal text-muted-foreground">(opcional)</span></Label>
+          <Textarea rows={2} value={cfg.servicio_mensaje} onChange={(e) => setCfg({ ...cfg, servicio_mensaje: e.target.value })}
+            placeholder="Ej: Servicio suspendido por falta de pago. Contactar a soporte@contalibra.com" />
+        </div>
+        <div>
           <Button disabled={saving} onClick={() => guardar('/api/config/servicio', {
             servicio_estado: cfg.servicio_estado, servicio_mensaje: cfg.servicio_mensaje,
           })}>

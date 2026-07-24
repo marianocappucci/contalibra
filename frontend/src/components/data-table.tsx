@@ -6,7 +6,7 @@ import {
   useReactTable,
   type SortingState,
 } from '@tanstack/react-table'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { ArrowUpDown } from 'lucide-react'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -35,11 +35,15 @@ export function sortableHeader(label: string) {
 type DataTableProps<TData, TValue> = {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
-  emptyMessage?: string
+  emptyMessage?: ReactNode
+  // Clase opcional por fila -- restaura el atenuado que las tablas Bootstrap
+  // viejas aplicaban a filas inactivas (ej. `opacity-50` en clientes/list.html,
+  // `table-secondary` en productos/list.html).
+  getRowClassName?: (row: TData) => string | undefined
 }
 
 export function DataTable<TData, TValue>({
-  columns, data, emptyMessage = 'Sin resultados.',
+  columns, data, emptyMessage = 'Sin resultados.', getRowClassName,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([])
 
@@ -70,7 +74,7 @@ export function DataTable<TData, TValue>({
       <TableBody>
         {table.getRowModel().rows.length ? (
           table.getRowModel().rows.map((row) => (
-            <TableRow key={row.id}>
+            <TableRow key={row.id} className={getRowClassName?.(row.original)}>
               {row.getVisibleCells().map((cell) => (
                 <TableCell key={cell.id}>
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}

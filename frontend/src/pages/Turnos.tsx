@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { type ColumnDef } from '@tanstack/react-table'
 import { api, ApiError, MEDIOS_PAGO_LABELS, type ResumenTurno, type Turno } from '../api'
+import { useAuth } from '../context/AuthContext'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -30,6 +31,8 @@ function DiferenciaBadge({ esperado, declarado }: { esperado: number | null; dec
 const estadoVentaVariant: Record<string, 'default' | 'destructive'> = { cobrada: 'default', anulada: 'destructive' }
 
 export function Turnos() {
+  const { user } = useAuth()
+  const esAdmin = user?.role === 'admin'
   const [turnos, setTurnos] = useState<Turno[]>([])
   const [turnoActivo, setTurnoActivo] = useState<Turno | null>(null)
   const [loading, setLoading] = useState(true)
@@ -114,36 +117,44 @@ export function Turnos() {
     }
   }
 
-  const columns = useMemo<ColumnDef<Turno>[]>(() => [
-    { accessorKey: 'usuario_nombre', header: sortableHeader('Usuario') },
-    { accessorKey: 'apertura', header: 'Apertura' },
-    { accessorKey: 'cierre', header: 'Cierre', cell: ({ row }) => row.original.cierre || '—' },
-    { accessorKey: 'monto_inicial', header: 'Fondo inicial', cell: ({ row }) => formatCurrency(row.original.monto_inicial) },
-    { accessorKey: 'monto_esperado_cierre', header: 'Efectivo esperado', cell: ({ row }) => row.original.monto_esperado_cierre != null ? formatCurrency(row.original.monto_esperado_cierre) : '—' },
-    { accessorKey: 'monto_declarado_cierre', header: 'Efectivo declarado', cell: ({ row }) => row.original.monto_declarado_cierre != null ? formatCurrency(row.original.monto_declarado_cierre) : '—' },
-    {
-      id: 'diferencia',
-      header: 'Diferencia',
-      cell: ({ row }) => <DiferenciaBadge esperado={row.original.monto_esperado_cierre} declarado={row.original.monto_declarado_cierre} />,
-    },
-    {
-      accessorKey: 'estado',
-      header: 'Estado',
-      cell: ({ row }) => <Badge variant={row.original.estado === 'abierto' ? 'default' : 'outline'}>{row.original.estado}</Badge>,
-    },
-    {
-      id: 'actions',
-      header: () => <div className="text-right">Acciones</div>,
-      cell: ({ row }) => (
-        <div className="flex justify-end">
-          <Button size="sm" variant="outline" onClick={() => verDetalle(row.original)}>
-            <Eye />{abiertoId === row.original.id ? 'Ocultar' : 'Ver detalle'}
-          </Button>
-        </div>
-      ),
-    },
+  const columns = useMemo<ColumnDef<Turno>[]>(() => {
+    const cols: ColumnDef<Turno>[] = [
+      { accessorKey: 'id', header: 'N°', cell: ({ row }) => <span className="text-sm text-muted-foreground">{row.original.id}</span> },
+    ]
+    if (esAdmin) {
+      cols.push({ accessorKey: 'usuario_nombre', header: sortableHeader('Cajero'), cell: ({ row }) => <span className="font-medium">{row.original.usuario_nombre}</span> })
+    }
+    cols.push(
+      { accessorKey: 'apertura', header: 'Apertura' },
+      { accessorKey: 'cierre', header: 'Cierre', cell: ({ row }) => row.original.cierre || '—' },
+      { accessorKey: 'monto_inicial', header: 'Fondo inicial', cell: ({ row }) => formatCurrency(row.original.monto_inicial) },
+      { accessorKey: 'monto_esperado_cierre', header: 'Efectivo esperado', cell: ({ row }) => row.original.monto_esperado_cierre != null ? formatCurrency(row.original.monto_esperado_cierre) : '—' },
+      { accessorKey: 'monto_declarado_cierre', header: 'Efectivo declarado', cell: ({ row }) => row.original.monto_declarado_cierre != null ? formatCurrency(row.original.monto_declarado_cierre) : '—' },
+      {
+        id: 'diferencia',
+        header: 'Diferencia',
+        cell: ({ row }) => <DiferenciaBadge esperado={row.original.monto_esperado_cierre} declarado={row.original.monto_declarado_cierre} />,
+      },
+      {
+        accessorKey: 'estado',
+        header: 'Estado',
+        cell: ({ row }) => <Badge variant={row.original.estado === 'abierto' ? 'default' : 'secondary'}>{row.original.estado === 'abierto' ? 'Abierto' : 'Cerrado'}</Badge>,
+      },
+      {
+        id: 'actions',
+        header: () => <div className="text-right">Acciones</div>,
+        cell: ({ row }) => (
+          <div className="flex justify-end">
+            <Button size="sm" variant="outline" onClick={() => verDetalle(row.original)}>
+              <Eye />{abiertoId === row.original.id ? 'Ocultar' : 'Ver detalle'}
+            </Button>
+          </div>
+        ),
+      },
+    )
+    return cols
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [abiertoId])
+  }, [abiertoId, esAdmin])
 
   const turnoSeleccionado = turnos.find((t) => t.id === abiertoId)
 
@@ -187,11 +198,12 @@ export function Turnos() {
       )}
 
       <Card>
+        <CardHeader><CardTitle className="text-base">{esAdmin ? 'Todos los turnos' : 'Mis turnos'}</CardTitle></CardHeader>
         <CardContent>
           {loading ? (
             <p className="py-6 text-center text-sm text-muted-foreground">Cargando…</p>
           ) : (
-            <DataTable columns={columns} data={turnos} emptyMessage="Sin turnos todavía." />
+            <DataTable columns={columns} data={turnos} emptyMessage="No hay turnos registrados." />
           )}
         </CardContent>
       </Card>
@@ -254,7 +266,7 @@ export function Turnos() {
                   <thead className="border-b text-muted-foreground">
                     <tr>
                       <th className="p-3 text-left font-medium">N°</th>
-                      <th className="p-3 text-left font-medium">Fecha</th>
+                      <th className="p-3 text-left font-medium">Fecha/Hora</th>
                       <th className="p-3 text-left font-medium">Cliente</th>
                       <th className="p-3 text-right font-medium">Total</th>
                       <th className="p-3 text-center font-medium">Estado</th>
@@ -265,9 +277,9 @@ export function Turnos() {
                       <tr key={v.id} className="border-b last:border-0">
                         <td className="p-3"><a href={`/ventas?ver=${v.id}`} className="font-mono font-medium text-primary hover:underline">{v.numero}</a></td>
                         <td className="p-3 text-muted-foreground">{v.fecha}</td>
-                        <td className="p-3">{v.cliente_nombre || 'Consumidor final'}</td>
+                        <td className="p-3">{v.cliente_nombre || '— Consumidor final —'}</td>
                         <td className="p-3 text-right font-medium">{formatCurrency(v.total)}</td>
-                        <td className="p-3 text-center"><Badge variant={estadoVentaVariant[v.estado] ?? 'outline'}>{v.estado}</Badge></td>
+                        <td className="p-3 text-center"><Badge variant={estadoVentaVariant[v.estado] ?? 'outline'}>{v.estado === 'cobrada' ? 'Cobrada' : v.estado === 'anulada' ? 'Anulada' : v.estado}</Badge></td>
                       </tr>
                     ))}
                   </tbody>

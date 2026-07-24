@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/form'
 import { DataTable, sortableHeader } from '@/components/data-table'
 import {
-  Users, Plus, Pencil, Eye, Ban, Undo2, Search, Loader2, CheckCircle2, XCircle, IdCard,
+  Users, Plus, Pencil, Eye, Trash2, Undo2, Search, Loader2, CheckCircle2, XCircle, IdCard,
 } from 'lucide-react'
 
 const clienteSchema = z.object({
@@ -131,8 +131,11 @@ export function Clientes() {
     }
   }
 
+  // El "eliminar" de web/templates/clientes/list.html en realidad desactiva
+  // (existe un endpoint de "activar" para deshacerlo) -- se conserva el
+  // mismo texto de confirmación y verbo que usaba la página vieja.
   async function toggleActivo(cliente: Cliente) {
-    if (cliente.activo && !window.confirm(`¿Desactivar a ${cliente.name}?`)) return
+    if (cliente.activo && !window.confirm(`¿Eliminar a ${cliente.name}?`)) return
     setError(null)
     try {
       const path = cliente.activo
@@ -179,40 +182,36 @@ export function Clientes() {
     }
   }
 
+  // Orden y columnas igual a web/templates/clientes/list.html: Nombre,
+  // CUIT/DNI, Condición IVA, Teléfono, acciones -- esa tabla vieja no tenía
+  // columnas de Email ni de Estado separadas (el "Inactivo" viaja como
+  // badge junto al nombre, igual que acá).
   const columns = useMemo<ColumnDef<Cliente>[]>(() => [
-    { accessorKey: 'name', header: sortableHeader('Nombre'), cell: ({ row }) => (
+    { accessorKey: 'name', header: sortableHeader('Nombre / Razón social'), cell: ({ row }) => (
       <span className="font-medium">
         {row.original.name}
-        {!row.original.activo && <Badge variant="outline" className="ml-2">Inactivo</Badge>}
+        {!row.original.activo && <Badge variant="secondary" className="ml-2">Inactivo</Badge>}
       </span>
     ) },
-    { accessorKey: 'cuit_dni', header: 'CUIT/DNI', cell: ({ row }) => row.original.cuit_dni || '—' },
-    { accessorKey: 'phone', header: 'Teléfono', cell: ({ row }) => row.original.phone || '—' },
-    { accessorKey: 'email', header: 'Email', cell: ({ row }) => row.original.email || '—' },
+    { accessorKey: 'cuit_dni', header: 'CUIT / DNI', cell: ({ row }) => row.original.cuit_dni || '—' },
     { accessorKey: 'iva_condition', header: 'Condición IVA', cell: ({ row }) => row.original.iva_condition || '—' },
-    {
-      accessorKey: 'activo',
-      header: 'Estado',
-      cell: ({ row }) => (
-        <Badge variant={row.original.activo ? 'default' : 'outline'}>
-          {row.original.activo ? 'Activo' : 'Inactivo'}
-        </Badge>
-      ),
-    },
+    { accessorKey: 'phone', header: 'Teléfono', cell: ({ row }) => row.original.phone || '—' },
     {
       id: 'actions',
       header: () => <div className="text-right">Acciones</div>,
       cell: ({ row }) => (
         <div className="flex justify-end gap-2">
-          <Button size="sm" variant="outline" onClick={() => toggleVer(row.original)}>
+          <Button size="sm" variant="outline" title="Ver ficha" onClick={() => toggleVer(row.original)}>
             <Eye />{viendoId === row.original.id ? 'Ocultar' : 'Ver'}
           </Button>
           {row.original.activo && (
             <Button size="sm" variant="outline" onClick={() => startEdit(row.original)}><Pencil />Editar</Button>
           )}
-          <Button size="sm" variant="outline" onClick={() => toggleActivo(row.original)}>
-            {row.original.activo ? <><Ban />Desactivar</> : <><Undo2 />Reactivar</>}
-          </Button>
+          {row.original.activo ? (
+            <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => toggleActivo(row.original)}><Trash2 />Eliminar</Button>
+          ) : (
+            <Button size="sm" variant="outline" title="Reactivar cliente" onClick={() => toggleActivo(row.original)}><Undo2 />Reactivar</Button>
+          )}
         </div>
       ),
     },
@@ -356,7 +355,12 @@ export function Clientes() {
           {loading ? (
             <p className="py-6 text-center text-sm text-muted-foreground">Cargando…</p>
           ) : (
-            <DataTable columns={columns} data={clientes} emptyMessage="Sin clientes todavía." />
+            <DataTable
+              columns={columns}
+              data={clientes}
+              emptyMessage="No hay clientes registrados aún."
+              getRowClassName={(c) => !c.activo ? 'opacity-50' : undefined}
+            />
           )}
         </CardContent>
       </Card>

@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import {
   BarChart3, BookOpen, BookText, Boxes, Calculator, Clock, CreditCard, FileText, History,
   Landmark, LayoutDashboard, LogOut, Package, Receipt, Settings, ShoppingBag, ShoppingCart,
-  SquareStack, Store, Tag, Truck, UserCog, Users, Warehouse,
+  SquareStack, Store, Tag, Truck, UserCog, Users, Wallet, Warehouse,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -86,7 +86,10 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Reportes',
     items: [
-      { to: '/reportes', label: 'Reportes', icon: BarChart3, module: 'reportes' },
+      {
+        to: '/reportes', label: 'Reportes', icon: BarChart3, module: 'reportes',
+        children: [{ to: '/reportes/caja-medios', label: 'Caja por medio', module: 'reportes' }],
+      },
       { to: '/libros-iva', label: 'Libros IVA', icon: BookText, module: 'libros_iva', adminOnly: true },
     ],
   },
@@ -109,6 +112,7 @@ const NESTED_ICONS: Record<string, React.ComponentType<{ className?: string }>> 
   '/listas-precio': Tag,
   '/turnos': Clock,
   '/cajas': SquareStack,
+  '/reportes/caja-medios': Wallet,
 }
 
 function initials(name: string): string {

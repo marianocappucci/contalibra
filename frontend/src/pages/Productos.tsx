@@ -14,9 +14,10 @@ import {
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from '@/components/ui/form'
+import { Switch } from '@/components/ui/switch'
 import { DataTable, sortableHeader } from '@/components/data-table'
 import {
-  Package, Plus, Pencil, Trash2, Ban, Undo2, Search, X, TrendingUp,
+  Package, Plus, Pencil, Trash2, Search, X, TrendingUp,
 } from 'lucide-react'
 
 const productoSchema = z.object({
@@ -28,13 +29,16 @@ const productoSchema = z.object({
   unidad: z.string(),
   categoria: z.string().trim().optional(),
   stock_minimo: z.coerce.number().min(0, 'No puede ser negativo'),
+  // Solo se edita en el form de edición (checkbox "Producto activo" de
+  // web/templates/productos/form.html) -- en alta siempre nace activo.
+  activo: z.boolean(),
 })
 
 type ProductoFormValues = z.infer<typeof productoSchema>
 
 const EMPTY_VALUES: ProductoFormValues = {
   nombre: '', codigo: '', descripcion: '', precio_venta: 0, precio_costo: 0,
-  unidad: 'u', categoria: '', stock_minimo: 0,
+  unidad: 'u', categoria: '', stock_minimo: 0, activo: true,
 }
 
 function formatCurrency(value: number): string {
@@ -109,6 +113,7 @@ export function Productos() {
       unidad: producto.unidad || 'u',
       categoria: producto.categoria ?? '',
       stock_minimo: producto.stock_minimo,
+      activo: !!producto.activo,
     })
   }
 
@@ -129,14 +134,17 @@ export function Productos() {
       unidad: values.unidad,
       categoria: values.categoria || '',
       stock_minimo: values.stock_minimo,
-      activo: editingId === 'new' ? true : undefined,
+      // Alta: siempre nace activo. Edición: viaja el switch "Producto
+      // activo" del form, igual que el checkbox de
+      // web/templates/productos/form.html -- reactivar/desactivar un
+      // producto se hace editándolo, no hay botón aparte en la lista vieja.
+      activo: editingId === 'new' ? true : values.activo,
     }
     try {
       if (editingId === 'new') {
         await api.post('/api/productos', payload)
       } else if (editingId) {
-        const original = productos.find((p) => p.id === editingId)
-        await api.put(`/api/productos/${editingId}`, { ...payload, activo: !!original?.activo })
+        await api.put(`/api/productos/${editingId}`, payload)
       }
       cancelEdit()
       await loadProductos()
@@ -144,26 +152,6 @@ export function Productos() {
       setError(describeError(err))
     } finally {
       setSaving(false)
-    }
-  }
-
-  async function toggleActivo(producto: Producto) {
-    setError(null)
-    try {
-      await api.put(`/api/productos/${producto.id}`, {
-        nombre: producto.nombre,
-        codigo: producto.codigo ?? '',
-        descripcion: producto.descripcion ?? '',
-        precio_venta: producto.precio_venta,
-        precio_costo: producto.precio_costo,
-        unidad: producto.unidad,
-        categoria: producto.categoria ?? '',
-        stock_minimo: producto.stock_minimo,
-        activo: !producto.activo,
-      })
-      await loadProductos()
-    } catch (err) {
-      setError(describeError(err))
     }
   }
 
@@ -181,20 +169,25 @@ export function Productos() {
     }
   }
 
+  // Orden y columnas igual a web/templates/productos/list.html: Código,
+  // Nombre, Categoría, Unidad, Precio venta, Precio costo, Estado, acciones
+  // (Unidad va antes de los precios, no después).
   const columns = useMemo<ColumnDef<Producto>[]>(() => [
     { accessorKey: 'codigo', header: 'Código', cell: ({ row }) => <span className="font-mono text-xs">{row.original.codigo || '—'}</span> },
     { accessorKey: 'nombre', header: sortableHeader('Nombre'), cell: ({ row }) => <span className="font-medium">{row.original.nombre}</span> },
     { accessorKey: 'categoria', header: 'Categoría', cell: ({ row }) => row.original.categoria || '—' },
+    { accessorKey: 'unidad', header: 'Unidad' },
     { accessorKey: 'precio_venta', header: 'Precio venta', cell: ({ row }) => formatCurrency(row.original.precio_venta) },
     { accessorKey: 'precio_costo', header: 'Precio costo', cell: ({ row }) => <span className="text-muted-foreground">{formatCurrency(row.original.precio_costo)}</span> },
-    { accessorKey: 'unidad', header: 'Unidad' },
     {
       accessorKey: 'activo',
-      header: 'Estado',
+      header: () => <div className="text-center">Estado</div>,
       cell: ({ row }) => (
-        <Badge variant={row.original.activo ? 'default' : 'outline'}>
-          {row.original.activo ? 'Activo' : 'Inactivo'}
-        </Badge>
+        <div className="text-center">
+          <Badge variant={row.original.activo ? 'default' : 'secondary'}>
+            {row.original.activo ? 'Activo' : 'Inactivo'}
+          </Badge>
+        </div>
       ),
     },
     {
@@ -203,15 +196,12 @@ export function Productos() {
       cell: ({ row }) => (
         <div className="flex justify-end gap-2">
           <Button size="sm" variant="outline" onClick={() => startEdit(row.original)}><Pencil />Editar</Button>
-          <Button size="sm" variant="outline" onClick={() => toggleActivo(row.original)}>
-            {row.original.activo ? <><Ban />Desactivar</> : <><Undo2 />Activar</>}
-          </Button>
           <Button size="sm" variant="outline" onClick={() => eliminar(row.original)}><Trash2 />Eliminar</Button>
         </div>
       ),
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [productos])
+  ], [])
 
   return (
     <div className="grid gap-4">
@@ -365,6 +355,20 @@ export function Productos() {
                     <TrendingUp className="size-4 shrink-0" />Margen: <strong>{margen.toFixed(1)}%</strong>
                   </p>
                 )}
+                {editingId !== 'new' && (
+                  <FormField
+                    control={form.control}
+                    name="activo"
+                    render={({ field }) => (
+                      <FormItem className="flex w-full flex-row items-center gap-2 space-y-0">
+                        <FormControl>
+                          <Switch checked={field.value} onCheckedChange={field.onChange} />
+                        </FormControl>
+                        <FormLabel className="!mt-0">Producto activo</FormLabel>
+                      </FormItem>
+                    )}
+                  />
+                )}
                 <div className="flex gap-2 pt-6">
                   <Button type="submit" disabled={saving}>
                     {saving ? 'Guardando…' : editingId === 'new' ? 'Crear' : 'Guardar'}
@@ -385,7 +389,8 @@ export function Productos() {
             <DataTable
               columns={columns}
               data={productos}
-              emptyMessage={q ? `No se encontraron productos para "${q}".` : 'Sin productos todavía.'}
+              emptyMessage={q ? `No se encontraron productos para "${q}".` : 'No hay productos registrados aún.'}
+              getRowClassName={(p) => !p.activo ? 'opacity-60' : undefined}
             />
           )}
         </CardContent>

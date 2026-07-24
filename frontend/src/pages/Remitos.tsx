@@ -147,7 +147,6 @@ export function Remitos() {
     { accessorKey: 'number', header: sortableHeader('Número'), cell: ({ row }) => <span className="font-mono text-sm">{row.original.number}</span> },
     { accessorKey: 'date', header: 'Fecha' },
     { accessorKey: 'client_name', header: 'Cliente' },
-    { accessorKey: 'observations', header: 'Observaciones', cell: ({ row }) => row.original.observations || '—' },
     {
       id: 'actions',
       header: () => <div className="text-right">Acciones</div>,
@@ -157,29 +156,28 @@ export function Remitos() {
             <Eye />{abiertoId === row.original.id ? 'Ocultar' : 'Ver'}
           </Button>
           <Button asChild size="sm" variant="outline"><a href={`/remitos/${row.original.id}/pdf`} target="_blank" rel="noreferrer"><FileDown />PDF</a></Button>
-          <Button size="sm" variant="outline" onClick={() => eliminar(row.original)}><Trash2 />Eliminar</Button>
         </div>
       ),
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [abiertoId])
 
+  const emptyMessage = q ? `No se encontraron remitos para "${q}".` : 'No hay remitos registrados aún.'
+
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-lg font-semibold"><FileText className="size-5" />Remitos</h2>
-        <div className="flex items-end gap-3">
-          <div className="grid gap-1.5">
-            <Label>Buscar</Label>
-            <div className="flex gap-1">
-              <Input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} className="w-56" placeholder="Número, cliente u observaciones…" />
-              <Button size="icon" variant="outline" onClick={load}><Search /></Button>
-              {q && <Button size="icon" variant="outline" onClick={limpiarBusqueda}><X /></Button>}
-            </div>
-          </div>
-          {!creating && <Button onClick={() => setCreating(true)}><Plus />Nuevo remito</Button>}
-        </div>
+      <div className="flex items-center justify-between">
+        <h2 className="flex items-center gap-2 text-lg font-semibold"><FileText className="size-5 text-primary" />Remitos</h2>
+        {!creating && <Button onClick={() => setCreating(true)}><Plus />Nuevo remito</Button>}
       </div>
+
+      <Card>
+        <CardContent className="flex items-center gap-2 py-3">
+          <Input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} className="flex-1" placeholder="Buscar por número, cliente u observaciones…" />
+          <Button size="icon" variant="outline" onClick={load}><Search /></Button>
+          {q && <Button size="icon" variant="outline" onClick={limpiarBusqueda}><X /></Button>}
+        </CardContent>
+      </Card>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
@@ -228,61 +226,66 @@ export function Remitos() {
           {loading ? (
             <p className="py-6 text-center text-sm text-muted-foreground">Cargando…</p>
           ) : (
-            <DataTable columns={columns} data={remitos} emptyMessage="Sin remitos todavía." />
+            <DataTable columns={columns} data={remitos} emptyMessage={emptyMessage} />
           )}
         </CardContent>
       </Card>
 
       {abiertoId !== null && detalle && (
-        <div className="grid gap-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader><CardTitle className="text-base">Datos del cliente</CardTitle></CardHeader>
-              <CardContent className="grid gap-1.5 text-sm">
-                <p><span className="text-muted-foreground">Cliente:</span> {detalle.client_name}</p>
-                {detalle.client_cuit && <p><span className="text-muted-foreground">CUIT / DNI:</span> {detalle.client_cuit}</p>}
-                {detalle.client_address && <p><span className="text-muted-foreground">Domicilio:</span> {detalle.client_address}</p>}
-                {detalle.client_email && <p><span className="text-muted-foreground">Email:</span> {detalle.client_email}</p>}
-                {detalle.client_phone && <p><span className="text-muted-foreground">Teléfono:</span> {detalle.client_phone}</p>}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader><CardTitle className="text-base">Datos del remito</CardTitle></CardHeader>
-              <CardContent className="grid gap-1.5 text-sm">
-                <p><span className="text-muted-foreground">Número:</span> <span className="font-mono">{detalle.number}</span></p>
-                <p><span className="text-muted-foreground">Fecha:</span> {detalle.date}</p>
-                {detalle.observations && <p><span className="text-muted-foreground">Observaciones:</span> {detalle.observations}</p>}
-              </CardContent>
-            </Card>
-          </div>
+        <Card>
+          <CardHeader className="flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-base">Remito <span className="font-mono">{detalle.number}</span></CardTitle>
+            <Button asChild size="sm" variant="outline"><a href={`/remitos/${detalle.id}/pdf`} target="_blank" rel="noreferrer"><FileDown />Ver PDF</a></Button>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card>
+                <CardHeader><CardTitle className="text-base">Datos del cliente</CardTitle></CardHeader>
+                <CardContent className="grid gap-1.5 text-sm">
+                  <p><span className="text-muted-foreground">Cliente:</span> {detalle.client_name}</p>
+                  {detalle.client_cuit && <p><span className="text-muted-foreground">CUIT / DNI:</span> {detalle.client_cuit}</p>}
+                  {detalle.client_address && <p><span className="text-muted-foreground">Domicilio:</span> {detalle.client_address}</p>}
+                  {detalle.client_email && <p><span className="text-muted-foreground">Email:</span> {detalle.client_email}</p>}
+                  {detalle.client_phone && <p><span className="text-muted-foreground">Teléfono:</span> {detalle.client_phone}</p>}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader><CardTitle className="text-base">Datos del remito</CardTitle></CardHeader>
+                <CardContent className="grid gap-1.5 text-sm">
+                  <p><span className="text-muted-foreground">Número:</span> <span className="font-mono">{detalle.number}</span></p>
+                  <p><span className="text-muted-foreground">Fecha:</span> {detalle.date}</p>
+                  {detalle.observations && <p><span className="text-muted-foreground">Observaciones:</span> {detalle.observations}</p>}
+                </CardContent>
+              </Card>
+            </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Ítems</CardTitle></CardHeader>
-            <CardContent className="p-0">
-              <table className="w-full text-sm">
-                <thead className="border-b text-muted-foreground">
-                  <tr>
-                    <th className="p-3 text-left font-medium">Descripción</th>
-                    <th className="p-3 text-right font-medium">Cantidad</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {detalle.items.map((it, i) => (
-                    <tr key={i} className="border-b last:border-0">
-                      <td className="whitespace-pre-line p-3">{it.description}</td>
-                      <td className="p-3 text-right">{it.qty}</td>
+            <Card>
+              <CardHeader><CardTitle className="text-base">Ítems</CardTitle></CardHeader>
+              <CardContent className="p-0">
+                <table className="w-full text-sm">
+                  <thead className="border-b text-muted-foreground">
+                    <tr>
+                      <th className="p-3 text-left font-medium">Descripción</th>
+                      <th className="p-3 text-right font-medium">Cantidad</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </CardContent>
-          </Card>
+                  </thead>
+                  <tbody>
+                    {detalle.items.map((it, i) => (
+                      <tr key={i} className="border-b last:border-0">
+                        <td className="whitespace-pre-line p-3">{it.description}</td>
+                        <td className="p-3 text-right">{it.qty}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
 
-          <div className="flex justify-end gap-2">
-            <Button asChild variant="outline"><a href={`/remitos/${detalle.id}/pdf`} target="_blank" rel="noreferrer"><FileDown />Ver PDF</a></Button>
-            <Button variant="outline" onClick={() => eliminar(detalle)}><Trash2 />Eliminar remito</Button>
-          </div>
-        </div>
+            <div className="flex justify-end border-t pt-4">
+              <Button variant="outline" className="text-destructive hover:text-destructive" onClick={() => eliminar(detalle)}><Trash2 />Eliminar remito</Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   )

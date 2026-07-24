@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { type ColumnDef } from '@tanstack/react-table'
-import { api, ApiError, IVA_CONDITIONS, type MpMovimiento, type MpPago } from '../api'
+import { api, ApiError, IVA_CONDITIONS, type Cliente, type MpMovimiento, type MpPago } from '../api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,10 +9,11 @@ import { Badge } from '@/components/ui/badge'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { DataTable, sortableHeader } from '@/components/data-table'
 import {
   CreditCard, Wallet, Landmark, Banknote, RefreshCw, UserPlus, ReceiptText, X, Mail,
-  Forward, UserRoundX, MailWarning,
+  Forward, UserRoundX, MailWarning, History, ArrowDownCircle, Hourglass, Info, User,
 } from 'lucide-react'
 
 function formatCurrency(value: number): string {
@@ -53,7 +54,7 @@ export function MpBandeja() {
   const [msg, setMsg] = useState<string | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [dias, setDias] = useState('7')
-  const [tab, setTab] = useState<'pagos' | 'transferencias'>('pagos')
+  const [tab, setTab] = useState<'historial' | 'cobros' | 'pendientes'>('historial')
 
   const [creandoCliente, setCreandoCliente] = useState<{ kind: 'pago' | 'mov'; id: number } | null>(null)
   const [nombre, setNombre] = useState('')
@@ -195,74 +196,208 @@ export function MpBandeja() {
   const pendientesMov = data?.transferencias ?? []
   const historialMov = data?.transferencias_hist ?? []
 
-  const columnsHistorialPagos = useMemo<ColumnDef<MpPago>[]>(() => [
-    { accessorKey: 'created_at', header: sortableHeader('Fecha') },
-    { id: 'origen', header: 'Tipo', cell: ({ row }) => <OrigenBadge tipo={row.original.payment_type} metodo={row.original.payment_method} /> },
-    { id: 'pagador', header: 'Pagador', cell: ({ row }) => row.original.payer_name || row.original.payer_email || '—' },
+  // Historial reciente (pestaña 1 del template viejo): una única tabla que combina
+  // pagos (webhook) y transferencias/movimientos ya procesados — igual que
+  // mp_bandeja.html, que itera `historial` y luego `transferencias_hist` en el
+  // mismo <tbody>, sin resortear por fecha.
+  type HistRow = {
+    key: string
+    fecha: string
+    tipoNode: ReactNode
+    emisor: string
+    cliente: Cliente | null
+    monto: number
+    estado_factura: string
+    factura_id: number | null
+    reenvioRequiereEmail: boolean
+  }
+
+  const historialRows = useMemo<HistRow[]>(() => [
+    ...historialPagos.map((p): HistRow => ({
+      key: `p${p.id}`,
+      fecha: p.created_at,
+      tipoNode: <OrigenBadge tipo={p.payment_type} metodo={p.payment_method} />,
+      emisor: p.payer_name || p.payer_email || '—',
+      cliente: p.cliente,
+      monto: p.monto,
+      estado_factura: p.estado_factura,
+      factura_id: p.factura_id,
+      reenvioRequiereEmail: true,
+    })),
+    ...historialMov.map((m): HistRow => ({
+      key: `m${m.id}`,
+      fecha: m.fecha || m.created_at,
+      tipoNode: <OrigenBadge tipo={m.tipo} metodo={m.origen_banco} />,
+      emisor: m.origen_nombre || m.payer_name || '—',
+      cliente: m.cliente,
+      monto: m.monto,
+      estado_factura: m.estado_factura,
+      factura_id: m.factura_id,
+      reenvioRequiereEmail: false,
+    })),
+  ], [historialPagos, historialMov])
+
+  const columnsHistorial = useMemo<ColumnDef<HistRow>[]>(() => [
+    { accessorKey: 'fecha', header: sortableHeader('Fecha') },
+    { id: 'tipo', header: 'Tipo', cell: ({ row }) => row.original.tipoNode },
+    { accessorKey: 'emisor', header: 'Emisor / Pagador' },
     { id: 'cliente', header: 'Cliente', cell: ({ row }) => row.original.cliente ? row.original.cliente.name : <span className="text-muted-foreground">—</span> },
     { accessorKey: 'monto', header: 'Monto', cell: ({ row }) => <span className="font-medium">{formatCurrency(row.original.monto)}</span> },
-    { id: 'estado', header: 'Estado', cell: ({ row }) => <Badge variant={row.original.estado_factura === 'facturado' ? 'default' : 'outline'}>{row.original.estado_factura === 'facturado' ? 'Facturado' : 'Ignorado'}</Badge> },
+    { id: 'estado', header: 'Estado', cell: ({ row }) => <Badge variant={row.original.estado_factura === 'facturado' ? 'default' : 'secondary'}>{row.original.estado_factura === 'facturado' ? 'Facturado' : 'Ignorado'}</Badge> },
     {
       id: 'factura',
       header: 'Factura',
-      cell: ({ row }) => row.original.factura_id ? (
-        <div className="flex items-center gap-1">
-          <Button asChild size="sm" variant="outline"><a href={`/facturas?ver=${row.original.factura_id}`}><ReceiptText />Ver</a></Button>
-          {row.original.cliente?.email
-            ? <Button size="icon" variant="outline" title="Reenviar email" disabled={saving} onClick={() => reenviarEmail(row.original.factura_id!)}><Forward className="size-4" /></Button>
-            : <Badge variant="outline" className="text-amber-700 dark:text-amber-400"><MailWarning className="mr-1 size-3.5" />Sin email</Badge>}
-        </div>
-      ) : <span className="text-muted-foreground">—</span>,
+      cell: ({ row }) => {
+        const r = row.original
+        if (!r.factura_id) return <span className="text-muted-foreground">—</span>
+        const puedeReenviar = r.reenvioRequiereEmail ? Boolean(r.cliente?.email) : true
+        return (
+          <div className="flex items-center gap-1">
+            <Button asChild size="sm" variant="outline"><a href={`/facturas?ver=${r.factura_id}`}><ReceiptText />Ver</a></Button>
+            {puedeReenviar
+              ? <Button size="icon" variant="outline" title="Reenviar email" disabled={saving} onClick={() => reenviarEmail(r.factura_id!)}><Forward className="size-4" /></Button>
+              : <Badge variant="outline" className="text-amber-700 dark:text-amber-400"><MailWarning className="mr-1 size-3.5" />Sin email</Badge>}
+          </div>
+        )
+      },
     },
   ], [saving])
 
-  const columnsHistorialMov = useMemo<ColumnDef<MpMovimiento>[]>(() => [
+  // Cobros sincronizados (pestaña 2): transferencias pendientes de facturar.
+  const columnsCobros = useMemo<ColumnDef<MpMovimiento>[]>(() => [
     { id: 'fecha', header: sortableHeader('Fecha'), accessorFn: (r) => r.fecha || r.created_at },
-    { id: 'origen', header: 'Tipo', cell: ({ row }) => <OrigenBadge tipo={row.original.tipo} metodo={row.original.origen_banco} /> },
-    { id: 'origen_nombre', header: 'Emisor', cell: ({ row }) => row.original.origen_nombre || row.original.payer_name || '—' },
-    { id: 'cliente', header: 'Cliente', cell: ({ row }) => row.original.cliente ? row.original.cliente.name : <span className="text-muted-foreground">—</span> },
-    { accessorKey: 'monto', header: 'Monto', cell: ({ row }) => <span className="font-medium">{formatCurrency(row.original.monto)}</span> },
-    { id: 'estado', header: 'Estado', cell: ({ row }) => <Badge variant={row.original.estado_factura === 'facturado' ? 'default' : 'outline'}>{row.original.estado_factura === 'facturado' ? 'Facturado' : 'Ignorado'}</Badge> },
     {
-      id: 'factura',
-      header: 'Factura',
-      cell: ({ row }) => row.original.factura_id ? (
-        <div className="flex items-center gap-1">
-          <Button asChild size="sm" variant="outline"><a href={`/facturas?ver=${row.original.factura_id}`}><ReceiptText />Ver</a></Button>
-          <Button size="icon" variant="outline" title="Reenviar email" disabled={saving} onClick={() => reenviarEmail(row.original.factura_id!)}><Forward className="size-4" /></Button>
+      id: 'emisor',
+      header: 'Emisor',
+      cell: ({ row }) => (
+        <div>
+          <p className="font-medium">{row.original.origen_nombre || '—'}</p>
+          {row.original.payer_id_number && <p className="text-xs text-muted-foreground">{row.original.payer_id_type || 'ID'}: {row.original.payer_id_number}</p>}
         </div>
-      ) : <span className="text-muted-foreground">—</span>,
+      ),
     },
+    {
+      id: 'banco',
+      header: 'Banco / Billetera',
+      cell: ({ row }) => row.original.origen_banco
+        ? <Badge variant="outline">{row.original.origen_banco.toUpperCase()}</Badge>
+        : <span className="text-muted-foreground">—</span>,
+    },
+    {
+      id: 'cbu',
+      header: 'CBU/CVU origen',
+      cell: ({ row }) => row.original.origen_cbu ? <code className="text-xs">{row.original.origen_cbu}</code> : <span className="text-muted-foreground">—</span>,
+    },
+    {
+      id: 'cliente',
+      header: 'Cliente / Email',
+      cell: ({ row }) => {
+        const m = row.original
+        if (m.cliente) return <span className="flex items-center gap-1"><User className="size-3.5 text-emerald-600" />{m.cliente.name}</span>
+        if (m.payer_email) return (
+          <div className="grid gap-0.5">
+            <span className="flex items-center gap-1 text-sm"><Mail className="size-3.5" />{m.payer_email}</span>
+            <Button size="sm" variant="link" className="h-auto justify-start p-0" onClick={() => abrirCrearCliente('mov', m)}><UserPlus className="size-3.5" />Dar de alta</Button>
+          </div>
+        )
+        return (
+          <div className="grid gap-0.5">
+            <span className="flex items-center gap-1 text-sm text-muted-foreground"><UserRoundX className="size-3.5" />Sin email</span>
+            <div className="flex gap-2">
+              <Button size="sm" variant="link" className="h-auto justify-start p-0" onClick={() => abrirCargarEmail(m)}><Mail className="size-3.5" />Cargar email</Button>
+              {m.origen_nombre && <Button size="sm" variant="link" className="h-auto justify-start p-0" onClick={() => abrirCrearCliente('mov', m)}><UserPlus className="size-3.5" />Dar de alta</Button>}
+            </div>
+          </div>
+        )
+      },
+    },
+    { accessorKey: 'monto', header: 'Monto', cell: ({ row }) => <span className="font-medium">{formatCurrency(row.original.monto)}</span> },
+    {
+      id: 'actions',
+      header: () => <div className="text-right">Acciones</div>,
+      cell: ({ row }) => (
+        <div className="flex justify-end gap-1">
+          <Button size="sm" disabled={saving} onClick={() => facturar('mov', row.original.id)}><ReceiptText />Factura</Button>
+          <Button size="icon" variant="outline" title="Ignorar" onClick={() => ignorar('mov', row.original.id)}><X /></Button>
+        </div>
+      ),
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [saving])
+
+  // Pendientes de factura (pestaña 3): pagos por webhook sin facturar todavía.
+  const columnsPendientes = useMemo<ColumnDef<MpPago>[]>(() => [
+    { accessorKey: 'created_at', header: sortableHeader('Fecha') },
+    {
+      id: 'pagador',
+      header: 'Pagador',
+      cell: ({ row }) => (
+        <div>
+          <p className="font-medium">{row.original.payer_name || '—'}</p>
+          {row.original.payer_email && <p className="text-xs text-muted-foreground">{row.original.payer_email}</p>}
+          {row.original.payer_id_number && <p className="text-xs text-muted-foreground">{row.original.payer_id_type || 'ID'}: {row.original.payer_id_number}</p>}
+        </div>
+      ),
+    },
+    { id: 'origen', header: 'Origen', cell: ({ row }) => <OrigenBadge tipo={row.original.payment_type} metodo={row.original.payment_method} /> },
+    {
+      id: 'cliente',
+      header: 'Cliente',
+      cell: ({ row }) => {
+        const p = row.original
+        if (p.cliente) return (
+          <div className="grid gap-0.5">
+            <span className="flex items-center gap-1"><User className="size-3.5 text-emerald-600" />{p.cliente.name}</span>
+            {!p.cliente.email && <Badge variant="outline" className="w-fit text-amber-700 dark:text-amber-400"><MailWarning className="mr-1 size-3.5" />Sin email</Badge>}
+          </div>
+        )
+        return (
+          <div className="grid gap-0.5">
+            <span className="flex items-center gap-1 text-sm text-muted-foreground"><UserRoundX className="size-3.5" />Sin registro</span>
+            <Button size="sm" variant="link" className="h-auto justify-start p-0" onClick={() => abrirCrearCliente('pago', p)}><UserPlus className="size-3.5" />Dar de alta</Button>
+          </div>
+        )
+      },
+    },
+    { accessorKey: 'monto', header: 'Monto', cell: ({ row }) => <span className="font-medium">{formatCurrency(row.original.monto)}</span> },
+    {
+      id: 'actions',
+      header: () => <div className="text-right">Acciones</div>,
+      cell: ({ row }) => (
+        <div className="flex justify-end gap-1">
+          <Button size="sm" disabled={saving} onClick={() => facturar('pago', row.original.id)}><ReceiptText />Factura</Button>
+          <Button size="icon" variant="outline" title="Ignorar" onClick={() => ignorar('pago', row.original.id)}><X /></Button>
+        </div>
+      ),
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [saving])
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-lg font-semibold"><CreditCard className="size-5 text-sky-500" />Bandeja MercadoPago</h2>
-        <div className="flex items-end gap-2">
-          <div className="grid gap-1.5">
-            <Label>Sincronizar</Label>
-            <Select value={dias} onValueChange={setDias}>
-              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7">Últimos 7 días</SelectItem>
-                <SelectItem value="15">Últimos 15 días</SelectItem>
-                <SelectItem value="30">Últimos 30 días</SelectItem>
-                <SelectItem value="60">Últimos 60 días</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <Button disabled={syncing} onClick={sincronizar}><RefreshCw />{syncing ? 'Sincronizando…' : 'Sincronizar'}</Button>
-        </div>
+      <div className="flex items-center justify-between">
+        <h2 className="flex items-center gap-2 text-lg font-semibold"><CreditCard className="size-5 text-sky-500" />Pagos MercadoPago</h2>
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
       {msg && <p className="text-sm text-emerald-600 dark:text-emerald-400">{msg}</p>}
 
-      <div className="flex gap-1 border-b pb-2">
-        <Button size="sm" variant={tab === 'pagos' ? 'default' : 'ghost'} onClick={() => setTab('pagos')}>Pagos ({pendientesPagos.length})</Button>
-        <Button size="sm" variant={tab === 'transferencias' ? 'default' : 'ghost'} onClick={() => setTab('transferencias')}>Transferencias ({pendientesMov.length})</Button>
-      </div>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
+        <TabsList>
+          <TabsTrigger value="historial">
+            <History />Historial reciente
+            <Badge variant="secondary" className="ml-1">{historialRows.length}</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="cobros">
+            <ArrowDownCircle />Cobros sincronizados
+            <Badge variant="secondary" className="ml-1">{pendientesMov.length}</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="pendientes">
+            <Hourglass />Pendientes de factura
+            <Badge variant="secondary" className="ml-1">{pendientesPagos.length}</Badge>
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {creandoCliente && (
         <Card>
@@ -302,91 +437,43 @@ export function MpBandeja() {
 
       {loading ? (
         <p className="py-6 text-center text-sm text-muted-foreground">Cargando…</p>
-      ) : tab === 'pagos' ? (
+      ) : tab === 'historial' ? (
+        <Card>
+          <CardContent className="p-0">
+            <DataTable columns={columnsHistorial} data={historialRows} emptyMessage="Todavía no hay movimientos en el historial." />
+          </CardContent>
+        </Card>
+      ) : tab === 'cobros' ? (
         <>
           <Card>
-            <CardHeader><CardTitle className="text-base">Pendientes de facturar</CardTitle></CardHeader>
-            <CardContent>
-              {pendientesPagos.length === 0 ? (
-                <p className="py-4 text-center text-sm text-muted-foreground">Sin pagos pendientes.</p>
-              ) : (
-                <ul className="divide-y">
-                  {pendientesPagos.map((p) => (
-                    <li key={p.id} className="grid gap-2 py-3">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="grid gap-1">
-                          <p className="font-medium">{formatCurrency(p.monto)} — {p.payer_name || p.payer_email || 'Sin datos'}</p>
-                          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                            <OrigenBadge tipo={p.payment_type} metodo={p.payment_method} />
-                            {p.cliente
-                              ? <span>Cliente: {p.cliente.name}{!p.cliente.email && <Badge variant="outline" className="ml-1 text-amber-700 dark:text-amber-400"><MailWarning className="mr-1 size-3.5" />Sin email</Badge>}</span>
-                              : <span className="flex items-center gap-1"><UserRoundX className="size-3.5" />Sin registro</span>}
-                            <span>· MP#{p.mp_payment_id}</span>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          {!p.cliente && <Button size="sm" variant="outline" onClick={() => abrirCrearCliente('pago', p)}><UserPlus />Dar de alta</Button>}
-                          <Button size="sm" disabled={saving} onClick={() => facturar('pago', p.id)}><ReceiptText />Factura</Button>
-                          <Button size="sm" variant="ghost" onClick={() => ignorar('pago', p.id)}><X />Ignorar</Button>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
+            <CardContent className="flex flex-wrap items-center justify-between gap-2 py-3">
+              <p className="flex items-center gap-1.5 text-sm text-muted-foreground"><Info className="size-4" />Pagos aprobados no capturados por webhook.</p>
+              <div className="flex items-center gap-2">
+                <Select value={dias} onValueChange={setDias}>
+                  <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="7">Últimos 7 días</SelectItem>
+                    <SelectItem value="15">Últimos 15 días</SelectItem>
+                    <SelectItem value="30">Últimos 30 días</SelectItem>
+                    <SelectItem value="60">Últimos 60 días</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button size="sm" variant="outline" disabled={syncing} onClick={sincronizar}><RefreshCw />{syncing ? 'Sincronizando…' : 'Sincronizar'}</Button>
+              </div>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader><CardTitle className="text-base">Historial</CardTitle></CardHeader>
             <CardContent className="p-0">
-              <DataTable columns={columnsHistorialPagos} data={historialPagos} emptyMessage="Sin historial todavía." />
+              <DataTable columns={columnsCobros} data={pendientesMov} emptyMessage="Usá el botón Sincronizar para traer las transferencias recibidas." />
             </CardContent>
           </Card>
         </>
       ) : (
-        <>
-          <Card>
-            <CardHeader><CardTitle className="text-base">Transferencias pendientes</CardTitle></CardHeader>
-            <CardContent>
-              {pendientesMov.length === 0 ? (
-                <p className="py-4 text-center text-sm text-muted-foreground">Sin transferencias pendientes. Usá <strong>Sincronizar</strong> para traer las recibidas.</p>
-              ) : (
-                <ul className="divide-y">
-                  {pendientesMov.map((m) => (
-                    <li key={m.id} className="grid gap-2 py-3">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="grid gap-1">
-                          <p className="font-medium">{formatCurrency(m.monto)} — {m.origen_nombre || m.payer_name || 'Sin datos'} ({m.fecha})</p>
-                          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                            <OrigenBadge tipo={m.tipo} metodo={m.origen_banco} />
-                            {m.origen_cbu && <code className="text-xs">{m.origen_cbu}</code>}
-                            {m.cliente
-                              ? <span>Cliente: {m.cliente.name}</span>
-                              : m.payer_email
-                                ? <span className="flex items-center gap-1"><Mail className="size-3.5" />{m.payer_email}</span>
-                                : <span className="flex items-center gap-1"><UserRoundX className="size-3.5" />Sin email</span>}
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          {!m.cliente && !m.payer_email && <Button size="sm" variant="outline" onClick={() => abrirCargarEmail(m)}><Mail />Cargar email</Button>}
-                          {!m.cliente && (m.payer_email || m.origen_nombre) && <Button size="sm" variant="outline" onClick={() => abrirCrearCliente('mov', m)}><UserPlus />Dar de alta</Button>}
-                          <Button size="sm" disabled={saving} onClick={() => facturar('mov', m.id)}><ReceiptText />Factura</Button>
-                          <Button size="sm" variant="ghost" onClick={() => ignorar('mov', m.id)}><X />Ignorar</Button>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader><CardTitle className="text-base">Historial</CardTitle></CardHeader>
-            <CardContent className="p-0">
-              <DataTable columns={columnsHistorialMov} data={historialMov} emptyMessage="Sin historial todavía." />
-            </CardContent>
-          </Card>
-        </>
+        <Card>
+          <CardContent className="p-0">
+            <DataTable columns={columnsPendientes} data={pendientesPagos} emptyMessage="Sin pagos pendientes." />
+          </CardContent>
+        </Card>
       )}
     </div>
   )

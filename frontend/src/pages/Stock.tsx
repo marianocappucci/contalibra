@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { type ColumnDef } from '@tanstack/react-table'
 import { api, ApiError, type MovimientoStock, type StockItem } from '../api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,8 +12,8 @@ import {
 } from '@/components/ui/select'
 import { DataTable, sortableHeader } from '@/components/data-table'
 import {
-  Boxes, AlertTriangle, Pencil, History, RefreshCw, ArrowDownToLine, ArrowUpFromLine,
-  ShoppingCart, RotateCcw, X,
+  Archive, AlertTriangle, Pencil, History, RefreshCw, ArrowDownToLine, ArrowUpFromLine,
+  ShoppingCart, RotateCcw, X, Filter,
 } from 'lucide-react'
 
 function todayIso(): string {
@@ -45,6 +46,12 @@ function EstadoBadge({ p }: { p: StockItem }) {
   return <Badge className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-400">OK</Badge>
 }
 
+const MODOS_AJUSTE = [
+  { value: 'absoluto', label: 'Fijar en…', icon: RefreshCw },
+  { value: 'entrada', label: 'Entrada', icon: ArrowDownToLine },
+  { value: 'salida', label: 'Salida', icon: ArrowUpFromLine },
+]
+
 export function Stock() {
   const [productos, setProductos] = useState<StockItem[]>([])
   const [alertas, setAlertas] = useState<StockItem[]>([])
@@ -53,6 +60,7 @@ export function Stock() {
   const [movLoading, setMovLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const [movimientosVisible, setMovimientosVisible] = useState(false)
   const [movFiltroProducto, setMovFiltroProducto] = useState('')
   const [movDesde, setMovDesde] = useState('')
   const [movHasta, setMovHasta] = useState('')
@@ -68,11 +76,6 @@ export function Stock() {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  useEffect(() => {
-    cargarMovimientos()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [movFiltroProducto, movDesde, movHasta])
 
   function describeError(err: unknown): string {
     if (err instanceof ApiError) return err.detail
@@ -110,14 +113,26 @@ export function Stock() {
     }
   }
 
+  function toggleMovimientos() {
+    setMovimientosVisible((v) => {
+      const next = !v
+      if (next) cargarMovimientos()
+      return next
+    })
+  }
+
   function verMovimientos(p: StockItem) {
     setMovFiltroProducto(String(p.id))
+    setMovimientosVisible(true)
+    setMovLoading(true)
+    setTimeout(cargarMovimientos, 0)
   }
 
   function limpiarFiltroMovimientos() {
     setMovFiltroProducto('')
     setMovDesde('')
     setMovHasta('')
+    setTimeout(cargarMovimientos, 0)
   }
 
   function startAjuste(p: StockItem) {
@@ -144,7 +159,7 @@ export function Stock() {
       })
       setAjustandoId(null)
       await load()
-      await cargarMovimientos()
+      if (movimientosVisible) await cargarMovimientos()
     } catch (err) {
       setError(describeError(err))
     } finally {
@@ -153,19 +168,27 @@ export function Stock() {
   }
 
   const columns = useMemo<ColumnDef<StockItem>[]>(() => [
-    { accessorKey: 'codigo', header: 'Código', cell: ({ row }) => <span className="font-mono text-xs">{row.original.codigo || '—'}</span> },
-    { accessorKey: 'nombre', header: sortableHeader('Producto'), cell: ({ row }) => <span className="font-medium">{row.original.nombre}</span> },
-    { accessorKey: 'categoria', header: 'Categoría', cell: ({ row }) => row.original.categoria || '—' },
+    {
+      accessorKey: 'nombre',
+      header: sortableHeader('Producto'),
+      cell: ({ row }) => (
+        <span>
+          <span className="font-semibold">{row.original.nombre}</span>
+          {row.original.codigo && <span className="ml-1 text-sm text-muted-foreground">· {row.original.codigo}</span>}
+        </span>
+      ),
+    },
+    { accessorKey: 'categoria', header: 'Categoría', cell: ({ row }) => <span className="text-muted-foreground">{row.original.categoria || '—'}</span> },
     { accessorKey: 'unidad', header: 'Unidad', cell: ({ row }) => <span className="text-muted-foreground">{row.original.unidad}</span> },
-    { accessorKey: 'stock_minimo', header: 'Mínimo', cell: ({ row }) => row.original.stock_minimo > 0 ? row.original.stock_minimo : '—' },
+    { accessorKey: 'stock_minimo', header: 'Stock mínimo', cell: ({ row }) => row.original.stock_minimo > 0 ? row.original.stock_minimo : '—' },
     {
       accessorKey: 'stock_actual',
       header: 'Stock actual',
       cell: ({ row }) => {
         const critico = row.original.stock_actual <= 0
         const bajo = row.original.stock_minimo > 0 && row.original.stock_actual <= row.original.stock_minimo
-        const cls = critico ? 'font-semibold text-destructive' : bajo ? 'font-semibold text-amber-600 dark:text-amber-400' : 'font-semibold text-emerald-600 dark:text-emerald-400'
-        return <span className={cls}>{row.original.stock_actual} {row.original.unidad}</span>
+        const cls = critico ? 'font-bold text-lg text-destructive' : bajo ? 'font-bold text-lg text-amber-600 dark:text-amber-400' : 'font-bold text-lg text-emerald-600 dark:text-emerald-400'
+        return <span className={cls}>{row.original.stock_actual}</span>
       },
     },
     { id: 'estado', header: 'Estado', cell: ({ row }) => <EstadoBadge p={row.original} /> },
@@ -174,8 +197,8 @@ export function Stock() {
       header: () => <div className="text-right">Acciones</div>,
       cell: ({ row }) => (
         <div className="flex justify-end gap-2">
-          <Button size="sm" variant="outline" onClick={() => verMovimientos(row.original)} title="Ver movimientos"><History />Movimientos</Button>
-          <Button size="sm" variant="outline" onClick={() => startAjuste(row.original)}><Pencil />Ajustar</Button>
+          <Button size="sm" variant="outline" onClick={() => verMovimientos(row.original)} title="Ver movimientos"><History /></Button>
+          <Button size="sm" variant="outline" onClick={() => startAjuste(row.original)} title="Ajustar stock"><Pencil /></Button>
         </div>
       ),
     },
@@ -183,67 +206,51 @@ export function Stock() {
   ], [])
 
   const movColumns = useMemo<ColumnDef<MovimientoStock>[]>(() => [
-    { accessorKey: 'fecha', header: sortableHeader('Fecha') },
-    { accessorKey: 'producto_nombre', header: 'Producto' },
+    { accessorKey: 'fecha', header: 'Fecha' },
+    {
+      accessorKey: 'producto_nombre',
+      header: 'Producto',
+      cell: ({ row }) => (
+        <button type="button" className="font-semibold hover:underline" onClick={() => verMovimientos({ id: row.original.producto_id } as StockItem)}>
+          {row.original.producto_nombre}
+        </button>
+      ),
+    },
     { accessorKey: 'tipo', header: 'Tipo', cell: ({ row }) => <TipoBadge tipo={row.original.tipo} /> },
     {
       accessorKey: 'cantidad',
       header: 'Cantidad',
       cell: ({ row }) => (
-        <span className={row.original.cantidad >= 0 ? 'font-medium text-emerald-600 dark:text-emerald-400' : 'font-medium text-destructive'}>
-          {row.original.cantidad >= 0 ? '+' : ''}{row.original.cantidad} {row.original.unidad}
+        <span className={row.original.cantidad >= 0 ? 'font-semibold text-emerald-600 dark:text-emerald-400' : 'font-semibold text-destructive'}>
+          {row.original.cantidad >= 0 ? '+' : ''}{row.original.cantidad}
         </span>
       ),
     },
-    { accessorKey: 'referencia', header: 'Referencia', cell: ({ row }) => row.original.referencia || '—' },
+    { accessorKey: 'referencia', header: 'Referencia', cell: ({ row }) => <span className="text-muted-foreground">{row.original.referencia || '—'}</span> },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [])
 
   const productoAjustando = productos.find((p) => p.id === ajustandoId)
 
   return (
     <div className="grid gap-4">
-      <h2 className="flex items-center gap-2 text-lg font-semibold"><Boxes className="size-5 text-primary" />Stock</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="flex items-center gap-2 text-lg font-semibold"><Archive className="size-5 text-primary" />Stock</h2>
+        <Button variant="outline" onClick={toggleMovimientos}><History />Historial de movimientos</Button>
+      </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       {alertas.length > 0 && (
-        <Card>
-          <CardHeader><CardTitle className="flex items-center gap-2 text-base text-destructive"><AlertTriangle className="size-4" />{alertas.length} producto{alertas.length > 1 ? 's' : ''} con stock bajo mínimo</CardTitle></CardHeader>
-          <CardContent>
-            <ul className="flex flex-wrap gap-2">
-              {alertas.map((a) => (
-                <li key={a.id}><Badge className="bg-amber-500/15 text-amber-700 hover:bg-amber-500/15 dark:text-amber-400">{a.nombre}: {a.stock_actual} {a.unidad}</Badge></li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
-
-      {ajustandoId !== null && (
-        <Card>
-          <CardHeader><CardTitle className="text-base">Ajustar stock — {productoAjustando?.nombre}</CardTitle></CardHeader>
-          <CardContent className="flex flex-wrap items-end gap-3">
-            <div className="grid gap-1.5">
-              <Label>Modo</Label>
-              <Select value={modo} onValueChange={(v) => cambiarModo(v, productoAjustando?.stock_actual ?? 0)}>
-                <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="absoluto"><RefreshCw />Fijar valor absoluto</SelectItem>
-                  <SelectItem value="entrada"><ArrowDownToLine />Sumar entrada</SelectItem>
-                  <SelectItem value="salida"><ArrowUpFromLine />Restar salida</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-1.5">
-              <Label>{modo === 'absoluto' ? `Stock nuevo (${productoAjustando?.unidad ?? ''})` : modo === 'entrada' ? `Cantidad a ingresar (${productoAjustando?.unidad ?? ''})` : `Cantidad a retirar (${productoAjustando?.unidad ?? ''})`}</Label>
-              <Input type="number" step="0.01" value={cantidad} onChange={(e) => setCantidad(e.target.value)} className="w-40" />
-            </div>
-            <div className="grid gap-1.5"><Label>Fecha</Label><Input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="w-40" /></div>
-            <div className="grid gap-1.5"><Label>Motivo / Referencia</Label><Input value={referencia} onChange={(e) => setReferencia(e.target.value)} className="w-56" placeholder="Ej: Compra, conteo físico, rotura…" /></div>
-            <Button disabled={saving} onClick={guardarAjuste}>{saving ? 'Guardando…' : 'Guardar movimiento'}</Button>
-            <Button type="button" variant="outline" onClick={() => setAjustandoId(null)}>Cancelar</Button>
-          </CardContent>
-        </Card>
+        <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-900 dark:bg-amber-950/40">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+          <p>
+            <strong>{alertas.length} producto{alertas.length > 1 ? 's' : ''} con stock bajo mínimo:</strong>{' '}
+            {alertas.map((a) => (
+              <Badge key={a.id} className="ml-1 bg-amber-500/15 text-amber-700 hover:bg-amber-500/15 dark:text-amber-400">{a.nombre} ({a.stock_actual} {a.unidad})</Badge>
+            ))}
+          </p>
+        </div>
       )}
 
       <Card>
@@ -251,37 +258,92 @@ export function Stock() {
           {loading ? (
             <p className="py-6 text-center text-sm text-muted-foreground">Cargando…</p>
           ) : (
-            <DataTable columns={columns} data={productos} emptyMessage="Sin productos activos." />
+            <DataTable
+              columns={columns}
+              data={productos}
+              emptyMessage={<>No hay productos activos. <Link to="/productos" className="text-primary hover:underline">Crear un producto</Link>.</>}
+            />
           )}
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="flex items-center justify-between space-y-0">
-          <CardTitle className="flex items-center gap-2 text-base"><History className="size-4" />Historial de movimientos</CardTitle>
-          <div className="flex flex-wrap items-end gap-2">
-            <Select value={movFiltroProducto || 'todos'} onValueChange={(v) => setMovFiltroProducto(v === 'todos' ? '' : v)}>
-              <SelectTrigger className="w-48"><SelectValue placeholder="Todos los productos" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos los productos</SelectItem>
-                {productos.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.nombre}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Input type="date" value={movDesde} onChange={(e) => setMovDesde(e.target.value)} className="w-36" />
-            <Input type="date" value={movHasta} onChange={(e) => setMovHasta(e.target.value)} className="w-36" />
-            {(movFiltroProducto || movDesde || movHasta) && (
-              <Button size="sm" variant="ghost" onClick={limpiarFiltroMovimientos}><X />Limpiar</Button>
+      {ajustandoId !== null && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">Ajuste de stock — {productoAjustando?.nombre}</CardTitle></CardHeader>
+          <CardContent className="grid gap-4">
+            <div className="flex gap-4">
+              <div className="text-center">
+                <div className={`text-3xl font-bold ${(productoAjustando?.stock_actual ?? 0) <= 0 ? 'text-destructive' : (productoAjustando?.stock_minimo ?? 0) > 0 && (productoAjustando?.stock_actual ?? 0) <= (productoAjustando?.stock_minimo ?? 0) ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                  {productoAjustando?.stock_actual}
+                </div>
+                <div className="text-sm text-muted-foreground">Stock actual ({productoAjustando?.unidad})</div>
+              </div>
+              {(productoAjustando?.stock_minimo ?? 0) > 0 && (
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-muted-foreground">{productoAjustando?.stock_minimo}</div>
+                  <div className="text-sm text-muted-foreground">Mínimo</div>
+                </div>
+              )}
+            </div>
+
+            <div className="grid gap-1.5">
+              <Label>Tipo de ajuste</Label>
+              <div className="flex flex-wrap gap-2">
+                {MODOS_AJUSTE.map((m) => (
+                  <Button
+                    key={m.value}
+                    type="button"
+                    size="sm"
+                    variant={modo === m.value ? 'default' : 'outline'}
+                    onClick={() => cambiarModo(m.value, productoAjustando?.stock_actual ?? 0)}
+                  >
+                    <m.icon />{m.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="grid gap-1.5">
+                <Label>{modo === 'absoluto' ? `Stock nuevo (${productoAjustando?.unidad ?? ''})` : modo === 'entrada' ? `Cantidad a ingresar (${productoAjustando?.unidad ?? ''})` : `Cantidad a retirar (${productoAjustando?.unidad ?? ''})`}</Label>
+                <Input type="number" step="0.01" value={cantidad} onChange={(e) => setCantidad(e.target.value)} className="w-40" />
+              </div>
+              <div className="grid gap-1.5"><Label>Fecha</Label><Input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="w-40" /></div>
+              <div className="grid gap-1.5"><Label>Motivo / Referencia</Label><Input value={referencia} onChange={(e) => setReferencia(e.target.value)} className="w-56" placeholder="Ej: Compra, conteo físico, rotura…" /></div>
+              <Button disabled={saving} onClick={guardarAjuste}>{saving ? 'Guardando…' : 'Guardar movimiento'}</Button>
+              <Button type="button" variant="outline" onClick={() => setAjustandoId(null)}>Cancelar</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {movimientosVisible && (
+        <Card>
+          <CardHeader><CardTitle className="flex items-center gap-2 text-base"><History className="size-4" />Movimientos de stock</CardTitle></CardHeader>
+          <CardContent className="grid gap-3">
+            <div className="flex flex-wrap items-end gap-2">
+              <Select value={movFiltroProducto || 'todos'} onValueChange={(v) => setMovFiltroProducto(v === 'todos' ? '' : v)}>
+                <SelectTrigger className="w-56"><SelectValue placeholder="— Todos los productos —" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">— Todos los productos —</SelectItem>
+                  {productos.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.nombre}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Input type="date" value={movDesde} onChange={(e) => setMovDesde(e.target.value)} className="w-40" />
+              <Input type="date" value={movHasta} onChange={(e) => setMovHasta(e.target.value)} className="w-40" />
+              <Button size="sm" variant="outline" onClick={cargarMovimientos}><Filter />Filtrar</Button>
+              {(movFiltroProducto || movDesde || movHasta) && (
+                <Button size="sm" variant="outline" onClick={limpiarFiltroMovimientos}><X />Limpiar</Button>
+              )}
+            </div>
+            {movLoading ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">Cargando…</p>
+            ) : (
+              <DataTable columns={movColumns} data={movimientos} emptyMessage="No hay movimientos registrados." />
             )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {movLoading ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">Cargando…</p>
-          ) : (
-            <DataTable columns={movColumns} data={movimientos} emptyMessage="Sin movimientos registrados." />
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

@@ -25,6 +25,7 @@ import { Presupuestos } from './pages/Presupuestos'
 import { MpBandeja } from './pages/MpBandeja'
 import { LibrosIva } from './pages/LibrosIva'
 import { Reportes } from './pages/Reportes'
+import { CajaMedios } from './pages/CajaMedios'
 import { Logs } from './pages/Logs'
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -217,6 +218,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <Reportes />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/reportes/caja-medios"
+        element={
+          <ProtectedRoute>
+            <CajaMedios />
           </ProtectedRoute>
         }
       />

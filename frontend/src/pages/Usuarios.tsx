@@ -16,7 +16,7 @@ import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from '@/components/ui/form'
 import { DataTable, sortableHeader } from '@/components/data-table'
-import { Check, Pencil, Plus, PowerOff, Power, Trash2, UserCog } from 'lucide-react'
+import { Check, Pencil, Plus, Trash2, Users } from 'lucide-react'
 
 const crearSchema = z.object({
   username: z.string().trim().min(1, 'El usuario es obligatorio'),
@@ -32,10 +32,11 @@ const editarSchema = z.object({
   nombre: z.string().trim().min(1, 'El nombre es obligatorio'),
   email: z.string().trim().email('Email inválido').optional().or(z.literal('')),
   role: z.string(),
+  activo: z.string(),
   new_password: z.string().optional(),
 })
 type EditarFormValues = z.infer<typeof editarSchema>
-const EMPTY_EDIT: EditarFormValues = { nombre: '', email: '', role: 'operador', new_password: '' }
+const EMPTY_EDIT: EditarFormValues = { nombre: '', email: '', role: 'operador', activo: '1', new_password: '' }
 
 export function Usuarios() {
   const { user: me } = useAuth()
@@ -73,7 +74,10 @@ export function Usuarios() {
   function startEdit(usuario: Usuario) {
     setEditingId(usuario.id)
     setCreating(false)
-    editForm.reset({ nombre: usuario.nombre, email: usuario.email ?? '', role: usuario.role, new_password: '' })
+    editForm.reset({
+      nombre: usuario.nombre, email: usuario.email ?? '', role: usuario.role,
+      activo: usuario.activo ? '1' : '0', new_password: '',
+    })
   }
 
   async function handleCreate(values: CrearFormValues) {
@@ -99,10 +103,9 @@ export function Usuarios() {
     setSaving(true)
     setError(null)
     try {
-      const original = usuarios.find((u) => u.id === editingId)
       await api.put(`/api/usuarios/${editingId}`, {
         nombre: values.nombre, email: values.email || '', role: values.role,
-        activo: !!original?.activo, new_password: values.new_password || '',
+        activo: values.activo === '1', new_password: values.new_password || '',
       })
       setEditingId(null)
       await load()
@@ -110,19 +113,6 @@ export function Usuarios() {
       setError(describeError(err))
     } finally {
       setSaving(false)
-    }
-  }
-
-  async function toggleActivo(usuario: Usuario) {
-    setError(null)
-    try {
-      await api.put(`/api/usuarios/${usuario.id}`, {
-        nombre: usuario.nombre, email: usuario.email ?? '', role: usuario.role,
-        activo: !usuario.activo, new_password: '',
-      })
-      await load()
-    } catch (err) {
-      setError(describeError(err))
     }
   }
 
@@ -172,10 +162,6 @@ export function Usuarios() {
       cell: ({ row }) => (
         <div className="flex justify-end gap-2">
           <Button size="sm" variant="outline" onClick={() => startEdit(row.original)}><Pencil />Editar</Button>
-          <Button size="sm" variant="outline" onClick={() => toggleActivo(row.original)}>
-            {row.original.activo ? <PowerOff /> : <Power />}
-            {row.original.activo ? 'Desactivar' : 'Activar'}
-          </Button>
           {row.original.username !== me?.username && (
             <Button size="sm" variant="outline" onClick={() => eliminar(row.original)}><Trash2 />Eliminar</Button>
           )}
@@ -188,7 +174,7 @@ export function Usuarios() {
   return (
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
-        <h2 className="flex items-center gap-2 text-lg font-semibold"><UserCog className="size-5" />Usuarios</h2>
+        <h2 className="flex items-center gap-2 text-lg font-semibold"><Users className="size-5" />Usuarios</h2>
         {!creating && (
           <Button onClick={() => { setCreating(true); setEditingId(null) }}><Plus />Nuevo usuario</Button>
         )}
@@ -211,9 +197,6 @@ export function Usuarios() {
                 <FormField control={createForm.control} name="email" render={({ field }) => (
                   <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} className="w-52" /></FormControl><FormMessage /></FormItem>
                 )} />
-                <FormField control={createForm.control} name="password" render={({ field }) => (
-                  <FormItem><FormLabel>Contraseña</FormLabel><FormControl><Input type="password" {...field} className="w-40" /></FormControl><FormMessage /></FormItem>
-                )} />
                 <FormField control={createForm.control} name="role" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Rol</FormLabel>
@@ -226,8 +209,11 @@ export function Usuarios() {
                     <FormMessage />
                   </FormItem>
                 )} />
+                <FormField control={createForm.control} name="password" render={({ field }) => (
+                  <FormItem><FormLabel>Contraseña</FormLabel><FormControl><Input type="password" {...field} className="w-40" placeholder="Mínimo 6 caracteres" /></FormControl><FormMessage /></FormItem>
+                )} />
                 <div className="flex gap-2 pt-6">
-                  <Button type="submit" disabled={saving}><Check />{saving ? 'Guardando…' : 'Crear'}</Button>
+                  <Button type="submit" disabled={saving}><Check />{saving ? 'Guardando…' : 'Crear usuario'}</Button>
                   <Button type="button" variant="outline" onClick={() => { setCreating(false); createForm.reset(EMPTY_CREATE) }}>Cancelar</Button>
                 </div>
               </form>
@@ -242,6 +228,10 @@ export function Usuarios() {
           <CardContent>
             <Form {...editForm}>
               <form className="flex flex-wrap items-start gap-3" onSubmit={editForm.handleSubmit(handleEdit)}>
+                <FormItem>
+                  <FormLabel>Usuario</FormLabel>
+                  <FormControl><Input value={usuarios.find((u) => u.id === editingId)?.username ?? ''} readOnly disabled className="w-40" /></FormControl>
+                </FormItem>
                 <FormField control={editForm.control} name="nombre" render={({ field }) => (
                   <FormItem><FormLabel>Nombre</FormLabel><FormControl><Input {...field} className="w-48" /></FormControl><FormMessage /></FormItem>
                 )} />
@@ -260,11 +250,24 @@ export function Usuarios() {
                     <FormMessage />
                   </FormItem>
                 )} />
+                <FormField control={editForm.control} name="activo" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Estado</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl><SelectTrigger className="w-32"><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        <SelectItem value="1">Activo</SelectItem>
+                        <SelectItem value="0">Inactivo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
                 <FormField control={editForm.control} name="new_password" render={({ field }) => (
-                  <FormItem><FormLabel>Nueva contraseña (opcional)</FormLabel><FormControl><Input type="password" {...field} className="w-40" /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Nueva contraseña <span className="font-normal text-muted-foreground">(dejar vacío para no cambiar)</span></FormLabel><FormControl><Input type="password" {...field} className="w-40" /></FormControl><FormMessage /></FormItem>
                 )} />
                 <div className="flex gap-2 pt-6">
-                  <Button type="submit" disabled={saving}><Check />{saving ? 'Guardando…' : 'Guardar'}</Button>
+                  <Button type="submit" disabled={saving}><Check />{saving ? 'Guardando…' : 'Guardar cambios'}</Button>
                   <Button type="button" variant="outline" onClick={() => setEditingId(null)}>Cancelar</Button>
                 </div>
               </form>

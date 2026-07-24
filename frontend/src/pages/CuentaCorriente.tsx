@@ -141,16 +141,25 @@ export function CuentaCorriente() {
   }, [movimientos])
 
   const columns = useMemo<ColumnDef<ClienteConSaldoCC>[]>(() => [
-    { accessorKey: 'name', header: sortableHeader('Cliente'), cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
-    { accessorKey: 'cuit_dni', header: 'CUIT/DNI', cell: ({ row }) => row.original.cuit_dni || '—' },
+    { accessorKey: 'name', header: sortableHeader('Cliente'), cell: ({ row }) => <span className="font-semibold">{row.original.name}</span> },
+    { accessorKey: 'cuit_dni', header: 'CUIT/DNI', cell: ({ row }) => <span className="font-mono text-sm text-muted-foreground">{row.original.cuit_dni || '—'}</span> },
     {
       accessorKey: 'saldo',
-      header: 'Saldo',
-      cell: ({ row }) => (
-        <span className={row.original.saldo > 0 ? 'font-medium text-destructive' : 'font-medium text-emerald-600 dark:text-emerald-400'}>
-          {formatCurrency(row.original.saldo)}
-        </span>
-      ),
+      header: () => <div className="text-right">Saldo</div>,
+      cell: ({ row }) => {
+        const s = row.original.saldo
+        return (
+          <div className="text-right">
+            {s > 0 ? (
+              <Badge className="bg-amber-500/15 text-amber-700 hover:bg-amber-500/15 dark:text-amber-400">{formatCurrency(s)}</Badge>
+            ) : s < 0 ? (
+              <Badge className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-400">A favor {formatCurrency(s * -1)}</Badge>
+            ) : (
+              <Badge variant="secondary">{formatCurrency(0)}</Badge>
+            )}
+          </div>
+        )
+      },
     },
     {
       id: 'actions',
@@ -158,7 +167,7 @@ export function CuentaCorriente() {
       cell: ({ row }) => (
         <div className="flex justify-end">
           <Button size="sm" variant="outline" onClick={() => abrir(row.original)}>
-            {abiertoId === row.original.id ? <><EyeOff />Ocultar</> : <><Eye />Ver movimientos</>}
+            {abiertoId === row.original.id ? <><EyeOff />Ocultar</> : <><Eye />Ver</>}
           </Button>
         </div>
       ),
@@ -190,24 +199,24 @@ export function CuentaCorriente() {
         return row.original.concepto
       },
     },
-    {
-      accessorKey: 'monto',
-      header: 'Monto',
-      cell: ({ row }) => (
-        <span className={row.original.tipo === 'debito' ? 'font-medium text-destructive' : 'font-medium text-emerald-600 dark:text-emerald-400'}>
-          {row.original.tipo === 'debito' ? '+' : '−'} {formatCurrency(row.original.monto)}
-        </span>
-      ),
-    },
-    { accessorKey: 'usuario_nombre', header: 'Usuario', cell: ({ row }) => row.original.usuario_nombre || '—' },
+    { accessorKey: 'usuario_nombre', header: 'Usuario', cell: ({ row }) => <span className="text-sm">{row.original.usuario_nombre || '—'}</span> },
     {
       accessorKey: 'referencia',
       header: 'Referencia / Medio',
       cell: ({ row }) => (
-        <span className="flex flex-wrap items-center gap-1">
+        <span className="flex flex-wrap items-center gap-1 text-muted-foreground">
           {row.original.referencia || '—'}
           {row.original.medio && <Badge variant="outline">{MEDIOS_PAGO_LABELS[row.original.medio] ?? row.original.medio}</Badge>}
         </span>
+      ),
+    },
+    {
+      accessorKey: 'monto',
+      header: () => <div className="text-right">Monto</div>,
+      cell: ({ row }) => (
+        <div className={`text-right font-semibold ${row.original.tipo === 'debito' ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'}`}>
+          {row.original.tipo === 'debito' ? '+' : '−'} {formatCurrency(row.original.monto)}
+        </div>
       ),
     },
     {
@@ -225,18 +234,30 @@ export function CuentaCorriente() {
   return (
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
-        <h2 className="flex items-center gap-2 text-lg font-semibold"><BookOpen className="size-5 text-primary" />Cuenta corriente</h2>
-        <span className="text-sm text-muted-foreground">Deuda total: <span className="font-medium text-foreground">{formatCurrency(totalDeuda)}</span></span>
+        <h2 className="flex items-center gap-2 text-lg font-semibold"><BookOpen className="size-5 text-primary" />Cuenta Corriente</h2>
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
+      {totalDeuda > 0 && (
+        <Card className="border-0 bg-amber-50 dark:bg-amber-950/40">
+          <CardContent className="py-3 text-center">
+            <p className="text-sm text-muted-foreground">Total deuda pendiente</p>
+            <p className="text-xl font-bold text-amber-600 dark:text-amber-400">{formatCurrency(totalDeuda)}</p>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
+        <CardHeader className="flex-row items-center justify-between space-y-0">
+          <CardTitle className="text-base font-semibold">Clientes con cuenta corriente</CardTitle>
+          <span className="text-sm font-normal text-muted-foreground">{clientes.length} cliente{clientes.length !== 1 ? 's' : ''}</span>
+        </CardHeader>
         <CardContent>
           {loading ? (
             <p className="py-6 text-center text-sm text-muted-foreground">Cargando…</p>
           ) : (
-            <DataTable columns={columns} data={clientes} emptyMessage="Sin clientes con movimientos en cuenta corriente." />
+            <DataTable columns={columns} data={clientes} emptyMessage="No hay clientes con movimientos en cuenta corriente." />
           )}
         </CardContent>
       </Card>
@@ -244,8 +265,16 @@ export function CuentaCorriente() {
       {abiertoId !== null && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">{clientes.find((c) => c.id === abiertoId)?.name}</CardTitle>
-            <CardDescription>Saldo actual: {formatCurrency(saldo)}</CardDescription>
+            <CardTitle className="flex items-center gap-2 text-base">
+              {clientes.find((c) => c.id === abiertoId)?.name}
+              {saldo > 0 ? (
+                <Badge className="bg-amber-500/15 text-amber-700 hover:bg-amber-500/15 dark:text-amber-400">Debe {formatCurrency(saldo)}</Badge>
+              ) : saldo < 0 ? (
+                <Badge className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-400">A favor {formatCurrency(saldo * -1)}</Badge>
+              ) : (
+                <Badge variant="secondary">Saldo $0</Badge>
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4">
             {detalleLoading ? (
@@ -262,19 +291,15 @@ export function CuentaCorriente() {
 
                 <div className="grid gap-3 border-t pt-4">
                   <p className="flex items-center gap-2 text-sm font-medium"><CircleDollarSign className="size-4" />Registrar pago</p>
+                  {saldo > 0 && (
+                    <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm dark:border-amber-900 dark:bg-amber-950/40">
+                      Saldo pendiente: <strong>{formatCurrency(saldo)}</strong>
+                    </p>
+                  )}
                   <div className="flex flex-wrap items-end gap-3">
                     <div className="grid gap-1.5"><Label>Monto</Label><Input type="number" step="0.01" value={monto} onChange={(e) => setMonto(e.target.value)} className="w-32" /></div>
                     <div className="grid gap-1.5"><Label>Fecha</Label><Input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="w-40" /></div>
                     <div className="grid gap-1.5"><Label>Concepto</Label><Input value={concepto} onChange={(e) => setConcepto(e.target.value)} className="w-48" /></div>
-                    <div className="grid gap-1.5">
-                      <Label>Caja</Label>
-                      <Select value={cajaId} onValueChange={setCajaId}>
-                        <SelectTrigger className="w-40"><SelectValue placeholder="Sin caja" /></SelectTrigger>
-                        <SelectContent>
-                          {cajas.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.nombre}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
                     <div className="grid gap-1.5">
                       <Label>Medio de pago</Label>
                       <Select value={medioPago} onValueChange={setMedioPago}>
@@ -284,7 +309,19 @@ export function CuentaCorriente() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="grid gap-1.5"><Label>Referencia</Label><Input value={referencia} onChange={(e) => setReferencia(e.target.value)} className="w-40" /></div>
+                    <div className="grid gap-1.5"><Label>Referencia <span className="font-normal text-muted-foreground">(opcional)</span></Label><Input value={referencia} onChange={(e) => setReferencia(e.target.value)} className="w-40" placeholder="N° transferencia, cheque…" /></div>
+                    {cajas.length > 0 && (
+                      <div className="grid gap-1.5">
+                        <Label>Registrar en caja <span className="font-normal text-muted-foreground">(opcional)</span></Label>
+                        <Select value={cajaId || 'ninguna'} onValueChange={(v) => setCajaId(v === 'ninguna' ? '' : v)}>
+                          <SelectTrigger className="w-48"><SelectValue placeholder="— No registrar en caja —" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ninguna">— No registrar en caja —</SelectItem>
+                            {cajas.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.nombre}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                     <Button disabled={pagando || !monto} onClick={pagar}><CircleDollarSign />{pagando ? 'Guardando…' : 'Registrar pago'}</Button>
                   </div>
                 </div>

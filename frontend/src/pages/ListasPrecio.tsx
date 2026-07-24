@@ -18,6 +18,7 @@ import {
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter, SheetClose,
 } from '@/components/ui/sheet'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { DataTable, sortableHeader } from '@/components/data-table'
 import {
   Tag, Plus, Pencil, Trash2, Eye, Ban, Undo2, Percent, Download,
@@ -74,6 +75,14 @@ export function ListasPrecio() {
     defaultValues: EMPTY_VALUES,
   })
 
+  // "Importar precios iniciales" -- restaurado desde
+  // web/templates/listas_precio/form.html (radios de alta). El backend no
+  // tiene un único endpoint de alta+importación combinado: se crea la
+  // lista y, si se eligió una fuente, se encadena el mismo POST
+  // /importar que ya usa el modal de la vista de detalle.
+  const [importarInicial, setImportarInicial] = useState<'' | 'venta' | 'costo' | 'lista'>('')
+  const [importarInicialListaId, setImportarInicialListaId] = useState('')
+
   useEffect(() => {
     loadListas()
     api.get<CategoriaProducto[]>('/api/productos/categorias').then(setCategorias).catch(() => {})
@@ -99,6 +108,8 @@ export function ListasPrecio() {
   function startCreate() {
     setEditingId('new')
     form.reset(EMPTY_VALUES)
+    setImportarInicial('')
+    setImportarInicialListaId('')
   }
 
   function startEdit(lista: ListaPrecio) {
@@ -116,7 +127,13 @@ export function ListasPrecio() {
     setError(null)
     try {
       if (editingId === 'new') {
-        await api.post('/api/listas-precio', { nombre: values.nombre, descripcion: values.descripcion || '' })
+        const nueva = await api.post<ListaPrecio>('/api/listas-precio', { nombre: values.nombre, descripcion: values.descripcion || '' })
+        if (importarInicial) {
+          await api.post(`/api/listas-precio/${nueva.id}/importar`, {
+            fuente: importarInicial,
+            fuente_lista_id: importarInicial === 'lista' ? Number(importarInicialListaId) : null,
+          })
+        }
       } else if (editingId) {
         const original = listas.find((l) => l.id === editingId)
         await api.put(`/api/listas-precio/${editingId}`, {
@@ -315,7 +332,7 @@ export function ListasPrecio() {
     { accessorKey: 'precio_venta', header: 'P. Venta', cell: ({ row }) => <span className="text-muted-foreground">{formatCurrency(row.original.precio_venta)}</span> },
     {
       id: 'precio_lista',
-      header: 'Precio en esta lista',
+      header: 'Precio lista',
       cell: ({ row }) => (
         <Input
           type="number" step="0.01" className="w-32"
@@ -341,7 +358,7 @@ export function ListasPrecio() {
   return (
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
-        <h2 className="flex items-center gap-2 text-lg font-semibold"><Tag className="size-5 text-primary" />Listas de precio</h2>
+        <h2 className="flex items-center gap-2 text-lg font-semibold"><Tag className="size-5 text-primary" />Listas de precios</h2>
         {editingId === null && (
           <Button onClick={startCreate}><Plus />Nueva lista</Button>
         )}
@@ -383,7 +400,41 @@ export function ListasPrecio() {
                     </FormItem>
                   )}
                 />
-                <div className="flex gap-2 pt-6">
+                {editingId === 'new' && (
+                  <div className="grid w-full gap-2 border-t pt-3">
+                    <Label>Importar precios iniciales <span className="font-normal text-muted-foreground">(opcional)</span></Label>
+                    <p className="text-xs text-muted-foreground">Podés partir de precios existentes y ajustarlos luego.</p>
+                    <RadioGroup value={importarInicial || '__ninguno__'} onValueChange={(v) => setImportarInicial(v === '__ninguno__' ? '' : v as typeof importarInicial)} className="gap-2">
+                      <div className="flex items-center gap-2">
+                        <RadioGroupItem value="__ninguno__" id="imp-ninguno" />
+                        <Label htmlFor="imp-ninguno" className="font-normal">Empezar vacía (cargar precios manualmente)</Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <RadioGroupItem value="venta" id="imp-venta" />
+                        <Label htmlFor="imp-venta" className="font-normal">Copiar precio de venta actual de cada producto</Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <RadioGroupItem value="costo" id="imp-costo" />
+                        <Label htmlFor="imp-costo" className="font-normal">Copiar precio de costo de cada producto</Label>
+                      </div>
+                      {listas.length > 0 && (
+                        <div className="flex items-center gap-2">
+                          <RadioGroupItem value="lista" id="imp-lista" />
+                          <Label htmlFor="imp-lista" className="font-normal">Copiar desde otra lista:</Label>
+                        </div>
+                      )}
+                    </RadioGroup>
+                    {importarInicial === 'lista' && (
+                      <Select value={importarInicialListaId} onValueChange={setImportarInicialListaId}>
+                        <SelectTrigger className="ml-6 w-64"><SelectValue placeholder="Elegir lista…" /></SelectTrigger>
+                        <SelectContent>
+                          {listas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.nombre}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                )}
+                <div className="flex w-full gap-2 pt-2">
                   <Button type="submit" disabled={saving}>
                     {saving ? 'Guardando…' : editingId === 'new' ? 'Crear' : 'Guardar'}
                   </Button>
@@ -400,7 +451,19 @@ export function ListasPrecio() {
           {loading ? (
             <p className="py-6 text-center text-sm text-muted-foreground">Cargando…</p>
           ) : (
-            <DataTable columns={columns} data={listas} emptyMessage="Sin listas de precio todavía." />
+            <DataTable
+              columns={columns}
+              data={listas}
+              emptyMessage={
+                <div className="flex flex-col items-center gap-3 py-4">
+                  <Tag className="size-10 text-muted-foreground/40" />
+                  <span>No hay listas de precios creadas aún.</span>
+                  {editingId === null && (
+                    <Button size="sm" onClick={startCreate}><Plus />Crear primera lista</Button>
+                  )}
+                </div>
+              }
+            />
           )}
         </CardContent>
       </Card>
@@ -428,7 +491,7 @@ export function ListasPrecio() {
               <p className="py-6 text-center text-sm text-muted-foreground">Cargando…</p>
             ) : (
               <>
-                <DataTable columns={itemColumns} data={items} emptyMessage="Sin productos activos." />
+                <DataTable columns={itemColumns} data={items} emptyMessage="No hay productos activos." />
                 <div>
                   <Button onClick={guardarPrecios} disabled={savingItems}>
                     {savingItems ? 'Guardando…' : 'Guardar precios'}

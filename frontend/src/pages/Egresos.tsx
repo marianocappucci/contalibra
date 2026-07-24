@@ -10,6 +10,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -21,7 +22,7 @@ import {
 import { DataTable, sortableHeader } from '@/components/data-table'
 import {
   ArrowUpCircle, CheckCircle2, CreditCard, Eye, Filter, Hourglass,
-  ListChecks, Plus, Receipt, Trash2, X,
+  ListChecks, Plus, Trash2, X,
 } from 'lucide-react'
 
 function todayIso(): string {
@@ -234,7 +235,6 @@ export function Egresos() {
       header: 'Comprobante',
       cell: ({ row }) => row.original.numero ? <span className="font-mono text-sm">{row.original.numero}</span> : '—',
     },
-    { accessorKey: 'total', header: 'Total', cell: ({ row }) => <span className="font-medium text-destructive">{formatCurrency(row.original.total)}</span> },
     {
       accessorKey: 'estado',
       header: 'Estado',
@@ -244,18 +244,18 @@ export function Egresos() {
         </Badge>
       ),
     },
+    { accessorKey: 'total', header: 'Total', cell: ({ row }) => <span className="font-medium text-destructive">{formatCurrency(row.original.total)}</span> },
     {
       id: 'actions',
       header: () => <div className="text-right">Acciones</div>,
       cell: ({ row }) => (
         <div className="flex justify-end gap-2">
-          <Button size="sm" variant="outline" onClick={() => setAbiertoId(abiertoId === row.original.id ? null : row.original.id)}>
-            <Eye />{abiertoId === row.original.id ? 'Ocultar' : 'Ver'}
-          </Button>
           {row.original.estado !== 'pagado' && (
             <Button size="sm" variant="outline" onClick={() => startPagar(row.original)}><CreditCard />Pagar</Button>
           )}
-          <Button size="sm" variant="outline" onClick={() => eliminar(row.original)}><Trash2 />Eliminar</Button>
+          <Button size="sm" variant="outline" onClick={() => setAbiertoId(abiertoId === row.original.id ? null : row.original.id)}>
+            <Eye />{abiertoId === row.original.id ? 'Ocultar' : 'Ver'}
+          </Button>
         </div>
       ),
     },
@@ -271,7 +271,7 @@ export function Egresos() {
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-lg font-semibold">
-          <Receipt className="size-5 text-destructive" />Egresos
+          <ArrowUpCircle className="size-5 text-destructive" />Egresos
         </h2>
         {!creating && <Button onClick={() => setCreating(true)}><Plus />Nuevo egreso</Button>}
       </div>
@@ -339,54 +339,85 @@ export function Egresos() {
           <CardHeader><CardTitle className="text-base">Nuevo egreso</CardTitle></CardHeader>
           <CardContent>
             <Form {...form}>
-              <form className="flex flex-wrap items-start gap-3" onSubmit={form.handleSubmit(handleCreate)}>
-                <FormField control={form.control} name="fecha" render={({ field }) => (
-                  <FormItem><FormLabel>Fecha</FormLabel><FormControl><Input type="date" {...field} className="w-40" /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="proveedor_id" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Proveedor</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <FormControl><SelectTrigger className="w-48"><SelectValue placeholder="Sin proveedor" /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        {proveedores.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.nombre}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="tipo_comprobante" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Comprobante</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <FormControl><SelectTrigger className="w-40"><SelectValue /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        {TIPOS_COMPROBANTE.map((t) => <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="numero" render={({ field }) => (
-                  <FormItem><FormLabel>Número</FormLabel><FormControl><Input {...field} className="w-32" /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="categoria" render={({ field }) => (
-                  <FormItem><FormLabel>Categoría</FormLabel><FormControl><Input {...field} className="w-40" /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="concepto" render={({ field }) => (
-                  <FormItem className="w-full sm:w-64"><FormLabel>Concepto</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="monto_neto" render={({ field }) => (
-                  <FormItem><FormLabel>Monto neto</FormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value as number} className="w-32" /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="iva_pct" render={({ field }) => (
-                  <FormItem><FormLabel>IVA (ej. 0.21)</FormLabel><FormControl><Input type="number" step="0.01" {...field} value={field.value as number} className="w-28" /></FormControl><FormMessage /></FormItem>
-                )} />
+              <form className="grid gap-4" onSubmit={form.handleSubmit(handleCreate)}>
+                <div className="flex flex-wrap items-start gap-3">
+                  <FormField control={form.control} name="proveedor_id" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Proveedor</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl><SelectTrigger className="w-48"><SelectValue placeholder="Sin proveedor / ocasional" /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          {proveedores.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.nombre}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="tipo_comprobante" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Comprobante</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl><SelectTrigger className="w-40"><SelectValue /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          {TIPOS_COMPROBANTE.map((t) => <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="numero" render={({ field }) => (
+                    <FormItem><FormLabel>Número</FormLabel><FormControl><Input {...field} className="w-40 font-mono" placeholder="Ej: 0001-00004523" /></FormControl><FormMessage /></FormItem>
+                  )} />
+                </div>
+                <div className="flex flex-wrap items-start gap-3">
+                  <FormField control={form.control} name="concepto" render={({ field }) => (
+                    <FormItem className="w-full sm:w-64"><FormLabel>Concepto</FormLabel><FormControl><Input {...field} placeholder="Ej: Alquiler depósito, Factura internet…" /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="categoria" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Categoría</FormLabel>
+                      <Select value={field.value || '__sin__'} onValueChange={(v) => field.onChange(v === '__sin__' ? '' : v)}>
+                        <FormControl><SelectTrigger className="w-44"><SelectValue placeholder="Sin categoría" /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          <SelectItem value="__sin__">— Sin categoría —</SelectItem>
+                          {categorias.map((c) => <SelectItem key={c.id} value={c.nombre}>{c.nombre}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="fecha" render={({ field }) => (
+                    <FormItem><FormLabel>Fecha</FormLabel><FormControl><Input type="date" {...field} className="w-40" /></FormControl><FormMessage /></FormItem>
+                  )} />
+                </div>
+                <div className="flex flex-wrap items-end gap-3">
+                  <FormField control={form.control} name="monto_neto" render={({ field }) => (
+                    <FormItem><FormLabel>Monto neto</FormLabel><FormControl><Input type="number" step="0.01" min={0} {...field} value={field.value as number} className="w-32" /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="iva_pct" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>IVA</FormLabel>
+                      <Select value={String(field.value)} onValueChange={(v) => field.onChange(Number(v))}>
+                        <FormControl><SelectTrigger className="w-36"><SelectValue /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          <SelectItem value="0">Sin IVA</SelectItem>
+                          <SelectItem value="0.105">10,5%</SelectItem>
+                          <SelectItem value="0.21">21%</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <div className="rounded-md bg-muted p-2 text-sm">
+                    <p className="flex justify-between gap-4 text-muted-foreground"><span>IVA</span><span>{formatCurrency((Number(form.watch('monto_neto')) || 0) * (Number(form.watch('iva_pct')) || 0))}</span></p>
+                    <p className="flex justify-between gap-4 font-bold"><span>Total</span><span className="text-destructive">{formatCurrency((Number(form.watch('monto_neto')) || 0) * (1 + (Number(form.watch('iva_pct')) || 0)))}</span></p>
+                  </div>
+                </div>
                 <FormField control={form.control} name="observaciones" render={({ field }) => (
-                  <FormItem className="w-full"><FormLabel>Observaciones</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Observaciones</FormLabel><FormControl><Textarea {...field} rows={3} className="max-w-2xl" /></FormControl><FormMessage /></FormItem>
                 )} />
-                <div className="flex gap-2 pt-6">
-                  <Button type="submit" disabled={saving}>{saving ? 'Guardando…' : 'Crear'}</Button>
+                <div className="flex gap-2">
+                  <Button type="submit" disabled={saving}>{saving ? 'Guardando…' : 'Guardar egreso'}</Button>
                   <Button type="button" variant="outline" onClick={() => { setCreating(false); form.reset(EMPTY_VALUES) }}>Cancelar</Button>
                 </div>
               </form>
@@ -532,6 +563,12 @@ export function Egresos() {
                   )}
                 </CardContent>
               </Card>
+            </div>
+
+            <div className="flex justify-end pb-4">
+              <Button variant="outline" className="text-destructive hover:text-destructive" onClick={() => eliminar(e)}>
+                <Trash2 />Eliminar
+              </Button>
             </div>
           </div>
         )

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { DataTable, sortableHeader } from '@/components/data-table'
 import { BookText, ArrowUpRight, ArrowDownLeft, Download, Info } from 'lucide-react'
 
@@ -74,6 +75,7 @@ function ResumenPorTasa({ resumen, ivaColorClass }: { resumen: ResumenIva; ivaCo
 export function LibrosIva() {
   const [desde, setDesde] = useState(firstOfMonthIso())
   const [hasta, setHasta] = useState(todayIso())
+  const [tab, setTab] = useState('ventas')
   const [data, setData] = useState<LibrosIvaData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -126,27 +128,41 @@ export function LibrosIva() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-lg font-semibold"><BookText className="size-5 text-primary" />Libros IVA</h2>
-        <div className="flex items-end gap-3">
+      <h2 className="flex items-center gap-2 text-lg font-semibold"><BookText className="size-5 text-primary" />Libros IVA Digital</h2>
+
+      {/* ── Selector de período ── */}
+      <Card>
+        <CardContent className="flex flex-wrap items-end gap-3 py-3">
           <div className="grid gap-1.5"><Label>Desde</Label><Input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className="w-40" /></div>
           <div className="grid gap-1.5"><Label>Hasta</Label><Input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className="w-40" /></div>
-        </div>
-      </div>
+          <Button
+            variant="outline" size="sm"
+            onClick={() => {
+              const y = desde.slice(0, 4)
+              const m = desde.slice(5, 7)
+              const lastDay = new Date(Number(y), Number(m), 0).getDate()
+              setDesde(`${y}-${m}-01`)
+              setHasta(`${y}-${m}-${String(lastDay).padStart(2, '0')}`)
+            }}
+          >
+            Mes actual
+          </Button>
+        </CardContent>
+      </Card>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       {loading || !data ? (
         <p className="py-6 text-center text-sm text-muted-foreground">Cargando…</p>
       ) : (
-        <>
-          {/* ── VENTAS ── */}
-          <div className="grid gap-4">
-            <h3 className="flex items-center gap-2 text-base font-semibold">
-              <ArrowUpRight className="size-4 text-primary" />IVA Ventas
-              <Badge variant="secondary">{data.facturas.length}</Badge>
-            </h3>
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList>
+            <TabsTrigger value="ventas"><ArrowUpRight />IVA Ventas<Badge variant="secondary" className="ml-1">{data.facturas.length}</Badge></TabsTrigger>
+            <TabsTrigger value="compras"><ArrowDownLeft />IVA Compras<Badge variant="secondary" className="ml-1">{data.egresos.length}</Badge></TabsTrigger>
+          </TabsList>
 
+          {/* ── VENTAS ── */}
+          <TabsContent value="ventas" className="grid gap-4">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <Card><CardHeader><CardDescription>Comprobantes</CardDescription><CardTitle className="text-2xl">{data.resumen_v.cbtes}</CardTitle></CardHeader></Card>
               <Card><CardHeader><CardDescription>Neto gravado</CardDescription><CardTitle className="text-2xl">{formatCurrency(data.resumen_v.neto)}</CardTitle></CardHeader></Card>
@@ -174,15 +190,10 @@ export function LibrosIva() {
               Los archivos <strong className="text-foreground">REGINFO_VENTAS_CBTE</strong> y <strong className="text-foreground">REGINFO_VENTAS_ALICUOTAS</strong> se
               importan en el Aplicativo REGINFO de ARCA (RG 3685). Comprobantes tipo C (Monotributista) van con <code>cantAlicuotas=0</code>. Las notas de crédito se exportan con importes negativos.
             </p>
-          </div>
+          </TabsContent>
 
           {/* ── COMPRAS ── */}
-          <div className="grid gap-4">
-            <h3 className="flex items-center gap-2 text-base font-semibold">
-              <ArrowDownLeft className="size-4 text-emerald-600 dark:text-emerald-400" />IVA Compras
-              <Badge variant="secondary">{data.egresos.length}</Badge>
-            </h3>
-
+          <TabsContent value="compras" className="grid gap-4">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <Card><CardHeader><CardDescription>Comprobantes</CardDescription><CardTitle className="text-2xl">{data.resumen_c.cbtes}</CardTitle></CardHeader></Card>
               <Card><CardHeader><CardDescription>Neto gravado</CardDescription><CardTitle className="text-2xl">{formatCurrency(data.resumen_c.neto)}</CardTitle></CardHeader></Card>
@@ -211,8 +222,8 @@ export function LibrosIva() {
               importan en el Aplicativo REGINFO de ARCA (RG 3685). Solo se incluyen egresos registrados como Factura. El tipo de comprobante AFIP se asume
               <code> 01 (Factura A)</code> por defecto; modificalo en el egreso si corresponde a otro tipo.
             </p>
-          </div>
-        </>
+          </TabsContent>
+        </Tabs>
       )}
     </div>
   )
