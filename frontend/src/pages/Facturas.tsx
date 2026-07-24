@@ -13,10 +13,15 @@ import { Badge } from '@/components/ui/badge'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { DataTable, sortableHeader } from '@/components/data-table'
 import {
   Eye, FileDown, Printer, ReceiptText, Mail, RefreshCw, FileMinus, FilePlus, Copy, Trash2,
   CheckCircle2, Hourglass, CircleDollarSign, AlertTriangle, Info, CornerDownLeft, ListChecks, Plus,
+  Receipt, FileText, Search, X, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 
 function todayIso(): string {
@@ -25,6 +30,18 @@ function todayIso(): string {
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value)
+}
+
+const TIPO_BADGE: Record<number, { label: string; className: string }> = {
+  1: { label: 'Fact. A', className: 'bg-primary text-primary-foreground' },
+  6: { label: 'Fact. B', className: 'bg-secondary text-secondary-foreground' },
+  11: { label: 'Fact. C', className: 'bg-sky-500 text-white' },
+  3: { label: 'NC-A', className: 'bg-destructive text-white' },
+  8: { label: 'NC-B', className: 'bg-destructive text-white' },
+  13: { label: 'NC-C', className: 'bg-destructive text-white' },
+  2: { label: 'ND-A', className: 'bg-primary text-primary-foreground' },
+  7: { label: 'ND-B', className: 'bg-secondary text-secondary-foreground' },
+  12: { label: 'ND-C', className: 'bg-sky-500 text-white' },
 }
 
 function labelComprobante(f: Factura): string {
@@ -58,6 +75,12 @@ export function Facturas() {
   const [error, setError] = useState<string | null>(null)
   const [vista, setVista] = useState('facturas')
   const [q, setQ] = useState('')
+  const [desde, setDesde] = useState('')
+  const [hasta, setHasta] = useState('')
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState<number | null>(null)
+  const [totalPages, setTotalPages] = useState(1)
+  const [sinCobrarCount, setSinCobrarCount] = useState(0)
 
   const [tiposInfo, setTiposInfo] = useState<{ tipos: TipoFactura[]; conceptos: TipoFactura[]; punto_venta: number } | null>(null)
   const [clientes, setClientes] = useState<Cliente[]>([])
@@ -87,24 +110,49 @@ export function Facturas() {
   useEffect(() => {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vista])
+  }, [vista, page])
+
+  useEffect(() => {
+    // Contador para el badge de la pestaña "Sin cobrar", independiente del filtro/pagina activos.
+    api.get<{ total: number }>('/api/facturas?vista=sin_cobrar').then((d) => setSinCobrarCount(d.total)).catch(() => {})
+  }, [facturas])
 
   function describeError(err: unknown): string {
     if (err instanceof ApiError) return err.detail
     return 'Error de conexión.'
   }
 
+  function buildQuery(): string {
+    const params = new URLSearchParams({ vista, page: String(page) })
+    if (q) params.set('q', q)
+    if (desde) params.set('desde', desde)
+    if (hasta) params.set('hasta', hasta)
+    return params.toString()
+  }
+
   async function load() {
     setLoading(true)
     setError(null)
     try {
-      const data = await api.get<{ items: Factura[] }>(`/api/facturas?vista=${vista}${q ? `&q=${encodeURIComponent(q)}` : ''}`)
+      const data = await api.get<{ items: Factura[]; total: number; total_pages: number }>(`/api/facturas?${buildQuery()}`)
       setFacturas(data.items)
+      setTotal(data.total)
+      setTotalPages(data.total_pages)
     } catch (err) {
       setError(describeError(err))
     } finally {
       setLoading(false)
     }
+  }
+
+  function buscar() {
+    setPage(1)
+    load()
+  }
+
+  function limpiarFiltros() {
+    setQ(''); setDesde(''); setHasta(''); setPage(1)
+    setTimeout(load, 0)
   }
 
   function addItemRow() {
@@ -297,7 +345,19 @@ export function Facturas() {
 
   const columns = useMemo<ColumnDef<Factura>[]>(() => {
     const cols: ColumnDef<Factura>[] = [
-      { accessorKey: 'numero', header: sortableHeader('Comprobante'), cell: ({ row }) => <span className="font-mono text-sm">{labelComprobante(row.original)}</span> },
+      {
+        accessorKey: 'numero',
+        header: sortableHeader('Número'),
+        cell: ({ row }) => <span className="font-mono text-sm">{String(row.original.punto_venta).padStart(4, '0')}-{String(row.original.numero).padStart(8, '0')}</span>,
+      },
+      {
+        id: 'tipo',
+        header: 'Tipo',
+        cell: ({ row }) => {
+          const b = TIPO_BADGE[row.original.tipo] ?? { label: '?', className: 'bg-secondary text-secondary-foreground' }
+          return <Badge className={b.className}>{b.label}</Badge>
+        },
+      },
       { accessorKey: 'fecha', header: 'Fecha' },
       { accessorKey: 'cliente_razon', header: 'Cliente' },
     ]
@@ -362,25 +422,56 @@ export function Facturas() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <h2 className="text-lg font-semibold">Facturas</h2>
-        <div className="flex items-end gap-3">
-          <div className="grid gap-1.5"><Label>Buscar</Label><Input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} className="w-48" /></div>
-          <div className="grid gap-1.5">
-            <Label>Vista</Label>
-            <Select value={vista} onValueChange={setVista}>
-              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="facturas">Facturas</SelectItem>
-                <SelectItem value="sin_cobrar">Sin cobrar</SelectItem>
-                <SelectItem value="nc">Notas de crédito</SelectItem>
-                <SelectItem value="nd">Notas de débito</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          {!creating && <Button onClick={() => setCreating(true)}><Plus />Nueva factura</Button>}
-        </div>
+      <div className="flex items-center justify-between">
+        <h2 className="flex items-center gap-2 text-lg font-semibold"><Receipt className="size-5 text-primary" />Comprobantes</h2>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button><Plus />Nuevo</Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setCreating(true)}>
+              <FileText className="text-primary" />Factura
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem disabled className="flex-col items-start gap-0.5">
+              <span className="flex items-center gap-2"><FileMinus className="text-amber-500" />Nota de Crédito</span>
+              <span className="pl-6 text-xs text-muted-foreground">Generá desde el detalle de una factura</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled className="flex-col items-start gap-0.5">
+              <span className="flex items-center gap-2"><FilePlus className="text-sky-500" />Nota de Débito</span>
+              <span className="pl-6 text-xs text-muted-foreground">Generá desde el detalle de una factura</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
+
+      <Tabs value={vista} onValueChange={(v) => { setVista(v); setPage(1) }}>
+        <TabsList>
+          <TabsTrigger value="facturas"><Receipt />Facturas</TabsTrigger>
+          <TabsTrigger value="sin_cobrar">
+            <Hourglass />Sin cobrar
+            {sinCobrarCount > 0 && <Badge variant="secondary" className="ml-1">{sinCobrarCount}</Badge>}
+          </TabsTrigger>
+          <TabsTrigger value="nc"><FileMinus />Notas de Crédito</TabsTrigger>
+          <TabsTrigger value="nd"><FilePlus />Notas de Débito</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      <Card>
+        <CardContent className="flex flex-wrap items-center gap-2 py-3">
+          <Input
+            value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && buscar()}
+            placeholder="Buscar por número, cliente…" className="min-w-48 flex-1"
+          />
+          <Input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} title="Desde" className="w-40" />
+          <Input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} title="Hasta" className="w-40" />
+          <Button variant="outline" size="icon" onClick={buscar}><Search /></Button>
+          {(q || desde || hasta) && <Button variant="outline" size="icon" onClick={limpiarFiltros}><X /></Button>}
+          {total !== null && (
+            <span className="ml-auto text-sm text-muted-foreground">{total} resultado{total !== 1 ? 's' : ''}</span>
+          )}
+        </CardContent>
+      </Card>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
@@ -465,10 +556,34 @@ export function Facturas() {
           {loading ? (
             <p className="py-6 text-center text-sm text-muted-foreground">Cargando…</p>
           ) : (
-            <DataTable columns={columns} data={facturas} emptyMessage="Sin comprobantes todavía." />
+            <DataTable
+              columns={columns}
+              data={facturas}
+              emptyMessage={
+                q || desde || hasta ? 'No se encontraron comprobantes con ese criterio.'
+                  : vista === 'nc' ? 'No hay notas de crédito registradas aún.'
+                  : vista === 'nd' ? 'No hay notas de débito registradas aún.'
+                  : 'No hay facturas registradas aún.'
+              }
+            />
           )}
         </CardContent>
       </Card>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-1">
+          <Button size="icon" variant="outline" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}><ChevronLeft /></Button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1)
+            .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+            .map((p, idx, arr) => (
+              <span key={p} className="flex items-center gap-1">
+                {idx > 0 && arr[idx - 1] !== p - 1 && <span className="px-1 text-muted-foreground">…</span>}
+                <Button size="icon" variant={p === page ? 'default' : 'outline'} onClick={() => setPage(p)}>{p}</Button>
+              </span>
+            ))}
+          <Button size="icon" variant="outline" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}><ChevronRight /></Button>
+        </div>
+      )}
 
       {abiertaId !== null && (
         <Card>

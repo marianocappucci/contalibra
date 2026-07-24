@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import {
-  Receipt, ArrowDownCircle, ArrowUpCircle, Wallet, ClipboardList,
+  Gauge, Receipt, ArrowDownCircle, ArrowUpCircle, Wallet, ClipboardList,
   Hourglass, CheckCircle2, Inbox, History,
 } from 'lucide-react'
 
@@ -42,7 +42,7 @@ export function Dashboard() {
   return (
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Dashboard</h2>
+        <h2 className="flex items-center gap-2 text-lg font-semibold"><Gauge className="size-5 text-primary" />Dashboard</h2>
         {data && (
           <span className="text-sm text-muted-foreground">{formatDate(data.mes_hasta)}</span>
         )}
