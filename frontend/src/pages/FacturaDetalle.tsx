@@ -184,6 +184,7 @@ export function FacturaDetalle() {
         clienteId: cliente ? String(cliente.id) : '',
         clienteNombreLibre: cliente ? '' : f.cliente_razon,
         concepto: String(f.concepto || 1),
+        puntoVenta: String(f.punto_venta),
         condicionVenta: f.condicion_venta || 'Contado',
         taxRate: f.subtotal > 0 ? String(Math.round((f.iva_amount / f.subtotal) * 10000) / 10000) : '0.21',
         items: f.items.map((it) => ({ description: it.description, qty: String(it.qty), unit_price: String(it.unit_price) })),

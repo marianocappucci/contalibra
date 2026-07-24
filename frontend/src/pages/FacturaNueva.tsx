@@ -32,7 +32,7 @@ const CONDICIONES_VENTA = [
 type PrefillState = {
   tipo?: string; clienteId?: string; clienteNombreLibre?: string; concepto?: string
   condicionVenta?: string; taxRate?: string; items?: ItemRow[]; observations?: string
-  fchServDesde?: string; fchServHasta?: string; fchVtoPago?: string
+  fchServDesde?: string; fchServHasta?: string; fchVtoPago?: string; puntoVenta?: string
 }
 
 export function FacturaNueva() {
@@ -40,13 +40,15 @@ export function FacturaNueva() {
   const location = useLocation()
   const prefill = (location.state as PrefillState | null) ?? null
 
-  const [tiposInfo, setTiposInfo] = useState<{ tipos: TipoFactura[]; conceptos: TipoFactura[]; punto_venta: number } | null>(null)
+  const [tiposInfo, setTiposInfo] = useState<{ tipos: TipoFactura[]; conceptos: TipoFactura[]; punto_venta: number; es_monotributista: boolean } | null>(null)
   const [clientes, setClientes] = useState<Cliente[]>([])
 
   const [tipo, setTipo] = useState(prefill?.tipo ?? '')
   const [clienteId, setClienteId] = useState(prefill?.clienteId ?? '')
   const [clienteNombreLibre, setClienteNombreLibre] = useState(prefill?.clienteNombreLibre ?? '')
   const [concepto, setConcepto] = useState(prefill?.concepto ?? '1')
+  const [puntoVenta, setPuntoVenta] = useState(prefill?.puntoVenta ?? '')
+  const [fecha, setFecha] = useState(todayIso())
   const [condicionVenta, setCondicionVenta] = useState(prefill?.condicionVenta ?? 'Contado')
   const [taxRate, setTaxRate] = useState(prefill?.taxRate ?? '0.21')
   const [observations, setObservations] = useState(prefill?.observations ?? '')
@@ -60,7 +62,10 @@ export function FacturaNueva() {
   const requiereFechasServicio = concepto === '2' || concepto === '3'
 
   useEffect(() => {
-    api.get<{ tipos: TipoFactura[]; conceptos: TipoFactura[]; punto_venta: number }>('/api/facturas/tipos').then(setTiposInfo).catch(() => {})
+    api.get<{ tipos: TipoFactura[]; conceptos: TipoFactura[]; punto_venta: number; es_monotributista: boolean }>('/api/facturas/tipos').then((d) => {
+      setTiposInfo(d)
+      setPuntoVenta((prev) => prev || String(d.punto_venta))
+    }).catch(() => {})
     api.get<Cliente[]>('/api/clientes').then((c) => setClientes(c.filter((x) => x.activo))).catch(() => {})
   }, [])
 
@@ -80,7 +85,7 @@ export function FacturaNueva() {
   }
 
   const subtotalCalc = items.reduce((acc, r) => acc + (Number(r.qty) || 0) * (Number(r.unit_price) || 0), 0)
-  const ivaCalc = tipo === '11' ? 0 : subtotalCalc * (Number(taxRate) || 0)
+  const ivaCalc = tiposInfo?.es_monotributista ? 0 : subtotalCalc * (Number(taxRate) || 0)
 
   async function crear() {
     if (!tipo) return
@@ -88,8 +93,8 @@ export function FacturaNueva() {
     setError(null)
     try {
       const factura = await api.post<Factura>('/api/facturas', {
-        tipo: Number(tipo), punto_venta: tiposInfo?.punto_venta ?? 1, concepto: Number(concepto),
-        condicion_venta: condicionVenta, fecha: todayIso(), observations, tax_rate: Number(taxRate) || 0,
+        tipo: Number(tipo), punto_venta: Number(puntoVenta) || tiposInfo?.punto_venta || 1, concepto: Number(concepto),
+        condicion_venta: condicionVenta, fecha, observations, tax_rate: Number(taxRate) || 0,
         client_id: clienteId ? Number(clienteId) : null, client_name: clienteId ? '' : clienteNombreLibre,
         items: items.filter((r) => r.description.trim()).map((r) => ({
           description: r.description, qty: Number(r.qty) || 0, unit_price: Number(r.unit_price) || 0,
@@ -127,18 +132,6 @@ export function FacturaNueva() {
                 </Select>
               </div>
               <div className="grid gap-1.5">
-                <Label>Cliente</Label>
-                <Select value={clienteId} onValueChange={(v) => { setClienteId(v); setClienteNombreLibre('') }}>
-                  <SelectTrigger className="w-52"><SelectValue placeholder="Elegir cliente…" /></SelectTrigger>
-                  <SelectContent>
-                    {clientes.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              {!clienteId && (
-                <div className="grid gap-1.5"><Label>o nombre libre</Label><Input value={clienteNombreLibre} onChange={(e) => setClienteNombreLibre(e.target.value)} className="w-48" placeholder="Consumidor Final" /></div>
-              )}
-              <div className="grid gap-1.5">
                 <Label>Concepto</Label>
                 <Select value={concepto} onValueChange={setConcepto}>
                   <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
@@ -147,6 +140,8 @@ export function FacturaNueva() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="grid gap-1.5"><Label>Punto de venta</Label><Input type="number" min="1" value={puntoVenta} onChange={(e) => setPuntoVenta(e.target.value)} className="w-24" /></div>
+              <div className="grid gap-1.5"><Label>Fecha</Label><Input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="w-40" /></div>
               <div className="grid gap-1.5">
                 <Label>Condición de venta</Label>
                 <Select value={condicionVenta} onValueChange={setCondicionVenta}>
@@ -156,9 +151,6 @@ export function FacturaNueva() {
                   </SelectContent>
                 </Select>
               </div>
-              {tipo !== '11' && (
-                <div className="grid gap-1.5"><Label>IVA</Label><Input type="number" step="0.01" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} className="w-24" /></div>
-              )}
             </div>
 
             {requiereFechasServicio && (
@@ -174,6 +166,28 @@ export function FacturaNueva() {
               </div>
             )}
 
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="grid gap-1.5">
+                <Label>Cliente</Label>
+                <Select value={clienteId} onValueChange={(v) => { setClienteId(v); setClienteNombreLibre('') }}>
+                  <SelectTrigger className="w-52"><SelectValue placeholder="Elegir cliente…" /></SelectTrigger>
+                  <SelectContent>
+                    {clientes.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              {!clienteId && (
+                <div className="grid gap-1.5"><Label>o nombre libre</Label><Input value={clienteNombreLibre} onChange={(e) => setClienteNombreLibre(e.target.value)} className="w-48" placeholder="Consumidor Final" /></div>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-end gap-3">
+              {!tiposInfo.es_monotributista && (
+                <div className="grid gap-1.5"><Label>IVA</Label><Input type="number" step="0.01" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} className="w-24" /></div>
+              )}
+              <div className="grid flex-1 gap-1.5"><Label>Observaciones</Label><Input value={observations} onChange={(e) => setObservations(e.target.value)} /></div>
+            </div>
+
             <div className="grid gap-2">
               <Label>Ítems</Label>
               {items.map((row, i) => (
@@ -187,8 +201,6 @@ export function FacturaNueva() {
               ))}
               <Button size="sm" variant="outline" className="w-fit" onClick={addItemRow}><Plus />Agregar ítem</Button>
             </div>
-
-            <div className="grid gap-1.5"><Label>Observaciones</Label><Input value={observations} onChange={(e) => setObservations(e.target.value)} /></div>
 
             <div className="flex flex-wrap items-end gap-4 border-t pt-4">
               <p className="text-sm">Subtotal: <span className="font-medium">{formatCurrency(subtotalCalc)}</span></p>
