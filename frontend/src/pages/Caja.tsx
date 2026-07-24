@@ -2,17 +2,16 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { type ColumnDef } from '@tanstack/react-table'
 import { api, ApiError, MEDIOS_PAGO_LABELS, type CajaConfig, type CajaMovimiento, type ResumenCaja } from '../api'
-import { Card, CardContent, CardHeader, CardDescription, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { DataTable, sortableHeader } from '@/components/data-table'
 import {
-  PiggyBank, Plus, Trash2, Receipt, ArrowDownCircle, ArrowUpCircle, Wallet, Check, X, Filter,
+  PiggyBank, Plus, Trash2, Receipt, ArrowDownCircle, ArrowUpCircle, Wallet, Filter, X,
 } from 'lucide-react'
 
 function todayIso(): string {
@@ -29,7 +28,7 @@ function formatCurrency(value: number): string {
 }
 
 export function Caja() {
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   const [desde, setDesde] = useState(firstOfMonthIso())
   const [hasta, setHasta] = useState(todayIso())
   // Deep-link desde Cajas ("Ver movimientos" de una caja puntual): ?caja_id=X
@@ -39,16 +38,6 @@ export function Caja() {
   const [resumen, setResumen] = useState<ResumenCaja | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [creating, setCreating] = useState(false)
-  const [saving, setSaving] = useState(false)
-
-  const [tipo, setTipo] = useState('ingreso')
-  const [fechaMov, setFechaMov] = useState(todayIso())
-  const [concepto, setConcepto] = useState('')
-  const [monto, setMonto] = useState('')
-  const [referencia, setReferencia] = useState('')
-  const [formCajaId, setFormCajaId] = useState('')
-  const [medioPago, setMedioPago] = useState('efectivo')
 
   useEffect(() => {
     api.get<CajaConfig[]>('/api/cajas').then(setCajas).catch(() => {})
@@ -58,15 +47,6 @@ export function Caja() {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [desde, hasta, cajaId])
-
-  // Deep-link desde accesos rapidos del Dashboard (?nuevo=1)
-  useEffect(() => {
-    if (searchParams.get('nuevo') === '1') {
-      setCreating(true)
-      setSearchParams((p) => { p.delete('nuevo'); return p }, { replace: true })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   function describeError(err: unknown): string {
     if (err instanceof ApiError) return err.detail
@@ -86,25 +66,6 @@ export function Caja() {
       setError(describeError(err))
     } finally {
       setLoading(false)
-    }
-  }
-
-  async function crear() {
-    if (!concepto.trim() || !monto) return
-    setSaving(true)
-    setError(null)
-    try {
-      await api.post('/api/caja', {
-        fecha: fechaMov, tipo, concepto, monto: Number(monto), referencia,
-        caja_id: formCajaId ? Number(formCajaId) : null, medio_pago: medioPago,
-      })
-      setCreating(false)
-      setConcepto(''); setMonto(''); setReferencia(''); setFechaMov(todayIso())
-      await load()
-    } catch (err) {
-      setError(describeError(err))
-    } finally {
-      setSaving(false)
     }
   }
 
@@ -184,7 +145,7 @@ export function Caja() {
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-lg font-semibold"><PiggyBank className="size-5 text-primary" />Caja</h2>
-        {!creating && <Button onClick={() => setCreating(true)}><Plus />Nuevo movimiento</Button>}
+        <Button asChild><Link to="/caja/nuevo"><Plus />Nuevo movimiento</Link></Button>
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
@@ -219,50 +180,6 @@ export function Caja() {
           )}
         </CardContent>
       </Card>
-
-      {creating && (
-        <Card>
-          <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Plus className="size-4" />Nuevo movimiento</CardTitle></CardHeader>
-          <CardContent className="flex flex-wrap items-end gap-3">
-            <div className="grid gap-1.5">
-              <Label>Tipo</Label>
-              <Select value={tipo} onValueChange={setTipo}>
-                <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ingreso"><ArrowDownCircle />Ingreso</SelectItem>
-                  <SelectItem value="egreso"><ArrowUpCircle />Egreso</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-1.5"><Label>Fecha</Label><Input type="date" value={fechaMov} onChange={(e) => setFechaMov(e.target.value)} className="w-40" /></div>
-            <div className="grid gap-1.5"><Label>Concepto</Label><Input value={concepto} onChange={(e) => setConcepto(e.target.value)} className="w-52" placeholder="Ej: Cobro factura cliente / Pago servicios" /></div>
-            <div className="grid gap-1.5"><Label>Monto</Label><Input type="number" step="0.01" value={monto} onChange={(e) => setMonto(e.target.value)} className="w-32" /></div>
-            <div className="grid gap-1.5"><Label>Referencia</Label><Input value={referencia} onChange={(e) => setReferencia(e.target.value)} className="w-40" placeholder="Opcional — N° factura, proveedor, etc." /></div>
-            {cajas.length > 1 && (
-              <div className="grid gap-1.5">
-                <Label>Caja</Label>
-                <Select value={formCajaId} onValueChange={setFormCajaId}>
-                  <SelectTrigger className="w-36"><SelectValue placeholder="Por defecto" /></SelectTrigger>
-                  <SelectContent>
-                    {cajas.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.nombre}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            <div className="grid gap-1.5">
-              <Label>Medio de pago</Label>
-              <Select value={medioPago} onValueChange={setMedioPago}>
-                <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {Object.entries(MEDIOS_PAGO_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <Button disabled={saving} onClick={crear}><Check />{saving ? 'Guardando…' : 'Guardar movimiento'}</Button>
-            <Button type="button" variant="outline" onClick={() => setCreating(false)}>Cancelar</Button>
-          </CardContent>
-        </Card>
-      )}
 
       <Card>
         <CardContent>

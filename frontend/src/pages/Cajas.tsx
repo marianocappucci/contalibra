@@ -1,24 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, ApiError, MEDIOS_PAGO_LABELS, type CajaConfig } from '../api'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { SquareStack, Plus, Eye, Pencil, Trash2, Star, Check, Wallet } from 'lucide-react'
-
-const TODOS_MEDIOS = Object.keys(MEDIOS_PAGO_LABELS)
-
-const EMPTY = { nombre: '', descripcion: '', medios_pago: [] as string[], activo: true }
+import { SquareStack, Plus, Eye, Pencil, Trash2, Star, Wallet } from 'lucide-react'
 
 export function Cajas() {
   const [cajas, setCajas] = useState<CajaConfig[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [editingId, setEditingId] = useState<number | 'new' | null>(null)
-  const [form, setForm] = useState(EMPTY)
-  const [saving, setSaving] = useState(false)
 
   useEffect(() => { load() }, [])
 
@@ -36,42 +27,6 @@ export function Cajas() {
       setError(describeError(err))
     } finally {
       setLoading(false)
-    }
-  }
-
-  function startCreate() {
-    setEditingId('new')
-    setForm(EMPTY)
-  }
-
-  function startEdit(c: CajaConfig) {
-    setEditingId(c.id)
-    setForm({ nombre: c.nombre, descripcion: c.descripcion ?? '', medios_pago: c.medios_pago, activo: !!c.activo })
-  }
-
-  function toggleMedio(medio: string) {
-    setForm((f) => ({
-      ...f,
-      medios_pago: f.medios_pago.includes(medio) ? f.medios_pago.filter((m) => m !== medio) : [...f.medios_pago, medio],
-    }))
-  }
-
-  async function guardar() {
-    if (!form.nombre.trim()) return
-    setSaving(true)
-    setError(null)
-    try {
-      if (editingId === 'new') {
-        await api.post('/api/cajas', form)
-      } else if (editingId) {
-        await api.put(`/api/cajas/${editingId}`, form)
-      }
-      setEditingId(null)
-      await load()
-    } catch (err) {
-      setError(describeError(err))
-    } finally {
-      setSaving(false)
     }
   }
 
@@ -100,43 +55,10 @@ export function Cajas() {
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-lg font-semibold"><SquareStack className="size-5 text-primary" />Cajas</h2>
-        {editingId === null && <Button onClick={startCreate}><Plus />Nueva caja</Button>}
+        <Button asChild><Link to="/cajas/nueva"><Plus />Nueva caja</Link></Button>
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
-
-      {editingId !== null && (
-        <Card>
-          <CardHeader><CardTitle className="text-base">{editingId === 'new' ? 'Nueva caja' : 'Editar caja'}</CardTitle></CardHeader>
-          <CardContent className="grid gap-3">
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="grid gap-1.5"><Label>Nombre</Label><Input value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} className="w-48" placeholder="Ej: Caja mostrador, Caja online…" /></div>
-              <div className="grid gap-1.5"><Label>Descripción</Label><Input value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })} className="w-64" /></div>
-            </div>
-            <div className="grid gap-1.5">
-              <Label>Medios de pago habilitados</Label>
-              <div className="flex flex-wrap gap-3">
-                {TODOS_MEDIOS.map((m) => (
-                  <label key={m} className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" checked={form.medios_pago.includes(m)} onChange={() => toggleMedio(m)} />
-                    {MEDIOS_PAGO_LABELS[m]}
-                  </label>
-                ))}
-              </div>
-            </div>
-            {editingId !== 'new' && (
-              <label className="flex w-fit items-center gap-2 text-sm">
-                <input type="checkbox" checked={form.activo} onChange={(e) => setForm({ ...form, activo: e.target.checked })} />
-                Activa
-              </label>
-            )}
-            <div className="flex gap-2">
-              <Button disabled={saving} onClick={guardar}><Check />{saving ? 'Guardando…' : editingId === 'new' ? 'Crear' : 'Guardar'}</Button>
-              <Button type="button" variant="outline" onClick={() => setEditingId(null)}>Cancelar</Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {loading ? (
         <p className="py-6 text-center text-sm text-muted-foreground">Cargando…</p>
@@ -168,7 +90,7 @@ export function Cajas() {
 
                 <div className="flex flex-wrap gap-2 pt-1">
                   <Button size="sm" variant="outline" asChild><Link to={`/caja?caja_id=${c.id}`}><Eye />Ver movimientos</Link></Button>
-                  <Button size="sm" variant="outline" onClick={() => startEdit(c)}><Pencil />Editar</Button>
+                  <Button size="sm" variant="outline" asChild><Link to={`/cajas/${c.id}/editar`}><Pencil />Editar</Link></Button>
                   {!c.es_default && (
                     <>
                       <Button size="sm" variant="outline" onClick={() => setDefault(c)} title="Usar como caja por defecto"><Star />Predeterminar</Button>

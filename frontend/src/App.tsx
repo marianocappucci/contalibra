@@ -5,20 +5,43 @@ import { Layout } from './components/Layout'
 import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
 import { Clientes } from './pages/Clientes'
+import { ClienteForm } from './pages/ClienteForm'
+import { ClienteDetalle } from './pages/ClienteDetalle'
 import { Productos } from './pages/Productos'
+import { ProductoForm } from './pages/ProductoForm'
 import { ListasPrecio } from './pages/ListasPrecio'
+import { ListaPrecioNueva } from './pages/ListaPrecioNueva'
+import { ListaPrecioDetalle } from './pages/ListaPrecioDetalle'
 import { Proveedores } from './pages/Proveedores'
+import { ProveedorForm } from './pages/ProveedorForm'
+import { ProveedorDetalle } from './pages/ProveedorDetalle'
 import { Egresos } from './pages/Egresos'
+import { EgresoNuevo } from './pages/EgresoNuevo'
+import { EgresoDetalle } from './pages/EgresoDetalle'
 import { Usuarios } from './pages/Usuarios'
+import { UsuarioForm } from './pages/UsuarioForm'
 import { Config } from './pages/Config'
 import { Depositos } from './pages/Depositos'
+import { DepositoForm } from './pages/DepositoForm'
+import { DepositoDetalle } from './pages/DepositoDetalle'
+import { DepositoTransferencia } from './pages/DepositoTransferencia'
 import { Stock } from './pages/Stock'
 import { CuentaCorriente } from './pages/CuentaCorriente'
+import { CuentaCorrienteDetalle } from './pages/CuentaCorrienteDetalle'
 import { Tesoreria } from './pages/Tesoreria'
+import { TesoreriaCuentaForm } from './pages/TesoreriaCuentaForm'
+import { TesoreriaDetalle } from './pages/TesoreriaDetalle'
 import { Caja } from './pages/Caja'
+import { CajaNueva } from './pages/CajaNueva'
 import { Cajas } from './pages/Cajas'
+import { CajaForm } from './pages/CajaForm'
 import { Turnos } from './pages/Turnos'
+import { TurnoAbrir } from './pages/TurnoAbrir'
+import { TurnoDetalle } from './pages/TurnoDetalle'
+import { TurnoCerrar } from './pages/TurnoCerrar'
 import { Ventas } from './pages/Ventas'
+import { VentaNueva } from './pages/VentaNueva'
+import { VentaDetalle } from './pages/VentaDetalle'
 import { Facturas } from './pages/Facturas'
 import { FacturaNueva } from './pages/FacturaNueva'
 import { FacturaDetalle } from './pages/FacturaDetalle'
@@ -68,10 +91,50 @@ export default function App() {
         }
       />
       <Route
+        path="/clientes/nuevo"
+        element={
+          <ProtectedRoute>
+            <ClienteForm />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/clientes/:id/editar"
+        element={
+          <ProtectedRoute>
+            <ClienteForm />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/clientes/:id"
+        element={
+          <ProtectedRoute>
+            <ClienteDetalle />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/productos"
         element={
           <ProtectedRoute>
             <Productos />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/productos/nuevo"
+        element={
+          <ProtectedRoute>
+            <ProductoForm />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/productos/:id/editar"
+        element={
+          <ProtectedRoute>
+            <ProductoForm />
           </ProtectedRoute>
         }
       />
@@ -84,10 +147,50 @@ export default function App() {
         }
       />
       <Route
+        path="/listas-precio/nueva"
+        element={
+          <ProtectedRoute>
+            <ListaPrecioNueva />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/listas-precio/:id"
+        element={
+          <ProtectedRoute>
+            <ListaPrecioDetalle />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/proveedores"
         element={
           <ProtectedRoute>
             <Proveedores />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/proveedores/nuevo"
+        element={
+          <ProtectedRoute>
+            <ProveedorForm />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/proveedores/:id/editar"
+        element={
+          <ProtectedRoute>
+            <ProveedorForm />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/proveedores/:id"
+        element={
+          <ProtectedRoute>
+            <ProveedorDetalle />
           </ProtectedRoute>
         }
       />
@@ -100,10 +203,42 @@ export default function App() {
         }
       />
       <Route
+        path="/egresos/nuevo"
+        element={
+          <ProtectedRoute>
+            <EgresoNuevo />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/egresos/:id"
+        element={
+          <ProtectedRoute>
+            <EgresoDetalle />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/usuarios"
         element={
           <ProtectedRoute>
             <Usuarios />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/usuarios/nuevo"
+        element={
+          <ProtectedRoute>
+            <UsuarioForm />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/usuarios/:id/editar"
+        element={
+          <ProtectedRoute>
+            <UsuarioForm />
           </ProtectedRoute>
         }
       />
@@ -124,6 +259,38 @@ export default function App() {
         }
       />
       <Route
+        path="/depositos/nuevo"
+        element={
+          <ProtectedRoute>
+            <DepositoForm />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/depositos/transferencia"
+        element={
+          <ProtectedRoute>
+            <DepositoTransferencia />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/depositos/:id/editar"
+        element={
+          <ProtectedRoute>
+            <DepositoForm />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/depositos/:id"
+        element={
+          <ProtectedRoute>
+            <DepositoDetalle />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/stock"
         element={
           <ProtectedRoute>
@@ -140,10 +307,42 @@ export default function App() {
         }
       />
       <Route
+        path="/cuenta-corriente/:id"
+        element={
+          <ProtectedRoute>
+            <CuentaCorrienteDetalle />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/tesoreria"
         element={
           <ProtectedRoute>
             <Tesoreria />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/tesoreria/nueva-cuenta"
+        element={
+          <ProtectedRoute>
+            <TesoreriaCuentaForm />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/tesoreria/:id/editar"
+        element={
+          <ProtectedRoute>
+            <TesoreriaCuentaForm />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/tesoreria/:id"
+        element={
+          <ProtectedRoute>
+            <TesoreriaDetalle />
           </ProtectedRoute>
         }
       />
@@ -156,10 +355,34 @@ export default function App() {
         }
       />
       <Route
+        path="/caja/nuevo"
+        element={
+          <ProtectedRoute>
+            <CajaNueva />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/cajas"
         element={
           <ProtectedRoute>
             <Cajas />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/cajas/nueva"
+        element={
+          <ProtectedRoute>
+            <CajaForm />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/cajas/:id/editar"
+        element={
+          <ProtectedRoute>
+            <CajaForm />
           </ProtectedRoute>
         }
       />
@@ -172,10 +395,50 @@ export default function App() {
         }
       />
       <Route
+        path="/turnos/abrir"
+        element={
+          <ProtectedRoute>
+            <TurnoAbrir />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/turnos/:id/cerrar"
+        element={
+          <ProtectedRoute>
+            <TurnoCerrar />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/turnos/:id"
+        element={
+          <ProtectedRoute>
+            <TurnoDetalle />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/ventas"
         element={
           <ProtectedRoute>
             <Ventas />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/ventas/nueva"
+        element={
+          <ProtectedRoute>
+            <VentaNueva />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/ventas/:id"
+        element={
+          <ProtectedRoute>
+            <VentaDetalle />
           </ProtectedRoute>
         }
       />

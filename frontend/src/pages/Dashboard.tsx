@@ -111,7 +111,7 @@ export function Dashboard() {
             <Button asChild size="sm"><Link to="/facturas/nueva">+ Nueva Factura</Link></Button>
             <Button asChild size="sm" variant="outline"><Link to="/presupuestos/nuevo">+ Nuevo Presupuesto</Link></Button>
             <Button asChild size="sm" variant="outline"><Link to="/remitos/nuevo">+ Nuevo Remito</Link></Button>
-            <Button asChild size="sm" variant="outline"><Link to="/caja?nuevo=1">+ Nuevo Movimiento de Caja</Link></Button>
+            <Button asChild size="sm" variant="outline"><Link to="/caja/nuevo">+ Nuevo Movimiento de Caja</Link></Button>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
