@@ -273,7 +273,7 @@ export function Ventas() {
       id: 'factura',
       header: 'Factura',
       cell: ({ row }) => row.original.factura_display
-        ? <a href={`/facturas?ver=${row.original.factura_id}`} className="inline-flex items-center gap-1 text-sm font-medium text-emerald-600 hover:underline dark:text-emerald-400"><ReceiptText className="size-3.5" />{row.original.factura_display}</a>
+        ? <a href={`/facturas/${row.original.factura_id}`} className="inline-flex items-center gap-1 text-sm font-medium text-emerald-600 hover:underline dark:text-emerald-400"><ReceiptText className="size-3.5" />{row.original.factura_display}</a>
         : row.original.estado !== 'anulada'
           ? <Badge variant="outline" className="text-amber-700 dark:text-amber-400">Sin facturar</Badge>
           : <span className="text-muted-foreground">—</span>,
@@ -508,10 +508,10 @@ export function Ventas() {
             {(detalle.factura_display || detalle.remito_id) && (
               <div className="grid gap-2 sm:grid-cols-2">
                 {detalle.factura_display && (
-                  <p className="flex items-center gap-2 rounded-md border bg-muted/50 p-3 text-sm"><ReceiptText className="size-4 text-emerald-600" />Factura generada: <a href={`/facturas?ver=${detalle.factura_id}`} className="font-semibold text-emerald-600 hover:underline dark:text-emerald-400">ver factura</a></p>
+                  <p className="flex items-center gap-2 rounded-md border bg-muted/50 p-3 text-sm"><ReceiptText className="size-4 text-emerald-600" />Factura generada: <a href={`/facturas/${detalle.factura_id}`} className="font-semibold text-emerald-600 hover:underline dark:text-emerald-400">ver factura</a></p>
                 )}
                 {detalle.remito_id && (
-                  <p className="flex items-center gap-2 rounded-md border bg-muted/50 p-3 text-sm"><PackageCheck className="size-4 text-primary" />Remito generado: <a href={`/remitos?ver=${detalle.remito_id}`} className="font-semibold text-primary hover:underline">ver remito</a></p>
+                  <p className="flex items-center gap-2 rounded-md border bg-muted/50 p-3 text-sm"><PackageCheck className="size-4 text-primary" />Remito generado: <a href={`/remitos/${detalle.remito_id}`} className="font-semibold text-primary hover:underline">ver remito</a></p>
                 )}
               </div>
             )}
@@ -551,8 +551,8 @@ export function Ventas() {
 
             {(detalle.estado === 'cobrada' || detalle.estado === 'parcial') && (
               <div className="flex flex-wrap gap-2 border-t pt-4">
-                {!detalle.factura_id && <Button asChild size="sm" variant="outline"><a href="/facturas?nuevo=1"><ReceiptText />Generar factura</a></Button>}
-                {!detalle.remito_id && <Button asChild size="sm" variant="outline"><a href="/remitos?nuevo=1"><PackageCheck />Generar remito</a></Button>}
+                {!detalle.factura_id && <Button asChild size="sm" variant="outline"><a href="/facturas/nueva"><ReceiptText />Generar factura</a></Button>}
+                {!detalle.remito_id && <Button asChild size="sm" variant="outline"><a href="/remitos/nuevo"><PackageCheck />Generar remito</a></Button>}
                 {user?.role === 'admin' && (
                   <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => anular(detalle)}><Ban />Anular venta</Button>
                 )}

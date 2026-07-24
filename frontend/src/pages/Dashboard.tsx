@@ -108,9 +108,9 @@ export function Dashboard() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Button asChild size="sm"><Link to="/facturas?nuevo=1">+ Nueva Factura</Link></Button>
-            <Button asChild size="sm" variant="outline"><Link to="/presupuestos?nuevo=1">+ Nuevo Presupuesto</Link></Button>
-            <Button asChild size="sm" variant="outline"><Link to="/remitos?nuevo=1">+ Nuevo Remito</Link></Button>
+            <Button asChild size="sm"><Link to="/facturas/nueva">+ Nueva Factura</Link></Button>
+            <Button asChild size="sm" variant="outline"><Link to="/presupuestos/nuevo">+ Nuevo Presupuesto</Link></Button>
+            <Button asChild size="sm" variant="outline"><Link to="/remitos/nuevo">+ Nuevo Remito</Link></Button>
             <Button asChild size="sm" variant="outline"><Link to="/caja?nuevo=1">+ Nuevo Movimiento de Caja</Link></Button>
           </div>
 
@@ -137,7 +137,7 @@ export function Dashboard() {
                         </div>
                         <div className="flex shrink-0 items-center gap-3">
                           <span className="font-medium">{formatCurrency(f.total)}</span>
-                          <Button asChild size="sm" variant="outline"><Link to={`/facturas?ver=${f.id}`}>Ver</Link></Button>
+                          <Button asChild size="sm" variant="outline"><Link to={`/facturas/${f.id}`}>Ver</Link></Button>
                         </div>
                       </li>
                     ))}
@@ -166,7 +166,7 @@ export function Dashboard() {
                         </div>
                         <div className="flex shrink-0 items-center gap-3">
                           <span className="font-medium">{formatCurrency(p.total)}</span>
-                          <Button asChild size="sm" variant="outline"><Link to={`/presupuestos?ver=${p.id}`}>Ver</Link></Button>
+                          <Button asChild size="sm" variant="outline"><Link to={`/presupuestos/${p.id}`}>Ver</Link></Button>
                         </div>
                       </li>
                     ))}

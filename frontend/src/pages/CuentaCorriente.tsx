@@ -194,7 +194,7 @@ export function CuentaCorriente() {
           return <Link to={`/ventas?ver=${row.original.venta_id}`} className="flex items-center gap-1 font-medium text-primary hover:underline"><ShoppingCart className="size-3.5" />{row.original.concepto}</Link>
         }
         if (row.original.factura_id) {
-          return <Link to={`/facturas?ver=${row.original.factura_id}`} className="flex items-center gap-1 font-medium text-primary hover:underline"><Receipt className="size-3.5" />{row.original.concepto}</Link>
+          return <Link to={`/facturas/${row.original.factura_id}`} className="flex items-center gap-1 font-medium text-primary hover:underline"><Receipt className="size-3.5" />{row.original.concepto}</Link>
         }
         return row.original.concepto
       },

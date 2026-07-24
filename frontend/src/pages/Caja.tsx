@@ -138,7 +138,7 @@ export function Caja() {
           <span className="flex items-center gap-1.5 font-medium">
             {row.original.concepto}
             {row.original.factura_id && (
-              <Link to={`/facturas?ver=${row.original.factura_id}`} className="text-muted-foreground hover:text-primary" title="Ver factura">
+              <Link to={`/facturas/${row.original.factura_id}`} className="text-muted-foreground hover:text-primary" title="Ver factura">
                 <Receipt className="size-3.5" />
               </Link>
             )}
