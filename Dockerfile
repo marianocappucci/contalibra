@@ -1,4 +1,16 @@
 # syntax=docker/dockerfile:1
+
+# Stage separado para el frontend (React+Vite, migracion documentada en
+# wiki/entities/contalibra.md): node no hace falta en la imagen final,
+# solo el resultado del build (frontend/dist). Mismo patron que
+# gestiolibra/Dockerfile.
+FROM node:20-slim AS frontend-build
+WORKDIR /frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ .
+RUN npm run build
+
 FROM python:3.12-slim
 
 WORKDIR /app
@@ -14,6 +26,14 @@ COPY requirements.txt .
 RUN --mount=type=ssh pip install --no-cache-dir -r requirements.txt
 
 COPY . .
+# Horneado FUERA de /app a proposito (mismo motivo que gestiolibra
+# ADR-022): docker-compose.yml de dev montea ./:/app entero para el
+# --reload de Python, lo que taparia cualquier build copiado dentro de
+# /app con el checkout del host (que no tiene frontend/dist, es un
+# artefacto gitignoreado). Copiarlo fuera del arbol bind-monteado evita el
+# problema de raiz, sin volumenes anonimos (que solo se siembran del build
+# la primera vez y quedan congelados despues).
+COPY --from=frontend-build /frontend/dist /opt/frontend-dist
 
 EXPOSE 8000
 

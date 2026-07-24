@@ -3,17 +3,21 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 import datetime
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Depends
 from fastapi.responses import Response
 from typing import Annotated
 
 import database as db
-import config_manager
 from web.auth import require_auth, require_role
-from web.templates_config import templates
 
 router = APIRouter(dependencies=[Depends(require_role("admin"))])
 Auth = Annotated[str, Depends(require_auth)]
+
+# La pagina Jinja2 principal (`/libros-iva`) se removio en el corte de la
+# migracion a React -- ver wiki/entities/contalibra.md, Etapa D. Quedan
+# los exports REGINFO, que la SPA nueva (LibrosIva.tsx) linkea directo.
+# `_resumen_ventas`/`_resumen_compras` se mantienen porque
+# web/api/libros_iva.py los reusa tal cual (importados de aca).
 
 # ── Constantes ARCA/REGINFO ───────────────────────────────────────────────────
 
@@ -33,17 +37,6 @@ _TIPO_EGRESO_AFIP = {
 }
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
-
-def _hoy() -> str:
-    return datetime.date.today().isoformat()
-
-
-def _mes_anterior():
-    hoy = datetime.date.today()
-    first = hoy.replace(day=1)
-    last_prev = first - datetime.timedelta(days=1)
-    return last_prev.replace(day=1).isoformat(), last_prev.isoformat()
-
 
 def _default_periodo():
     hoy = datetime.date.today()
@@ -189,8 +182,6 @@ def _compras_cbte(egresos: list) -> str:
     for e in egresos:
         tc_raw  = e.get("tipo_comprobante") or "factura"
         tipo    = _TIPO_EGRESO_AFIP.get(tc_raw, "01")
-        neto    = float(e.get("monto_neto") or 0)
-        iva_m   = float(e.get("iva_monto") or 0)
         total   = float(e.get("total") or 0)
 
         cuit_p  = _strip_cuit(e.get("proveedor_cuit") or "")
@@ -200,6 +191,7 @@ def _compras_cbte(egresos: list) -> str:
         nro     = str(nro_raw).zfill(8)
         denom   = (e.get("proveedor_nombre") or "")[:30]
 
+        iva_m = float(e.get("iva_monto") or 0)
         cant_alic = 1 if iva_m > 0 else 0
         cod_op    = " " if iva_m > 0 else "N"
 
@@ -320,35 +312,15 @@ def _resumen_compras(egresos: list) -> dict:
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
-@router.get("/libros-iva")
-def libros_iva_index(request: Request, user: Auth,
-                     desde: str = "", hasta: str = "", tab: str = "ventas"):
+def _default_periodo_or(desde: str, hasta: str):
     if not desde or not hasta:
-        desde, hasta = _default_periodo()
-
-    cfg           = config_manager.load()
-    empresa_cuit  = cfg.get("empresa_cuit", "")
-
-    facturas = db.get_facturas_para_iva(desde, hasta)
-    egresos  = db.get_egresos_para_iva(desde, hasta)
-
-    return templates.TemplateResponse(request, "libros_iva/index.html", {
-        "active":        "libros_iva",
-        "desde":         desde,
-        "hasta":         hasta,
-        "tab":           tab,
-        "empresa_cuit":  empresa_cuit,
-        "facturas":      facturas,
-        "egresos":       egresos,
-        "resumen_v":     _resumen_ventas(facturas),
-        "resumen_c":     _resumen_compras(egresos),
-    })
+        return _default_periodo()
+    return desde, hasta
 
 
 @router.get("/libros-iva/export/ventas-cbte")
 def export_ventas_cbte(user: Auth, desde: str = "", hasta: str = ""):
-    if not desde or not hasta:
-        desde, hasta = _default_periodo()
+    desde, hasta = _default_periodo_or(desde, hasta)
     facturas = db.get_facturas_para_iva(desde, hasta)
     content  = _ventas_cbte(facturas)
     periodo  = desde[:7].replace("-", "")
@@ -362,8 +334,7 @@ def export_ventas_cbte(user: Auth, desde: str = "", hasta: str = ""):
 
 @router.get("/libros-iva/export/ventas-alicuotas")
 def export_ventas_alicuotas(user: Auth, desde: str = "", hasta: str = ""):
-    if not desde or not hasta:
-        desde, hasta = _default_periodo()
+    desde, hasta = _default_periodo_or(desde, hasta)
     facturas = db.get_facturas_para_iva(desde, hasta)
     content  = _ventas_alicuotas(facturas)
     periodo  = desde[:7].replace("-", "")
@@ -377,8 +348,7 @@ def export_ventas_alicuotas(user: Auth, desde: str = "", hasta: str = ""):
 
 @router.get("/libros-iva/export/compras-cbte")
 def export_compras_cbte(user: Auth, desde: str = "", hasta: str = ""):
-    if not desde or not hasta:
-        desde, hasta = _default_periodo()
+    desde, hasta = _default_periodo_or(desde, hasta)
     egresos = db.get_egresos_para_iva(desde, hasta)
     content = _compras_cbte(egresos)
     periodo = desde[:7].replace("-", "")
@@ -392,8 +362,7 @@ def export_compras_cbte(user: Auth, desde: str = "", hasta: str = ""):
 
 @router.get("/libros-iva/export/compras-alicuotas")
 def export_compras_alicuotas(user: Auth, desde: str = "", hasta: str = ""):
-    if not desde or not hasta:
-        desde, hasta = _default_periodo()
+    desde, hasta = _default_periodo_or(desde, hasta)
     egresos = db.get_egresos_para_iva(desde, hasta)
     content = _compras_alicuotas(egresos)
     periodo = desde[:7].replace("-", "")

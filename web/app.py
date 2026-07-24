@@ -16,32 +16,44 @@ import config_manager
 import arca_wsaa
 import arca_wspadron
 from security_headers import SecurityHeadersMiddleware
-from web.auth import (
-    require_auth, check_credentials, get_current_user,
-    create_session_cookie, clear_session_cookie,
-)
-from web.routers import clientes, remitos, presupuestos, facturas, config as config_router, caja, webhooks, dashboard
-from web.routers import mp_bandeja as mp_bandeja_router
-from web.routers import usuarios as usuarios_router
+from web.auth import require_auth, get_current_user
+from web.routers import remitos, presupuestos, facturas, config as config_router, webhooks
 from web.routers import productos as productos_router
 from web.routers import ventas as ventas_router
-from web.routers import stock as stock_router
-from web.routers import turnos as turnos_router
 from web.routers import logs as logs_router
 from web.routers import reportes as reportes_router
-from web.routers import depositos as depositos_router
-from web.routers import cajas as cajas_router
-from web.routers import egresos as egresos_router
-from web.routers import proveedores as proveedores_router
-from web.routers import tesoreria as tesoreria_router
-from web.routers import cuenta_corriente as cc_router
-from web.routers import listas_precio as listas_precio_router
 from web.routers import libros_iva as libros_iva_router
+from web.api import auth as api_auth_router
+from web.api import dashboard as api_dashboard_router
+from web.api import clientes as api_clientes_router
+from web.api import productos as api_productos_router
+from web.api import listas_precio as api_listas_precio_router
+from web.api import proveedores as api_proveedores_router
+from web.api import egresos as api_egresos_router
+from web.api import usuarios as api_usuarios_router
+from web.api import config as api_config_router
+from web.api import depositos as api_depositos_router
+from web.api import stock as api_stock_router
+from web.api import cuenta_corriente as api_cc_router
+from web.api import tesoreria as api_tesoreria_router
+from web.api import caja as api_caja_router
+from web.api import cajas as api_cajas_router
+from web.api import turnos as api_turnos_router
+from web.api import ventas as api_ventas_router
+from web.api import facturas as api_facturas_router
+from web.api import remitos as api_remitos_router
+from web.api import presupuestos as api_presupuestos_router
+from web.api import mp_bandeja as api_mp_bandeja_router
+from web.api import libros_iva as api_libros_iva_router
+from web.api import reportes as api_reportes_router
+from web.api import logs as api_logs_router
+from web.api_auth import get_current_user_json, require_admin_json
+from web.modules_gate import require_module
 
 app = FastAPI(title="Contalibra")
 
 
-_BYPASS_PATHS = {"/suspendido", "/login", "/logout", "/favicon.ico", "/api/auth/verify", "/health"}
+_BYPASS_PATHS = {"/suspendido", "/favicon.ico", "/api/auth/verify", "/health"}
 
 class CurrentUserMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -68,12 +80,19 @@ class CurrentUserMiddleware(BaseHTTPMiddleware):
         except Exception:
             request.state.mp_pending_count = 0
 
-        # Corte de servicio: redirigir todo excepto rutas de bypass y archivos estáticos
+        # Corte de servicio: redirigir todo excepto rutas de bypass y archivos estáticos.
+        # Para /api/* se devuelve JSON 503 en vez de un redirect -- un redirect a
+        # /suspendido (HTML) rompe cualquier fetch/XHR de la SPA, que espera JSON.
         estado = request.state.servicio_estado
         path   = request.url.path
         if (estado == "suspendido"
                 and path not in _BYPASS_PATHS
                 and not path.startswith("/static")):
+            if path.startswith("/api/"):
+                return JSONResponse(
+                    {"error": "servicio_suspendido", "mensaje": request.state.servicio_mensaje},
+                    status_code=503,
+                )
             from fastapi.responses import RedirectResponse as _RR
             return _RR("/suspendido")
 
@@ -107,30 +126,120 @@ def servicio_suspendido(request: Request):
     })
 
 
-app.include_router(dashboard.router)
-app.include_router(clientes.router)
+# Routers HTML/descarga viejos que sobreviven al corte de la Etapa D --
+# ver wiki/entities/contalibra.md. Cada uno quedo recortado a solo las
+# sub-rutas (PDF/ticket/CSV/backup/autocomplete) que la SPA nueva sigue
+# consumiendo; las paginas Jinja2 se removieron.
 app.include_router(remitos.router)
 app.include_router(presupuestos.router)
 app.include_router(facturas.router)
 app.include_router(config_router.router)
-app.include_router(caja.router)
 app.include_router(webhooks.router)
-app.include_router(usuarios_router.router)
 app.include_router(productos_router.router)
 app.include_router(ventas_router.router)
-app.include_router(stock_router.router)
-app.include_router(turnos_router.router)
 app.include_router(logs_router.router)
 app.include_router(reportes_router.router)
-app.include_router(mp_bandeja_router.router)
-app.include_router(depositos_router.router)
-app.include_router(cajas_router.router)
-app.include_router(egresos_router.router)
-app.include_router(proveedores_router.router)
-app.include_router(tesoreria_router.router)
-app.include_router(cc_router.router)
-app.include_router(listas_precio_router.router)
 app.include_router(libros_iva_router.router)
+
+# API JSON de la SPA (React) -- migracion documentada en
+# wiki/entities/contalibra.md. Conviven con los routers HTML de arriba
+# hasta la etapa de corte; todo endpoint nuevo va bajo el prefijo /api/.
+# El gating (auth + modulo habilitado por plan) se declara aca, centralizado,
+# mismo patron que gestiolibra/app/main.py -- no en cada router. (auth.py y
+# dashboard.py son la excepcion: gatean via Depends embebido porque /api/me
+# necesita el usuario como valor de retorno; el resto de los modulos de la
+# Etapa B no lo necesitan, asi que van centralizados aca.)
+_auth_json = Depends(get_current_user_json)
+app.include_router(api_auth_router.router)
+app.include_router(api_dashboard_router.router)
+app.include_router(
+    api_clientes_router.router,
+    dependencies=[_auth_json, Depends(require_module("clientes"))],
+)
+app.include_router(
+    api_productos_router.router,
+    dependencies=[_auth_json, Depends(require_module("productos"))],
+)
+app.include_router(
+    api_listas_precio_router.router,
+    dependencies=[_auth_json, Depends(require_module("listas_precio"))],
+)
+app.include_router(
+    api_proveedores_router.router,
+    dependencies=[_auth_json, Depends(require_module("proveedores"))],
+)
+app.include_router(
+    api_egresos_router.router,
+    dependencies=[_auth_json, Depends(require_module("egresos"))],
+)
+app.include_router(
+    api_usuarios_router.router,
+    dependencies=[Depends(require_admin_json)],
+)
+app.include_router(
+    api_config_router.router,
+    dependencies=[Depends(require_admin_json)],
+)
+app.include_router(
+    api_depositos_router.router,
+    dependencies=[_auth_json, Depends(require_module("depositos"))],
+)
+app.include_router(
+    api_stock_router.router,
+    dependencies=[_auth_json, Depends(require_module("stock"))],
+)
+app.include_router(
+    api_cc_router.router,
+    dependencies=[_auth_json, Depends(require_module("cuenta_corriente"))],
+)
+app.include_router(
+    api_tesoreria_router.router,
+    dependencies=[Depends(require_admin_json), Depends(require_module("tesoreria"))],
+)
+app.include_router(
+    api_caja_router.router,
+    dependencies=[_auth_json, Depends(require_module("caja"))],
+)
+app.include_router(
+    api_cajas_router.router,
+    dependencies=[_auth_json, Depends(require_module("cajas"))],
+)
+app.include_router(
+    api_turnos_router.router,
+    dependencies=[_auth_json],
+)
+app.include_router(
+    api_ventas_router.router,
+    dependencies=[_auth_json, Depends(require_module("ventas"))],
+)
+app.include_router(
+    api_facturas_router.router,
+    dependencies=[_auth_json, Depends(require_module("facturacion"))],
+)
+app.include_router(
+    api_remitos_router.router,
+    dependencies=[_auth_json, Depends(require_module("remitos"))],
+)
+app.include_router(
+    api_presupuestos_router.router,
+    dependencies=[_auth_json, Depends(require_module("presupuestos"))],
+)
+app.include_router(
+    api_mp_bandeja_router.router,
+    dependencies=[_auth_json],
+)
+app.include_router(
+    api_libros_iva_router.router,
+    dependencies=[Depends(require_admin_json), Depends(require_module("libros_iva"))],
+)
+app.include_router(
+    api_reportes_router.router,
+    dependencies=[_auth_json, Depends(require_module("reportes"))],
+)
+app.include_router(
+    api_logs_router.router,
+    dependencies=[Depends(require_admin_json)],
+)
 
 
 @app.on_event("startup")
@@ -142,52 +251,6 @@ def startup():
 @app.get("/", include_in_schema=False)
 def root():
     return RedirectResponse("/dashboard")
-
-
-@app.get("/login", include_in_schema=False)
-def login_get(request: Request):
-    return templates.TemplateResponse(request, "login.html", {"error": None})
-
-
-LOGIN_MAX_INTENTOS = 5
-LOGIN_VENTANA_MINUTOS = 15
-
-
-@app.post("/login", include_in_schema=False)
-async def login_post(request: Request):
-    form = await request.form()
-    username = str(form.get("username", ""))
-    password = str(form.get("password", ""))
-    ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "")
-
-    if db.contar_login_fallidos_recientes(ip, LOGIN_VENTANA_MINUTOS) >= LOGIN_MAX_INTENTOS:
-        db.registrar_auth_event("login_bloqueado", username, ip)
-        return templates.TemplateResponse(
-            request, "login.html",
-            {"error": f"Demasiados intentos fallidos. Esperá {LOGIN_VENTANA_MINUTOS} minutos e intentá de nuevo."},
-            status_code=429,
-        )
-
-    if check_credentials(username, password):
-        db.registrar_auth_event("login", username, ip)
-        response = RedirectResponse("/dashboard", status_code=303)
-        create_session_cookie(response, username)
-        return response
-    db.registrar_auth_event("login_fallido", username, ip)
-    return templates.TemplateResponse(
-        request, "login.html", {"error": "Usuario o contraseña incorrectos"}, status_code=401
-    )
-
-
-@app.get("/logout", include_in_schema=False)
-def logout(request: Request):
-    username = get_current_user(request) or ""
-    ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "")
-    if username:
-        db.registrar_auth_event("logout", username, ip)
-    response = RedirectResponse("/login", status_code=303)
-    clear_session_cookie(response)
-    return response
 
 
 DOCS_AUTH_SECRET = os.environ.get("DOCS_AUTH_SECRET", "")
@@ -381,3 +444,28 @@ async def consultar_cuit(cuit: str, user: str = Depends(require_auth)):
         return JSONResponse({"error": msg}, status_code=502)
     except Exception as e:
         return JSONResponse({"error": f"Error al consultar ARCA: {e}"}, status_code=500)
+
+
+# Serving de la SPA (React) -- mismo patron que gestiolibra/app/asgi.py.
+# Busca primero /opt/frontend-dist (donde el Dockerfile hornea el stage de
+# node, fuera del arbol bind-monteado por docker-compose.yml de dev) y si
+# no existe cae al build local del repo (`frontend/dist`), para poder
+# levantar la API sola sin haber buildeado nunca el frontend. Registrado al
+# final del modulo a proposito: todos los routers de arriba (HTML y /api/)
+# ya fueron declarados, asi que el catch-all solo atrapa lo que ningun otro
+# endpoint respondio.
+_DOCKER_FRONTEND_DIST = "/opt/frontend-dist"
+_LOCAL_FRONTEND_DIST = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
+FRONTEND_DIST = _DOCKER_FRONTEND_DIST if os.path.isdir(_DOCKER_FRONTEND_DIST) else _LOCAL_FRONTEND_DIST
+
+if os.path.isdir(FRONTEND_DIST):
+    from fastapi.responses import FileResponse
+
+    app.mount(
+        "/assets", StaticFiles(directory=os.path.join(FRONTEND_DIST, "assets")), name="frontend-assets"
+    )
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def spa_fallback(full_path: str):
+        del full_path  # catch-all: enrutamiento client-side de react-router
+        return FileResponse(os.path.join(FRONTEND_DIST, "index.html"))

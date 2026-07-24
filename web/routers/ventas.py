@@ -1,196 +1,26 @@
 import sys
 import os
-import json
-import sqlite3
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from typing import Annotated
-from datetime import date
-from fastapi import APIRouter, Request, Depends, HTTPException
-from fastapi.responses import RedirectResponse, Response, JSONResponse
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response, JSONResponse
 
 import database as db
 import config_manager
 import mp_api
-from web.auth import require_auth, require_admin
-from web.templates_config import templates
+from web.auth import require_auth
 
 router = APIRouter()
 Auth = Annotated[str, Depends(require_auth)]
-# Anular revierte stock/caja/cuenta corriente — misma severidad que borrar
-# una venta ya cobrada. Primer uso de un gate admin en ventas.py de
-# Contalibra (mismo criterio que ya aplica Restolibra, fork downstream, a
-# sus acciones financieras sensibles).
-RoleAdmin = Annotated[dict, Depends(require_admin)]
 
-MEDIOS_PAGO = [
-    {"id": "efectivo",         "label": "Efectivo",         "icon": "payments"},
-    {"id": "transferencia",    "label": "Transferencia",    "icon": "account_balance"},
-    {"id": "mercadopago",      "label": "Mercado Pago",     "icon": "call"},
-    {"id": "cuenta_dni",       "label": "Cuenta DNI",       "icon": "perm_identity"},
-    {"id": "billetera",        "label": "Otras billeteras", "icon": "account_balance_wallet"},
-    {"id": "cuenta_corriente", "label": "Cuenta corriente", "icon": "menu_book"},
-]
-
-MEDIO_LABELS = {m["id"]: m["label"] for m in MEDIOS_PAGO}
-
-
-@router.get("/ventas")
-def ventas_list(request: Request, user: Auth,
-                desde: str = "", hasta: str = "", q: str = "", tab: str = "todas"):
-    if tab not in ("todas", "sin_facturar", "facturadas"):
-        tab = "todas"
-    ventas = db.get_all_ventas(desde=desde, hasta=hasta, q=q, tab=tab)
-    return templates.TemplateResponse(request, "ventas/list.html", {
-        "ventas": ventas, "desde": desde, "hasta": hasta, "q": q, "tab": tab,
-        "active": "ventas", "medio_labels": MEDIO_LABELS,
-    })
-
-
-@router.get("/ventas/nueva")
-def venta_nueva_get(request: Request, user: Auth):
-    clientes = db.get_all_clients()
-    listas   = db.get_all_listas_precio(solo_activas=True)
-    return templates.TemplateResponse(request, "ventas/nueva.html", {
-        "clientes": clientes, "medios_pago": MEDIOS_PAGO,
-        "hoy": date.today().isoformat(), "active": "ventas",
-        "listas_precio": listas,
-        "error": None,
-    })
-
-
-@router.post("/ventas/nueva")
-async def venta_nueva_post(request: Request, user: Auth):
-    form = await request.form()
-
-    # — items —
-    nombres   = form.getlist("item_nombre")
-    qtys      = form.getlist("item_qty")
-    precios   = form.getlist("item_precio")
-    prod_ids  = form.getlist("item_producto_id")
-
-    items = []
-    for nombre, qty_s, precio_s, pid_s in zip(nombres, qtys, precios, prod_ids):
-        nombre = nombre.strip()
-        if not nombre:
-            continue
-        try:
-            qty    = float(qty_s.replace(",", "."))
-            precio = float(precio_s.replace(",", "."))
-        except ValueError:
-            continue
-        if qty <= 0:
-            continue
-        precio = max(0.0, precio)
-        items.append({
-            "nombre":      nombre,
-            "qty":         qty,
-            "precio":      precio,
-            "subtotal":    round(qty * precio, 2),
-            "producto_id": int(pid_s) if pid_s else None,
-        })
-
-    if not items:
-        clientes = db.get_all_clients()
-        return templates.TemplateResponse(request, "ventas/nueva.html", {
-            "clientes": clientes, "medios_pago": MEDIOS_PAGO,
-            "hoy": date.today().isoformat(), "active": "ventas",
-            "error": "Debe agregar al menos un ítem.",
-        }, status_code=422)
-
-    subtotal  = round(sum(i["subtotal"] for i in items), 2)
-    try:
-        descuento = round(float(form.get("descuento") or 0), 2)
-    except ValueError:
-        descuento = 0.0
-    descuento = min(max(0.0, descuento), subtotal)
-    total     = round(subtotal - descuento, 2)
-
-    # — pagos —
-    pagos = []
-    for m in MEDIOS_PAGO:
-        monto_s = str(form.get(f"pago_{m['id']}", "")).strip()
-        ref     = str(form.get(f"ref_{m['id']}", "")).strip()
-        if monto_s:
-            try:
-                monto = float(monto_s.replace(",", "."))
-                if monto > 0:
-                    pagos.append({"medio": m["id"], "monto": monto, "referencia": ref})
-            except ValueError:
-                pass
-
-    total_pagado = round(sum(p["monto"] for p in pagos), 2)
-    if not pagos:
-        clientes = db.get_all_clients()
-        return templates.TemplateResponse(request, "ventas/nueva.html", {
-            "clientes": clientes, "medios_pago": MEDIOS_PAGO,
-            "hoy": date.today().isoformat(), "active": "ventas",
-            "error": "Debe registrar al menos un medio de pago.",
-        }, status_code=422)
-
-    # — cliente —
-    cliente_id_s = str(form.get("cliente_id", "")).strip()
-    cliente_id   = int(cliente_id_s) if cliente_id_s else None
-    cliente_nombre = str(form.get("cliente_nombre", "")).strip()
-    if cliente_id:
-        c = db.get_client(cliente_id)
-        if c:
-            cliente_nombre = c["name"]
-
-    fecha = str(form.get("fecha", date.today().isoformat()))
-    obs   = str(form.get("observaciones", "")).strip()
-
-    # — usuario actual —
-    usuario = db.get_usuario_by_username(user)
-    usuario_id = usuario["id"] if usuario else None
-
-    if total_pagado >= total:
-        estado = "cobrada"
-    elif total_pagado > 0:
-        estado = "parcial"
-    else:
-        estado = "pendiente"
-
-    # — guardar: venta + pagos + caja + stock + turno en una sola transacción —
-    mods = db.get_modulos()
-    try:
-        venta_id = db.crear_venta_directa(
-            fecha=fecha, items=items, subtotal=subtotal, descuento=descuento,
-            total=total, cliente_id=cliente_id, cliente_nombre=cliente_nombre,
-            usuario_id=usuario_id, observaciones=obs, estado=estado,
-            pagos=pagos, stock_habilitado=bool(mods.get("stock")),
-        )
-    except (sqlite3.IntegrityError, RuntimeError):
-        clientes = db.get_all_clients()
-        return templates.TemplateResponse(request, "ventas/nueva.html", {
-            "clientes": clientes, "medios_pago": MEDIOS_PAGO,
-            "hoy": date.today().isoformat(), "active": "ventas",
-            "error": "No se pudo registrar la venta (conflicto con otra venta simultánea). Reintentá.",
-        }, status_code=409)
-
-    return RedirectResponse(f"/ventas/{venta_id}", status_code=303)
-
-
-@router.get("/ventas/{vid}")
-def venta_detail(request: Request, vid: int, user: Auth):
-    venta = db.get_venta(vid)
-    if not venta:
-        raise HTTPException(404)
-    return templates.TemplateResponse(request, "ventas/detail.html", {
-        "venta": venta, "active": "ventas",
-        "medio_labels": MEDIO_LABELS,
-    })
-
-
-@router.post("/ventas/{vid}/anular")
-def venta_anular(request: Request, vid: int, user: Auth, _role: RoleAdmin):
-    venta = db.get_venta(vid)
-    if not venta:
-        raise HTTPException(404)
-    usuario = db.get_usuario_by_username(user)
-    usuario_id = usuario["id"] if usuario else None
-    db.anular_venta(vid, usuario_id=usuario_id)
-    return RedirectResponse(f"/ventas/{vid}", status_code=303)
+# Las paginas Jinja2 de este router (list/nueva/detail/anular) se
+# removieron en el corte de la migracion a React -- ver
+# wiki/entities/contalibra.md, Etapa D. Quedan el flujo de QR dinamico de
+# MercadoPago y las descargas de ticket/recibo, que la SPA nueva
+# (web/api/ventas.py) linkea/consume directo -- el QR en vivo todavia no
+# esta cableado en la SPA (ver nota de alcance en Ventas.tsx), pero el
+# endpoint sigue disponible para cuando se construya esa pantalla.
 
 
 @router.post("/ventas/{vid}/mp-qr")
@@ -226,7 +56,6 @@ async def venta_mp_qr(vid: int, user: Auth):
     order_id = resultado.get("in_store_order_id", external_ref)
     db.set_venta_mp_order(vid, order_id)
 
-    # MP devuelve la URL del QR — la enviamos al frontend para mostrarla
     qr_data = resultado.get("qr_data", "")
     return JSONResponse({"ok": True, "qr_data": qr_data, "order_id": order_id})
 
@@ -238,7 +67,6 @@ async def venta_mp_status(vid: int, user: Auth):
     if not venta:
         raise HTTPException(404)
 
-    # Si ya tiene payment_id registrado (confirmado por webhook), listo
     if venta.get("mp_payment_id"):
         return JSONResponse({"status": "approved", "payment_id": venta["mp_payment_id"]})
 
@@ -259,7 +87,6 @@ async def venta_mp_status(vid: int, user: Auth):
     if status == "approved":
         payment_id = str(pago["id"])
         db.set_venta_mp_payment(vid, payment_id)
-        # Actualizar referencia en el registro de pago de la venta
         db.add_venta_pago_referencia_mp(vid, payment_id)
         return JSONResponse({"status": "approved", "payment_id": payment_id})
 
@@ -286,7 +113,6 @@ def venta_recibo(vid: int, user: Auth):
     venta = db.get_venta(vid)
     if not venta:
         raise HTTPException(404)
-    # Adaptar venta al formato que espera generate_pdf_recibo
     factura_like = {
         "tipo":            None,
         "punto_venta":     0,
