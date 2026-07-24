@@ -13,8 +13,12 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose,
+} from '@/components/ui/dialog'
+import {
   ArrowLeft, FileDown, Printer, ReceiptText, Mail, RefreshCw, FileMinus, FilePlus, Copy, Trash2,
   CheckCircle2, Hourglass, CircleDollarSign, AlertTriangle, Info, CornerDownLeft, ListChecks, Plus,
+  Receipt, Send,
 } from 'lucide-react'
 
 function todayIso(): string {
@@ -51,6 +55,8 @@ export function FacturaDetalle() {
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [emailTo, setEmailTo] = useState('')
+  const [emailOpen, setEmailOpen] = useState(false)
+  const [cobroOpen, setCobroOpen] = useState(false)
   const [cobroPagos, setCobroPagos] = useState<{ medio: string; monto: string; referencia: string }[]>([{ medio: 'efectivo', monto: '', referencia: '' }])
   const [clientes, setClientes] = useState<Cliente[]>([])
 
@@ -104,6 +110,7 @@ export function FacturaDetalle() {
         fecha: todayIso(),
         pagos: cobroPagos.filter((p) => Number(p.monto) > 0).map((p) => ({ medio_id: p.medio, monto: Number(p.monto), referencia: p.referencia })),
       })
+      setCobroOpen(false)
       await cargar()
     } catch (err) {
       setError(describeError(err))
@@ -118,6 +125,7 @@ export function FacturaDetalle() {
     setError(null)
     try {
       await api.post(`/api/facturas/${facturaId}/enviar-email`, { email: emailTo })
+      setEmailOpen(false)
     } catch (err) {
       setError(describeError(err))
     } finally {
@@ -181,9 +189,38 @@ export function FacturaDetalle() {
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="flex items-center gap-2 text-lg font-semibold">
-          {detalle ? `${labelComprobante(detalle.factura)} — ${detalle.factura.cliente_razon}` : 'Comprobante'}
+          <Receipt className="size-5 text-primary" />
+          {detalle
+            ? <>{detalle.tipo_label} <span className="font-mono font-normal text-muted-foreground">{String(detalle.factura.punto_venta).padStart(4, '0')}-{String(detalle.factura.numero).padStart(8, '0')}</span></>
+            : 'Comprobante'}
         </h2>
-        <Button asChild size="sm" variant="outline"><Link to="/facturas"><ArrowLeft />Volver</Link></Button>
+        {detalle && (
+          <div className="flex flex-wrap gap-2">
+            <Button asChild size="sm" variant="outline"><a href={`/facturas/${facturaId}/pdf`} target="_blank" rel="noreferrer"><FileDown />Ver PDF</a></Button>
+            <Button asChild size="sm" variant="outline"><a href={`/facturas/${facturaId}/ticket`} target="_blank" rel="noreferrer"><Printer />Ticket</a></Button>
+            {detalle.cobros.length > 0 && <Button asChild size="sm" variant="outline"><a href={`/facturas/${facturaId}/recibo`} target="_blank" rel="noreferrer"><ReceiptText />Recibo</a></Button>}
+            <Dialog open={emailOpen} onOpenChange={setEmailOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline"><Mail />Enviar por email</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2"><Mail className="size-4" />Enviar comprobante por email</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-1.5">
+                  <Label>Destinatario</Label>
+                  <Input type="email" value={emailTo} onChange={(e) => setEmailTo(e.target.value)} placeholder="email@ejemplo.com" />
+                  <p className="text-xs text-muted-foreground">Se adjunta el PDF del comprobante.</p>
+                </div>
+                <DialogFooter>
+                  <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
+                  <Button disabled={saving || !emailTo.trim()} onClick={enviarEmail}><Send />{saving ? 'Enviando…' : 'Enviar'}</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            <Button asChild size="sm" variant="outline"><Link to="/facturas"><ArrowLeft />Volver</Link></Button>
+          </div>
+        )}
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
@@ -238,18 +275,24 @@ export function FacturaDetalle() {
 
           {[1, 6, 11].includes(detalle.factura.tipo) && (
             detalle.cobros.length > 0 ? (
-              <div className={`flex flex-wrap items-center gap-2 rounded-md border p-3 text-sm ${detalle.pendiente <= 0 ? 'border-emerald-300 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/40' : 'border-amber-300 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/40'}`}>
-                {detalle.pendiente <= 0 ? <CheckCircle2 className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" /> : <CircleDollarSign className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />}
-                {detalle.pendiente <= 0 ? (
-                  <span><strong>Cobrado completo</strong> — {formatCurrency(detalle.total_cobrado)}{detalle.cobros.length > 1 && <span className="text-muted-foreground"> ({detalle.cobros.length} pagos)</span>}</span>
-                ) : (
-                  <span><strong>Pago parcial</strong> — Cobrado: {formatCurrency(detalle.total_cobrado)} <span className="font-medium text-destructive">Pendiente: {formatCurrency(detalle.pendiente)}</span></span>
-                )}
+              <div className={`flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm ${detalle.pendiente <= 0 ? 'border-emerald-300 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/40' : 'border-amber-300 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/40'}`}>
+                <span className="flex items-center gap-2">
+                  {detalle.pendiente <= 0 ? <CheckCircle2 className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" /> : <CircleDollarSign className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />}
+                  {detalle.pendiente <= 0 ? (
+                    <span><strong>Cobrado completo</strong> — {formatCurrency(detalle.total_cobrado)}{detalle.cobros.length > 1 && <span className="text-muted-foreground"> ({detalle.cobros.length} pagos)</span>}</span>
+                  ) : (
+                    <span><strong>Pago parcial</strong> — Cobrado: {formatCurrency(detalle.total_cobrado)} <span className="font-medium text-destructive">Pendiente: {formatCurrency(detalle.pendiente)}</span></span>
+                  )}
+                </span>
+                {detalle.pendiente > 0 && <Button size="sm" onClick={() => setCobroOpen(true)}><CircleDollarSign />Registrar cobro</Button>}
               </div>
             ) : estaAutorizada(detalle.factura) ? (
-              <div className="flex flex-wrap items-center gap-2 rounded-md border p-3 text-sm">
-                <Hourglass className="size-4 shrink-0 text-muted-foreground" />
-                <span><strong>Pendiente de cobro</strong> — {formatCurrency(detalle.factura.total)}</span>
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm">
+                <span className="flex items-center gap-2">
+                  <Hourglass className="size-4 shrink-0 text-muted-foreground" />
+                  <strong>Pendiente de cobro</strong> — {formatCurrency(detalle.factura.total)}
+                </span>
+                <Button size="sm" onClick={() => setCobroOpen(true)}><CircleDollarSign />Registrar cobro</Button>
               </div>
             ) : null
           )}
@@ -348,14 +391,11 @@ export function FacturaDetalle() {
             </CardContent>
           </Card>
 
-          <div className="flex flex-wrap gap-2">
-            <Button asChild size="sm" variant="outline"><a href={`/facturas/${facturaId}/pdf`} target="_blank" rel="noreferrer"><FileDown />Ver PDF</a></Button>
-            <Button asChild size="sm" variant="outline"><a href={`/facturas/${facturaId}/ticket`} target="_blank" rel="noreferrer"><Printer />Ticket</a></Button>
-            {detalle.cobros.length > 0 && <Button asChild size="sm" variant="outline"><a href={`/facturas/${facturaId}/recibo`} target="_blank" rel="noreferrer"><ReceiptText />Recibo</a></Button>}
+          <div className="flex flex-wrap justify-end gap-2">
             {user?.role === 'admin' && [1, 6, 11].includes(detalle.factura.tipo) && (
               <>
-                <Button size="sm" variant="outline" disabled={saving} onClick={() => crearNota('nota-debito')}><FilePlus />Nota de débito</Button>
-                <Button size="sm" variant="outline" disabled={saving} onClick={() => crearNota('nota-credito')}><FileMinus />Nota de crédito</Button>
+                <Button size="sm" variant="outline" disabled={saving} onClick={() => crearNota('nota-debito')}><FilePlus />Nota de Débito</Button>
+                <Button size="sm" variant="outline" disabled={saving} onClick={() => crearNota('nota-credito')}><FileMinus />Nota de Crédito</Button>
               </>
             )}
             <Button size="sm" variant="outline" onClick={duplicar}><Copy />Duplicar</Button>
@@ -364,32 +404,32 @@ export function FacturaDetalle() {
             )}
           </div>
 
-          {detalle.pendiente > 0 && [1, 6, 11].includes(detalle.factura.tipo) && (
-            <div className="grid gap-2 border-t pt-4">
-              <Label>Registrar cobro</Label>
-              {cobroPagos.map((p, i) => (
-                <div key={i} className="flex flex-wrap items-center gap-2">
-                  <Select value={p.medio} onValueChange={(v) => setCobroPagos((rows) => rows.map((r, idx) => idx === i ? { ...r, medio: v } : r))}>
-                    <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(MEDIOS_PAGO_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  <Input type="number" step="0.01" value={p.monto} onChange={(e) => setCobroPagos((rows) => rows.map((r, idx) => idx === i ? { ...r, monto: e.target.value } : r))} className="w-28" />
-                  <Input value={p.referencia} onChange={(e) => setCobroPagos((rows) => rows.map((r, idx) => idx === i ? { ...r, referencia: e.target.value } : r))} className="w-40" placeholder="Referencia" />
-                </div>
-              ))}
-              <div className="flex gap-2">
+          <Dialog open={cobroOpen} onOpenChange={setCobroOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2"><CircleDollarSign className="size-4" />Registrar cobro</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-2">
+                {cobroPagos.map((p, i) => (
+                  <div key={i} className="flex flex-wrap items-center gap-2">
+                    <Select value={p.medio} onValueChange={(v) => setCobroPagos((rows) => rows.map((r, idx) => idx === i ? { ...r, medio: v } : r))}>
+                      <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(MEDIOS_PAGO_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <Input type="number" step="0.01" value={p.monto} onChange={(e) => setCobroPagos((rows) => rows.map((r, idx) => idx === i ? { ...r, monto: e.target.value } : r))} className="w-28" />
+                    <Input value={p.referencia} onChange={(e) => setCobroPagos((rows) => rows.map((r, idx) => idx === i ? { ...r, referencia: e.target.value } : r))} className="w-40" placeholder="Referencia" />
+                  </div>
+                ))}
                 <Button size="sm" variant="outline" className="w-fit" onClick={() => setCobroPagos((rows) => [...rows, { medio: 'efectivo', monto: '', referencia: '' }])}><Plus />Agregar medio</Button>
-                <Button size="sm" disabled={saving} onClick={cobrar}><CircleDollarSign />{saving ? 'Guardando…' : 'Registrar cobro'}</Button>
               </div>
-            </div>
-          )}
-
-          <div className="flex flex-wrap items-end gap-3 border-t pt-4">
-            <div className="grid gap-1.5"><Label>Enviar por email</Label><Input type="email" value={emailTo} onChange={(e) => setEmailTo(e.target.value)} className="w-56" /></div>
-            <Button size="sm" variant="outline" disabled={saving || !emailTo.trim()} onClick={enviarEmail}><Mail />Enviar</Button>
-          </div>
+              <DialogFooter>
+                <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
+                <Button disabled={saving} onClick={cobrar}><CircleDollarSign />{saving ? 'Guardando…' : 'Confirmar cobro'}</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </>
       )}
     </div>

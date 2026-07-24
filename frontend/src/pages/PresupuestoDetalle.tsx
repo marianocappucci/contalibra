@@ -7,7 +7,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose,
+} from '@/components/ui/dialog'
+import {
   Send, XCircle, CheckCircle2, RefreshCw, Receipt, CheckCheck, Undo2, Mail, Trash2, ArrowLeft,
+  FileDown, Pencil,
 } from 'lucide-react'
 
 function formatCurrency(value: number): string {
@@ -33,6 +37,7 @@ export function PresupuestoDetalle() {
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [emailTo, setEmailTo] = useState('')
+  const [emailOpen, setEmailOpen] = useState(false)
 
   useEffect(() => {
     cargar()
@@ -74,6 +79,7 @@ export function PresupuestoDetalle() {
     setError(null)
     try {
       await api.post(`/api/presupuestos/${presId}/enviar-email`, { email: emailTo })
+      setEmailOpen(false)
     } catch (err) {
       setError(describeError(err))
     } finally {
@@ -95,8 +101,39 @@ export function PresupuestoDetalle() {
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold">{p ? `${p.number} — ${p.client_name}` : 'Presupuesto'}</h2>
-        <Button asChild size="sm" variant="outline"><Link to="/presupuestos"><ArrowLeft />Volver</Link></Button>
+        <div className="flex items-center gap-3">
+          <h2 className="flex items-center gap-2 text-lg font-semibold">
+            <Receipt className="size-5 text-primary" />
+            Presupuesto {p && <span className="font-mono">{p.number}</span>}
+          </h2>
+          {p && <Badge variant={estadoVariant[p.status] ?? 'outline'}>{ESTADO_LABELS[p.status] ?? p.status}</Badge>}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {p && p.status === 'borrador' && (
+            <Button asChild size="sm" variant="outline"><Link to={`/presupuestos/${p.id}/editar`}><Pencil />Editar</Link></Button>
+          )}
+          {p && <Button asChild size="sm" variant="outline"><a href={`/presupuestos/${p.id}/pdf`} target="_blank" rel="noreferrer"><FileDown />Ver PDF</a></Button>}
+          <Dialog open={emailOpen} onOpenChange={setEmailOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" variant="outline"><Mail />Enviar por email</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2"><Mail className="size-4" />Enviar presupuesto por email</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-1.5">
+                <Label>Destinatario</Label>
+                <Input type="email" value={emailTo} onChange={(e) => setEmailTo(e.target.value)} placeholder="email@ejemplo.com" />
+                <p className="text-xs text-muted-foreground">Se adjunta el PDF del presupuesto.</p>
+              </div>
+              <DialogFooter>
+                <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
+                <Button disabled={saving || !emailTo.trim()} onClick={enviarEmail}><Send />{saving ? 'Enviando…' : 'Enviar'}</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          <Button asChild size="sm" variant="outline"><Link to="/presupuestos"><ArrowLeft />Volver</Link></Button>
+        </div>
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
@@ -201,14 +238,6 @@ export function PresupuestoDetalle() {
                   <CheckCheck className="size-4 shrink-0" />Este presupuesto está <strong>facturado</strong> y cerrado comercialmente.
                 </p>
               )}
-
-              <Card>
-                <CardHeader><CardTitle className="text-base">Enviar por email</CardTitle></CardHeader>
-                <CardContent className="flex flex-wrap items-end gap-3">
-                  <div className="grid gap-1.5"><Label>Destinatario</Label><Input type="email" value={emailTo} onChange={(e) => setEmailTo(e.target.value)} className="w-56" placeholder="email@ejemplo.com" /></div>
-                  <Button size="sm" variant="outline" disabled={saving || !emailTo.trim()} onClick={enviarEmail}><Mail />Enviar</Button>
-                </CardContent>
-              </Card>
             </>
           )
         })()
