@@ -7,6 +7,7 @@ import { api, ApiError, IVA_CONDITIONS, type Cliente } from '../api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
@@ -22,19 +23,18 @@ const clienteSchema = z.object({
   email: z.string().trim().email('Email inválido').optional().or(z.literal('')),
   phone: z.string().trim().optional(),
   iva_condition: z.string().optional(),
+  auto_facturar: z.boolean().optional(),
 })
 
 type ClienteFormValues = z.infer<typeof clienteSchema>
 
 const EMPTY_VALUES: ClienteFormValues = {
-  name: '', address: '', cuit_dni: '', email: '', phone: '', iva_condition: '',
+  name: '', address: '', cuit_dni: '', email: '', phone: '', iva_condition: '', auto_facturar: false,
 }
 
 // Misma página para alta y edición, igual que web/templates/clientes/form.html
 // viejo -- si hay :id en la ruta (/clientes/:id/editar) precarga el cliente
-// existente. No existe un GET /api/clientes/{id} en el backend (ver
-// web/api/clientes.py) -- se trae la lista completa y se busca el id, igual
-// que hacía la SPA antes de que esta página existiera.
+// existente vía GET /api/clientes/{id}.
 export function ClienteForm() {
   const { id } = useParams<{ id: string }>()
   const editingId = id ? Number(id) : null
@@ -62,12 +62,7 @@ export function ClienteForm() {
 
   useEffect(() => {
     if (!editingId) return
-    api.get<Cliente[]>('/api/clientes').then((clientes) => {
-      const cliente = clientes.find((c) => c.id === editingId)
-      if (!cliente) {
-        setError('Cliente no encontrado')
-        return
-      }
+    api.get<Cliente>(`/api/clientes/${editingId}`).then((cliente) => {
       form.reset({
         name: cliente.name,
         address: cliente.address ?? '',
@@ -75,6 +70,7 @@ export function ClienteForm() {
         email: cliente.email ?? '',
         phone: cliente.phone ?? '',
         iva_condition: cliente.iva_condition ?? '',
+        auto_facturar: Boolean(cliente.auto_facturar),
       })
     }).catch((err) => setError(describeError(err))).finally(() => setLoadingCliente(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -90,6 +86,7 @@ export function ClienteForm() {
       email: values.email || '',
       phone: values.phone || '',
       iva_condition: values.iva_condition || '',
+      auto_facturar: Boolean(values.auto_facturar),
     }
     try {
       const cliente = editingId
@@ -246,6 +243,26 @@ export function ClienteForm() {
                     </FormItem>
                   )}
                 />
+                {editingId && (
+                  <FormField
+                    control={form.control}
+                    name="auto_facturar"
+                    render={({ field }) => (
+                      <FormItem className="w-full rounded-md border bg-muted/40 p-3">
+                        <div className="flex items-center gap-2">
+                          <FormControl>
+                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                          </FormControl>
+                          <FormLabel className="!mt-0">Facturación automática por MercadoPago</FormLabel>
+                        </div>
+                        <p className="pl-11 text-xs text-muted-foreground">
+                          Cuando llegue un pago aprobado de MP para este cliente, se generará la factura y se
+                          enviará por email automáticamente.
+                        </p>
+                      </FormItem>
+                    )}
+                  />
+                )}
                 {consultaMsg && (
                   <p className={`flex w-full items-center gap-1.5 text-sm ${consultaMsg.tipo === 'ok' ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
                     {consultaMsg.tipo === 'ok' ? <CheckCircle2 className="size-4 shrink-0" /> : <XCircle className="size-4 shrink-0" />}

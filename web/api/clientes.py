@@ -1,9 +1,15 @@
 """API JSON de Clientes para la SPA (ver wiki/entities/contalibra.md,
 migracion a React). Mismo patron REST para toda la Etapa B: reusa la
 logica de negocio existente de `db_clients.py` (via `database.py`) tal
-cual, sin duplicarla. El detalle de cliente (facturas/presupuestos/
-remitos asociados, alias de facturacion) queda fuera de este modulo --
-no tiene sentido antes de que existan sus propias paginas (Etapa C).
+cual, sin duplicarla.
+
+Auto-factura MP y alias de facturacion (excepciones payer CUIT/email ->
+cliente) se agregan aca -- las funciones de `libracore.db` ya existian
+(`toggle_auto_facturar`, `crear_alias_facturacion`,
+`get_alias_facturacion_by_cliente`, `eliminar_alias_facturacion`), solo
+no estaban expuestas via JSON todavia (ver ronda de fidelidad de
+Clientes en wiki/entities/contalibra.md).
+
 Auth y gating de modulo se aplican en el `app.include_router(...)` de
 web/app.py, no aca.
 """
@@ -31,6 +37,12 @@ class ClientePayload(BaseModel):
     email: str = ""
     phone: str = ""
     iva_condition: str = ""
+    auto_facturar: bool = False
+
+
+class AliasPayload(BaseModel):
+    tipo: str
+    valor: str
 
 
 @router.get("")
@@ -53,6 +65,17 @@ def crear(payload: ClientePayload):
     return db.get_client(cliente_id)
 
 
+@router.get("/{cliente_id}")
+def detalle(cliente_id: int):
+    cliente = db.get_client(cliente_id)
+    if not cliente:
+        raise HTTPException(404, "Cliente no encontrado")
+    return {
+        **cliente,
+        "alias_facturacion": db.get_alias_facturacion_by_cliente(cliente_id),
+    }
+
+
 @router.put("/{cliente_id}")
 def actualizar(cliente_id: int, payload: ClientePayload):
     if not db.get_client(cliente_id):
@@ -64,8 +87,36 @@ def actualizar(cliente_id: int, payload: ClientePayload):
         cliente_id, name=name, address=payload.address.strip(),
         cuit_dni=payload.cuit_dni.strip(), email=payload.email.strip(),
         phone=payload.phone.strip(), iva_condition=payload.iva_condition.strip(),
+        auto_facturar=1 if payload.auto_facturar else 0,
     )
     return db.get_client(cliente_id)
+
+
+@router.post("/{cliente_id}/toggle-auto-facturar")
+def toggle_auto_facturar(cliente_id: int):
+    if not db.get_client(cliente_id):
+        raise HTTPException(404, "Cliente no encontrado")
+    db.toggle_auto_facturar(cliente_id)
+    return db.get_client(cliente_id)
+
+
+@router.post("/{cliente_id}/alias-facturacion")
+def crear_alias(cliente_id: int, payload: AliasPayload):
+    if not db.get_client(cliente_id):
+        raise HTTPException(404, "Cliente no encontrado")
+    try:
+        db.crear_alias_facturacion(payload.tipo.strip(), payload.valor.strip(), cliente_id)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    return db.get_alias_facturacion_by_cliente(cliente_id)
+
+
+@router.delete("/{cliente_id}/alias-facturacion/{alias_id}")
+def eliminar_alias(cliente_id: int, alias_id: int):
+    if not db.get_client(cliente_id):
+        raise HTTPException(404, "Cliente no encontrado")
+    db.eliminar_alias_facturacion(alias_id)
+    return db.get_alias_facturacion_by_cliente(cliente_id)
 
 
 @router.post("/{cliente_id}/desactivar")

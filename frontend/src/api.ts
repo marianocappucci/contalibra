@@ -116,6 +116,17 @@ export type Cliente = {
   activo: number
 }
 
+export type AliasFacturacion = {
+  id: number
+  tipo: 'cuit' | 'email'
+  valor: string
+  cliente_id: number
+}
+
+export type ClienteConAlias = Cliente & {
+  alias_facturacion: AliasFacturacion[]
+}
+
 export const IVA_CONDITIONS = [
   'Responsable Inscripto',
   'Monotributista',
