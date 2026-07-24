@@ -368,7 +368,7 @@ export function Proveedores() {
 
       {proveedorViendo && (
         <Card>
-          <CardHeader className="flex-row items-center justify-between space-y-0">
+          <CardHeader className="flex items-center justify-between space-y-0">
             <CardTitle className="text-base">Egresos de {proveedorViendo.nombre}</CardTitle>
             <div className="flex items-center gap-3">
               {egresos.length > 0 && (

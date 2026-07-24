@@ -69,6 +69,8 @@ export type User = {
   nombre: string
   role: 'admin' | 'operador' | 'cajero'
   modulos: string[]
+  empresa_nombre: string
+  mp_pending_count: number
 }
 
 export type FacturaSinCobrar = {

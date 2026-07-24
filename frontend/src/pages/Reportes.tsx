@@ -190,7 +190,7 @@ export function Reportes() {
 
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
-              <CardHeader className="flex-row items-center justify-between space-y-0">
+              <CardHeader className="flex items-center justify-between space-y-0">
                 <CardTitle className="flex items-center gap-2 text-base"><TrendingUp className="size-4 text-primary" />Ventas por período</CardTitle>
                 <Button asChild size="sm" variant="outline"><a href={`/reportes/export/ventas?desde=${desde}&hasta=${hasta}&agrupacion=${agrupacion}`}><Download />CSV</a></Button>
               </CardHeader>
@@ -211,7 +211,7 @@ export function Reportes() {
             </Card>
 
             <Card>
-              <CardHeader className="flex-row items-center justify-between space-y-0">
+              <CardHeader className="flex items-center justify-between space-y-0">
                 <CardTitle className="flex items-center gap-2 text-base"><PieChart className="size-4 text-emerald-600 dark:text-emerald-400" />Medios de pago</CardTitle>
                 <Button asChild size="sm" variant="outline"><a href={`/reportes/export/medios?desde=${desde}&hasta=${hasta}`}><Download />CSV</a></Button>
               </CardHeader>
@@ -245,7 +245,7 @@ export function Reportes() {
             </Card>
 
             <Card>
-              <CardHeader className="flex-row items-center justify-between space-y-0">
+              <CardHeader className="flex items-center justify-between space-y-0">
                 <CardTitle className="flex items-center gap-2 text-base"><Boxes className="size-4 text-purple-600 dark:text-purple-400" />Productos más vendidos</CardTitle>
                 <Button asChild size="sm" variant="outline"><a href={`/reportes/export/productos?desde=${desde}&hasta=${hasta}`}><Download />CSV</a></Button>
               </CardHeader>

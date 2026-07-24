@@ -237,7 +237,7 @@ export function Logs() {
           </Card>
 
           <Card>
-            <CardHeader className="flex-row items-center justify-between space-y-0">
+            <CardHeader className="flex items-center justify-between space-y-0">
               <CardTitle className="flex items-center gap-2 text-base"><Shield className="size-4" />Accesos de usuarios</CardTitle>
               <span className="text-xs text-muted-foreground">Últimos 100 eventos</span>
             </CardHeader>

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import {
-  Plus, Receipt, ArrowDownCircle, ArrowUpCircle, Wallet, ClipboardList,
+  Receipt, ArrowDownCircle, ArrowUpCircle, Wallet, ClipboardList,
   Hourglass, CheckCircle2, Inbox, History,
 } from 'lucide-react'
 
@@ -108,15 +108,15 @@ export function Dashboard() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Button asChild size="sm"><Link to="/facturas?nuevo=1"><Plus />Nueva factura</Link></Button>
-            <Button asChild size="sm" variant="outline"><Link to="/presupuestos?nuevo=1"><Plus />Nuevo presupuesto</Link></Button>
-            <Button asChild size="sm" variant="outline"><Link to="/remitos?nuevo=1"><Plus />Nuevo remito</Link></Button>
-            <Button asChild size="sm" variant="outline"><Link to="/caja?nuevo=1"><Plus />Movimiento de caja</Link></Button>
+            <Button asChild size="sm"><Link to="/facturas?nuevo=1">+ Nueva Factura</Link></Button>
+            <Button asChild size="sm" variant="outline"><Link to="/presupuestos?nuevo=1">+ Nuevo Presupuesto</Link></Button>
+            <Button asChild size="sm" variant="outline"><Link to="/remitos?nuevo=1">+ Nuevo Remito</Link></Button>
+            <Button asChild size="sm" variant="outline"><Link to="/caja?nuevo=1">+ Nuevo Movimiento de Caja</Link></Button>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
-              <CardHeader className="flex-row items-center justify-between space-y-0">
+              <CardHeader className="flex items-center justify-between space-y-0">
                 <CardTitle className="flex items-center gap-2 text-base"><Hourglass className="size-4 text-amber-500" />Facturas sin cobrar</CardTitle>
                 <Button asChild size="sm" variant="outline"><Link to="/facturas">Ver todas</Link></Button>
               </CardHeader>
@@ -147,7 +147,7 @@ export function Dashboard() {
             </Card>
 
             <Card>
-              <CardHeader className="flex-row items-center justify-between space-y-0">
+              <CardHeader className="flex items-center justify-between space-y-0">
                 <CardTitle className="flex items-center gap-2 text-base"><ClipboardList className="size-4 text-sky-500" />Presupuestos sin respuesta</CardTitle>
                 <Button asChild size="sm" variant="outline"><Link to="/presupuestos">Ver todos</Link></Button>
               </CardHeader>
@@ -177,7 +177,7 @@ export function Dashboard() {
           </div>
 
           <Card>
-            <CardHeader className="flex-row items-center justify-between space-y-0">
+            <CardHeader className="flex items-center justify-between space-y-0">
               <CardTitle className="flex items-center gap-2 text-base"><History className="size-4" />Últimos movimientos de caja</CardTitle>
               <Button asChild size="sm" variant="outline"><Link to="/caja">Ver caja completa</Link></Button>
             </CardHeader>

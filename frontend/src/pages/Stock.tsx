@@ -257,7 +257,7 @@ export function Stock() {
       </Card>
 
       <Card>
-        <CardHeader className="flex-row items-center justify-between space-y-0">
+        <CardHeader className="flex items-center justify-between space-y-0">
           <CardTitle className="flex items-center gap-2 text-base"><History className="size-4" />Historial de movimientos</CardTitle>
           <div className="flex flex-wrap items-end gap-2">
             <Select value={movFiltroProducto || 'todos'} onValueChange={(v) => setMovFiltroProducto(v === 'todos' ? '' : v)}>

@@ -157,7 +157,7 @@ export function LibrosIva() {
             <ResumenPorTasa resumen={data.resumen_v} ivaColorClass="text-primary" />
 
             <Card>
-              <CardHeader className="flex-row items-center justify-between space-y-0">
+              <CardHeader className="flex items-center justify-between space-y-0">
                 <CardTitle className="text-base">Comprobantes emitidos</CardTitle>
                 <div className="flex flex-wrap gap-2">
                   <Button asChild size="sm" variant="outline"><a href={`/libros-iva/export/ventas-cbte?desde=${desde}&hasta=${hasta}`}><Download />REGINFO_VENTAS_CBTE</a></Button>
@@ -193,7 +193,7 @@ export function LibrosIva() {
             <ResumenPorTasa resumen={data.resumen_c} ivaColorClass="text-emerald-600 dark:text-emerald-400" />
 
             <Card>
-              <CardHeader className="flex-row items-center justify-between space-y-0">
+              <CardHeader className="flex items-center justify-between space-y-0">
                 <CardTitle className="text-base">Comprobantes recibidos</CardTitle>
                 <div className="flex flex-wrap gap-2">
                   <Button asChild size="sm" variant="outline"><a href={`/libros-iva/export/compras-cbte?desde=${desde}&hasta=${hasta}`}><Download />REGINFO_COMPRAS_CBTE</a></Button>
