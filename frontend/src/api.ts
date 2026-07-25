@@ -156,6 +156,7 @@ export type Producto = {
   estacion: string
   vendible: number
   activo: number
+  tipo: 'producto' | 'servicio'
 }
 
 export const UNIDADES = ['u', 'kg', 'g', 'lt', 'ml', 'm', 'cm', 'm²', 'caja', 'par', 'docena', 'pack'] as const

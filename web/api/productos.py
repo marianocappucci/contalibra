@@ -3,6 +3,8 @@ migracion a React). Reusa `db_productos.py` (via `database.py`) tal cual
 -- ver web/api/clientes.py para el patron general de esta etapa. El
 autocompletado usado por Ventas/Facturas (`GET /productos/buscar`) queda
 sin tocar hasta que se migren esos modulos (Etapa C)."""
+from typing import Literal
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -23,6 +25,7 @@ class ProductoPayload(BaseModel):
     categoria: str = ""
     stock_minimo: float = 0
     activo: bool = True
+    tipo: Literal["producto", "servicio"] = "producto"
 
 
 @router.get("")
@@ -70,7 +73,7 @@ def crear(payload: ProductoPayload):
             descripcion=payload.descripcion.strip(),
             precio_venta=payload.precio_venta, precio_costo=payload.precio_costo,
             unidad=payload.unidad, categoria=payload.categoria.strip(),
-            stock_minimo=payload.stock_minimo,
+            stock_minimo=payload.stock_minimo, tipo=payload.tipo,
         )
     except Exception as e:
         raise HTTPException(422, str(e))
@@ -91,6 +94,7 @@ def actualizar(pid: int, payload: ProductoPayload):
             precio_venta=payload.precio_venta, precio_costo=payload.precio_costo,
             unidad=payload.unidad, categoria=payload.categoria.strip(),
             activo=1 if payload.activo else 0, stock_minimo=payload.stock_minimo,
+            tipo=payload.tipo,
         )
     except Exception as e:
         raise HTTPException(422, str(e))

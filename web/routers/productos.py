@@ -2,7 +2,7 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-from typing import Annotated
+from typing import Annotated, Literal
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
@@ -19,9 +19,14 @@ Auth = Annotated[str, Depends(require_auth)]
 
 
 @router.get("/productos/buscar")
-def productos_buscar(q: str = "", lista_id: int = 0, user: Auth = None):
-    """Endpoint JSON para autocompletar en ventas/facturas."""
-    resultados = db.get_all_productos(solo_activos=True, q=q)[:20]
+def productos_buscar(q: str = "", lista_id: int = 0, tipo: Literal["", "producto", "servicio"] = "", user: Auth = None):
+    """Endpoint JSON para autocompletar en ventas/facturas.
+
+    `tipo` ('producto'|'servicio') es opcional -- Facturas lo usa para
+    restringir las sugerencias al Concepto ARCA elegido (Productos vs.
+    Servicios vs. ambos), ya que antes dejaba agregar cualquier producto
+    a una factura marcada como solo uno de los dos tipos."""
+    resultados = db.get_all_productos(solo_activos=True, q=q, tipo=tipo)[:20]
     precios_lista: dict = db.get_precios_lista_dict(lista_id) if lista_id else {}
     return JSONResponse([{
         "id":          p["id"],

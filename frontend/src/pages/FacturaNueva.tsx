@@ -62,6 +62,10 @@ export function FacturaNueva() {
   const [sugerencias, setSugerencias] = useState<{ index: number; items: ProductoBusqueda[] } | null>(null)
 
   const requiereFechasServicio = concepto === '2' || concepto === '3'
+  // Concepto ARCA 1=Productos, 2=Servicios, 3=Productos y Servicios -- el
+  // buscador de items debe respetarlo (antes dejaba agregar cualquier
+  // producto sin importar el Concepto elegido, bug real reportado).
+  const tipoFiltro = concepto === '1' ? 'producto' : concepto === '2' ? 'servicio' : ''
 
   useEffect(() => {
     api.get<{ tipos: TipoFactura[]; conceptos: TipoFactura[]; punto_venta: number; es_monotributista: boolean }>('/api/facturas/tipos').then((d) => {
@@ -94,7 +98,8 @@ export function FacturaNueva() {
       return
     }
     try {
-      const res = await api.get<ProductoBusqueda[]>(`/productos/buscar?q=${encodeURIComponent(texto)}`)
+      const tipoParam = tipoFiltro ? `&tipo=${tipoFiltro}` : ''
+      const res = await api.get<ProductoBusqueda[]>(`/productos/buscar?q=${encodeURIComponent(texto)}${tipoParam}`)
       setSugerencias({ index: i, items: res })
     } catch {
       setSugerencias(null)
