@@ -35,6 +35,9 @@ const productoSchema = z.object({
   unidad: z.string(),
   categoria: z.string().trim().optional(),
   stock_minimo: z.coerce.number().min(0, 'No puede ser negativo'),
+  // Un servicio no tiene inventario -- el backend ya lo excluye de Stock y
+  // nunca genera movimiento al venderse (libracore v0.17.0).
+  tipo: z.enum(['producto', 'servicio']),
   // Solo se edita en modo edición (checkbox "Producto activo" de
   // web/templates/productos/form.html) -- en alta siempre nace activo.
   activo: z.boolean(),
@@ -42,7 +45,7 @@ const productoSchema = z.object({
 
 const EMPTY_VALUES = {
   nombre: '', codigo: '', descripcion: '', precio_venta: 0, precio_costo: 0,
-  unidad: 'u', categoria: '', stock_minimo: 0, activo: true,
+  unidad: 'u', categoria: '', stock_minimo: 0, tipo: 'producto' as const, activo: true,
 }
 
 // Alta y edición viven en el mismo Dialog reusado dentro de esta página --
@@ -124,6 +127,7 @@ export function Productos() {
       unidad: producto.unidad || 'u',
       categoria: producto.categoria ?? '',
       stock_minimo: producto.stock_minimo,
+      tipo: producto.tipo || 'producto',
       activo: !!producto.activo,
     })
     setFormError(null)
@@ -142,6 +146,7 @@ export function Productos() {
       unidad: values.unidad,
       categoria: values.categoria || '',
       stock_minimo: values.stock_minimo,
+      tipo: values.tipo,
       // Alta: siempre nace activo. Edición: viaja el switch "Producto
       // activo" del form, igual que el checkbox de
       // web/templates/productos/form.html -- reactivar/desactivar un
@@ -182,6 +187,15 @@ export function Productos() {
   const columns = useMemo<ColumnDef<Producto>[]>(() => [
     { accessorKey: 'codigo', header: 'Código', cell: ({ row }) => <span className="font-mono text-xs">{row.original.codigo || '—'}</span> },
     { accessorKey: 'nombre', header: sortableHeader('Nombre'), cell: ({ row }) => <span className="font-medium">{row.original.nombre}</span> },
+    {
+      accessorKey: 'tipo',
+      header: 'Tipo',
+      cell: ({ row }) => (
+        <Badge variant={row.original.tipo === 'servicio' ? 'outline' : 'secondary'}>
+          {row.original.tipo === 'servicio' ? 'Servicio' : 'Producto'}
+        </Badge>
+      ),
+    },
     { accessorKey: 'categoria', header: 'Categoría', cell: ({ row }) => row.original.categoria || '—' },
     { accessorKey: 'unidad', header: 'Unidad' },
     { accessorKey: 'precio_venta', header: 'Precio venta', cell: ({ row }) => formatCurrency(row.original.precio_venta) },
@@ -283,6 +297,27 @@ export function Productos() {
                         </FormControl>
                         <SelectContent>
                           {UNIDADES.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="tipo"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tipo</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger className="w-32">
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="producto">Producto</SelectItem>
+                          <SelectItem value="servicio">Servicio</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
