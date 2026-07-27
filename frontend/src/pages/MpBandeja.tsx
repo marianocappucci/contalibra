@@ -239,17 +239,17 @@ export function MpBandeja() {
   ], [historialPagos, historialMov])
 
   const columnsHistorial = useMemo<ColumnDef<HistRow>[]>(() => [
-    { accessorKey: 'fecha', header: sortableHeader('Fecha'), size: 110, minSize: 90 },
-    { id: 'tipo', header: 'Tipo', cell: ({ row }) => row.original.tipoNode, size: 190, minSize: 60 },
-    { accessorKey: 'emisor', header: 'Emisor / Pagador', size: 220, minSize: 60, cell: ({ row }) => <span className="block w-full truncate" title={row.original.emisor}>{row.original.emisor}</span> },
-    { id: 'cliente', header: 'Cliente', size: 180, minSize: 60, cell: ({ row }) => row.original.cliente ? <span className="block w-full truncate" title={row.original.cliente.name}>{row.original.cliente.name}</span> : <span className="text-muted-foreground">—</span> },
-    { accessorKey: 'monto', header: 'Monto', size: 110, minSize: 80, cell: ({ row }) => <span className="font-medium">{formatCurrency(row.original.monto)}</span> },
-    { id: 'estado', header: 'Estado', size: 100, minSize: 60, cell: ({ row }) => <Badge variant={row.original.estado_factura === 'facturado' ? 'default' : 'secondary'}>{row.original.estado_factura === 'facturado' ? 'Facturado' : 'Ignorado'}</Badge> },
+    { accessorKey: 'fecha', header: sortableHeader('Fecha'), size: 100, minSize: 90 },
+    { id: 'tipo', header: 'Tipo', cell: ({ row }) => row.original.tipoNode, size: 170, minSize: 130 },
+    { accessorKey: 'emisor', header: 'Emisor / Pagador', size: 150, minSize: 90, meta: { stretch: true }, cell: ({ row }) => <span className="block w-full truncate" title={row.original.emisor}>{row.original.emisor}</span> },
+    { id: 'cliente', header: 'Cliente', size: 140, minSize: 90, cell: ({ row }) => row.original.cliente ? <span className="block w-full truncate" title={row.original.cliente.name}>{row.original.cliente.name}</span> : <span className="text-muted-foreground">—</span> },
+    { accessorKey: 'monto', header: 'Monto', size: 100, minSize: 80, cell: ({ row }) => <span className="font-medium">{formatCurrency(row.original.monto)}</span> },
+    { id: 'estado', header: 'Estado', size: 90, minSize: 80, cell: ({ row }) => <Badge variant={row.original.estado_factura === 'facturado' ? 'default' : 'secondary'}>{row.original.estado_factura === 'facturado' ? 'Facturado' : 'Ignorado'}</Badge> },
     {
       id: 'factura',
       header: 'Factura',
-      size: 150,
-      minSize: 60,
+      size: 130,
+      minSize: 110,
       cell: ({ row }) => {
         const r = row.original
         if (!r.factura_id) return <span className="text-muted-foreground">—</span>
@@ -268,12 +268,13 @@ export function MpBandeja() {
 
   // Cobros sincronizados (pestaña 2): transferencias pendientes de facturar.
   const columnsCobros = useMemo<ColumnDef<MpMovimiento>[]>(() => [
-    { id: 'fecha', header: sortableHeader('Fecha'), accessorFn: (r) => r.fecha || r.created_at, size: 110, minSize: 90 },
+    { id: 'fecha', header: sortableHeader('Fecha'), accessorFn: (r) => r.fecha || r.created_at, size: 100, minSize: 90 },
     {
       id: 'emisor',
       header: 'Emisor',
-      size: 200,
-      minSize: 60,
+      size: 160,
+      minSize: 90,
+      meta: { stretch: true },
       cell: ({ row }) => (
         <div className="w-full">
           <p className="truncate font-medium" title={row.original.origen_nombre ?? undefined}>{row.original.origen_nombre || '—'}</p>
@@ -284,8 +285,8 @@ export function MpBandeja() {
     {
       id: 'banco',
       header: 'Banco / Billetera',
-      size: 150,
-      minSize: 60,
+      size: 130,
+      minSize: 100,
       cell: ({ row }) => row.original.origen_banco
         ? <Badge variant="outline">{row.original.origen_banco.toUpperCase()}</Badge>
         : <span className="text-muted-foreground">—</span>,
@@ -293,15 +294,15 @@ export function MpBandeja() {
     {
       id: 'cbu',
       header: 'CBU/CVU origen',
-      size: 160,
-      minSize: 60,
+      size: 140,
+      minSize: 100,
       cell: ({ row }) => row.original.origen_cbu ? <code className="block w-full truncate text-xs" title={row.original.origen_cbu}>{row.original.origen_cbu}</code> : <span className="text-muted-foreground">—</span>,
     },
     {
       id: 'cliente',
       header: 'Cliente / Email',
-      size: 200,
-      minSize: 60,
+      size: 160,
+      minSize: 90,
       cell: ({ row }) => {
         const m = row.original
         if (m.cliente) return <span className="flex w-full items-center gap-1"><User className="size-3.5 shrink-0 text-emerald-600" /><span className="truncate" title={m.cliente.name}>{m.cliente.name}</span></span>
@@ -322,15 +323,15 @@ export function MpBandeja() {
         )
       },
     },
-    { accessorKey: 'monto', header: 'Monto', size: 110, minSize: 80, cell: ({ row }) => <span className="font-medium">{formatCurrency(row.original.monto)}</span> },
+    { accessorKey: 'monto', header: 'Monto', size: 100, minSize: 80, cell: ({ row }) => <span className="font-medium">{formatCurrency(row.original.monto)}</span> },
     {
       id: 'actions',
       header: () => <div className="text-right">Acciones</div>,
-      size: 160,
-      minSize: 60,
+      size: 100,
+      minSize: 90,
       cell: ({ row }) => (
         <div className="flex justify-end gap-1">
-          <Button size="sm" disabled={saving} onClick={() => facturar('mov', row.original.id)}><ReceiptText />Factura</Button>
+          <Button size="icon" variant="outline" title="Facturar" disabled={saving} onClick={() => facturar('mov', row.original.id)}><ReceiptText /></Button>
           <Button size="icon" variant="outline" title="Ignorar" onClick={() => ignorar('mov', row.original.id)}><X /></Button>
         </div>
       ),
@@ -340,12 +341,13 @@ export function MpBandeja() {
 
   // Pendientes de factura (pestaña 3): pagos por webhook sin facturar todavía.
   const columnsPendientes = useMemo<ColumnDef<MpPago>[]>(() => [
-    { accessorKey: 'created_at', header: sortableHeader('Fecha'), size: 110, minSize: 90 },
+    { accessorKey: 'created_at', header: sortableHeader('Fecha'), size: 100, minSize: 90 },
     {
       id: 'pagador',
       header: 'Pagador',
-      size: 200,
-      minSize: 60,
+      size: 160,
+      minSize: 90,
+      meta: { stretch: true },
       cell: ({ row }) => (
         <div className="w-full">
           <p className="truncate font-medium" title={row.original.payer_name ?? undefined}>{row.original.payer_name || '—'}</p>
@@ -354,12 +356,12 @@ export function MpBandeja() {
         </div>
       ),
     },
-    { id: 'origen', header: 'Origen', size: 190, minSize: 60, cell: ({ row }) => <OrigenBadge tipo={row.original.payment_type} metodo={row.original.payment_method} /> },
+    { id: 'origen', header: 'Origen', size: 160, minSize: 130, cell: ({ row }) => <OrigenBadge tipo={row.original.payment_type} metodo={row.original.payment_method} /> },
     {
       id: 'cliente',
       header: 'Cliente',
-      size: 200,
-      minSize: 60,
+      size: 160,
+      minSize: 90,
       cell: ({ row }) => {
         const p = row.original
         if (p.cliente) return (
@@ -376,15 +378,15 @@ export function MpBandeja() {
         )
       },
     },
-    { accessorKey: 'monto', header: 'Monto', size: 110, minSize: 80, cell: ({ row }) => <span className="font-medium">{formatCurrency(row.original.monto)}</span> },
+    { accessorKey: 'monto', header: 'Monto', size: 100, minSize: 80, cell: ({ row }) => <span className="font-medium">{formatCurrency(row.original.monto)}</span> },
     {
       id: 'actions',
       header: () => <div className="text-right">Acciones</div>,
-      size: 160,
-      minSize: 60,
+      size: 100,
+      minSize: 90,
       cell: ({ row }) => (
         <div className="flex justify-end gap-1">
-          <Button size="sm" disabled={saving} onClick={() => facturar('pago', row.original.id)}><ReceiptText />Factura</Button>
+          <Button size="icon" variant="outline" title="Facturar" disabled={saving} onClick={() => facturar('pago', row.original.id)}><ReceiptText /></Button>
           <Button size="icon" variant="outline" title="Ignorar" onClick={() => ignorar('pago', row.original.id)}><X /></Button>
         </div>
       ),
