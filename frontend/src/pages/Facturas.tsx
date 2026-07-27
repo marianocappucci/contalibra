@@ -20,16 +20,18 @@ function formatCurrency(value: number): string {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value)
 }
 
-const TIPO_BADGE: Record<number, { label: string; className: string }> = {
-  1: { label: 'Fact. A', className: 'bg-primary text-primary-foreground' },
-  6: { label: 'Fact. B', className: 'bg-secondary text-secondary-foreground' },
-  11: { label: 'Fact. C', className: 'bg-sky-500 text-white' },
-  3: { label: 'NC-A', className: 'bg-destructive text-white' },
-  8: { label: 'NC-B', className: 'bg-destructive text-white' },
-  13: { label: 'NC-C', className: 'bg-destructive text-white' },
-  2: { label: 'ND-A', className: 'bg-primary text-primary-foreground' },
-  7: { label: 'ND-B', className: 'bg-secondary text-secondary-foreground' },
-  12: { label: 'ND-C', className: 'bg-sky-500 text-white' },
+// Etiquetas cortas (FA/FB/FC, NCA…, NDA…) para que la columna Tipo ocupe lo
+// minimo -- el nombre completo queda en el `title` de cada badge.
+const TIPO_BADGE: Record<number, { label: string; titulo: string; className: string }> = {
+  1: { label: 'FA', titulo: 'Factura A', className: 'bg-primary text-primary-foreground' },
+  6: { label: 'FB', titulo: 'Factura B', className: 'bg-secondary text-secondary-foreground' },
+  11: { label: 'FC', titulo: 'Factura C', className: 'bg-sky-500 text-white' },
+  3: { label: 'NCA', titulo: 'Nota de Crédito A', className: 'bg-destructive text-white' },
+  8: { label: 'NCB', titulo: 'Nota de Crédito B', className: 'bg-destructive text-white' },
+  13: { label: 'NCC', titulo: 'Nota de Crédito C', className: 'bg-destructive text-white' },
+  2: { label: 'NDA', titulo: 'Nota de Débito A', className: 'bg-primary text-primary-foreground' },
+  7: { label: 'NDB', titulo: 'Nota de Débito B', className: 'bg-secondary text-secondary-foreground' },
+  12: { label: 'NDC', titulo: 'Nota de Débito C', className: 'bg-sky-500 text-white' },
 }
 
 function estaAutorizada(f: Factura): boolean {
@@ -102,23 +104,31 @@ export function Facturas() {
       {
         accessorKey: 'numero',
         header: sortableHeader('Número'),
+        // El numero siempre mide lo mismo (0000-00000000, mono), asi que la
+        // columna va fija a ese ancho en vez de repartirse espacio de mas.
+        size: 128,
+        minSize: 100,
         cell: ({ row }) => <span className="font-mono text-sm">{String(row.original.punto_venta).padStart(4, '0')}-{String(row.original.numero).padStart(8, '0')}</span>,
       },
       {
         id: 'tipo',
         header: 'Tipo',
+        size: 70,
+        minSize: 55,
         cell: ({ row }) => {
-          const b = TIPO_BADGE[row.original.tipo] ?? { label: '?', className: 'bg-secondary text-secondary-foreground' }
-          return <Badge className={b.className}>{b.label}</Badge>
+          const b = TIPO_BADGE[row.original.tipo] ?? { label: '?', titulo: 'Comprobante', className: 'bg-secondary text-secondary-foreground' }
+          return <Badge className={b.className} title={b.titulo}>{b.label}</Badge>
         },
       },
-      { accessorKey: 'fecha', header: 'Fecha' },
-      { accessorKey: 'cliente_razon', header: 'Cliente' },
+      { accessorKey: 'fecha', header: 'Fecha', size: 100, minSize: 90 },
+      { accessorKey: 'cliente_razon', header: 'Cliente', size: 200, minSize: 90, meta: { stretch: true }, cell: ({ row }) => <span className="block truncate" title={row.original.cliente_razon ?? undefined}>{row.original.cliente_razon}</span> },
     ]
     if (vista === 'nc' || vista === 'nd') {
       cols.push({
         id: 'cbte_asoc',
         header: 'Cbte. asociado',
+        size: 130,
+        minSize: 100,
         cell: ({ row }) => row.original.cbte_asoc_nro
           ? <span className="font-mono text-xs text-muted-foreground">{String(row.original.cbte_asoc_pv ?? 0).padStart(4, '0')}-{String(row.original.cbte_asoc_nro).padStart(8, '0')}</span>
           : null,
@@ -127,16 +137,20 @@ export function Facturas() {
     cols.push(
       {
         accessorKey: 'total',
-        header: 'Total',
+        header: () => <div className="text-right">Total</div>,
+        size: 130,
+        minSize: 100,
         cell: ({ row }) => (
-          <span className={`font-medium ${vista === 'nc' ? 'text-destructive' : vista === 'nd' ? 'text-primary' : ''}`}>
+          <div className={`truncate text-right font-medium ${vista === 'nc' ? 'text-destructive' : vista === 'nd' ? 'text-primary' : ''}`}>
             {vista === 'nc' ? '- ' : vista === 'nd' ? '+ ' : ''}{formatCurrency(row.original.total)}
-          </span>
+          </div>
         ),
       },
       {
         id: 'estado',
         header: 'Estado',
+        size: 118,
+        minSize: 90,
         cell: ({ row }) => {
           const f = row.original
           if (!estaAutorizada(f)) return <Badge variant="secondary">Sin CAE</Badge>
@@ -150,19 +164,27 @@ export function Facturas() {
       {
         id: 'actions',
         header: () => <div className="text-right">Acciones</div>,
+        // Solo iconos (el texto "Ver"/"PDF" vive ahora en el tooltip): la
+        // columna baja de ~180px a lo que ocupan los botones.
+        size: 116,
+        minSize: 100,
         cell: ({ row }) => {
           const f = row.original
           const tc = f.total_cobrado ?? 0
           const puedeCobrar = (vista === 'facturas' || vista === 'sin_cobrar') && estaAutorizada(f) && tc < f.total
           return (
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-1">
               {puedeCobrar && (
-                <Button asChild size="sm" variant="outline" title="Registrar cobro">
-                  <Link to={`/facturas/${f.id}`}><CircleDollarSign /></Link>
+                <Button asChild size="icon" variant="outline" title="Registrar cobro">
+                  <Link to={`/facturas/${f.id}`} aria-label="Registrar cobro"><CircleDollarSign /></Link>
                 </Button>
               )}
-              <Button asChild size="sm" variant="outline"><Link to={`/facturas/${f.id}`}><Eye />Ver</Link></Button>
-              <Button asChild size="sm" variant="outline"><a href={`/facturas/${f.id}/pdf`} target="_blank" rel="noreferrer"><FileDown />PDF</a></Button>
+              <Button asChild size="icon" variant="outline" title="Ver comprobante">
+                <Link to={`/facturas/${f.id}`} aria-label="Ver comprobante"><Eye /></Link>
+              </Button>
+              <Button asChild size="icon" variant="outline" title="Descargar PDF">
+                <a href={`/facturas/${f.id}/pdf`} target="_blank" rel="noreferrer" aria-label="Descargar PDF"><FileDown /></a>
+              </Button>
             </div>
           )
         },

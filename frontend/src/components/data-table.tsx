@@ -33,6 +33,13 @@ declare module '@tanstack/react-table' {
     // ej. 'hidden md:table-cell' en columnas secundarias -- evita que
     // tablas con muchas columnas fuercen scroll horizontal en mobile.
     className?: string
+    // Columna elastica: absorbe el ancho sobrante en vez de quedarse en su
+    // `size`. Permite fijar las columnas angostas (numero, fecha, estado,
+    // acciones) al ancho de su contenido y que la columna larga (cliente,
+    // descripcion) se quede con el resto, de modo que la tabla llene el
+    // ancho disponible sin desbordarlo. Deja de ser elastica en cuanto el
+    // usuario la redimensiona a mano -- ahi manda lo que el usuario eligio.
+    stretch?: boolean
   }
 }
 
@@ -77,11 +84,26 @@ export function DataTable<TData, TValue>({
     state: { sorting, columnSizing },
   })
 
+  // Una columna elastica (meta.stretch) se emite sin ancho en el <colgroup>:
+  // con table-layout:fixed el navegador le da todo el sobrante, asi la tabla
+  // llena el ancho disponible. Si el usuario la redimensiona a mano deja de
+  // ser elastica y pasa a respetar el ancho elegido.
+  const headers = table.getFlatHeaders()
+  const esElastica = (header: (typeof headers)[number]) =>
+    Boolean(header.column.columnDef.meta?.stretch) && columnSizing[header.column.id] === undefined
+
   return (
-    <Table className="table-fixed" style={{ width: table.getTotalSize() }}>
+    <Table
+      className="table-fixed"
+      // minWidth = suma de las columnas: si no entran, el overflow-x-auto del
+      // contenedor scrollea (comportamiento de siempre). width 100% evita que
+      // sobre espacio a la derecha cuando si entran -- el sobrante se lo lleva
+      // la columna elastica, o se reparte entre todas si no hay ninguna.
+      style={{ width: '100%', minWidth: table.getTotalSize() }}
+    >
       <colgroup>
-        {table.getFlatHeaders().map((header) => (
-          <col key={header.id} style={{ width: header.getSize() }} />
+        {headers.map((header) => (
+          <col key={header.id} style={esElastica(header) ? undefined : { width: header.getSize() }} />
         ))}
       </colgroup>
       <TableHeader>
