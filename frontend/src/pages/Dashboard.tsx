@@ -51,7 +51,7 @@ export function Dashboard() {
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       {loading && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-28" />
           ))}
@@ -60,10 +60,10 @@ export function Dashboard() {
 
       {data && (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
             <Card>
               <CardContent className="flex items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0 [&_p]:truncate">
                   <CardDescription>Facturado este mes</CardDescription>
                   <p className="text-2xl font-bold text-primary">{formatCurrency(data.facturado_mes)}</p>
                   <CardDescription>
@@ -75,7 +75,7 @@ export function Dashboard() {
             </Card>
             <Card>
               <CardContent className="flex items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0 [&_p]:truncate">
                   <CardDescription>Cobrado este mes</CardDescription>
                   <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(data.cobrado_mes)}</p>
                   <CardDescription>Ingresos en caja</CardDescription>
@@ -85,7 +85,7 @@ export function Dashboard() {
             </Card>
             <Card>
               <CardContent className="flex items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0 [&_p]:truncate">
                   <CardDescription>Egresos este mes</CardDescription>
                   <p className="text-2xl font-bold text-destructive">{formatCurrency(data.egresos_mes)}</p>
                   <CardDescription>Gastos en caja</CardDescription>
@@ -95,7 +95,7 @@ export function Dashboard() {
             </Card>
             <Card>
               <CardContent className="flex items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0 [&_p]:truncate">
                   <CardDescription>Saldo total en caja</CardDescription>
                   <p className={data.saldo_total >= 0 ? 'text-2xl font-bold text-emerald-600 dark:text-emerald-400' : 'text-2xl font-bold text-destructive'}>
                     {formatCurrency(data.saldo_total)}

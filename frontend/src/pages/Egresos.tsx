@@ -209,17 +209,17 @@ export function Egresos() {
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         {resumen && (
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
             <Card><CardContent className="flex items-start justify-between gap-3">
-              <div><CardDescription>Total del período</CardDescription><p className="text-2xl font-bold">{formatCurrency(resumen.total_periodo)}</p></div>
+              <div className="min-w-0 [&_p]:truncate"><CardDescription>Total del período</CardDescription><p className="text-2xl font-bold">{formatCurrency(resumen.total_periodo)}</p></div>
               <span className="shrink-0 rounded-lg bg-muted p-2 text-muted-foreground"><ArrowUpCircle /></span>
             </CardContent></Card>
             <Card><CardContent className="flex items-start justify-between gap-3">
-              <div><CardDescription>Pagado</CardDescription><p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(resumen.pagado)}</p></div>
+              <div className="min-w-0 [&_p]:truncate"><CardDescription>Pagado</CardDescription><p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(resumen.pagado)}</p></div>
               <span className="shrink-0 rounded-lg bg-emerald-500/10 p-2 text-emerald-600 dark:text-emerald-400"><CheckCircle2 /></span>
             </CardContent></Card>
             <Card><CardContent className="flex items-start justify-between gap-3">
-              <div><CardDescription>Pendiente / Parcial</CardDescription><p className="text-2xl font-bold text-destructive">{formatCurrency(resumen.pendiente)}</p></div>
+              <div className="min-w-0 [&_p]:truncate"><CardDescription>Pendiente / Parcial</CardDescription><p className="text-2xl font-bold text-destructive">{formatCurrency(resumen.pendiente)}</p></div>
               <span className="shrink-0 rounded-lg bg-destructive/10 p-2 text-destructive"><Hourglass /></span>
             </CardContent></Card>
           </div>

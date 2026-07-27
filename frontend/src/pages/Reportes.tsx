@@ -84,10 +84,10 @@ export function Reportes() {
         <p className="py-6 text-center text-sm text-muted-foreground">Cargando…</p>
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
             <Card>
               <CardContent className="flex items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0 [&_p]:truncate">
                   <CardDescription>Ventas en período</CardDescription>
                   <p className="text-2xl font-bold">{data.resumen.ventas_cantidad}</p>
                   <CardDescription>operaciones</CardDescription>
@@ -97,7 +97,7 @@ export function Reportes() {
             </Card>
             <Card>
               <CardContent className="flex items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0 [&_p]:truncate">
                   <CardDescription>Total vendido</CardDescription>
                   <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(data.resumen.ventas_total)}</p>
                 </div>
@@ -106,7 +106,7 @@ export function Reportes() {
             </Card>
             <Card>
               <CardContent className="flex items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0 [&_p]:truncate">
                   <CardDescription>Facturas emitidas</CardDescription>
                   <p className="text-2xl font-bold">{data.resumen.facturas_cantidad}</p>
                 </div>
@@ -115,7 +115,7 @@ export function Reportes() {
             </Card>
             <Card>
               <CardContent className="flex items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0 [&_p]:truncate">
                   <CardDescription>Movimientos de caja</CardDescription>
                   <p className="text-2xl font-bold">{formatCurrency(data.resumen.caja_saldo)}</p>
                 </div>
