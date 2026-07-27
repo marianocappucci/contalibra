@@ -62,9 +62,9 @@ export function Presupuestos() {
   }
 
   const columns = useMemo<ColumnDef<Presupuesto>[]>(() => [
-    { accessorKey: 'number', header: sortableHeader('Número'), size: 128, minSize: 100, cell: ({ row }) => <span className="font-mono text-sm">{row.original.number}</span> },
+    { accessorKey: 'number', header: sortableHeader('Número'), size: 120, minSize: 100, cell: ({ row }) => <span className="font-mono text-sm">{row.original.number}</span> },
     { accessorKey: 'date', header: 'Fecha', size: 100, minSize: 90 },
-    { accessorKey: 'client_name', header: 'Cliente', size: 200, minSize: 90, meta: { stretch: true }, cell: ({ row }) => <span className="block truncate" title={row.original.client_name ?? undefined}>{row.original.client_name}</span> },
+    { accessorKey: 'client_name', header: 'Cliente', size: 160, minSize: 90, meta: { stretch: true }, cell: ({ row }) => <span className="block truncate" title={row.original.client_name ?? undefined}>{row.original.client_name}</span> },
     {
       accessorKey: 'status',
       header: 'Estado',

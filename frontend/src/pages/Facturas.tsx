@@ -106,7 +106,7 @@ export function Facturas() {
         header: sortableHeader('Número'),
         // El numero siempre mide lo mismo (0000-00000000, mono), asi que la
         // columna va fija a ese ancho en vez de repartirse espacio de mas.
-        size: 128,
+        size: 120,
         minSize: 100,
         cell: ({ row }) => <span className="font-mono text-sm">{String(row.original.punto_venta).padStart(4, '0')}-{String(row.original.numero).padStart(8, '0')}</span>,
       },
@@ -121,14 +121,19 @@ export function Facturas() {
         },
       },
       { accessorKey: 'fecha', header: 'Fecha', size: 100, minSize: 90 },
-      { accessorKey: 'cliente_razon', header: 'Cliente', size: 200, minSize: 90, meta: { stretch: true }, cell: ({ row }) => <span className="block truncate" title={row.original.cliente_razon ?? undefined}>{row.original.cliente_razon}</span> },
+      // Cliente es la columna elastica: su `size` solo fija cuanto ancho pide
+      // como minimo (para el scroll interno), porque en pantalla se queda con
+      // todo el sobrante. Cuanto mas chico, en pantallas mas angostas entra la
+      // tabla completa -- importante en las vistas NC/ND, que suman una
+      // columna mas ("Cbte. asoc.").
+      { accessorKey: 'cliente_razon', header: 'Cliente', size: 160, minSize: 90, meta: { stretch: true }, cell: ({ row }) => <span className="block truncate" title={row.original.cliente_razon ?? undefined}>{row.original.cliente_razon}</span> },
     ]
     if (vista === 'nc' || vista === 'nd') {
       cols.push({
         id: 'cbte_asoc',
-        header: 'Cbte. asociado',
-        size: 130,
-        minSize: 100,
+        header: 'Cbte. asoc.',
+        size: 118,
+        minSize: 95,
         cell: ({ row }) => row.original.cbte_asoc_nro
           ? <span className="font-mono text-xs text-muted-foreground">{String(row.original.cbte_asoc_pv ?? 0).padStart(4, '0')}-{String(row.original.cbte_asoc_nro).padStart(8, '0')}</span>
           : null,
@@ -149,7 +154,7 @@ export function Facturas() {
       {
         id: 'estado',
         header: 'Estado',
-        size: 118,
+        size: 112,
         minSize: 90,
         cell: ({ row }) => {
           const f = row.original
@@ -165,9 +170,10 @@ export function Facturas() {
         id: 'actions',
         header: () => <div className="text-right">Acciones</div>,
         // Solo iconos (el texto "Ver"/"PDF" vive ahora en el tooltip): la
-        // columna baja de ~180px a lo que ocupan los botones.
-        size: 116,
-        minSize: 100,
+        // columna baja de ~180px a lo que ocupan los botones. En NC/ND nunca
+        // aparece el boton de cobro, asi que alcanza con el ancho de dos.
+        size: vista === 'nc' || vista === 'nd' ? 90 : 116,
+        minSize: 80,
         cell: ({ row }) => {
           const f = row.original
           const tc = f.total_cobrado ?? 0
