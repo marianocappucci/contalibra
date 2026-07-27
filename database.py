@@ -5,6 +5,7 @@
 # existentes (`db.get_connection()`, `db.DB_PATH`, `db.create_usuario(...)`,
 # etc.) no cambien una línea.
 from libracore.db.schema import init_core_schema
+from libracommerce.db.schema import init_schema as init_commerce_schema
 from db_core import _AR_TZ, _ar_now, _DATA_DIR, DB_PATH, get_connection  # noqa: F401
 from db_usuarios import (  # noqa: F401
     _hash_password,
@@ -247,6 +248,11 @@ from db_ventas import (  # noqa: F401
 def init_db():
     with get_connection() as conn:
         init_core_schema(conn)
+        # Catálogo/stock/ventas viven en las tablas de LibraCommerce desde
+        # P7 (ver db_productos.py). Conviven en el MISMO archivo SQLite que
+        # el resto de Contalibra, a propósito: `crear_venta_directa` cruza
+        # ambos motores en una única transacción atómica.
+        init_commerce_schema(conn)
 
         # Seed de módulos: inserta sólo los que no existen aún. La lista de
         # módulos (y el plan que los habilita) es específica de Contalibra —
