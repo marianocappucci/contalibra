@@ -234,7 +234,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <AppSidebar />
       <SidebarInset>
         <SidebarTrigger className="fixed top-2 left-2 z-20 md:hidden" />
-        <main className="flex-1 space-y-4 p-4 pt-12 md:p-6 md:pt-6">{children}</main>
+        <main className="min-w-0 flex-1 space-y-4 p-4 pt-12 md:p-6 md:pt-6">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   )
