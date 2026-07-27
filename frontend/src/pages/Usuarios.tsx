@@ -180,8 +180,8 @@ export function Usuarios() {
     {
       id: 'actions',
       header: () => <div className="text-right">Acciones</div>,
-      size: 90,
-      minSize: 80,
+      size: 92,
+      minSize: 84,
       cell: ({ row }) => (
         <div className="flex justify-end gap-1">
           <Button size="icon" variant="outline" title="Editar usuario" aria-label="Editar usuario" onClick={() => abrirEditar(row.original)}><Pencil /></Button>

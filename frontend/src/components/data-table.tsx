@@ -40,8 +40,21 @@ declare module '@tanstack/react-table' {
     // ancho disponible sin desbordarlo. Deja de ser elastica en cuanto el
     // usuario la redimensiona a mano -- ahi manda lo que el usuario eligio.
     stretch?: boolean
+    // Marca la columna como secundaria: se oculta por CSS en pantallas
+    // angostas (via `className`, ej. 'hidden min-[1400px]:table-cell') Y se
+    // excluye del ancho minimo de la tabla. Sin esto ultimo la columna
+    // seguiria reservando su `size` en el minWidth y la tabla pediria scroll
+    // por una columna que ni se ve. El breakpoint del className se elige de
+    // modo que, cuando la columna reaparece, ya haya ancho para todas.
+    opcional?: boolean
+    // Clase equivalente para el <col> del <colgroup>, que ademas de ocultarse
+    // tiene que dejar de reservar su ancho. OJO: un <col> NO puede usar
+    // `table-cell` (lo convierte en celda anonima y descoloca todo el
+    // colgroup) -- va `table-column`, ej. 'hidden min-[1400px]:table-column'.
+    colClassName?: string
   }
 }
+
 
 export function sortableHeader(label: string) {
   return ({ column }: { column: { toggleSorting: (desc?: boolean) => void; getIsSorted: () => false | 'asc' | 'desc' } }) => (
@@ -92,18 +105,32 @@ export function DataTable<TData, TValue>({
   const esElastica = (header: (typeof headers)[number]) =>
     Boolean(header.column.columnDef.meta?.stretch) && columnSizing[header.column.id] === undefined
 
+  // Las columnas `opcional` (ocultas por CSS en pantallas angostas) no cuentan
+  // para el ancho minimo: si contaran, la tabla pediria scroll por una columna
+  // que no se esta viendo.
+  const anchoMinimo = headers.reduce(
+    (total, header) => (header.column.columnDef.meta?.opcional ? total : total + header.getSize()),
+    0,
+  )
+
   return (
     <Table
       className="table-fixed"
-      // minWidth = suma de las columnas: si no entran, el overflow-x-auto del
-      // contenedor scrollea (comportamiento de siempre). width 100% evita que
-      // sobre espacio a la derecha cuando si entran -- el sobrante se lo lleva
-      // la columna elastica, o se reparte entre todas si no hay ninguna.
-      style={{ width: '100%', minWidth: table.getTotalSize() }}
+      // minWidth = suma de las columnas visibles siempre: si no entran, el
+      // overflow-x-auto del contenedor scrollea (comportamiento de siempre).
+      // width 100% evita que sobre espacio a la derecha cuando si entran -- el
+      // sobrante se lo lleva la columna elastica, o se reparte entre todas.
+      style={{ width: '100%', minWidth: anchoMinimo }}
     >
       <colgroup>
         {headers.map((header) => (
-          <col key={header.id} style={esElastica(header) ? undefined : { width: header.getSize() }} />
+          <col
+            key={header.id}
+            // Clase propia del <col> (ver meta.colClassName): sin esto el col
+            // seguiria reservando su ancho aunque las celdas esten ocultas.
+            className={header.column.columnDef.meta?.colClassName}
+            style={esElastica(header) ? undefined : { width: header.getSize() }}
+          />
         ))}
       </colgroup>
       <TableHeader>

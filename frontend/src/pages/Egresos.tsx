@@ -163,34 +163,34 @@ export function Egresos() {
   }
 
   const columns = useMemo<ColumnDef<Egreso>[]>(() => [
-    { accessorKey: 'fecha', header: sortableHeader('Fecha'), size: 100, minSize: 90 },
-    { accessorKey: 'proveedor_nombre', header: 'Proveedor', size: 150, minSize: 90, cell: ({ row }) => <span className="block truncate" title={row.original.proveedor_nombre ?? undefined}>{row.original.proveedor_nombre || '—'}</span> },
-    { accessorKey: 'concepto', header: 'Concepto', size: 160, minSize: 90, meta: { stretch: true }, cell: ({ row }) => <span className="block truncate font-medium" title={row.original.concepto}>{row.original.concepto}</span> },
-    { accessorKey: 'categoria', header: 'Categoría', size: 120, minSize: 90, cell: ({ row }) => <span className="block truncate" title={row.original.categoria ?? undefined}>{row.original.categoria || '—'}</span> },
+    { accessorKey: 'fecha', header: sortableHeader('Fecha'), size: 95, minSize: 88 },
+    { accessorKey: 'proveedor_nombre', header: 'Proveedor', size: 130, minSize: 88, cell: ({ row }) => <span className="block truncate" title={row.original.proveedor_nombre ?? undefined}>{row.original.proveedor_nombre || '—'}</span> },
+    { accessorKey: 'concepto', header: 'Concepto', size: 110, minSize: 88, meta: { stretch: true }, cell: ({ row }) => <span className="block truncate font-medium" title={row.original.concepto}>{row.original.concepto}</span> },
+    { accessorKey: 'categoria', header: 'Categoría', size: 96, minSize: 84, cell: ({ row }) => <span className="block truncate" title={row.original.categoria ?? undefined}>{row.original.categoria || '—'}</span> },
     {
       id: 'comprobante',
       header: 'Comprobante',
-      size: 125,
-      minSize: 100,
+      size: 120,
+      minSize: 104,
       cell: ({ row }) => row.original.numero ? <span className="block truncate font-mono text-sm" title={row.original.numero}>{row.original.numero}</span> : '—',
     },
     {
       accessorKey: 'estado',
       header: 'Estado',
-      size: 110,
-      minSize: 90,
+      size: 82,
+      minSize: 74,
       cell: ({ row }) => (
         <Badge variant={estadoVariant[row.original.estado]} className={estadoBadgeClass[row.original.estado]}>
           {estadoLabel[row.original.estado]}
         </Badge>
       ),
     },
-    { accessorKey: 'total', header: () => <div className="text-right">Total</div>, size: 120, minSize: 100, cell: ({ row }) => <div className="truncate text-right font-medium text-destructive">{formatCurrency(row.original.total)}</div> },
+    { accessorKey: 'total', header: () => <div className="text-right">Total</div>, size: 114, minSize: 100, cell: ({ row }) => <div className="truncate text-right font-medium text-destructive">{formatCurrency(row.original.total)}</div> },
     {
       id: 'actions',
       header: () => <div className="text-right">Acciones</div>,
-      size: 90,
-      minSize: 80,
+      size: 76,
+      minSize: 70,
       cell: ({ row }) => (
         <div className="flex justify-end gap-1">
           <Button asChild size="icon" variant="outline" title="Ver egreso">
