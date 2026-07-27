@@ -4,65 +4,12 @@
 // (localhost:5173) para que la cookie funcione sin CORS; en produccion el
 // build de este frontend se sirve desde el mismo proceso FastAPI (ver
 // web/app.py), tambien mismo origen. Toda la API nueva vive bajo /api/.
-
-export class ApiError extends Error {
-  status: number
-  detail: string
-
-  constructor(status: number, detail: string) {
-    super(detail)
-    this.status = status
-    this.detail = detail
-  }
-}
-
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const response = await fetch(path, {
-    method,
-    credentials: 'include',
-    headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  })
-
-  if (response.status === 204) {
-    return undefined as T
-  }
-
-  const isJson = response.headers.get('content-type')?.includes('application/json')
-  const data = isJson ? await response.json() : undefined
-
-  if (!response.ok) {
-    const detail = (data && typeof data === 'object' && 'detail' in data)
-      ? String((data as { detail: unknown }).detail)
-      : response.statusText
-    throw new ApiError(response.status, detail)
-  }
-
-  return data as T
-}
-
-async function requestForm<T>(method: string, path: string, form: FormData): Promise<T> {
-  const response = await fetch(path, { method, credentials: 'include', body: form })
-  const isJson = response.headers.get('content-type')?.includes('application/json')
-  const data = isJson ? await response.json() : undefined
-  if (!response.ok) {
-    const detail = (data && typeof data === 'object' && 'detail' in data)
-      ? String((data as { detail: unknown }).detail)
-      : response.statusText
-    throw new ApiError(response.status, detail)
-  }
-  return data as T
-}
-
-export const api = {
-  get: <T>(path: string) => request<T>('GET', path),
-  post: <T>(path: string, body?: unknown) => request<T>('POST', path, body ?? {}),
-  put: <T>(path: string, body: unknown) => request<T>('PUT', path, body),
-  del: <T>(path: string) => request<T>('DELETE', path),
-  // Uploads (logo, certificados ARCA, restore de DB) -- multipart, sin
-  // Content-Type explicito para que el browser agregue el boundary.
-  postForm: <T>(path: string, form: FormData) => requestForm<T>('POST', path, form),
-}
+//
+// Nucleo (ApiError/api.get-post-put-del-postForm) migrado a libra-ui/
+// api-client (paquete de frontend compartido, ver wiki/entities/
+// libra-ui.md) -- este archivo re-exporta eso y mantiene los tipos de
+// dominio propios de Contalibra.
+export { ApiError, api } from 'libra-ui/api-client'
 
 export type User = {
   username: string
