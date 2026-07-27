@@ -18,11 +18,15 @@ Solo cambia el origen de las ventas (`ventas` → `sales`); el criterio de
 cálculo (débitos por venta + débitos por factura − abonos) es idéntico.
 """
 from libracore.db.core import get_connection
+# Solo lo que re-exportaba el shim original: `registrar_resumen_enviado` y
+# `get_resumenes_enviados` existen en el checkout de desarrollo de LibraCore
+# pero NO en la v0.19.0 que tiene pineada Contalibra, y nadie acá las usa —
+# importarlas rompía el arranque del contenedor (detectado en el smoke test
+# de la imagen real, no en las pruebas locales, que corrían contra el
+# checkout de LibraCore en vez de la versión pineada).
 from libracore.db.cuenta_corriente import (  # noqa: F401
     create_cc_pago,
     delete_cc_pago,
-    registrar_resumen_enviado,
-    get_resumenes_enviados,
 )
 
 _TIPO_LABEL = {
