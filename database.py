@@ -254,6 +254,21 @@ def init_db():
         # ambos motores en una única transacción atómica.
         init_commerce_schema(conn)
 
+        # Referencias cruzadas entre la venta (LibraCommerce) y contextos que
+        # no son suyos: facturación/remitos y turno de caja (LibraCore) y
+        # MercadoPago. No van dentro de `sales` para no meter dominio ajeno en
+        # el motor genérico — ver db_ventas.py.
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS venta_links (
+                venta_id      INTEGER PRIMARY KEY REFERENCES sales(id) ON DELETE CASCADE,
+                factura_id    INTEGER REFERENCES facturas(id) ON DELETE SET NULL,
+                remito_id     INTEGER REFERENCES remitos(id) ON DELETE SET NULL,
+                turno_id      INTEGER REFERENCES turnos_caja(id) ON DELETE SET NULL,
+                mp_order_id   TEXT DEFAULT '',
+                mp_payment_id TEXT DEFAULT ''
+            )
+        """)
+
         # Seed de módulos: inserta sólo los que no existen aún. La lista de
         # módulos (y el plan que los habilita) es específica de Contalibra —
         # Restolibra tiene su propia lista (con "restaurant" incluido) en su
