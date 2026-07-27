@@ -142,14 +142,20 @@ export function ListasPrecio() {
       id: 'actions',
       header: () => <div className="text-right">Acciones</div>,
       cell: ({ row }) => (
-        <div className="flex justify-end gap-2">
-          <Button asChild size="sm" variant="outline">
-            <Link to={`/listas-precio/${row.original.id}`}><Pencil />Editar precios</Link>
+        <div className="flex justify-end gap-1">
+          <Button asChild size="icon" variant="outline" title="Editar precios">
+            <Link to={`/listas-precio/${row.original.id}`} aria-label="Editar precios"><Pencil /></Link>
           </Button>
-          <Button size="sm" variant="outline" onClick={() => toggleActiva(row.original)}>
-            {row.original.activa ? <><Ban />Desactivar</> : <><Undo2 />Activar</>}
+          <Button
+            size="icon"
+            variant="outline"
+            title={row.original.activa ? 'Desactivar lista' : 'Activar lista'}
+            aria-label={row.original.activa ? 'Desactivar lista' : 'Activar lista'}
+            onClick={() => toggleActiva(row.original)}
+          >
+            {row.original.activa ? <Ban /> : <Undo2 />}
           </Button>
-          <Button size="sm" variant="outline" onClick={() => setConfirmDelete(row.original)}><Trash2 />Eliminar</Button>
+          <Button size="icon" variant="outline" title="Eliminar lista" aria-label="Eliminar lista" onClick={() => setConfirmDelete(row.original)}><Trash2 /></Button>
         </div>
       ),
     },

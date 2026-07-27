@@ -65,7 +65,7 @@ export function CuentaCorriente() {
       header: () => <div className="text-right">Acciones</div>,
       cell: ({ row }) => (
         <div className="flex justify-end">
-          <Button asChild size="sm" variant="outline"><Link to={`/cuenta-corriente/${row.original.id}`}><Eye />Ver</Link></Button>
+          <Button asChild size="icon" variant="outline" title="Ver cuenta corriente"><Link to={`/cuenta-corriente/${row.original.id}`} aria-label="Ver cuenta corriente"><Eye /></Link></Button>
         </div>
       ),
     },
