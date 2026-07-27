@@ -241,8 +241,8 @@ export function MpBandeja() {
   const columnsHistorial = useMemo<ColumnDef<HistRow>[]>(() => [
     { accessorKey: 'fecha', header: sortableHeader('Fecha') },
     { id: 'tipo', header: 'Tipo', cell: ({ row }) => row.original.tipoNode, meta: { className: 'hidden md:table-cell' } },
-    { accessorKey: 'emisor', header: 'Emisor / Pagador' },
-    { id: 'cliente', header: 'Cliente', cell: ({ row }) => row.original.cliente ? row.original.cliente.name : <span className="text-muted-foreground">—</span>, meta: { className: 'hidden md:table-cell' } },
+    { accessorKey: 'emisor', header: 'Emisor / Pagador', cell: ({ row }) => <span className="block max-w-[220px] truncate" title={row.original.emisor}>{row.original.emisor}</span> },
+    { id: 'cliente', header: 'Cliente', cell: ({ row }) => row.original.cliente ? <span className="block max-w-[180px] truncate" title={row.original.cliente.name}>{row.original.cliente.name}</span> : <span className="text-muted-foreground">—</span>, meta: { className: 'hidden md:table-cell' } },
     { accessorKey: 'monto', header: 'Monto', cell: ({ row }) => <span className="font-medium">{formatCurrency(row.original.monto)}</span> },
     { id: 'estado', header: 'Estado', cell: ({ row }) => <Badge variant={row.original.estado_factura === 'facturado' ? 'default' : 'secondary'}>{row.original.estado_factura === 'facturado' ? 'Facturado' : 'Ignorado'}</Badge> },
     {
@@ -271,9 +271,9 @@ export function MpBandeja() {
       id: 'emisor',
       header: 'Emisor',
       cell: ({ row }) => (
-        <div>
-          <p className="font-medium">{row.original.origen_nombre || '—'}</p>
-          {row.original.payer_id_number && <p className="text-xs text-muted-foreground">{row.original.payer_id_type || 'ID'}: {row.original.payer_id_number}</p>}
+        <div className="max-w-[200px]">
+          <p className="truncate font-medium" title={row.original.origen_nombre ?? undefined}>{row.original.origen_nombre || '—'}</p>
+          {row.original.payer_id_number && <p className="truncate text-xs text-muted-foreground">{row.original.payer_id_type || 'ID'}: {row.original.payer_id_number}</p>}
         </div>
       ),
     },
@@ -288,7 +288,7 @@ export function MpBandeja() {
     {
       id: 'cbu',
       header: 'CBU/CVU origen',
-      cell: ({ row }) => row.original.origen_cbu ? <code className="text-xs">{row.original.origen_cbu}</code> : <span className="text-muted-foreground">—</span>,
+      cell: ({ row }) => row.original.origen_cbu ? <code className="block max-w-[160px] truncate text-xs" title={row.original.origen_cbu}>{row.original.origen_cbu}</code> : <span className="text-muted-foreground">—</span>,
       meta: { className: 'hidden lg:table-cell' },
     },
     {
@@ -296,10 +296,10 @@ export function MpBandeja() {
       header: 'Cliente / Email',
       cell: ({ row }) => {
         const m = row.original
-        if (m.cliente) return <span className="flex items-center gap-1"><User className="size-3.5 text-emerald-600" />{m.cliente.name}</span>
+        if (m.cliente) return <span className="flex max-w-[200px] items-center gap-1"><User className="size-3.5 shrink-0 text-emerald-600" /><span className="truncate" title={m.cliente.name}>{m.cliente.name}</span></span>
         if (m.payer_email) return (
-          <div className="grid gap-0.5">
-            <span className="flex items-center gap-1 text-sm"><Mail className="size-3.5" />{m.payer_email}</span>
+          <div className="grid max-w-[200px] gap-0.5">
+            <span className="flex items-center gap-1 text-sm"><Mail className="size-3.5 shrink-0" /><span className="truncate" title={m.payer_email}>{m.payer_email}</span></span>
             <Button size="sm" variant="link" className="h-auto justify-start p-0" onClick={() => abrirCrearCliente('mov', m)}><UserPlus className="size-3.5" />Dar de alta</Button>
           </div>
         )
@@ -335,10 +335,10 @@ export function MpBandeja() {
       id: 'pagador',
       header: 'Pagador',
       cell: ({ row }) => (
-        <div>
-          <p className="font-medium">{row.original.payer_name || '—'}</p>
-          {row.original.payer_email && <p className="text-xs text-muted-foreground">{row.original.payer_email}</p>}
-          {row.original.payer_id_number && <p className="text-xs text-muted-foreground">{row.original.payer_id_type || 'ID'}: {row.original.payer_id_number}</p>}
+        <div className="max-w-[200px]">
+          <p className="truncate font-medium" title={row.original.payer_name ?? undefined}>{row.original.payer_name || '—'}</p>
+          {row.original.payer_email && <p className="truncate text-xs text-muted-foreground" title={row.original.payer_email}>{row.original.payer_email}</p>}
+          {row.original.payer_id_number && <p className="truncate text-xs text-muted-foreground">{row.original.payer_id_type || 'ID'}: {row.original.payer_id_number}</p>}
         </div>
       ),
     },
@@ -349,8 +349,8 @@ export function MpBandeja() {
       cell: ({ row }) => {
         const p = row.original
         if (p.cliente) return (
-          <div className="grid gap-0.5">
-            <span className="flex items-center gap-1"><User className="size-3.5 text-emerald-600" />{p.cliente.name}</span>
+          <div className="grid max-w-[200px] gap-0.5">
+            <span className="flex items-center gap-1"><User className="size-3.5 shrink-0 text-emerald-600" /><span className="truncate" title={p.cliente.name}>{p.cliente.name}</span></span>
             {!p.cliente.email && <Badge variant="outline" className="w-fit text-amber-700 dark:text-amber-400"><MailWarning className="mr-1 size-3.5" />Sin email</Badge>}
           </div>
         )
