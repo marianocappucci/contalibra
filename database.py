@@ -5,6 +5,7 @@
 # existentes (`db.get_connection()`, `db.DB_PATH`, `db.create_usuario(...)`,
 # etc.) no cambien una línea.
 from libracore.db.schema import init_core_schema
+from libracommerce.db.schema import init_schema as init_commerce_schema
 from db_core import _AR_TZ, _ar_now, _DATA_DIR, DB_PATH, get_connection  # noqa: F401
 from db_usuarios import (  # noqa: F401
     _hash_password,
@@ -247,6 +248,26 @@ from db_ventas import (  # noqa: F401
 def init_db():
     with get_connection() as conn:
         init_core_schema(conn)
+        # Catálogo/stock/ventas viven en las tablas de LibraCommerce desde
+        # P7 (ver db_productos.py). Conviven en el MISMO archivo SQLite que
+        # el resto de Contalibra, a propósito: `crear_venta_directa` cruza
+        # ambos motores en una única transacción atómica.
+        init_commerce_schema(conn)
+
+        # Referencias cruzadas entre la venta (LibraCommerce) y contextos que
+        # no son suyos: facturación/remitos y turno de caja (LibraCore) y
+        # MercadoPago. No van dentro de `sales` para no meter dominio ajeno en
+        # el motor genérico — ver db_ventas.py.
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS venta_links (
+                venta_id      INTEGER PRIMARY KEY REFERENCES sales(id) ON DELETE CASCADE,
+                factura_id    INTEGER REFERENCES facturas(id) ON DELETE SET NULL,
+                remito_id     INTEGER REFERENCES remitos(id) ON DELETE SET NULL,
+                turno_id      INTEGER REFERENCES turnos_caja(id) ON DELETE SET NULL,
+                mp_order_id   TEXT DEFAULT '',
+                mp_payment_id TEXT DEFAULT ''
+            )
+        """)
 
         # Seed de módulos: inserta sólo los que no existen aún. La lista de
         # módulos (y el plan que los habilita) es específica de Contalibra —

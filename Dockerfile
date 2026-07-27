@@ -23,7 +23,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl git ope
 RUN mkdir -p -m 0700 /root/.ssh && ssh-keyscan github.com >> /root/.ssh/known_hosts 2>/dev/null
 
 COPY requirements.txt .
-RUN --mount=type=ssh pip install --no-cache-dir -r requirements.txt
+# libracore y libracommerce son repos privados DISTINTOS, cada uno con su
+# propia deploy key. GitHub asocia la conexión SSH a la PRIMERA deploy key
+# válida que se le ofrece: un agente cargado con ambas autentica como el
+# primer repo y el segundo falla con "Repository not found" (verificado en
+# el VPS al preparar el deploy de P7 — no alcanza con el agente multi-key).
+# Por eso cada dependencia privada se instala en su propio paso, con su
+# propia clave, vía dos sockets de BuildKit separados. `requirements.txt`
+# sigue siendo la única fuente de verdad de las versiones.
+RUN --mount=type=ssh,id=libracore,target=/tmp/ssh-core.sock \
+    SSH_AUTH_SOCK=/tmp/ssh-core.sock \
+    sh -c 'grep "^libracore" requirements.txt > /tmp/req-core.txt && \
+           pip install --no-cache-dir -r /tmp/req-core.txt'
+RUN --mount=type=ssh,id=libracommerce,target=/tmp/ssh-commerce.sock \
+    SSH_AUTH_SOCK=/tmp/ssh-commerce.sock \
+    sh -c 'grep "^libracommerce" requirements.txt > /tmp/req-commerce.txt && \
+           pip install --no-cache-dir -r /tmp/req-commerce.txt'
+RUN sh -c 'grep -v "^libracore" requirements.txt | grep -v "^libracommerce" > /tmp/req-pub.txt && \
+           pip install --no-cache-dir -r /tmp/req-pub.txt'
 
 COPY . .
 # Horneado FUERA de /app a proposito (mismo motivo que gestiolibra
