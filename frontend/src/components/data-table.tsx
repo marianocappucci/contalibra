@@ -7,7 +7,7 @@ import {
   useReactTable,
   type SortingState,
 } from '@tanstack/react-table'
-import { useState, type ReactNode } from 'react'
+import { useState, type MouseEvent, type ReactNode } from 'react'
 import { ArrowUpDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -78,10 +78,13 @@ type DataTableProps<TData, TValue> = {
   // viejas aplicaban a filas inactivas (ej. `opacity-50` en clientes/list.html,
   // `table-secondary` en productos/list.html).
   getRowClassName?: (row: TData) => string | undefined
+  // Navegacion al hacer click en cualquier parte de la fila que no sea un
+  // control interactivo propio (boton/link dentro de una celda de acciones).
+  onRowClick?: (row: TData) => void
 }
 
 export function DataTable<TData, TValue>({
-  columns, data, emptyMessage = 'Sin resultados.', getRowClassName,
+  columns, data, emptyMessage = 'Sin resultados.', getRowClassName, onRowClick,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({})
@@ -161,7 +164,14 @@ export function DataTable<TData, TValue>({
       <TableBody>
         {table.getRowModel().rows.length ? (
           table.getRowModel().rows.map((row) => (
-            <TableRow key={row.id} className={getRowClassName?.(row.original)}>
+            <TableRow
+              key={row.id}
+              className={cn(onRowClick && 'cursor-pointer', getRowClassName?.(row.original))}
+              onClick={onRowClick && ((e: MouseEvent) => {
+                if ((e.target as HTMLElement).closest('button, a')) return
+                onRowClick(row.original)
+              })}
+            >
               {row.getVisibleCells().map((cell) => (
                 <TableCell key={cell.id} className={cn('overflow-hidden', cell.column.columnDef.meta?.className)}>
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
