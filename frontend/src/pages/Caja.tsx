@@ -209,7 +209,13 @@ export function Caja() {
       {
         id: 'actions',
         header: '',
-        cell: ({ row }) => <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(row.original)}><Trash2 />Eliminar</Button>,
+        size: 60,
+        minSize: 50,
+        cell: ({ row }) => (
+          <div className="flex justify-end">
+            <Button size="icon" variant="ghost" title="Eliminar movimiento" aria-label="Eliminar movimiento" onClick={() => setConfirmDelete(row.original)}><Trash2 /></Button>
+          </div>
+        ),
       },
     )
     return cols
@@ -279,11 +285,11 @@ export function Caja() {
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       {resumen && (
-        <div className="grid gap-4 sm:grid-cols-4">
-          <Card><CardContent className="flex items-start justify-between gap-3"><div><CardDescription>Saldo actual</CardDescription><p className={resumen.saldo_total >= 0 ? 'text-2xl font-bold text-emerald-600 dark:text-emerald-400' : 'text-2xl font-bold text-destructive'}>{formatCurrency(resumen.saldo_total)}</p></div><span className="shrink-0 rounded-lg bg-primary/10 p-2 text-primary"><PiggyBank /></span></CardContent></Card>
-          <Card><CardContent className="flex items-start justify-between gap-3"><div><CardDescription>Ingresos del período</CardDescription><p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">+ {formatCurrency(resumen.ingresos)}</p></div><span className="shrink-0 rounded-lg bg-emerald-500/10 p-2 text-emerald-600 dark:text-emerald-400"><ArrowDownCircle /></span></CardContent></Card>
-          <Card><CardContent className="flex items-start justify-between gap-3"><div><CardDescription>Egresos del período</CardDescription><p className="text-2xl font-bold text-destructive">− {formatCurrency(resumen.egresos)}</p></div><span className="shrink-0 rounded-lg bg-destructive/10 p-2 text-destructive"><ArrowUpCircle /></span></CardContent></Card>
-          <Card><CardContent className="flex items-start justify-between gap-3"><div><CardDescription>Resultado del período</CardDescription><p className={resumen.saldo_periodo >= 0 ? 'text-2xl font-bold text-emerald-600 dark:text-emerald-400' : 'text-2xl font-bold text-destructive'}>{resumen.saldo_periodo >= 0 ? '+' : ''}{formatCurrency(resumen.saldo_periodo)}</p></div><span className="shrink-0 rounded-lg bg-primary/10 p-2 text-primary"><Wallet /></span></CardContent></Card>
+        <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
+          <Card><CardContent className="flex items-start justify-between gap-3"><div className="min-w-0 [&_p]:truncate"><CardDescription>Saldo actual</CardDescription><p className={resumen.saldo_total >= 0 ? 'text-2xl font-bold text-emerald-600 dark:text-emerald-400' : 'text-2xl font-bold text-destructive'}>{formatCurrency(resumen.saldo_total)}</p></div><span className="shrink-0 rounded-lg bg-primary/10 p-2 text-primary"><PiggyBank /></span></CardContent></Card>
+          <Card><CardContent className="flex items-start justify-between gap-3"><div className="min-w-0 [&_p]:truncate"><CardDescription>Ingresos del período</CardDescription><p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">+ {formatCurrency(resumen.ingresos)}</p></div><span className="shrink-0 rounded-lg bg-emerald-500/10 p-2 text-emerald-600 dark:text-emerald-400"><ArrowDownCircle /></span></CardContent></Card>
+          <Card><CardContent className="flex items-start justify-between gap-3"><div className="min-w-0 [&_p]:truncate"><CardDescription>Egresos del período</CardDescription><p className="text-2xl font-bold text-destructive">− {formatCurrency(resumen.egresos)}</p></div><span className="shrink-0 rounded-lg bg-destructive/10 p-2 text-destructive"><ArrowUpCircle /></span></CardContent></Card>
+          <Card><CardContent className="flex items-start justify-between gap-3"><div className="min-w-0 [&_p]:truncate"><CardDescription>Resultado del período</CardDescription><p className={resumen.saldo_periodo >= 0 ? 'text-2xl font-bold text-emerald-600 dark:text-emerald-400' : 'text-2xl font-bold text-destructive'}>{resumen.saldo_periodo >= 0 ? '+' : ''}{formatCurrency(resumen.saldo_periodo)}</p></div><span className="shrink-0 rounded-lg bg-primary/10 p-2 text-primary"><Wallet /></span></CardContent></Card>
         </div>
       )}
 

@@ -163,31 +163,39 @@ export function Egresos() {
   }
 
   const columns = useMemo<ColumnDef<Egreso>[]>(() => [
-    { accessorKey: 'fecha', header: sortableHeader('Fecha') },
-    { accessorKey: 'proveedor_nombre', header: 'Proveedor', cell: ({ row }) => row.original.proveedor_nombre || '—' },
-    { accessorKey: 'concepto', header: 'Concepto', cell: ({ row }) => <span className="font-medium">{row.original.concepto}</span> },
-    { accessorKey: 'categoria', header: 'Categoría', cell: ({ row }) => row.original.categoria || '—' },
+    { accessorKey: 'fecha', header: sortableHeader('Fecha'), size: 95, minSize: 88 },
+    { accessorKey: 'proveedor_nombre', header: 'Proveedor', size: 130, minSize: 88, cell: ({ row }) => <span className="block truncate" title={row.original.proveedor_nombre ?? undefined}>{row.original.proveedor_nombre || '—'}</span> },
+    { accessorKey: 'concepto', header: 'Concepto', size: 110, minSize: 88, meta: { stretch: true }, cell: ({ row }) => <span className="block truncate font-medium" title={row.original.concepto}>{row.original.concepto}</span> },
+    { accessorKey: 'categoria', header: 'Categoría', size: 96, minSize: 84, cell: ({ row }) => <span className="block truncate" title={row.original.categoria ?? undefined}>{row.original.categoria || '—'}</span> },
     {
       id: 'comprobante',
       header: 'Comprobante',
-      cell: ({ row }) => row.original.numero ? <span className="font-mono text-sm">{row.original.numero}</span> : '—',
+      size: 120,
+      minSize: 104,
+      cell: ({ row }) => row.original.numero ? <span className="block truncate font-mono text-sm" title={row.original.numero}>{row.original.numero}</span> : '—',
     },
     {
       accessorKey: 'estado',
       header: 'Estado',
+      size: 82,
+      minSize: 74,
       cell: ({ row }) => (
         <Badge variant={estadoVariant[row.original.estado]} className={estadoBadgeClass[row.original.estado]}>
           {estadoLabel[row.original.estado]}
         </Badge>
       ),
     },
-    { accessorKey: 'total', header: 'Total', cell: ({ row }) => <span className="font-medium text-destructive">{formatCurrency(row.original.total)}</span> },
+    { accessorKey: 'total', header: () => <div className="text-right">Total</div>, size: 114, minSize: 100, cell: ({ row }) => <div className="truncate text-right font-medium text-destructive">{formatCurrency(row.original.total)}</div> },
     {
       id: 'actions',
       header: () => <div className="text-right">Acciones</div>,
+      size: 76,
+      minSize: 70,
       cell: ({ row }) => (
-        <div className="flex justify-end gap-2">
-          <Button asChild size="sm" variant="outline"><Link to={`/egresos/${row.original.id}`}><Eye />Ver</Link></Button>
+        <div className="flex justify-end gap-1">
+          <Button asChild size="icon" variant="outline" title="Ver egreso">
+            <Link to={`/egresos/${row.original.id}`} aria-label="Ver egreso"><Eye /></Link>
+          </Button>
         </div>
       ),
     },
@@ -209,17 +217,17 @@ export function Egresos() {
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         {resumen && (
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
             <Card><CardContent className="flex items-start justify-between gap-3">
-              <div><CardDescription>Total del período</CardDescription><p className="text-2xl font-bold">{formatCurrency(resumen.total_periodo)}</p></div>
+              <div className="min-w-0 [&_p]:truncate"><CardDescription>Total del período</CardDescription><p className="text-2xl font-bold">{formatCurrency(resumen.total_periodo)}</p></div>
               <span className="shrink-0 rounded-lg bg-muted p-2 text-muted-foreground"><ArrowUpCircle /></span>
             </CardContent></Card>
             <Card><CardContent className="flex items-start justify-between gap-3">
-              <div><CardDescription>Pagado</CardDescription><p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(resumen.pagado)}</p></div>
+              <div className="min-w-0 [&_p]:truncate"><CardDescription>Pagado</CardDescription><p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(resumen.pagado)}</p></div>
               <span className="shrink-0 rounded-lg bg-emerald-500/10 p-2 text-emerald-600 dark:text-emerald-400"><CheckCircle2 /></span>
             </CardContent></Card>
             <Card><CardContent className="flex items-start justify-between gap-3">
-              <div><CardDescription>Pendiente / Parcial</CardDescription><p className="text-2xl font-bold text-destructive">{formatCurrency(resumen.pendiente)}</p></div>
+              <div className="min-w-0 [&_p]:truncate"><CardDescription>Pendiente / Parcial</CardDescription><p className="text-2xl font-bold text-destructive">{formatCurrency(resumen.pendiente)}</p></div>
               <span className="shrink-0 rounded-lg bg-destructive/10 p-2 text-destructive"><Hourglass /></span>
             </CardContent></Card>
           </div>

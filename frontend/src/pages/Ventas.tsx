@@ -260,11 +260,11 @@ export function Ventas() {
       id: 'actions',
       header: () => <div className="text-right">Acciones</div>,
       cell: ({ row }) => (
-        <div className="flex justify-end gap-2">
-          <Button asChild size="sm" variant="outline"><Link to={`/ventas/${row.original.id}`}><Eye />Ver</Link></Button>
-          <Button asChild size="sm" variant="outline"><a href={`/ventas/${row.original.id}/ticket`} target="_blank" rel="noreferrer"><Printer />Ticket</a></Button>
+        <div className="flex justify-end gap-1">
+          <Button asChild size="icon" variant="outline" title="Ver venta"><Link to={`/ventas/${row.original.id}`} aria-label="Ver venta"><Eye /></Link></Button>
+          <Button asChild size="icon" variant="outline" title="Imprimir ticket"><a href={`/ventas/${row.original.id}/ticket`} target="_blank" rel="noreferrer" aria-label="Imprimir ticket"><Printer /></a></Button>
           {row.original.pagos.length > 0 && (
-            <Button asChild size="sm" variant="outline"><a href={`/ventas/${row.original.id}/recibo`} target="_blank" rel="noreferrer"><FileCheck />Recibo</a></Button>
+            <Button asChild size="icon" variant="outline" title="Ver recibo"><a href={`/ventas/${row.original.id}/recibo`} target="_blank" rel="noreferrer" aria-label="Ver recibo"><FileCheck /></a></Button>
           )}
           {user?.role === 'admin' && row.original.estado !== 'anulada' && (
             <Button size="sm" variant="outline" onClick={() => anular(row.original)}><Ban />Anular</Button>

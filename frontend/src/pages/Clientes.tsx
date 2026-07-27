@@ -182,19 +182,19 @@ export function Clientes() {
       id: 'actions',
       header: () => <div className="text-right">Acciones</div>,
       cell: ({ row }) => (
-        <div className="flex justify-end gap-2">
-          <Button asChild size="sm" variant="outline" title="Ver ficha">
-            <Link to={`/clientes/${row.original.id}`}><Eye />Ver</Link>
+        <div className="flex justify-end gap-1">
+          <Button asChild size="icon" variant="outline" title="Ver ficha">
+            <Link to={`/clientes/${row.original.id}`} aria-label="Ver ficha"><Eye /></Link>
           </Button>
           {row.original.activo && (
-            <Button asChild size="sm" variant="outline">
-              <Link to={`/clientes/${row.original.id}`}><Pencil />Editar</Link>
+            <Button asChild size="icon" variant="outline" title="Editar cliente">
+              <Link to={`/clientes/${row.original.id}`} aria-label="Editar cliente"><Pencil /></Link>
             </Button>
           )}
           {row.original.activo ? (
-            <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setConfirmDelete(row.original)}><Trash2 />Eliminar</Button>
+            <Button size="icon" variant="outline" className="text-destructive hover:text-destructive" title="Eliminar cliente" aria-label="Eliminar cliente" onClick={() => setConfirmDelete(row.original)}><Trash2 /></Button>
           ) : (
-            <Button size="sm" variant="outline" title="Reactivar cliente" onClick={() => toggleActivo(row.original)}><Undo2 />Reactivar</Button>
+            <Button size="icon" variant="outline" title="Reactivar cliente" aria-label="Reactivar cliente" onClick={() => toggleActivo(row.original)}><Undo2 /></Button>
           )}
         </div>
       ),
