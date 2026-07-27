@@ -171,7 +171,7 @@ def get_stock_producto_todos_depositos(producto_id: int) -> list[dict]:
 def transferir_stock(producto_id: int, origen_id: int, destino_id: int,
                      cantidad: float, usuario_id: int | None = None,
                      fecha: str = "", observaciones: str = ""):
-    from datetime import date as _date, datetime as _datetime
+    from datetime import date as _date
     _fecha = fecha or _date.today().isoformat()
     with get_connection() as conn:
         row = conn.execute(
@@ -183,16 +183,18 @@ def transferir_stock(producto_id: int, origen_id: int, destino_id: int,
     if cantidad > stock_origen:
         raise ValueError(f"Stock insuficiente en depósito origen (disponible: {stock_origen}).")
     ref = observaciones or "Transferencia entre depósitos"
-    ocurrido = _datetime.fromisoformat(_fecha).isoformat()
-    with get_connection() as conn:
-        conn.executemany(
-            """INSERT INTO stock_movements
-               (item_id, location_id, movement_type, quantity_delta, occurred_at, source_type)
-               VALUES (?,?,?,?,?,?)""",
-            [
-                (producto_id, origen_id, "transfer_out", -cantidad, ocurrido, ref),
-                (producto_id, destino_id, "transfer_in", cantidad, ocurrido, ref),
-            ],
+    # Import local: `db_stock` importa `get_default_deposito_id` de este
+    # módulo, así que a nivel de módulo sería circular. Se delega en vez de
+    # armar el INSERT a mano para no duplicar el mapeo tipo -> movement_type/
+    # reason_code ni volver a olvidarse de `note`/`created_by`.
+    from db_stock import add_movimiento_stock
+    for tipo, deposito, delta in (
+        ("transferencia_salida", origen_id, -cantidad),
+        ("transferencia_entrada", destino_id, cantidad),
+    ):
+        add_movimiento_stock(
+            producto_id=producto_id, tipo=tipo, cantidad=delta, referencia=ref,
+            fecha=_fecha, usuario_id=usuario_id, deposito_id=deposito,
         )
 
 
