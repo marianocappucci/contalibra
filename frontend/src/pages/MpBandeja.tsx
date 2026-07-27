@@ -240,9 +240,9 @@ export function MpBandeja() {
 
   const columnsHistorial = useMemo<ColumnDef<HistRow>[]>(() => [
     { accessorKey: 'fecha', header: sortableHeader('Fecha') },
-    { id: 'tipo', header: 'Tipo', cell: ({ row }) => row.original.tipoNode },
+    { id: 'tipo', header: 'Tipo', cell: ({ row }) => row.original.tipoNode, meta: { className: 'hidden md:table-cell' } },
     { accessorKey: 'emisor', header: 'Emisor / Pagador' },
-    { id: 'cliente', header: 'Cliente', cell: ({ row }) => row.original.cliente ? row.original.cliente.name : <span className="text-muted-foreground">—</span> },
+    { id: 'cliente', header: 'Cliente', cell: ({ row }) => row.original.cliente ? row.original.cliente.name : <span className="text-muted-foreground">—</span>, meta: { className: 'hidden md:table-cell' } },
     { accessorKey: 'monto', header: 'Monto', cell: ({ row }) => <span className="font-medium">{formatCurrency(row.original.monto)}</span> },
     { id: 'estado', header: 'Estado', cell: ({ row }) => <Badge variant={row.original.estado_factura === 'facturado' ? 'default' : 'secondary'}>{row.original.estado_factura === 'facturado' ? 'Facturado' : 'Ignorado'}</Badge> },
     {
@@ -283,11 +283,13 @@ export function MpBandeja() {
       cell: ({ row }) => row.original.origen_banco
         ? <Badge variant="outline">{row.original.origen_banco.toUpperCase()}</Badge>
         : <span className="text-muted-foreground">—</span>,
+      meta: { className: 'hidden md:table-cell' },
     },
     {
       id: 'cbu',
       header: 'CBU/CVU origen',
       cell: ({ row }) => row.original.origen_cbu ? <code className="text-xs">{row.original.origen_cbu}</code> : <span className="text-muted-foreground">—</span>,
+      meta: { className: 'hidden lg:table-cell' },
     },
     {
       id: 'cliente',
@@ -340,7 +342,7 @@ export function MpBandeja() {
         </div>
       ),
     },
-    { id: 'origen', header: 'Origen', cell: ({ row }) => <OrigenBadge tipo={row.original.payment_type} metodo={row.original.payment_method} /> },
+    { id: 'origen', header: 'Origen', cell: ({ row }) => <OrigenBadge tipo={row.original.payment_type} metodo={row.original.payment_method} />, meta: { className: 'hidden md:table-cell' } },
     {
       id: 'cliente',
       header: 'Cliente',

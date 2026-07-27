@@ -18,6 +18,15 @@ import { Button } from '@/components/ui/button'
 // gestiolibra/frontend/src/components/data-table.tsx (DECISIONS.md
 // ADR-026 de Gestiolibra), reusado tal cual en cada modulo migrado.
 
+declare module '@tanstack/react-table' {
+  interface ColumnMeta<TData, TValue> {
+    // Clase opcional para ocultar/priorizar columnas segun breakpoint,
+    // ej. 'hidden md:table-cell' en columnas secundarias -- evita que
+    // tablas con muchas columnas fuercen scroll horizontal en mobile.
+    className?: string
+  }
+}
+
 export function sortableHeader(label: string) {
   return ({ column }: { column: { toggleSorting: (desc?: boolean) => void; getIsSorted: () => false | 'asc' | 'desc' } }) => (
     <Button
@@ -62,7 +71,7 @@ export function DataTable<TData, TValue>({
         {table.getHeaderGroups().map((headerGroup) => (
           <TableRow key={headerGroup.id}>
             {headerGroup.headers.map((header) => (
-              <TableHead key={header.id}>
+              <TableHead key={header.id} className={header.column.columnDef.meta?.className}>
                 {header.isPlaceholder
                   ? null
                   : flexRender(header.column.columnDef.header, header.getContext())}
@@ -76,7 +85,7 @@ export function DataTable<TData, TValue>({
           table.getRowModel().rows.map((row) => (
             <TableRow key={row.id} className={getRowClassName?.(row.original)}>
               {row.getVisibleCells().map((cell) => (
-                <TableCell key={cell.id}>
+                <TableCell key={cell.id} className={cell.column.columnDef.meta?.className}>
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </TableCell>
               ))}
