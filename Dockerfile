@@ -31,10 +31,12 @@ COPY requirements.txt .
 # Por eso cada dependencia privada se instala en su propio paso, con su
 # propia clave, vía dos sockets de BuildKit separados. `requirements.txt`
 # sigue siendo la única fuente de verdad de las versiones.
-RUN --mount=type=ssh,id=libracore SSH_AUTH_SOCK=/run/buildkit/ssh_agent.libracore \
+RUN --mount=type=ssh,id=libracore,target=/tmp/ssh-core.sock \
+    SSH_AUTH_SOCK=/tmp/ssh-core.sock \
     sh -c 'grep "^libracore" requirements.txt > /tmp/req-core.txt && \
            pip install --no-cache-dir -r /tmp/req-core.txt'
-RUN --mount=type=ssh,id=libracommerce SSH_AUTH_SOCK=/run/buildkit/ssh_agent.libracommerce \
+RUN --mount=type=ssh,id=libracommerce,target=/tmp/ssh-commerce.sock \
+    SSH_AUTH_SOCK=/tmp/ssh-commerce.sock \
     sh -c 'grep "^libracommerce" requirements.txt > /tmp/req-commerce.txt && \
            pip install --no-cache-dir -r /tmp/req-commerce.txt'
 RUN sh -c 'grep -v "^libracore" requirements.txt | grep -v "^libracommerce" > /tmp/req-pub.txt && \
