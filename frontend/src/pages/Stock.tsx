@@ -175,34 +175,41 @@ export function Stock() {
     {
       accessorKey: 'nombre',
       header: sortableHeader('Producto'),
+      size: 200,
+      minSize: 110,
+      meta: { stretch: true },
       cell: ({ row }) => (
-        <span>
+        <span className="block truncate" title={row.original.nombre}>
           <span className="font-semibold">{row.original.nombre}</span>
           {row.original.codigo && <span className="ml-1 text-sm text-muted-foreground">· {row.original.codigo}</span>}
         </span>
       ),
     },
-    { accessorKey: 'categoria', header: 'Categoría', cell: ({ row }) => <span className="text-muted-foreground">{row.original.categoria || '—'}</span> },
-    { accessorKey: 'unidad', header: 'Unidad', cell: ({ row }) => <span className="text-muted-foreground">{row.original.unidad}</span> },
-    { accessorKey: 'stock_minimo', header: 'Stock mínimo', cell: ({ row }) => row.original.stock_minimo > 0 ? formatEntero(row.original.stock_minimo) : '—' },
+    { accessorKey: 'categoria', header: 'Categoría', size: 120, minSize: 90, cell: ({ row }) => <span className="block truncate text-muted-foreground" title={row.original.categoria ?? undefined}>{row.original.categoria || '—'}</span> },
+    { accessorKey: 'unidad', header: 'Unidad', size: 85, minSize: 70, cell: ({ row }) => <span className="block truncate text-muted-foreground">{row.original.unidad}</span> },
+    { accessorKey: 'stock_minimo', header: () => <div className="text-right">Stock mínimo</div>, size: 115, minSize: 95, cell: ({ row }) => <div className="truncate text-right">{row.original.stock_minimo > 0 ? formatEntero(row.original.stock_minimo) : '—'}</div> },
     {
       accessorKey: 'stock_actual',
-      header: 'Stock actual',
+      header: () => <div className="text-right">Stock actual</div>,
+      size: 115,
+      minSize: 95,
       cell: ({ row }) => {
         const critico = row.original.stock_actual <= 0
         const bajo = row.original.stock_minimo > 0 && row.original.stock_actual <= row.original.stock_minimo
         const cls = critico ? 'font-bold text-lg text-destructive' : bajo ? 'font-bold text-lg text-amber-600 dark:text-amber-400' : 'font-bold text-lg text-emerald-600 dark:text-emerald-400'
-        return <span className={cls}>{formatEntero(row.original.stock_actual)}</span>
+        return <div className={`truncate text-right ${cls}`}>{formatEntero(row.original.stock_actual)}</div>
       },
     },
-    { id: 'estado', header: 'Estado', cell: ({ row }) => <EstadoBadge p={row.original} /> },
+    { id: 'estado', header: 'Estado', size: 125, minSize: 95, cell: ({ row }) => <EstadoBadge p={row.original} /> },
     {
       id: 'actions',
       header: () => <div className="text-right">Acciones</div>,
+      size: 90,
+      minSize: 80,
       cell: ({ row }) => (
-        <div className="flex justify-end gap-2">
-          <Button size="sm" variant="outline" onClick={() => verMovimientos(row.original)} title="Ver movimientos"><History /></Button>
-          <Button size="sm" variant="outline" onClick={() => startAjuste(row.original)} title="Ajustar stock"><Pencil /></Button>
+        <div className="flex justify-end gap-1">
+          <Button size="icon" variant="outline" onClick={() => verMovimientos(row.original)} title="Ver movimientos" aria-label="Ver movimientos"><History /></Button>
+          <Button size="icon" variant="outline" onClick={() => startAjuste(row.original)} title="Ajustar stock" aria-label="Ajustar stock"><Pencil /></Button>
         </div>
       ),
     },

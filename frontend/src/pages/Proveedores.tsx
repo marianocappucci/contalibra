@@ -125,9 +125,9 @@ export function Proveedores() {
       id: 'actions',
       header: () => <div className="text-right">Acciones</div>,
       cell: ({ row }) => (
-        <div className="flex justify-end gap-2">
-          <Button asChild size="sm" variant="outline"><Link to={`/proveedores/${row.original.id}`}><Eye />Ver</Link></Button>
-          <Button asChild size="sm" variant="outline"><Link to={`/proveedores/${row.original.id}`}><Pencil />Editar</Link></Button>
+        <div className="flex justify-end gap-1">
+          <Button asChild size="icon" variant="outline" title="Ver proveedor"><Link to={`/proveedores/${row.original.id}`} aria-label="Ver proveedor"><Eye /></Link></Button>
+          <Button asChild size="icon" variant="outline" title="Editar proveedor"><Link to={`/proveedores/${row.original.id}`} aria-label="Editar proveedor"><Pencil /></Link></Button>
         </div>
       ),
     },

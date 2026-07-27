@@ -185,24 +185,28 @@ export function Productos() {
   // (Unidad va antes de los precios, no después). "Editar" ahora abre el
   // modal inline en vez de navegar a /productos/:id/editar.
   const columns = useMemo<ColumnDef<Producto>[]>(() => [
-    { accessorKey: 'codigo', header: 'Código', cell: ({ row }) => <span className="font-mono text-xs">{row.original.codigo || '—'}</span> },
-    { accessorKey: 'nombre', header: sortableHeader('Nombre'), cell: ({ row }) => <span className="font-medium">{row.original.nombre}</span> },
+    { accessorKey: 'codigo', header: 'Código', size: 100, minSize: 80, cell: ({ row }) => <span className="block truncate font-mono text-xs" title={row.original.codigo ?? undefined}>{row.original.codigo || '—'}</span> },
+    { accessorKey: 'nombre', header: sortableHeader('Nombre'), size: 160, minSize: 90, meta: { stretch: true }, cell: ({ row }) => <span className="block truncate font-medium" title={row.original.nombre}>{row.original.nombre}</span> },
     {
       accessorKey: 'tipo',
       header: 'Tipo',
+      size: 95,
+      minSize: 80,
       cell: ({ row }) => (
         <Badge variant={row.original.tipo === 'servicio' ? 'outline' : 'secondary'}>
           {row.original.tipo === 'servicio' ? 'Servicio' : 'Producto'}
         </Badge>
       ),
     },
-    { accessorKey: 'categoria', header: 'Categoría', cell: ({ row }) => row.original.categoria || '—' },
-    { accessorKey: 'unidad', header: 'Unidad' },
-    { accessorKey: 'precio_venta', header: 'Precio venta', cell: ({ row }) => formatCurrency(row.original.precio_venta) },
-    { accessorKey: 'precio_costo', header: 'Precio costo', cell: ({ row }) => <span className="text-muted-foreground">{formatCurrency(row.original.precio_costo)}</span> },
+    { accessorKey: 'categoria', header: 'Categoría', size: 120, minSize: 90, cell: ({ row }) => <span className="block truncate" title={row.original.categoria ?? undefined}>{row.original.categoria || '—'}</span> },
+    { accessorKey: 'unidad', header: 'Unidad', size: 85, minSize: 70, cell: ({ row }) => <span className="block truncate">{row.original.unidad}</span> },
+    { accessorKey: 'precio_venta', header: () => <div className="text-right">Precio venta</div>, size: 115, minSize: 95, cell: ({ row }) => <div className="truncate text-right">{formatCurrency(row.original.precio_venta)}</div> },
+    { accessorKey: 'precio_costo', header: () => <div className="text-right">Precio costo</div>, size: 115, minSize: 95, cell: ({ row }) => <div className="truncate text-right text-muted-foreground">{formatCurrency(row.original.precio_costo)}</div> },
     {
       accessorKey: 'activo',
       header: () => <div className="text-center">Estado</div>,
+      size: 95,
+      minSize: 80,
       cell: ({ row }) => (
         <div className="text-center">
           <Badge variant={row.original.activo ? 'default' : 'secondary'}>
@@ -214,10 +218,12 @@ export function Productos() {
     {
       id: 'actions',
       header: () => <div className="text-right">Acciones</div>,
+      size: 90,
+      minSize: 80,
       cell: ({ row }) => (
-        <div className="flex justify-end gap-2">
-          <Button size="sm" variant="outline" onClick={() => abrirEditar(row.original)}><Pencil />Editar</Button>
-          <Button size="sm" variant="outline" onClick={() => setConfirmDelete(row.original)}><Trash2 />Eliminar</Button>
+        <div className="flex justify-end gap-1">
+          <Button size="icon" variant="outline" title="Editar producto" aria-label="Editar producto" onClick={() => abrirEditar(row.original)}><Pencil /></Button>
+          <Button size="icon" variant="outline" title="Eliminar producto" aria-label="Eliminar producto" onClick={() => setConfirmDelete(row.original)}><Trash2 /></Button>
         </div>
       ),
     },

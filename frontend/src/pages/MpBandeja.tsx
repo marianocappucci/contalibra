@@ -256,7 +256,7 @@ export function MpBandeja() {
         const puedeReenviar = r.reenvioRequiereEmail ? Boolean(r.cliente?.email) : true
         return (
           <div className="flex items-center gap-1">
-            <Button asChild size="sm" variant="outline"><Link to={`/facturas/${r.factura_id}`}><ReceiptText />Ver</Link></Button>
+            <Button asChild size="icon" variant="outline" title="Ver factura"><Link to={`/facturas/${r.factura_id}`} aria-label="Ver factura"><ReceiptText /></Link></Button>
             {puedeReenviar
               ? <Button size="icon" variant="outline" title="Reenviar email" disabled={saving} onClick={() => reenviarEmail(r.factura_id!)}><Forward className="size-4" /></Button>
               : <Badge variant="outline" className="text-amber-700 dark:text-amber-400"><MailWarning className="mr-1 size-3.5" />Sin email</Badge>}
