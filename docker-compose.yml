@@ -2,10 +2,25 @@ services:
   contalibra-dev:
     build:
       context: .
-      # requirements.txt depende de libracore (paquete privado) via git+ssh —
-      # ver LIBRACORE_SSH_KEY en scripts/panel_admin.py y wiki/entities/libracore.md.
+      # Este producto depende de TRES paquetes privados propios, y el
+      # Dockerfile monta un id SSH separado para cada uno (GitHub autentica
+      # toda la conexión con la primera deploy key que le ofrecen, así que
+      # una sola key no alcanza). Los ids tienen que coincidir con los
+      # `--mount=type=ssh,id=...` del Dockerfile y con lo que arma
+      # `libracore.provisioning.docker_build_ssh_args()` para el build de
+      # producción — ver wiki/entities/libracore.md.
+      #
+      # Declarar sólo `default` (como estaba hasta el 2026-07-28) hacía que
+      # `docker compose build` fallara con `exit code 128` al clonar
+      # libra-ui/libracommerce, así que la imagen de dev no se podía
+      # reconstruir: se quedó congelada mientras el bind mount `./:/app`
+      # seguía trayendo código nuevo, hasta que ese código importó un
+      # paquete que la imagen vieja no tenía y uvicorn dejó de levantar.
       ssh:
         - default=${LIBRACORE_SSH_KEY:-~/.ssh/id_ed25519_libracore}
+        - libracore=${LIBRACORE_SSH_KEY:-~/.ssh/id_ed25519_libracore}
+        - libracommerce=${LIBRACOMMERCE_SSH_KEY:-~/.ssh/id_ed25519_libracommerce}
+        - libra-ui=${LIBRA_UI_SSH_KEY:-~/.ssh/id_ed25519_libra_ui}
     container_name: contalibra-dev
     restart: unless-stopped
     # Límites agregados tras cruzar la auditoría de Restolibra (ver
