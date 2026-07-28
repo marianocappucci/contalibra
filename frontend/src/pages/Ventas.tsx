@@ -18,7 +18,7 @@ import {
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose,
 } from '@/components/ui/dialog'
-import { DataTable, sortableHeader } from 'libra-ui/data-table'
+import { anchoColumnaAcciones, DataTable, sortableHeader } from 'libra-ui/data-table'
 import {
   ShoppingCart, Plus, Printer, FileCheck, Ban, ReceiptText, ListChecks, UserPlus, X, CheckCircle2,
 } from 'lucide-react'
@@ -278,8 +278,8 @@ export function Ventas() {
     {
       id: 'actions',
       header: () => <div className="text-right">Acciones</div>,
-      size: 120,
-      minSize: 100,
+      size: anchoColumnaAcciones(3),
+      minSize: anchoColumnaAcciones(3),
       cell: ({ row }) => (
         <div className="flex justify-end gap-1">
           <Button asChild size="icon" variant="outline" title="Imprimir ticket"><a href={`/ventas/${row.original.id}/ticket`} target="_blank" rel="noreferrer" aria-label="Imprimir ticket"><Printer /></a></Button>
