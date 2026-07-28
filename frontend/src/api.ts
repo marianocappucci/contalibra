@@ -462,6 +462,25 @@ export type FacturaDetalle = {
 
 export type TipoFactura = { value: number; label: string }
 
+// Borrador para emitir una copia de un comprobante (POST
+// /api/facturas/{id}/duplicar). Lo arma el backend con
+// `libracore.facturas_borrador`, incluido el recalculo de las fechas de
+// servicio y del vencimiento de pago para la fecha de hoy.
+export type BorradorDuplicado = {
+  tipo: number
+  punto_venta: number
+  concepto: number
+  condicion_venta: string
+  tax_rate: number
+  client_id: number | null
+  client_name: string
+  observations: string
+  items: { description: string; qty: number; unit_price: number }[]
+  fch_serv_desde: string
+  fch_serv_hasta: string
+  fch_vto_pago: string
+}
+
 export type Remito = {
   id: number
   number: string
