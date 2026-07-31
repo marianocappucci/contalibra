@@ -1,6 +1,6 @@
 import os
 from fastapi.templating import Jinja2Templates
-from version import VERSION
+from app.version import VERSION
 
 _TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
 

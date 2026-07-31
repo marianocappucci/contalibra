@@ -6,9 +6,9 @@ de esta etapa. El PDF (`GET /remitos/{id}/pdf`) sigue en
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-import database as db
-import pdf_generator as pdf_gen
-from web.api_auth import get_current_user_json
+from app import database as db
+from app import pdf_generator as pdf_gen
+from app.web.api_auth import get_current_user_json
 
 router = APIRouter(prefix="/api/remitos", tags=["remitos"])
 

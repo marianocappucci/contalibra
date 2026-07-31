@@ -1,6 +1,4 @@
-import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 import datetime
 import shutil
@@ -8,8 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from typing import Annotated
 
-import database as db
-from web.auth import require_auth, require_role
+from app import database as db
+from app.web.auth import require_auth, require_role
 
 router = APIRouter(dependencies=[Depends(require_role("admin"))])
 
@@ -29,7 +27,7 @@ BACKUPS_DIR = os.path.join(os.path.dirname(db.DB_PATH), "backups")
 
 @router.get("/config/empresa/logo", include_in_schema=False)
 def config_logo(user: Auth):
-    import config_manager
+    from app import config_manager
     cfg = config_manager.load()
     path = config_manager.resolve_logo_path(cfg)
     if not path or not os.path.exists(path):

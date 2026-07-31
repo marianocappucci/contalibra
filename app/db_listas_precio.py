@@ -16,7 +16,7 @@ usar la fecha real (Contalibra nunca tuvo ese dato).
 from libracommerce.db.repository import SqliteCommerceRepository
 from libracommerce.domain.catalog import PriceList
 
-from db_core import get_connection
+from app.db_core import get_connection
 
 # item_prices.valid_from es NOT NULL; este valor documenta "sin restricción
 # de fecha de inicio" para todo lo que este módulo escriba — consistente

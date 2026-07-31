@@ -7,8 +7,8 @@
 from libracore.db.schema import init_core_schema
 from libracore.db.clients import sincronizar_parties_de_clientes
 from libracommerce.db.schema import init_schema as init_commerce_schema
-from db_core import _AR_TZ, _ar_now, _DATA_DIR, DB_PATH, get_connection  # noqa: F401
-from db_usuarios import (  # noqa: F401
+from app.db_core import _AR_TZ, _ar_now, _DATA_DIR, DB_PATH, get_connection  # noqa: F401
+from app.db_usuarios import (  # noqa: F401
     _hash_password,
     _verify_password,
     _DUMMY_PASSWORD_HASH,
@@ -27,7 +27,7 @@ from db_usuarios import (  # noqa: F401
     EmailNotConfigured,
     InvalidResetToken,
 )
-from db_tesoreria import (  # noqa: F401
+from app.db_tesoreria import (  # noqa: F401
     get_all_cuentas_tesoreria,
     get_cuenta_tesoreria,
     create_cuenta_tesoreria,
@@ -39,7 +39,7 @@ from db_tesoreria import (  # noqa: F401
     delete_movimiento_tesoreria,
     get_resumen_tesoreria,
 )
-from db_caja import (  # noqa: F401
+from app.db_caja import (  # noqa: F401
     MEDIOS_PAGO_LABELS,
     get_all_cajas,
     get_caja_config,
@@ -55,7 +55,7 @@ from db_caja import (  # noqa: F401
     get_cobros_factura,
     delete_caja_movimiento,
 )
-from db_egresos import (  # noqa: F401
+from app.db_egresos import (  # noqa: F401
     get_categorias_egreso,
     create_categoria_egreso,
     delete_categoria_egreso,
@@ -73,8 +73,8 @@ from db_egresos import (  # noqa: F401
     get_pagos_egreso,
     create_pago_egreso,
 )
-from db_modulos import get_modulos, apply_plan  # noqa: F401
-from db_listas_precio import (  # noqa: F401
+from app.db_modulos import get_modulos, apply_plan  # noqa: F401
+from app.db_listas_precio import (  # noqa: F401
     get_all_listas_precio,
     get_lista_precio,
     create_lista_precio,
@@ -87,7 +87,7 @@ from db_listas_precio import (  # noqa: F401
     apply_porcentaje_lista,
     importar_precios_lista,
 )
-from db_turnos import (  # noqa: F401
+from app.db_turnos import (  # noqa: F401
     create_turno,
     get_turno_activo,
     get_turno_activo_any,
@@ -97,30 +97,30 @@ from db_turnos import (  # noqa: F401
     cerrar_turno,
     vincular_venta_turno,
 )
-from db_dashboard import get_dashboard_data  # noqa: F401
-from db_logs import (  # noqa: F401
+from app.db_dashboard import get_dashboard_data  # noqa: F401
+from app.db_logs import (  # noqa: F401
     get_actividad_log,
     get_actividad_count,
     registrar_auth_event,
     get_auth_log,
     contar_login_fallidos_recientes,
 )
-from db_arca_config import (  # noqa: F401
+from app.db_arca_config import (  # noqa: F401
     crear_arca_config,
     obtener_arca_config,
     obtener_todas_arca_configs,
     actualizar_arca_config,
     eliminar_arca_config,
 )
-from db_cuenta_corriente import (  # noqa: F401
+from app.db_cuenta_corriente import (  # noqa: F401
     get_cc_saldo,
     get_cc_movimientos,
     get_clientes_con_saldo_cc,
     create_cc_pago,
     delete_cc_pago,
 )
-from db_libros_iva import get_facturas_para_iva, get_egresos_para_iva  # noqa: F401
-from db_reportes import (  # noqa: F401
+from app.db_libros_iva import get_facturas_para_iva, get_egresos_para_iva  # noqa: F401
+from app.db_reportes import (  # noqa: F401
     get_reporte_ventas,
     get_reporte_medios_pago,
     get_reporte_productos_top,
@@ -129,7 +129,7 @@ from db_reportes import (  # noqa: F401
     get_reporte_stock_bajo,
     get_reporte_resumen,
 )
-from db_productos import (  # noqa: F401
+from app.db_productos import (  # noqa: F401
     get_all_depositos,
     get_deposito,
     get_default_deposito_id,
@@ -150,7 +150,7 @@ from db_productos import (  # noqa: F401
     update_producto,
     delete_producto,
 )
-from db_stock import (  # noqa: F401
+from app.db_stock import (  # noqa: F401
     add_movimiento_stock,
     get_stock_actual,
     get_stock_todos,
@@ -158,7 +158,7 @@ from db_stock import (  # noqa: F401
     ajustar_stock,
     descontar_stock_venta,
 )
-from db_clients import (  # noqa: F401
+from app.db_clients import (  # noqa: F401
     create_client,
     get_all_clients,
     get_all_clients_including_inactive,
@@ -173,7 +173,7 @@ from db_clients import (  # noqa: F401
     get_client_by_email,
     get_client_by_cuit,
 )
-from db_remitos_presupuestos import (  # noqa: F401
+from app.db_remitos_presupuestos import (  # noqa: F401
     get_next_remito_number,
     create_remito,
     update_remito_pdf_path,
@@ -197,7 +197,7 @@ from db_remitos_presupuestos import (  # noqa: F401
     update_remito,
     update_presupuesto,
 )
-from db_facturas import (  # noqa: F401
+from app.db_facturas import (  # noqa: F401
     get_next_factura_numero,
     create_factura,
     get_all_facturas,
@@ -212,7 +212,7 @@ from db_facturas import (  # noqa: F401
     get_factura_por_tipo_pv_nro,
     delete_factura,
 )
-from db_mp import (  # noqa: F401
+from app.db_mp import (  # noqa: F401
     get_mp_pago,
     create_mp_pago,
     get_mp_pago_by_id,
@@ -234,7 +234,7 @@ from db_mp import (  # noqa: F401
     get_mp_pending_count,
     vincular_mp_pago_cliente,
 )
-from db_ventas import (  # noqa: F401
+from app.db_ventas import (  # noqa: F401
     get_next_venta_numero,
     create_venta,
     add_venta_pago,

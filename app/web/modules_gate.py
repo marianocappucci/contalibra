@@ -10,7 +10,7 @@ comportamiento actual. Mismo patron que gestiolibra/app/modules_gate.py.
 """
 from fastapi import HTTPException
 
-import database as db
+from app import database as db
 
 
 def require_module(nombre: str):

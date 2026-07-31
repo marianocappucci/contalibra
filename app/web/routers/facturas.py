@@ -1,14 +1,11 @@
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.responses import FileResponse
 from typing import Annotated
 
-import database as db
-import pdf_generator as pdf_gen
-from web.auth import require_auth
+from app import database as db
+from app import pdf_generator as pdf_gen
+from app.web.auth import require_auth
 
 router = APIRouter()
 
@@ -37,7 +34,7 @@ def factura_pdf(factura_id: int, user: Auth):
 
 @router.get("/facturas/{factura_id}/ticket")
 def factura_ticket(factura_id: int, user: Auth):
-    import ticket_generator
+    from app import ticket_generator
     factura = db.get_factura(factura_id)
     if not factura:
         raise HTTPException(404)

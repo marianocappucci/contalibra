@@ -9,7 +9,7 @@ Modulo detectado como faltante recien al preparar el corte de la Etapa D
 (quedo afuera del inventario original de las Etapas B/C) -- se completa
 aca antes de remover las rutas HTML viejas para no perder la
 funcionalidad."""
-import database as db
+from app import database as db
 from fastapi import APIRouter
 
 router = APIRouter(prefix="/api/logs", tags=["logs"])

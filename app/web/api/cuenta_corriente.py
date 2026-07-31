@@ -5,8 +5,8 @@ web/api/clientes.py para el patron general de esta etapa."""
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-import database as db
-from web.api_auth import get_current_user_json, require_admin_json
+from app import database as db
+from app.web.api_auth import get_current_user_json, require_admin_json
 
 router = APIRouter(prefix="/api/cuenta-corriente", tags=["cuenta_corriente"])
 

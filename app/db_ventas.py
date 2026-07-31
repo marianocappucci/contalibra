@@ -36,11 +36,11 @@ from libracore.db.cuenta_corriente import create_cc_pago
 from libracore.db.reversiones import revertir_cobro_venta
 from libracore.db.turnos import get_turno_activo
 
-from db_core import get_connection
-from db_stock import add_movimiento_stock, descontar_stock_venta
+from app.db_core import get_connection
+from app.db_stock import add_movimiento_stock, descontar_stock_venta
 # `vincular_venta_turno` de Contalibra, no el de LibraCore: el turno de una
 # venta vive en `venta_links`, no en la tabla `ventas` vieja.
-from db_turnos import vincular_venta_turno
+from app.db_turnos import vincular_venta_turno
 
 # Estado de Contalibra -> status semántico de LibraCommerce. El valor
 # original se preserva en `sales.status_detail` y es el que se devuelve:

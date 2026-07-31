@@ -1,6 +1,3 @@
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 import csv
 import io
@@ -9,8 +6,8 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from typing import Annotated
 
-import database as db
-from web.auth import require_auth
+from app import database as db
+from app.web.auth import require_auth
 
 router = APIRouter()
 

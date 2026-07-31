@@ -12,8 +12,8 @@ from rich import box
 from rich.panel import Panel
 from rich.prompt import Prompt, Confirm
 
-import database as db
-import pdf_generator as pdf_gen
+from app import database as db
+from app import pdf_generator as pdf_gen
 
 console = Console()
 

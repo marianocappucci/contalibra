@@ -23,8 +23,8 @@ movimiento, el stock siempre se calcula sumando.
 import contextlib
 import sqlite3
 
-from db_core import get_connection
-from db_productos import get_default_deposito_id
+from app.db_core import get_connection
+from app.db_productos import get_default_deposito_id
 
 # Tipo de Contalibra -> movement_type semántico de LibraCommerce. El tipo
 # original se guarda aparte en `reason_code`, así que este mapeo puede ser

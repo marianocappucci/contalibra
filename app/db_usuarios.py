@@ -38,7 +38,7 @@ from libraauth.password_reset import (  # noqa: F401  (re-exportadas para el rou
 )
 from libraauth.repository import UserRepository
 
-from db_core import DB_PATH
+from app.db_core import DB_PATH
 
 # Roles reales de Contalibra (`ROLES` de frontend/src/api.ts y el literal del
 # tipo `Usuario`). El default de libraauth es ("admin","staff") y no sirve aca:

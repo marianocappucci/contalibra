@@ -24,7 +24,7 @@ web/app.py, no aca.
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-import database as db
+from app import database as db
 
 router = APIRouter(prefix="/api/clientes", tags=["clientes"])
 

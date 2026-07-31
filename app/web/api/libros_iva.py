@@ -8,9 +8,9 @@ import datetime
 
 from fastapi import APIRouter
 
-import config_manager
-import database as db
-from web.routers.libros_iva import _resumen_compras, _resumen_ventas
+from app import config_manager
+from app import database as db
+from app.web.routers.libros_iva import _resumen_compras, _resumen_ventas
 
 router = APIRouter(prefix="/api/libros-iva", tags=["libros_iva"])
 

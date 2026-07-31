@@ -1,15 +1,12 @@
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response, JSONResponse
 
-import database as db
-import config_manager
-import mp_api
-from web.auth import require_auth
+from app import database as db
+from app import config_manager
+from app import mp_api
+from app.web.auth import require_auth
 
 router = APIRouter()
 Auth = Annotated[str, Depends(require_auth)]
@@ -95,7 +92,7 @@ async def venta_mp_status(vid: int, user: Auth):
 
 @router.get("/ventas/{vid}/ticket")
 def venta_ticket(vid: int, user: Auth):
-    import ticket_generator
+    from app import ticket_generator
     venta = db.get_venta(vid)
     if not venta:
         raise HTTPException(404)
@@ -109,7 +106,7 @@ def venta_ticket(vid: int, user: Auth):
 
 @router.get("/ventas/{vid}/recibo")
 def venta_recibo(vid: int, user: Auth):
-    import pdf_generator as pg
+    from app import pdf_generator as pg
     venta = db.get_venta(vid)
     if not venta:
         raise HTTPException(404)

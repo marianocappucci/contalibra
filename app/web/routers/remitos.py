@@ -1,14 +1,11 @@
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from typing import Annotated
 
-import database as db
-import pdf_generator as pdf_gen
-from web.auth import require_auth
+from app import database as db
+from app import pdf_generator as pdf_gen
+from app.web.auth import require_auth
 
 router = APIRouter()
 

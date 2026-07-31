@@ -1,13 +1,10 @@
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from typing import Annotated, Literal
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
-import database as db
-from web.auth import require_auth
+from app import database as db
+from app.web.auth import require_auth
 
 router = APIRouter()
 Auth = Annotated[str, Depends(require_auth)]

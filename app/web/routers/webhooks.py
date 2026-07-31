@@ -1,6 +1,3 @@
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 import hashlib
 import hmac
@@ -12,14 +9,14 @@ import logging
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-import database as db
-import config_manager
-import mp_api
-import email_sender
-import pdf_generator as pdf_gen
-import arca_wsaa
-import arca_wsfe
-import mp_facturacion
+from app import database as db
+from app import config_manager
+from app import mp_api
+from app import email_sender
+from app import pdf_generator as pdf_gen
+from app import arca_wsaa
+from app import arca_wsfe
+from app import mp_facturacion
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

@@ -6,12 +6,12 @@ import datetime
 import calendar
 import logging
 
-import database as db
-import config_manager
-import arca_wsaa
-import arca_wsfe
-import pdf_generator as pdf_gen
-import email_sender
+from app import database as db
+from app import config_manager
+from app import arca_wsaa
+from app import arca_wsfe
+from app import pdf_generator as pdf_gen
+from app import email_sender
 
 logger = logging.getLogger(__name__)
 

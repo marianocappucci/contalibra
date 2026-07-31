@@ -9,13 +9,13 @@ import os
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-import config_manager
-import database as db
-import pdf_generator as pdf_gen
-from web.api_auth import get_current_user_json
-from web.helpers.email_helper import send_comprobante, smtp_configurado
-from web.helpers.form_helper import calculate_totals
-from web.templates_config import _moneda
+from app import config_manager
+from app import database as db
+from app import pdf_generator as pdf_gen
+from app.web.api_auth import get_current_user_json
+from app.web.helpers.email_helper import send_comprobante, smtp_configurado
+from app.web.helpers.form_helper import calculate_totals
+from app.web.templates_config import _moneda
 
 router = APIRouter(prefix="/api/presupuestos", tags=["presupuestos"])
 

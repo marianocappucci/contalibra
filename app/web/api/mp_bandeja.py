@@ -14,12 +14,12 @@ import datetime
 import logging
 import os
 
-import database as db
-import config_manager
-import email_sender
-import mp_api
-import mp_facturacion
-import pdf_generator as pdf_gen
+from app import database as db
+from app import config_manager
+from app import email_sender
+from app import mp_api
+from app import mp_facturacion
+from app import pdf_generator as pdf_gen
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -270,7 +270,7 @@ def reenviar_email(factura_id: int):
     if not pdf_path or not os.path.exists(pdf_path):
         pdf_path = pdf_gen.generate_pdf_factura(factura)
 
-    from pdf_generator import _TIPO_LABELS
+    from app.pdf_generator import _TIPO_LABELS
     tipo_lb = _TIPO_LABELS.get(factura.get("tipo"), "Factura")
     pv_str = str(factura.get("punto_venta", 1)).zfill(4)
     num_str = str(factura.get("numero", 0)).zfill(8)

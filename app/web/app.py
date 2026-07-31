@@ -1,8 +1,6 @@
-import sys
 import os
 import re
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from fastapi import FastAPI, Request, Depends
 from fastapi.responses import RedirectResponse, JSONResponse
@@ -11,44 +9,44 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.base import BaseHTTPMiddleware
 import httpx
 
-import database as db
-import config_manager
-import arca_wsaa
-import arca_wspadron
-from security_headers import SecurityHeadersMiddleware
-from web.auth import require_auth, get_current_user
-from web.routers import remitos, presupuestos, facturas, config as config_router, webhooks
-from web.routers import productos as productos_router
-from web.routers import ventas as ventas_router
-from web.routers import logs as logs_router
-from web.routers import reportes as reportes_router
-from web.routers import libros_iva as libros_iva_router
-from web.api import auth as api_auth_router
-from web.api import dashboard as api_dashboard_router
-from web.api import clientes as api_clientes_router
-from web.api import productos as api_productos_router
-from web.api import listas_precio as api_listas_precio_router
-from web.api import proveedores as api_proveedores_router
-from web.api import egresos as api_egresos_router
-from web.api import usuarios as api_usuarios_router
-from web.api import config as api_config_router
-from web.api import depositos as api_depositos_router
-from web.api import stock as api_stock_router
-from web.api import cuenta_corriente as api_cc_router
-from web.api import tesoreria as api_tesoreria_router
-from web.api import caja as api_caja_router
-from web.api import cajas as api_cajas_router
-from web.api import turnos as api_turnos_router
-from web.api import ventas as api_ventas_router
-from web.api import facturas as api_facturas_router
-from web.api import remitos as api_remitos_router
-from web.api import presupuestos as api_presupuestos_router
-from web.api import mp_bandeja as api_mp_bandeja_router
-from web.api import libros_iva as api_libros_iva_router
-from web.api import reportes as api_reportes_router
-from web.api import logs as api_logs_router
-from web.api_auth import get_current_user_json, require_admin_json
-from web.modules_gate import require_module
+from app import database as db
+from app import config_manager
+from app import arca_wsaa
+from app import arca_wspadron
+from app.security_headers import SecurityHeadersMiddleware
+from app.web.auth import require_auth, get_current_user
+from app.web.routers import remitos, presupuestos, facturas, config as config_router, webhooks
+from app.web.routers import productos as productos_router
+from app.web.routers import ventas as ventas_router
+from app.web.routers import logs as logs_router
+from app.web.routers import reportes as reportes_router
+from app.web.routers import libros_iva as libros_iva_router
+from app.web.api import auth as api_auth_router
+from app.web.api import dashboard as api_dashboard_router
+from app.web.api import clientes as api_clientes_router
+from app.web.api import productos as api_productos_router
+from app.web.api import listas_precio as api_listas_precio_router
+from app.web.api import proveedores as api_proveedores_router
+from app.web.api import egresos as api_egresos_router
+from app.web.api import usuarios as api_usuarios_router
+from app.web.api import config as api_config_router
+from app.web.api import depositos as api_depositos_router
+from app.web.api import stock as api_stock_router
+from app.web.api import cuenta_corriente as api_cc_router
+from app.web.api import tesoreria as api_tesoreria_router
+from app.web.api import caja as api_caja_router
+from app.web.api import cajas as api_cajas_router
+from app.web.api import turnos as api_turnos_router
+from app.web.api import ventas as api_ventas_router
+from app.web.api import facturas as api_facturas_router
+from app.web.api import remitos as api_remitos_router
+from app.web.api import presupuestos as api_presupuestos_router
+from app.web.api import mp_bandeja as api_mp_bandeja_router
+from app.web.api import libros_iva as api_libros_iva_router
+from app.web.api import reportes as api_reportes_router
+from app.web.api import logs as api_logs_router
+from app.web.api_auth import get_current_user_json, require_admin_json
+from app.web.modules_gate import require_module
 
 app = FastAPI(title="Contalibra")
 
@@ -455,7 +453,13 @@ async def consultar_cuit(cuit: str, user: str = Depends(require_auth)):
 # ya fueron declarados, asi que el catch-all solo atrapa lo que ningun otro
 # endpoint respondio.
 _DOCKER_FRONTEND_DIST = "/opt/frontend-dist"
-_LOCAL_FRONTEND_DIST = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
+# Tres niveles arriba: app/web/app.py -> app/web -> app -> raiz del repo.
+# Eran dos cuando este archivo vivia en web/; al empaquetar (2026-07-31) se
+# sumo un nivel. Solo aplica al dev local sin Docker: en el contenedor gana
+# _DOCKER_FRONTEND_DIST.
+_LOCAL_FRONTEND_DIST = os.path.join(
+    os.path.dirname(__file__), "..", "..", "frontend", "dist"
+)
 FRONTEND_DIST = _DOCKER_FRONTEND_DIST if os.path.isdir(_DOCKER_FRONTEND_DIST) else _LOCAL_FRONTEND_DIST
 
 if os.path.isdir(FRONTEND_DIST):

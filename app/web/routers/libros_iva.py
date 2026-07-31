@@ -1,14 +1,11 @@
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 import datetime
 from fastapi import APIRouter, Depends
 from fastapi.responses import Response
 from typing import Annotated
 
-import database as db
-from web.auth import require_auth, require_role
+from app import database as db
+from app.web.auth import require_auth, require_role
 
 router = APIRouter(dependencies=[Depends(require_role("admin"))])
 Auth = Annotated[str, Depends(require_auth)]

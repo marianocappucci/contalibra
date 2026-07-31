@@ -8,8 +8,8 @@ import datetime
 
 from fastapi import APIRouter, Depends
 
-import database as db
-from web.api_auth import get_current_user_json
+from app import database as db
+from app.web.api_auth import get_current_user_json
 
 router = APIRouter(prefix="/api", tags=["dashboard"])
 

@@ -1,5 +1,5 @@
-import config_manager
-import email_sender
+from app import config_manager
+from app import email_sender
 
 
 def send_comprobante(

@@ -29,7 +29,7 @@ from libracommerce.db.repository import SqliteCommerceRepository
 from libracommerce.domain.catalog import CatalogItem, CatalogItemType, ItemCode, ItemCodeType, Unit
 from libracommerce.domain.inventory import Location
 
-from db_core import get_connection
+from app.db_core import get_connection
 
 _TIPO_A_ITEM_TYPE = {"producto": CatalogItemType.PRODUCT, "servicio": CatalogItemType.SERVICE}
 _ITEM_TYPE_A_TIPO = {v: k for k, v in _TIPO_A_ITEM_TYPE.items()}
@@ -187,7 +187,7 @@ def transferir_stock(producto_id: int, origen_id: int, destino_id: int,
     # módulo, así que a nivel de módulo sería circular. Se delega en vez de
     # armar el INSERT a mano para no duplicar el mapeo tipo -> movement_type/
     # reason_code ni volver a olvidarse de `note`/`created_by`.
-    from db_stock import add_movimiento_stock
+    from app.db_stock import add_movimiento_stock
     for tipo, deposito, delta in (
         ("transferencia_salida", origen_id, -cantidad),
         ("transferencia_entrada", destino_id, cantidad),

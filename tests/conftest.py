@@ -33,9 +33,10 @@ os.environ["DOCS_AUTH_SECRET"] = "docs-secret-suite"
 # que la suite ejerce el flujo de facturacion completo sin tocar ARCA.
 os.environ["ENV"] = "development"
 
-# El repo no es un paquete instalable (ver pyproject.toml): los modulos
-# viven en la raiz y se importan con el repo como cwd. pytest agrega
-# tests/ al sys.path, no la raiz -- se agrega aca.
+# La raiz del repo va al sys.path por `plans.py`, que quedo AFUERA del
+# paquete a proposito: libracore lo importa por nombre (`import plans`), y
+# `apply_plan` pasa por ahi. El paquete `app` en si no lo necesita -- se
+# instala con `pip install -e ".[dev]"` como el resto de la familia.
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
@@ -43,10 +44,10 @@ if _ROOT not in sys.path:
 import pytest
 from fastapi.testclient import TestClient
 
-import db_core
-import db_usuarios
-import database as db  # noqa: F401  (re-exporta todo el dominio)
-from web.app import app
+from app import db_core
+from app import db_usuarios
+from app import database as db  # noqa: F401  (re-exporta todo el dominio)
+from app.web.app import app
 
 ADMIN_USER = "admin"
 ADMIN_PASS = os.environ["ADMIN_PASSWORD"]

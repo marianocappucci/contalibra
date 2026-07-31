@@ -10,8 +10,8 @@ etapa de corte de la migracion. Mismo patron que gestiolibra/app/auth.py.
 """
 from fastapi import Depends, HTTPException, Request
 
-import database as db
-from web.auth import get_current_user as _get_username_from_cookie
+from app import database as db
+from app.web.auth import get_current_user as _get_username_from_cookie
 
 
 def get_current_user_json(request: Request) -> dict:

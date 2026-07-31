@@ -19,9 +19,9 @@ import tempfile
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
-import config_manager
-import database as db
-from web.routers.config import BACKUPS_DIR, CERTS_DIR, LOGO_DIR, _hacer_backup_automatico, _listar_backups
+from app import config_manager
+from app import database as db
+from app.web.routers.config import BACKUPS_DIR, CERTS_DIR, LOGO_DIR, _hacer_backup_automatico, _listar_backups
 
 router = APIRouter(prefix="/api/config", tags=["config"])
 

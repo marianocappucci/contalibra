@@ -17,14 +17,14 @@ import datetime
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 
-import config_manager
-import database as db
-import pdf_generator as pdf_gen
+from app import config_manager
+from app import database as db
+from app import pdf_generator as pdf_gen
 from libracore.facturas_borrador import armar_borrador
-from web.api_auth import get_current_user_json, require_role_json
-from web.helpers.arca_helper import get_next_numero_with_arca, solicitar_cae as _solicitar_cae
-from web.helpers.email_helper import send_comprobante, smtp_configurado
-from web.helpers.form_helper import calculate_totals
+from app.web.api_auth import get_current_user_json, require_role_json
+from app.web.helpers.arca_helper import get_next_numero_with_arca, solicitar_cae as _solicitar_cae
+from app.web.helpers.email_helper import send_comprobante, smtp_configurado
+from app.web.helpers.form_helper import calculate_totals
 
 router = APIRouter(prefix="/api/facturas", tags=["facturas"])
 
@@ -120,7 +120,7 @@ def _resolve_cliente(payload: FacturaPayload) -> dict:
 
 
 def _detalle(factura: dict) -> dict:
-    from pdf_generator import _CONCEPTO_LABELS, _IVA_LABELS, _TIPO_LABELS
+    from app.pdf_generator import _CONCEPTO_LABELS, _IVA_LABELS, _TIPO_LABELS
 
     es_factura = factura["tipo"] in (1, 6, 11)
     ncs = db.get_nc_de_factura(factura["tipo"], factura["punto_venta"], factura["numero"]) if es_factura else []
@@ -316,8 +316,8 @@ async def autorizar(factura_id: int):
     if not arca or not arca.get("certificado_path") or not arca.get("clave_path"):
         raise HTTPException(400, "ARCA no está configurado. Cargá los certificados en Configuración.")
 
-    import arca_wsaa
-    import arca_wsfe
+    from app import arca_wsaa
+    from app import arca_wsfe
     cert_path, clave_path = config_manager.resolve_cert_paths(arca["certificado_path"], arca["clave_path"])
     try:
         ta = await arca_wsaa.autenticar(cert_path, clave_path, arca["ambiente"])
@@ -338,7 +338,7 @@ def cobrar(factura_id: int, payload: CobroPayload, user: dict = Depends(get_curr
         raise HTTPException(404, "Factura no encontrada")
 
     fecha = payload.fecha or datetime.date.today().isoformat()
-    from pdf_generator import _TIPO_LABELS
+    from app.pdf_generator import _TIPO_LABELS
     tipo_label = _TIPO_LABELS.get(factura["tipo"], "Factura")
     pv = str(factura["punto_venta"]).zfill(4)
     num = str(factura["numero"]).zfill(8)
@@ -379,7 +379,7 @@ def enviar_email(factura_id: int, payload: EmailPayload):
         raise HTTPException(422, "Ingresá una dirección de email.")
 
     import os
-    from pdf_generator import _TIPO_LABELS
+    from app.pdf_generator import _TIPO_LABELS
     pdf_path = factura.get("pdf_path")
     if not pdf_path or not os.path.exists(pdf_path):
         pdf_path = pdf_gen.generate_pdf_factura(factura)

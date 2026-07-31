@@ -8,8 +8,8 @@ import datetime
 
 from fastapi import APIRouter
 
-import database as db
-from web.routers.reportes import _MEDIO_LABEL, _pivot_caja_medios, _totales_por_medio
+from app import database as db
+from app.web.routers.reportes import _MEDIO_LABEL, _pivot_caja_medios, _totales_por_medio
 
 router = APIRouter(prefix="/api/reportes", tags=["reportes"])
 

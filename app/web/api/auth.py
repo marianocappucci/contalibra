@@ -8,10 +8,10 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-import config_manager
-import database as db
-from web.api_auth import get_current_user_json
-from web.auth import check_credentials, clear_session_cookie, create_session_cookie, get_current_user
+from app import config_manager
+from app import database as db
+from app.web.api_auth import get_current_user_json
+from app.web.auth import check_credentials, clear_session_cookie, create_session_cookie, get_current_user
 
 router = APIRouter(prefix="/api", tags=["auth"])
 
