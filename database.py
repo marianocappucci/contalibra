@@ -277,6 +277,27 @@ def _migrar_ventas_pagos_a_sales(conn):
     if not row or "REFERENCES sales(" in row[0]:
         return
 
+    # Filas que no tienen su venta en `sales`. En una base al día no hay
+    # ninguna (P7 movió los datos preservando los ids) y en una base nueva
+    # la tabla está vacía. Aparecen sólo en un entorno a medio migrar: el
+    # código escribe en `sales` pero los datos viejos quedaron en `ventas`.
+    #
+    # NO se descartan: son registros de dinero. Se copian igual y se avisa,
+    # porque quedan referenciando una venta inexistente y eso tiene que ser
+    # una decisión de alguien, no un efecto silencioso de un deploy.
+    huerfanas = conn.execute("""
+        SELECT COUNT(*) FROM ventas_pagos vp
+        LEFT JOIN sales s ON s.id = vp.venta_id
+        WHERE s.id IS NULL
+    """).fetchone()[0]
+    if huerfanas:
+        print(
+            f"[ADVERTENCIA] ventas_pagos: {huerfanas} fila(s) referencian una venta "
+            "que no está en `sales` (entorno a medio migrar de P7). Se conservan "
+            "tal cual, pero quedan como referencias colgadas: revisar a mano.",
+            flush=True,
+        )
+
     # El pragma es por conexión y no se puede tocar dentro de una
     # transacción: se apaga, se reconstruye y se vuelve a encender.
     conn.execute("PRAGMA foreign_keys=OFF")
