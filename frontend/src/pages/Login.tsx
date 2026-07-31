@@ -7,4 +7,7 @@ export const Login = createLogin({
   redirectTo: '/dashboard',
   useAuth,
   formatError: (err) => err.detail,
+  // Enlace "¿Olvidaste tu contraseña?" -- va de la mano con los endpoints
+  // /api/forgot-password y /api/reset-password de web/api/auth.py.
+  forgotPasswordPath: '/forgot-password',
 })
