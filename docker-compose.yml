@@ -20,6 +20,7 @@ services:
         - default=${LIBRACORE_SSH_KEY:-~/.ssh/id_ed25519_libracore}
         - libracore=${LIBRACORE_SSH_KEY:-~/.ssh/id_ed25519_libracore}
         - libracommerce=${LIBRACOMMERCE_SSH_KEY:-~/.ssh/id_ed25519_libracommerce}
+        - libraauth=${LIBRAAUTH_SSH_KEY:-~/.ssh/id_ed25519_libraauth}
         - libra-ui=${LIBRA_UI_SSH_KEY:-~/.ssh/id_ed25519_libra_ui}
     container_name: contalibra-dev
     restart: unless-stopped
@@ -40,7 +41,7 @@ services:
       - "8071:8000"
     volumes:
       - ./:/app
-    command: uvicorn web.app:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.asgi:app --host 0.0.0.0 --port 8000 --reload
     environment:
       - SECRET_KEY=${SECRET_KEY:-contalibra-dev-secret}
       - ADMIN_USER=${ADMIN_USER:-admin}
@@ -49,6 +50,16 @@ services:
       - DATA_DIR=/app/dev-data
       - ENV=development
       - DOCS_AUTH_SECRET=${DOCS_AUTH_SECRET:-}
+      # Recuperacion de contrasena (libraauth v0.5.0). Sin SMTP la app
+      # levanta igual y POST /api/forgot-password devuelve 503: cargar
+      # estas variables es lo unico que falta para que mande mails.
+      - CONTALIBRA_RESET_URL_BASE=${CONTALIBRA_RESET_URL_BASE:-https://dev.contalibra.com.ar/reset-password}
+      - LIBRAAUTH_SMTP_HOST=${LIBRAAUTH_SMTP_HOST:-}
+      - LIBRAAUTH_SMTP_PORT=${LIBRAAUTH_SMTP_PORT:-587}
+      - LIBRAAUTH_SMTP_USER=${LIBRAAUTH_SMTP_USER:-}
+      - LIBRAAUTH_SMTP_PASSWORD=${LIBRAAUTH_SMTP_PASSWORD:-}
+      - LIBRAAUTH_SMTP_FROM_EMAIL=${LIBRAAUTH_SMTP_FROM_EMAIL:-}
+      - LIBRAAUTH_SMTP_FROM_NAME=${LIBRAAUTH_SMTP_FROM_NAME:-Contalibra}
     networks:
       - stack-net
 
