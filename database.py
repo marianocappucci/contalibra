@@ -5,6 +5,7 @@
 # existentes (`db.get_connection()`, `db.DB_PATH`, `db.create_usuario(...)`,
 # etc.) no cambien una línea.
 from libracore.db.schema import init_core_schema
+from libracore.db.clients import sincronizar_parties_de_clientes
 from libracommerce.db.schema import init_schema as init_commerce_schema
 from db_core import _AR_TZ, _ar_now, _DATA_DIR, DB_PATH, get_connection  # noqa: F401
 from db_usuarios import (  # noqa: F401
@@ -250,6 +251,58 @@ from db_ventas import (  # noqa: F401
 )
 
 
+def _migrar_ventas_pagos_a_sales(conn):
+    """Repunta la FK de `ventas_pagos` de `ventas(id)` (schema de LibraCore)
+    a `sales(id)` (LibraCommerce), que es donde viven las ventas de
+    Contalibra desde P7.
+
+    El schema compartido de LibraCore crea la tabla con `REFERENCES
+    ventas(id)` — correcto para Restolibra, pero acá cada INSERT de un pago
+    fallaba con FOREIGN KEY constraint (el pragma foreign_keys está activo
+    por conexión desde libracore). En la base del cliente real la FK ya se
+    repuntó durante P7; esta migración existe para los otros dos casos, que
+    la suite encontró rotos el 2026-07-30: la base de dev del VPS (quedó con
+    la FK vieja) y cualquier instalación desde cero (init_db recreaba la FK
+    vieja). Idempotente: si la FK ya apunta a `sales`, no hace nada.
+
+    `ventas_pagos` no tiene tablas hijas (verificado en los schemas de los
+    dos motores), así que el rebuild no pisa la trampa del RENAME de SQLite
+    que reescribe las FK de las hijas (ver P8 de Restolibra). Los ids de
+    `sales` preservan los de la vieja `ventas` (así migró P7), por lo que
+    las filas copiadas siguen siendo válidas contra la tabla nueva.
+    """
+    row = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='ventas_pagos'"
+    ).fetchone()
+    if not row or "REFERENCES sales(" in row[0]:
+        return
+
+    # El pragma es por conexión y no se puede tocar dentro de una
+    # transacción: se apaga, se reconstruye y se vuelve a encender.
+    conn.execute("PRAGMA foreign_keys=OFF")
+    try:
+        conn.execute("ALTER TABLE ventas_pagos RENAME TO ventas_pagos_old")
+        conn.execute("""
+            CREATE TABLE ventas_pagos (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                venta_id   INTEGER NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
+                medio      TEXT NOT NULL,
+                monto      REAL NOT NULL,
+                referencia TEXT DEFAULT '',
+                created_at TEXT DEFAULT (datetime('now'))
+            )
+        """)
+        conn.execute("""
+            INSERT INTO ventas_pagos (id, venta_id, medio, monto, referencia, created_at)
+            SELECT id, venta_id, medio, monto, referencia, created_at
+            FROM ventas_pagos_old
+        """)
+        conn.execute("DROP TABLE ventas_pagos_old")
+        conn.commit()
+    finally:
+        conn.execute("PRAGMA foreign_keys=ON")
+
+
 def init_db():
     with get_connection() as conn:
         init_core_schema(conn)
@@ -258,6 +311,20 @@ def init_db():
         # el resto de Contalibra, a propósito: `crear_venta_directa` cruza
         # ambos motores en una única transacción atómica.
         init_commerce_schema(conn)
+        _migrar_ventas_pagos_a_sales(conn)
+
+        # Depósito por defecto: LibraCore hace el equivalente con la caja
+        # (schema.py seed-ea una con es_default=1), pero LibraCommerce no
+        # seed-ea ninguna location — y sin al menos una, cualquier
+        # movimiento de stock revienta con NOT NULL location_id (lo
+        # encontró la suite el 2026-07-30 sobre una base desde cero). Solo
+        # si no existe ninguna: las instancias reales ya tienen las suyas.
+        existe_location = conn.execute("SELECT 1 FROM locations LIMIT 1").fetchone()
+        if not existe_location:
+            conn.execute(
+                "INSERT INTO locations (name, description, is_default, active)"
+                " VALUES ('Depósito principal', '', 1, 1)"
+            )
 
         # Referencias cruzadas entre la venta (LibraCommerce) y contextos que
         # no son suyos: facturación/remitos y turno de caja (LibraCore) y
@@ -302,6 +369,16 @@ def init_db():
                 "INSERT OR IGNORE INTO modulos (modulo, habilitado, plan) VALUES (?,?,?)",
                 (modulo, habilitado, plan),
             )
+        conn.commit()
+
+    # Backfill de los `parties` espejo de `clients` (libracore v1.2.0). Va
+    # al final y FUERA del `with`: necesita que `init_commerce_schema` ya
+    # haya creado `parties`, y abre su propia conexión (con la de arriba
+    # todavía en transacción daría "database is locked"). Cubre a los
+    # clientes creados entre P7 y este fix, que quedaron sin party — sin
+    # espejo, venderles falla con FOREIGN KEY constraint (ver
+    # libracore/db/clients.py). Idempotente: en una base al día no hace nada.
+    sincronizar_parties_de_clientes()
 
 
 # ── Clients ── movido a db_clients.py, re-exportado arriba ────────────────────
