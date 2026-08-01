@@ -11,6 +11,8 @@
 // dominio propios de Contalibra.
 export { ApiError, api } from 'libra-ui/api-client'
 
+import type { OpcionSelect } from 'libra-ui/SelectBuscable'
+
 export type User = {
   username: string
   nombre: string
@@ -643,4 +645,43 @@ export type DashboardData = {
   facturas_sin_cobrar: FacturaSinCobrar[]
   presupuestos_pendientes: PresupuestoPendiente[]
   ultimos_movimientos: MovimientoCaja[]
+}
+
+// --- opciones para los selects con busqueda (libra-ui/SelectBuscable) ------
+//
+// Viven aca, junto a los tipos, para que las cuatro pantallas que eligen un
+// cliente lo muestren y lo busquen igual. El `hint` no es decorativo: ademas
+// de desambiguar dos clientes de nombre parecido, **entra en la busqueda**.
+//
+// En un sistema de facturacion el CUIT es el mejor discriminador: es lo que
+// suele tenerse a mano del papel, y dos clientes pueden llamarse casi igual.
+
+export function opcionesCliente(clientes: Cliente[]): OpcionSelect[] {
+  return clientes.map((c) => ({
+    value: String(c.id),
+    label: c.name,
+    hint: [c.cuit_dni, c.activo ? null : 'inactivo'].filter(Boolean).join(' · ') || undefined,
+  }))
+}
+
+export function opcionesProveedor(proveedores: Proveedor[]): OpcionSelect[] {
+  return proveedores.map((p) => ({
+    value: String(p.id),
+    label: p.nombre,
+    hint: p.cuit_dni || undefined,
+  }))
+}
+
+// Tipado estructural y no : Stock.tsx trabaja con ,
+// que trae los mismos cuatro campos sin ser el mismo tipo.
+export function opcionesProducto(
+  productos: { id: number; nombre: string; codigo?: string | null; categoria?: string }[],
+): OpcionSelect[] {
+  return productos.map((p) => ({
+    value: String(p.id),
+    // El codigo es lo que se tipea cuando se lo sabe de memoria, y lo que
+    // esta impreso en la etiqueta o en la lista de precios del proveedor.
+    label: p.nombre,
+    hint: [p.codigo, p.categoria].filter(Boolean).join(' · ') || undefined,
+  }))
 }

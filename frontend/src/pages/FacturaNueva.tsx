@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { api, ApiError, type Cliente, type Factura, type ProductoBusqueda, type TipoFactura } from '../api'
+import { api, ApiError, type Cliente, type Factura, type ProductoBusqueda, type TipoFactura,
+  opcionesCliente,
+} from '../api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,6 +11,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { Eye, Plus, Receipt, Trash2 } from 'lucide-react'
+import { SelectBuscable } from 'libra-ui/SelectBuscable'
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10)
@@ -220,12 +223,14 @@ export function FacturaNueva() {
             <div className="flex flex-wrap items-end gap-3">
               <div className="grid gap-1.5">
                 <Label>Cliente</Label>
-                <Select value={clienteId} onValueChange={(v) => { setClienteId(v); setClienteNombreLibre('') }}>
-                  <SelectTrigger className="w-52"><SelectValue placeholder="Elegir cliente…" /></SelectTrigger>
-                  <SelectContent>
-                    {clientes.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <SelectBuscable
+                  value={clienteId}
+                  onChange={(v) => { setClienteId(v); setClienteNombreLibre('') }}
+                  opciones={opcionesCliente(clientes)}
+                  placeholder="Elegir cliente…"
+                  ariaLabel="Cliente"
+                  className="w-52"
+                />
               </div>
               {!clienteId && (
                 <div className="grid gap-1.5"><Label>o nombre libre</Label><Input value={clienteNombreLibre} onChange={(e) => setClienteNombreLibre(e.target.value)} className="w-48" placeholder="Consumidor Final" /></div>

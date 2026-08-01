@@ -4,6 +4,7 @@ import { type ColumnDef } from '@tanstack/react-table'
 import {
   api, ApiError, IVA_CONDITIONS, MEDIOS_PAGO_LABELS,
   type Cliente, type ListaPrecio, type ProductoBusqueda, type Venta,
+  opcionesCliente,
 } from '../api'
 import { useAuth } from '../context/AuthContext'
 import { Card, CardContent } from '@/components/ui/card'
@@ -19,6 +20,7 @@ import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose,
 } from '@/components/ui/dialog'
 import { anchoColumnaAcciones, DataTable, sortableHeader } from 'libra-ui/data-table'
+import { SelectBuscable } from 'libra-ui/SelectBuscable'
 import {
   ShoppingCart, Plus, Printer, FileCheck, Ban, ReceiptText, ListChecks, UserPlus, X, CheckCircle2,
 } from 'lucide-react'
@@ -319,12 +321,14 @@ export function Ventas() {
                 <div className="grid gap-1.5">
                   <Label>Cliente</Label>
                   <div className="flex items-center gap-1">
-                    <Select value={clienteId} onValueChange={setClienteId}>
-                      <SelectTrigger className="w-52"><SelectValue placeholder="Consumidor Final" /></SelectTrigger>
-                      <SelectContent>
-                        {clientes.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <SelectBuscable
+                      value={clienteId}
+                      onChange={setClienteId}
+                      opciones={opcionesCliente(clientes)}
+                      placeholder="Consumidor Final"
+                      ariaLabel="Cliente"
+                      className="w-52"
+                    />
                     <Button type="button" size="icon" variant="outline" title="Agregar nuevo cliente" onClick={() => setNuevoCliente((v) => !v)}>
                       <UserPlus />
                     </Button>

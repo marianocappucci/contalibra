@@ -7,6 +7,7 @@ import { z } from 'zod'
 import {
   api, ApiError, TIPOS_COMPROBANTE,
   type CategoriaEgreso, type Egreso, type Proveedor, type ResumenEgresos,
+  opcionesProveedor,
 } from '../api'
 import { Card, CardContent, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -24,6 +25,7 @@ import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from '@/components/ui/form'
 import { anchoColumnaAcciones, DataTable, sortableHeader } from 'libra-ui/data-table'
+import { SelectBuscable } from 'libra-ui/SelectBuscable'
 import {
   ArrowUpCircle, CheckCircle2, Eye, Filter, Hourglass, Plus, X,
 } from 'lucide-react'
@@ -294,12 +296,16 @@ export function Egresos() {
               <FormField control={form.control} name="proveedor_id" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Proveedor</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <FormControl><SelectTrigger className="w-48"><SelectValue placeholder="Sin proveedor / ocasional" /></SelectTrigger></FormControl>
-                    <SelectContent>
-                      {proveedores.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.nombre}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <SelectBuscable
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      opciones={opcionesProveedor(proveedores)}
+                      placeholder="Sin proveedor / ocasional"
+                      ariaLabel="Proveedor"
+                      className="w-48"
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
