@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   api, ApiError, type Deposito, type Producto, type StockPorDeposito,
+  opcionesProducto,
 } from '../api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -11,6 +12,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { ArrowLeft, ArrowLeftRight, Info } from 'lucide-react'
+import { SelectBuscable } from 'libra-ui/SelectBuscable'
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10)
@@ -85,12 +87,14 @@ export function DepositoTransferencia() {
           <CardContent className="grid gap-4">
             <div className="grid gap-1.5">
               <Label>Producto <span className="text-destructive">*</span></Label>
-              <Select value={productoId} onValueChange={setProductoId}>
-                <SelectTrigger><SelectValue placeholder="— Seleccioná un producto —" /></SelectTrigger>
-                <SelectContent>
-                  {productos.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.nombre}{p.codigo ? ` (${p.codigo})` : ''}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <SelectBuscable
+                value={productoId}
+                onChange={setProductoId}
+                opciones={opcionesProducto(productos)}
+                placeholder="— Seleccioná un producto —"
+                ariaLabel="Producto"
+                className="w-full"
+              />
             </div>
 
             {stockOrigen.length > 0 && (

@@ -1,20 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { type ColumnDef } from '@tanstack/react-table'
-import { api, ApiError, type MovimientoStock, type StockItem } from '../api'
+import { api, ApiError, type MovimientoStock, type StockItem,
+  opcionesProducto,
+} from '../api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select'
-import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogClose,
 } from '@/components/ui/dialog'
 import { anchoColumnaAcciones, DataTable, sortableHeader } from 'libra-ui/data-table'
 import { formatEntero } from '@/lib/utils'
+import { SelectBuscable } from 'libra-ui/SelectBuscable'
 import {
   Archive, AlertTriangle, Pencil, History, RefreshCw, ArrowDownToLine, ArrowUpFromLine,
   ShoppingCart, RotateCcw, X, Filter,
@@ -355,13 +355,16 @@ export function Stock() {
           <CardHeader><CardTitle className="flex items-center gap-2 text-base"><History className="size-4" />Movimientos de stock</CardTitle></CardHeader>
           <CardContent className="grid gap-3">
             <div className="flex flex-wrap items-end gap-2">
-              <Select value={movFiltroProducto || 'todos'} onValueChange={(v) => setMovFiltroProducto(v === 'todos' ? '' : v)}>
-                <SelectTrigger className="w-56"><SelectValue placeholder="— Todos los productos —" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">— Todos los productos —</SelectItem>
-                  {productos.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.nombre}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <SelectBuscable
+                value={movFiltroProducto || 'todos'}
+                onChange={(v) => setMovFiltroProducto(v === 'todos' ? '' : v)}
+                opciones={[
+                  { value: 'todos', label: '— Todos los productos —' },
+                  ...opcionesProducto(productos),
+                ]}
+                ariaLabel="Filtrar por producto"
+                className="w-56"
+              />
               <Input type="date" value={movDesde} onChange={(e) => setMovDesde(e.target.value)} className="w-40" />
               <Input type="date" value={movHasta} onChange={(e) => setMovHasta(e.target.value)} className="w-40" />
               <Button size="sm" variant="outline" onClick={cargarMovimientos}><Filter />Filtrar</Button>

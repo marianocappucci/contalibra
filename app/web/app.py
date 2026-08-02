@@ -45,7 +45,9 @@ from app.web.api import mp_bandeja as api_mp_bandeja_router
 from app.web.api import libros_iva as api_libros_iva_router
 from app.web.api import reportes as api_reportes_router
 from app.web.api import logs as api_logs_router
-from app.web.api_auth import get_current_user_json, require_admin_json
+from app.web.api_auth import (  # noqa: F401
+    get_current_user_json, require_admin_json, require_admin_o_servicio_json,
+)
 from app.web.modules_gate import require_module
 
 app = FastAPI(title="Contalibra")
@@ -171,8 +173,17 @@ app.include_router(
     dependencies=[_auth_json, Depends(require_module("egresos"))],
 )
 app.include_router(
+    # Acepta ADEMAS el token de servicio (libraauth v0.7.0): es lo que le
+    # permite al backoffice de la suite (admin.contalibra.com.ar) administrar
+    # los usuarios de esta instancia sin ser usuario de ella.
     api_usuarios_router.router,
-    dependencies=[Depends(require_admin_json)],
+    dependencies=[Depends(require_admin_o_servicio_json)],
+)
+app.include_router(
+    # Solo el correo saliente, no todo `/api/config` — ver el comentario en
+    # web/api/config.py sobre por que es un router aparte.
+    api_config_router.smtp_router,
+    dependencies=[Depends(require_admin_o_servicio_json)],
 )
 app.include_router(
     api_config_router.router,
