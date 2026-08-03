@@ -8,7 +8,7 @@
 //
 // El mock sigue el tipo `FacturaDetalle` de src/api.ts. Si ese tipo cambia y
 // esto no, el test deberia ponerse rojo aca y no en el navegador.
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../App'
