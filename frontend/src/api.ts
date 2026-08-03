@@ -13,6 +13,18 @@ export { ApiError, api } from 'libra-ui/api-client'
 
 import type { OpcionSelect } from 'libra-ui/SelectBuscable'
 
+// Dominio de facturacion: vive en libra-ui/facturas, compartido con el otro
+// producto que emite comprobantes. Se re-exporta desde aca para que los
+// archivos que ya lo importaban de este modulo sigan andando sin cambios
+// (mismo patron que `cn` en lib/utils.ts).
+export { MEDIOS_PAGO_LABELS } from 'libra-ui/facturas'
+export type {
+  BorradorDuplicado, Caja, Factura, FacturaDetalle, FacturaItem,
+} from 'libra-ui/facturas'
+// El `export type ... from` re-exporta pero NO trae el nombre al ambito de
+// este modulo, y aca abajo hay tipos propios que usan `Factura`.
+import type { Factura } from 'libra-ui/facturas'
+
 export type User = {
   username: string
   nombre: string
@@ -185,22 +197,6 @@ export type PagoEgreso = {
   referencia: string
 }
 
-export type Caja = {
-  id: number
-  nombre: string
-  es_default: number
-  medios_pago: string[]
-}
-
-export const MEDIOS_PAGO_LABELS: Record<string, string> = {
-  efectivo: 'Efectivo',
-  transferencia: 'Transferencia',
-  mercadopago: 'Mercado Pago',
-  cuenta_dni: 'Cuenta DNI',
-  billetera: 'Otras billeteras',
-  cuenta_corriente: 'Cuenta corriente',
-  cheque: 'Cheque',
-}
 
 export const TIPOS_COMPROBANTE = [
   { id: 'factura', label: 'Factura' },
@@ -419,69 +415,9 @@ export type Venta = {
 
 export type ProductoBusqueda = { id: number; codigo: string; nombre: string; precio_venta: number; unidad: string }
 
-export type FacturaItem = { description: string; qty: number; unit_price: number; subtotal: number }
-
-export type Factura = {
-  id: number
-  tipo: number
-  punto_venta: number
-  numero: number
-  fecha: string
-  cliente_cuit: string
-  cliente_razon: string
-  cliente_domicilio?: string
-  items: FacturaItem[]
-  subtotal: number
-  iva_amount: number
-  total: number
-  concepto: number
-  cae: string
-  cae_vto: string
-  observaciones: string
-  condicion_venta: string
-  total_cobrado?: number
-  cbte_asoc_tipo?: number
-  cbte_asoc_pv?: number
-  cbte_asoc_nro?: number
-  fch_serv_desde?: string
-  fch_serv_hasta?: string
-  fch_vto_pago?: string
-}
-
-export type FacturaDetalle = {
-  factura: Factura
-  tipo_label: string
-  concepto_label: string
-  iva_label: string
-  notas_credito: Factura[]
-  notas_debito: Factura[]
-  factura_original: Factura | null
-  cobros: { id: number; monto: number; medio_pago: string; fecha: string; referencia: string }[]
-  total_cobrado: number
-  pendiente: number
-  cliente_email: string
-}
 
 export type TipoFactura = { value: number; label: string }
 
-// Borrador para emitir una copia de un comprobante (POST
-// /api/facturas/{id}/duplicar). Lo arma el backend con
-// `libracore.facturas_borrador`, incluido el recalculo de las fechas de
-// servicio y del vencimiento de pago para la fecha de hoy.
-export type BorradorDuplicado = {
-  tipo: number
-  punto_venta: number
-  concepto: number
-  condicion_venta: string
-  tax_rate: number
-  client_id: number | null
-  client_name: string
-  observations: string
-  items: { description: string; qty: number; unit_price: number }[]
-  fch_serv_desde: string
-  fch_serv_hasta: string
-  fch_vto_pago: string
-}
 
 export type Remito = {
   id: number
