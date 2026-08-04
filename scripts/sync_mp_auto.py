@@ -122,12 +122,22 @@ async def sync_and_invoice(dias: int = 2) -> dict:
         nuevos += 1
         logger.info("Nuevo pago: %s | $%.2f | %s", payment_id, monto, origen_nombre or "sin nombre")
 
-        # Buscar cliente por email o CUIT normalizado
-        client = (
-            db.get_client_by_email(payer_email) if payer_email else None
-        ) or (
-            db.get_client_by_cuit(payer_id_number) if payer_id_number else None
-        )
+        # Resolver el cliente SIEMPRE por `resolver_cliente_pago`: primero el
+        # alias de facturacion (la excepcion que el usuario configuro para este
+        # CUIT/email de pagador) y recien despues el match directo. Este script
+        # es el cuarto camino que factura un pago de MP -- los otros tres
+        # (webhook, "Facturar" de un pago, "Facturar" de un movimiento) ya
+        # pasaban por aca, y este se quedo afuera cuando se agregaron los alias
+        # el 2026-07-13.
+        #
+        # No es teorico: `get_client_by_email` desempata con `id DESC`, asi que
+        # ante dos clientes con el mismo email gana el mas nuevo, que suele ser
+        # justamente el placeholder "Consumidor Final" sin CUIT que creo el
+        # fallback de `generar_factura_mp`. Paso dos veces -- RIPEHO facturada a
+        # PATRICIA SCOVENNA (0005-36, anulada con la NC 0005-4), y VISCO
+        # facturado a su propio email sin razon social ni CUIT (0005-50), tres
+        # semanas despues de que el alias existiera para impedirlo.
+        client = db.resolver_cliente_pago(payer_email, payer_id_number)
 
         es_hosting    = descripcion.lower().startswith("hosting mensual")
         auto_facturar = client and client.get("auto_facturar")
