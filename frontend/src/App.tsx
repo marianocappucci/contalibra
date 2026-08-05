@@ -39,6 +39,7 @@ import { Remitos } from './pages/Remitos'
 import { RemitoNuevo } from './pages/RemitoNuevo'
 import { RemitoDetalle } from './pages/RemitoDetalle'
 import { Presupuestos } from './pages/Presupuestos'
+import { Recibos } from './pages/Recibos'
 import { PresupuestoForm } from './pages/PresupuestoForm'
 import { PresupuestoDetalle } from './pages/PresupuestoDetalle'
 import { MpBandeja } from './pages/MpBandeja'
@@ -216,6 +217,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <CuentaCorrienteDetalle />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/recibos"
+        element={
+          <ProtectedRoute>
+            <Recibos />
           </ProtectedRoute>
         }
       />

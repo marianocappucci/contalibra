@@ -33,6 +33,7 @@ from app.web.api import config as api_config_router
 from app.web.api import depositos as api_depositos_router
 from app.web.api import stock as api_stock_router
 from app.web.api import cuenta_corriente as api_cc_router
+from app.web.api import recibos as api_recibos_router
 from app.web.api import tesoreria as api_tesoreria_router
 from app.web.api import caja as api_caja_router
 from app.web.api import cajas as api_cajas_router
@@ -200,6 +201,13 @@ app.include_router(
 app.include_router(
     api_cc_router.router,
     dependencies=[_auth_json, Depends(require_module("cuenta_corriente"))],
+)
+app.include_router(
+    # Sin `require_module` a proposito: un recibo nace de una factura, de una
+    # venta o de un pago de cuenta corriente, asi que gatearlo por uno de esos
+    # tres modulos dejaria sin reimpresion a los otros dos.
+    api_recibos_router.router,
+    dependencies=[_auth_json],
 )
 app.include_router(
     api_tesoreria_router.router,

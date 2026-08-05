@@ -7,9 +7,18 @@ from app import database as db
 from app import config_manager
 from app import mp_api
 from app.web.auth import require_auth
+from libracore.pdf_generator import generate_pdf_recibo_doc
+from libracore.recibos import SinCobros
 
 router = APIRouter()
 Auth = Annotated[str, Depends(require_auth)]
+
+
+def _usuario_id(username: str):
+    """`require_auth` devuelve el username, no el usuario — ver la nota igual
+    en `routers/facturas.py`."""
+    usuario = db.get_usuario_by_username(username)
+    return usuario["id"] if usuario else None
 
 # Las paginas Jinja2 de este router (list/nueva/detail/anular) se
 # removieron en el corte de la migracion a React -- ver
@@ -106,34 +115,22 @@ def venta_ticket(vid: int, user: Auth):
 
 @router.get("/ventas/{vid}/recibo")
 def venta_recibo(vid: int, user: Auth):
-    from app import pdf_generator as pg
-    venta = db.get_venta(vid)
-    if not venta:
-        raise HTTPException(404)
-    factura_like = {
-        "tipo":            None,
-        "punto_venta":     0,
-        "numero":          venta["id"],
-        "fecha":           venta.get("fecha", ""),
-        "cliente_razon":   venta.get("cliente_nombre") or "Consumidor Final",
-        "cliente_cuit":    venta.get("cliente_cuit", ""),
-        "cliente_domicilio": "",
-        "total":           venta.get("total", 0),
-        "_es_venta":       True,
-        "_venta_numero":   venta.get("numero", venta["id"]),
-    }
-    cobros = [
-        {
-            "fecha":      venta.get("fecha", ""),
-            "medio_pago": p.get("medio", ""),
-            "referencia": p.get("referencia", ""),
-            "monto":      float(p.get("monto", 0)),
-        }
-        for p in venta.get("pagos", [])
-    ]
-    pdf_bytes = pg.generate_pdf_recibo(factura_like, cobros)
+    """El recibo de una venta, como **documento numerado**.
+
+    Este link lo arman `Ventas.tsx` y `VentaDetalle.tsx`, así que no se puede
+    mover: lo que cambia es lo que devuelve. Se fue con el cambio todo el
+    armado del `factura_like` — el motor sabe leer una venta directamente, y
+    esa traducción a mano era la que hacía falta cuando el PDF se generaba al
+    vuelo desde una factura.
+    """
+    try:
+        recibo = db.emitir_recibo_venta(vid, usuario_id=_usuario_id(user))
+    except SinCobros as exc:
+        raise HTTPException(404, detail=str(exc))
+    pv  = str(recibo["punto_venta"]).zfill(4)
+    num = str(recibo["numero"]).zfill(8)
     return Response(
-        content=pdf_bytes,
+        content=generate_pdf_recibo_doc(recibo),
         media_type="application/pdf",
-        headers={"Content-Disposition": f'inline; filename="recibo_venta_{vid}.pdf"'},
+        headers={"Content-Disposition": f'inline; filename="recibo_{pv}-{num}.pdf"'},
     )
