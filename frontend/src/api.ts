@@ -313,6 +313,30 @@ export type MovimientoCC = {
   factura_id: number | null
 }
 
+// Recibo emitido (libracore >= v1.9.0). `numero_visible` viene armado del
+// backend con el formato 0001-00000001 -- el front no lo compone, para que el
+// numero del papel y el de la pantalla no puedan divergir.
+export type Recibo = {
+  id: number
+  numero_visible: string
+  fecha: string
+  cliente_id: number | null
+  cliente_razon: string
+  cliente_cuit: string
+  concepto: string
+  origen_tipo: 'factura' | 'venta' | 'cc_pago'
+  origen_id: number | null
+  total: number
+  anulado: boolean
+  anulado_motivo: string
+}
+
+export const ORIGEN_RECIBO_LABELS: Record<string, string> = {
+  factura: 'Factura',
+  venta: 'Venta',
+  cc_pago: 'Cuenta corriente',
+}
+
 export type CuentaTesoreria = {
   id: number
   nombre: string

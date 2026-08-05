@@ -125,6 +125,15 @@ from app.db_cuenta_corriente import (  # noqa: F401
     create_cc_pago,
     delete_cc_pago,
 )
+from app.db_recibos import (  # noqa: F401
+    anular_recibo,
+    contar_recibos,
+    emitir_recibo_cobranza,
+    emitir_recibo_factura,
+    emitir_recibo_venta,
+    get_recibo,
+    get_recibos,
+)
 from app.db_libros_iva import get_facturas_para_iva, get_egresos_para_iva  # noqa: F401
 from app.db_reportes import (  # noqa: F401
     get_reporte_ventas,
