@@ -20,7 +20,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { anchoColumnaAcciones, DataTable } from 'libra-ui/data-table'
 import {
   ArrowLeft, BookOpen, CircleDollarSign, Trash2, ArrowUpCircle, ArrowDownCircle,
-  ShoppingCart, Receipt, User,
+  ShoppingCart, Receipt, ReceiptText, User,
 } from 'lucide-react'
 
 function todayIso(): string {
@@ -97,18 +97,42 @@ export function CuentaCorrienteDetalle() {
     if (!monto) return
     setPagando(true)
     setError(null)
+    // La ventana se abre ANTES del await: si se abriera con la respuesta, el
+    // navegador la trataría como popup no pedido por el usuario y la
+    // bloquearía. Se abre en blanco y después se le pone la URL.
+    const ventana = window.open('', '_blank')
     try {
-      const data = await api.post<{ movimientos: MovimientoCC[]; saldo: number }>(`/api/cuenta-corriente/${clienteId}/pagar`, {
+      const data = await api.post<{ movimientos: MovimientoCC[]; saldo: number; recibo_id: number | null }>(`/api/cuenta-corriente/${clienteId}/pagar`, {
         monto: Number(monto), fecha, concepto: concepto || 'Pago a cuenta', referencia,
         medio_pago: medioPago, caja_id: cajaId ? Number(cajaId) : null,
       })
       setMovimientos(data.movimientos)
       setSaldo(data.saldo)
       setPagoOpen(false)
+      // El cobro ya está registrado aunque el recibo no haya salido (el backend
+      // no revierte por eso). Si no vino id, se cierra la ventana en vez de
+      // dejarla en blanco — el botón por movimiento lo reintenta.
+      if (data.recibo_id) ventana!.location.href = `/api/recibos/${data.recibo_id}/pdf`
+      else ventana?.close()
     } catch (err) {
+      ventana?.close()
       setError(describeError(err))
     } finally {
       setPagando(false)
+    }
+  }
+
+  async function verRecibo(ccPagoId: number) {
+    const ventana = window.open('', '_blank')
+    setError(null)
+    try {
+      // Idempotente: emite el recibo si el pago todavía no tiene uno, y
+      // devuelve el que ya existía si lo tiene. Por eso alcanza un solo botón.
+      const recibo = await api.post<{ id: number }>(`/api/recibos/cobranza/${ccPagoId}`, {})
+      ventana!.location.href = `/api/recibos/${recibo.id}/pdf`
+    } catch (err) {
+      ventana?.close()
+      setError(describeError(err))
     }
   }
 
@@ -181,12 +205,15 @@ export function CuentaCorrienteDetalle() {
     {
       id: 'actions',
       header: '',
-      size: anchoColumnaAcciones(1),
-      minSize: anchoColumnaAcciones(1),
+      size: anchoColumnaAcciones(2),
+      minSize: anchoColumnaAcciones(2),
       cell: ({ row }) => (
-        row.original.cc_pago_id && user?.role === 'admin' ? (
-          <div className="flex justify-end">
-            <Button size="icon" variant="ghost" title="Eliminar pago" aria-label="Eliminar pago" onClick={() => setConfirmDeletePago(row.original.cc_pago_id!)}><Trash2 /></Button>
+        row.original.cc_pago_id ? (
+          <div className="flex justify-end gap-1">
+            <Button size="icon" variant="ghost" title="Ver recibo" aria-label="Ver recibo" onClick={() => verRecibo(row.original.cc_pago_id!)}><ReceiptText /></Button>
+            {user?.role === 'admin' && (
+              <Button size="icon" variant="ghost" title="Eliminar pago" aria-label="Eliminar pago" onClick={() => setConfirmDeletePago(row.original.cc_pago_id!)}><Trash2 /></Button>
+            )}
           </div>
         ) : null
       ),

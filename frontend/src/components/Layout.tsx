@@ -1,7 +1,7 @@
 import {
   BarChart3, BookOpen, BookText, Boxes, Calculator, Clock, CreditCard, FileText, History,
-  Landmark, LayoutDashboard, Package, Receipt, Settings, ShoppingBag, ShoppingCart,
-  SquareStack, Store, Tag, Truck, UserCog, Users, Wallet, Warehouse,
+  Landmark, LayoutDashboard, Package, Receipt, ReceiptText, Settings, ShoppingBag,
+  ShoppingCart, SquareStack, Store, Tag, Truck, UserCog, Users, Wallet, Warehouse,
 } from 'lucide-react'
 import { createLayout, type NavSection } from 'libra-ui/Layout'
 import { useAuth } from '../context/AuthContext'
@@ -18,6 +18,11 @@ const NAV_SECTIONS: NavSection<User>[] = [
     label: 'Ventas',
     items: [
       { to: '/facturas', label: 'Comprobantes', icon: Receipt, module: 'facturacion' },
+      // Sin `module`: un recibo nace de una factura, de una venta o de un pago
+      // de cuenta corriente, así que gatearlo por uno solo de esos módulos
+      // escondería la reimpresión de los otros dos. Mismo criterio que su
+      // router (ver web/api/recibos.py).
+      { to: '/recibos', label: 'Recibos', icon: ReceiptText },
       { to: '/presupuestos', label: 'Presupuestos', icon: Calculator, module: 'presupuestos' },
       { to: '/remitos', label: 'Remitos', icon: FileText, module: 'remitos' },
       { to: '/ventas', label: 'Ventas POS', icon: ShoppingCart, module: 'ventas' },
