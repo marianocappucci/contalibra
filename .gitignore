@@ -88,3 +88,33 @@ coverage.xml
 htmlcov/
 coverage/
 frontend/coverage/
+
+# La landing NO vive mas en este repo (2026-08-05). Tiene el suyo,
+# marianocappucci/contalibra.com.ar, con el CSS y las paginas de /docs/
+# generados desde libra-web-kit. Su workflow de deploy escribe en
+# `/root/contalibra/website/` del VPS -- o sea, DENTRO del arbol de este
+# repo:
+#
+#     # contalibra.com.ar/.github/workflows/deploy.yml
+#     remote_path: /root/contalibra/website/
+#
+# Con `website/` trackeado aca, dos repos eran duenos del mismo path y el
+# checkout del VPS quedaba sucio de forma permanente (24 archivos, desde el
+# 2026-07-31). El problema no era el ruido: era que **cualquier
+# `git reset --hard`, `git checkout -- .` o `git stash` en ese checkout
+# pisaba la landing en vivo con la version del 2026-07-01**, devolviendo el
+# `nginx.conf` que se borro a proposito al migrar a la imagen compartida
+# `libra-nginx-web`. Un `git pull` normal no la tocaba, asi que la bomba
+# solo esperaba a que alguien limpiara el arbol.
+#
+# Se verifico antes de sacarlo que no se perdia nada: 23 de los 24 archivos
+# eran byte-identicos al repo de la landing, y el 24 (`index.html`) identico
+# ignorando CRLF.
+website/
+
+# Artefactos de deploy que viven en el arbol del repo pero no son del repo:
+# el compose de la instancia del backoffice compartido y los respaldos que
+# dejan los scripts de mantenimiento.
+/backoffice/
+*.db.bak-*
+scripts/.npm_config.json.bak-*
