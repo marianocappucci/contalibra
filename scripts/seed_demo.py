@@ -507,16 +507,43 @@ def _sembrar_operacion(api: Api, clientes: dict, productos: dict, contar) -> Non
                 print(f"  -- caja {tipo}: {e}")
 
     # ── Egresos con comprobante ───────────────────────────────────────────
+    #
+    # 🔴 Dos cosas que se aprendieron midiendo el export, no leyendo el código:
+    #
+    # 1. **El Libro de IVA Compras sólo toma `tipo_comprobante = 'factura'`**
+    #    (`libracore.db.libros_iva.get_egresos_para_iva`, filtro en el SQL). Con
+    #    egresos sueltos —que es lo que sembraba antes— la pantalla de Libros de
+    #    IVA mostraba las ventas y el lado de compras salía **vacío**, y el
+    #    export bajaba un archivo de 0 bytes.
+    # 2. **`iva_pct` es una fracción, no un porcentaje.** El backend hace
+    #    `monto_neto * iva_pct` sin dividir por 100, y el frontend lo muestra
+    #    con `Math.round(iva_pct * 100)`. Mandar `21` no da un 21%: le puso
+    #    $588.000 de IVA a un gasto de $28.000.
+    #
+    # Y el número de comprobante importa: el export lo parte en punto de venta
+    # y número (`_parse_num_egreso`), así que sin él el archivo sale con ceros.
+    proveedores = {p["nombre"]: p["id"] for p in _lista(api.get("/api/proveedores"))}
     if not _lista(api.get("/api/egresos")):
-        for concepto, categoria, neto in (
-            ("Alquiler del local", "Alquiler", 320000),
-            ("Servicio de internet", "Servicios", 45000),
-            ("Combustible del reparto", "Movilidad", 28000),
+        for concepto, categoria, neto, prov, numero in (
+            ("Resma A4 y papelería", "Mercadería / Materias primas", 96000,
+             "Papelera Central SA", "0003-00001842"),
+            ("Notebooks para administración", "Otros", 740000,
+             "Insumos Tecnológicos SRL", "0007-00000315"),
+            ("Alquiler del local", "Alquiler", 320000, None, ""),
+            ("Servicio de internet", "Servicios (luz, gas, internet)", 45000, None, ""),
+            ("Combustible del reparto", "Transporte", 28000, None, ""),
         ):
             try:
                 api.post("/api/egresos", {
                     "fecha": HOY.isoformat(), "concepto": concepto,
-                    "categoria": categoria, "monto_neto": neto, "iva_pct": 21,
+                    "categoria": categoria, "monto_neto": neto, "iva_pct": 0.21,
+                    # Con proveedor y número es una factura de compra y entra al
+                    # libro; sin ellos es un gasto interno y no entra. Los dos
+                    # casos están a propósito: la pantalla de egresos muestra la
+                    # diferencia.
+                    "tipo_comprobante": "factura" if prov else "otro",
+                    "numero": numero,
+                    "proveedor_id": proveedores.get(prov),
                     "observaciones": "Gasto de ejemplo de la demo",
                 })
                 contar("egresos", True)
@@ -569,6 +596,14 @@ def _cargar_logo(api, nombre: str, inicial: str, color: tuple, contar) -> None:
     dibujo.text((52, 60), inicial, fill=(255, 255, 255))
     dibujo.text((150, 55), nombre, fill=(30, 30, 30))
     dibujo.line((150, 95, 150 + min(340, len(nombre) * 11), 95), fill=color, width=4)
+
+    # 🔴 La subida es multipart a mano, así que necesita la URL y el opener del
+    # `Api` real. La suite corre el seed contra un doble que habla directo con
+    # la app y no tiene ninguno de los dos: sin esta guarda, `api.base`
+    # reventaba con AttributeError y se llevaba puestos **11 tests** del seed
+    # entero, no sólo el del logo.
+    if not getattr(api, "base", None) or not getattr(api, "opener", None):
+        return
 
     import io
     buffer = io.BytesIO()

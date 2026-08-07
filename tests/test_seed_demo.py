@@ -153,6 +153,44 @@ def test_los_presupuestos_quedan_en_varios_estados(api):
     assert "borrador" in estados, "ninguno quedó en el estado inicial"
 
 
+# ── 🔴 El Libro de IVA, con las dos mitades ───────────────────────────────
+
+def test_deja_facturas_de_compra_para_el_libro_de_iva(api):
+    """🔴 El lado de compras del Libro de IVA **sólo toma los egresos
+    `tipo_comprobante = 'factura'`** (el filtro está en el SQL de
+    `get_egresos_para_iva`). Con egresos sueltos —que es lo que sembraba
+    antes— la pantalla mostraba las ventas y el lado de compras salía vacío,
+    y el export bajaba un archivo de **0 bytes**. Medido contra la demo.
+    """
+    sembrar(api)
+
+    egresos = _lista(api.get("/api/egresos"))
+    facturas = [e for e in egresos if e["tipo_comprobante"] == "factura"]
+
+    assert len(facturas) >= 2, "sin facturas de compra el libro sale vacío"
+    # Y con lo que el export necesita para armar la línea: sin proveedor no hay
+    # CUIT, y sin número el archivo sale con ceros en punto de venta y número.
+    for f in facturas:
+        assert f["proveedor_id"], f"{f['concepto']} sin proveedor"
+        assert "-" in f["numero"], f"{f['concepto']} sin número de comprobante"
+
+
+def test_el_iva_de_los_egresos_no_se_va_de_escala(api):
+    """`iva_pct` es una **fracción** en egresos: el alta hace
+    `monto_neto * iva_pct` sin dividir por 100. Mandar `21` en vez de `0.21`
+    no da un 21% — le puso $588.000 de IVA a un gasto de $28.000, y así estuvo
+    en la demo."""
+    sembrar(api)
+
+    egresos = _lista(api.get("/api/egresos"))
+    assert egresos, "sin egresos el `for` de abajo no prueba nada"
+    for e in egresos:
+        neto = float(e["monto_neto"])
+        assert 0 < float(e["iva_monto"]) <= neto * 0.30, (
+            f"{e['concepto']}: IVA de {e['iva_monto']} sobre un neto de {neto}"
+        )
+
+
 # ── 🔴 Stock que no está todo abastecido ──────────────────────────────────
 
 def test_queda_stock_en_cero_y_bajo_el_minimo(api):

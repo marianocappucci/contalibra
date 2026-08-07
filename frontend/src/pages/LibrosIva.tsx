@@ -20,6 +20,18 @@ function todayIso(): string {
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value)
 }
+/** Alícuota de una compra, en puntos (21, no 0.21).
+ *
+ * Se deriva del importe en vez de leer `iva_pct`, que en egresos guarda una
+ * fracción: el alta hace `monto_neto * iva_pct` y el detalle lo muestra con
+ * `* 100`. Derivarlo acierta también sobre filas viejas, sin importar en qué
+ * unidad hayan quedado. Mismo criterio que el export del libro. */
+function alicuota(e: { monto_neto?: number; iva_monto?: number; iva_pct?: number }): number {
+  const neto = Number(e.monto_neto) || 0
+  const iva = Number(e.iva_monto) || 0
+  if (neto > 0 && iva > 0) return Math.round((iva / neto) * 1000) / 10
+  return Math.round((Number(e.iva_pct) || 0) * 100)
+}
 function formatCuit(cuit?: string | null): string {
   if (!cuit) return '—'
   const d = cuit.replace(/\D/g, '')
@@ -121,7 +133,13 @@ export function LibrosIva() {
     { accessorKey: 'proveedor_nombre', header: 'Proveedor', cell: ({ row }) => row.original.proveedor_nombre || '—' },
     { accessorKey: 'proveedor_cuit', header: 'CUIT', cell: ({ row }) => <span className="font-mono text-xs text-muted-foreground">{formatCuit(row.original.proveedor_cuit)}</span> },
     { accessorKey: 'monto_neto', header: () => <div className="text-right">Neto</div>, cell: ({ row }) => <div className="text-right">{formatCurrency(row.original.monto_neto)}</div> },
-    { accessorKey: 'iva_pct', header: () => <div className="text-right">IVA %</div>, cell: ({ row }) => <div className="text-right text-muted-foreground">{row.original.iva_pct ?? 0}%</div> },
+    {
+      // `iva_pct` de un egreso es una FRACCIÓN (0.21), no puntos: el alta hace
+      // `monto_neto * iva_pct` y el detalle lo muestra con `* 100`. Mostrarlo
+      // crudo acá ponía "0.21%" en la columna.
+      accessorKey: 'iva_pct', header: () => <div className="text-right">IVA %</div>,
+      cell: ({ row }) => <div className="text-right text-muted-foreground">{alicuota(row.original)}%</div>,
+    },
     { accessorKey: 'iva_monto', header: () => <div className="text-right">IVA $</div>, cell: ({ row }) => <div className="text-right font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(row.original.iva_monto)}</div> },
     { accessorKey: 'total', header: () => <div className="text-right">Total</div>, cell: ({ row }) => <div className="text-right font-semibold">{formatCurrency(row.original.total)}</div> },
   ], [])
