@@ -232,6 +232,9 @@ def sembrar(api: Api) -> None:
     print("Operación del día (turno, ventas, facturas, caja, cobranzas)…")
     _sembrar_operacion(api, clientes, productos, contar)
 
+    print("Tesorería…")
+    _sembrar_tesoreria(api, contar)
+
     # 🔴 El stock se vuelve a fijar DESPUÉS de las ventas, y no es redundante:
     # las ventas descuentan, así que sin esto la primera corrida terminaba en
     # 117 unidades y la segunda —que saltea las ventas ya creadas— en 120. El
@@ -258,6 +261,68 @@ def sembrar(api: Api) -> None:
     print()
     for clave, (creados, existentes) in sorted(hechos.items()):
         print(f"  {clave:<13} {creados} creados, {existentes} ya estaban")
+
+
+def _sembrar_tesoreria(api: Api, contar) -> None:
+    """Cuentas de tesorería, sus movimientos y una transferencia entre las dos.
+
+    Tesorería es la plata que **no** está en la caja del día: la cuenta del
+    banco, el efectivo guardado. Por eso son cuentas propias y no movimientos
+    de caja — y por eso la transferencia entre las dos es el ejemplo que hace
+    entender la pantalla: mostrar sólo ingresos deja la mitad sin verse.
+
+    Portado de [[restolibra]], que comparte el módulo: acá la pantalla se abría
+    con `{"cuentas": [], "movimientos": []}`, medido contra la demo.
+    """
+    resumen = api.get("/api/tesoreria") or {}
+    if resumen.get("cuentas"):
+        contar("tesoreria", False)
+        return
+
+    cuentas = {}
+    for nombre, tipo, banco, saldo in (
+        ("Cuenta corriente Banco Galicia", "banco", "Banco Galicia", 1200000),
+        ("Efectivo en caja fuerte", "efectivo", "", 180000),
+    ):
+        try:
+            creada = api.post("/api/tesoreria/cuentas", {
+                "nombre": nombre, "tipo": tipo, "banco": banco,
+                "saldo_inicial": saldo,
+                "descripcion": "Cuenta de ejemplo de la demo",
+            })
+            cuentas[nombre] = creada.get("id") or creada.get("cuenta", {}).get("id")
+            contar("tesoreria", True)
+        except RuntimeError as e:
+            print(f"  -- cuenta {nombre}: {e}")
+
+    banco = cuentas.get("Cuenta corriente Banco Galicia")
+    caja_fuerte = cuentas.get("Efectivo en caja fuerte")
+
+    if banco:
+        for tipo, concepto, monto in (
+            ("ingreso", "Acreditación de cobranzas del mes", 640000),
+            ("egreso", "Pago de sueldos", 480000),
+        ):
+            try:
+                api.post(f"/api/tesoreria/cuentas/{banco}/movimiento", {
+                    "fecha": HOY.isoformat(), "tipo": tipo,
+                    "monto": monto, "concepto": concepto,
+                    "referencia": "Movimiento de ejemplo",
+                })
+                contar("tesoreria_mov", True)
+            except RuntimeError as e:
+                print(f"  -- movimiento de tesorería: {e}")
+
+    if banco and caja_fuerte:
+        try:
+            api.post("/api/tesoreria/transferencia", {
+                "cuenta_origen_id": caja_fuerte, "cuenta_destino_id": banco,
+                "monto": 90000, "fecha": HOY.isoformat(),
+                "concepto": "Depósito del efectivo de la semana",
+            })
+            contar("transferencia", True)
+        except RuntimeError as e:
+            print(f"  -- transferencia: {e}")
 
 
 def _sembrar_presupuestos(api: Api, clientes: dict, contar) -> None:

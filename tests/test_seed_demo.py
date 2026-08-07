@@ -153,6 +153,38 @@ def test_los_presupuestos_quedan_en_varios_estados(api):
     assert "borrador" in estados, "ninguno quedó en el estado inicial"
 
 
+# ── La pantalla de Tesorería ──────────────────────────────────────────────
+
+def test_deja_cuentas_de_tesoreria(api):
+    """La pantalla se abría con `{"cuentas": [], "movimientos": []}` — medido
+    contra la demo el 2026-08-07. Restolibra, que comparte el módulo, ya las
+    tenía."""
+    t = api.get("/api/tesoreria") or {}
+
+    assert t.get("cuentas") == []  # antes de sembrar
+
+    sembrar(api)
+    t = api.get("/api/tesoreria") or {}
+
+    assert len(t["cuentas"]) == 2
+    # Y con movimiento: una cuenta con saldo inicial y nada más deja la mitad
+    # de la pantalla —el listado— vacía igual.
+    assert len(t["movimientos"]) >= 3
+
+
+def test_la_transferencia_toca_las_dos_cuentas(api):
+    """Es el ejemplo que hace entender la pantalla: mostrar sólo ingresos deja
+    sin verse que tesorería mueve plata **entre** cuentas."""
+    sembrar(api)
+    cuentas = {c["nombre"]: c for c in api.get("/api/tesoreria")["cuentas"]}
+
+    caja = cuentas["Efectivo en caja fuerte"]
+    banco = cuentas["Cuenta corriente Banco Galicia"]
+
+    assert caja["saldo"] < caja["saldo_inicial"], "de la caja salió el efectivo"
+    assert banco["saldo"] != banco["saldo_inicial"], "al banco entró"
+
+
 # ── 🔴 El Libro de IVA, con las dos mitades ───────────────────────────────
 
 def test_deja_facturas_de_compra_para_el_libro_de_iva(api):
