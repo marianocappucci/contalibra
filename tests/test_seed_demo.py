@@ -92,15 +92,45 @@ def test_hay_clientes_con_distintas_condiciones_de_iva(api):
     assert "Consumidor Final" in condiciones
 
 
-# ── 🔴 Sin facturas ───────────────────────────────────────────────────────
+# ── 🔴 Facturas sí, pero sin CAE ──────────────────────────────────────────
 
-def test_no_emite_facturas(api):
-    """🔴 El módulo de facturación habla con ARCA de verdad: pedir CAE contra
-    el padrón por cada visita a una demo pública no es algo que se pueda dejar
-    corriendo. Los presupuestos y remitos sí, que no son fiscales."""
+def test_emite_facturas_pero_ninguna_con_CAE(api):
+    """Cambió el 2026-08-06, a pedido del humano: la pantalla de facturación
+    estaba vacía y un interesado no podía ver ni el comprobante ni su PDF.
+
+    🔴 **Lo que NO cambió es lo que este test protegía.** El módulo habla con
+    ARCA de verdad, y pedir CAE contra el padrón por cada visita a una demo
+    pública sigue sin ser algo que se pueda dejar corriendo. Lo que hace que
+    sea seguro es que `solicitar_cae()` corta apenas ve que la instancia no
+    tiene certificado configurado —y una demo no lo tiene—, así que el
+    comprobante nace como **documento interno**.
+
+    Por eso la aserción no es "hay facturas": es **que ninguna tenga CAE**. Si
+    mañana alguien configurara ARCA en una demo, este test se pone en rojo,
+    que es exactamente cuando hay que enterarse.
+    """
     sembrar(api)
 
-    assert _lista(api.get("/api/facturas")) == []
+    facturas = _lista(api.get("/api/facturas"))
+    assert facturas, "la pantalla de facturación no puede quedar vacía"
+
+    # 🔴 **La garantía no es el estado del CAE: es que no hay ARCA configurado.**
+    # Se aprendió escribiendo este test. El motor tiene dos caminos y ninguno
+    # sale a la red en una demo:
+    #
+    # - Con `ENV=development` genera un CAE **simulado** (`_mock_cae`), sin
+    #   pedirle nada a nadie. Es lo que pasa en esta suite, y por eso asertar
+    #   `cae == ""` daba rojo.
+    # - En producción mira la config de ARCA: **sin certificado deja `ta=None`
+    #   y `solicitar_cae` devuelve la factura intacta**, sin CAE.
+    #
+    # Lo que el seed tiene que garantizar, entonces, es no dejar ARCA
+    # configurado. Si alguien lo configurara en una demo, este test se pone en
+    # rojo — que es exactamente cuando hay que enterarse.
+    assert not api.get("/api/config")["arca"], (
+        "el seed dejó ARCA configurado: una demo pública con certificado "
+        "emitiría comprobantes fiscales de verdad"
+    )
 
 
 def test_si_emite_presupuestos_y_remitos(api):
