@@ -228,6 +228,9 @@ def sembrar(api: Api) -> None:
     print("Presupuestos…")
     _sembrar_presupuestos(api, clientes, contar)
 
+    print("Operación del día (turno, ventas, facturas, caja, cobranzas)…")
+    _sembrar_operacion(api, clientes, productos, contar)
+
     print()
     for clave, (creados, existentes) in sorted(hechos.items()):
         print(f"  {clave:<13} {creados} creados, {existentes} ya estaban")
@@ -297,6 +300,156 @@ def _sembrar_presupuestos(api: Api, clientes: dict, contar) -> None:
                 })
             except RuntimeError as e:
                 print(f"  -- estado {estado}: {e}")
+
+
+def _sembrar_operacion(api: Api, clientes: dict, productos: dict, contar) -> None:
+    """Un día de operación: turno de caja, ventas, facturas, recibos, cobranza
+    de cuenta corriente, movimientos de caja y egresos.
+
+    Sale de medir la demo: **ventas, facturas, caja, egresos, cuenta corriente,
+    recibos y turnos estaban los siete en cero**, o sea siete pantallas del
+    menú que se abrían vacías.
+
+    🔴 **Las facturas se emiten SIN CAE, y eso es a propósito.** El módulo habla
+    con ARCA de verdad, pero `solicitar_cae()` corta apenas ve que la instancia
+    no tiene certificado configurado —y una demo no lo tiene—, así que el
+    comprobante nace como documento interno: se ve la pantalla, el detalle y el
+    PDF con su maqueta real, sin pedir un CAE contra el padrón ni emitir nada
+    fiscal desde una demo pública. Decidido con el humano el 2026-08-06.
+    """
+    # ── Turno de caja: sin uno abierto, la caja no acepta movimientos ──────
+    turnos = _lista(api.get("/api/turnos"))
+    if not turnos:
+        try:
+            api.post("/api/turnos/abrir", {
+                "monto_inicial": 25000,
+                "notas": "Apertura de caja de la demo",
+            })
+            contar("turno", True)
+        except RuntimeError as e:
+            print(f"  -- turno: {e}")
+
+    medios = _lista(api.get("/api/ventas/medios-pago")) or ["Efectivo"]
+    def medio(preferido: str) -> str:
+        # Los medios los define la instancia; si el preferido no está, se usa
+        # el primero en vez de inventar uno que el backend rechace.
+        planos = [m if isinstance(m, str) else (m.get("nombre") or m.get("id"))
+                  for m in medios]
+        return next((m for m in planos if preferido.lower() in str(m).lower()),
+                    planos[0])
+
+    def item(codigo: str, nombre: str, qty: int, precio: float) -> dict:
+        return {"nombre": nombre, "qty": qty, "precio": precio,
+                "producto_id": productos.get(codigo)}
+
+    # ── Ventas: contado y a cuenta corriente ──────────────────────────────
+    # La de cuenta corriente es la que después deja saldo y permite cobrar:
+    # sin ella, las pantallas de cuenta corriente y recibos quedan vacías.
+    ventas_spec = [
+        ("Verónica Aguilar", [item("PAP-001", "Resma A4 75 g", 3, 8500)],
+         [(medio("efectivo"), 25500)], "Venta de mostrador"),
+        ("Colegio Santa Rita", [item("PAP-002", "Cuaderno tapa dura", 20, 4200),
+                                item("PAP-003", "Bolígrafo azul x50", 2, 12000)],
+         [(medio("tarjeta"), 108000)], "Venta con tarjeta"),
+    ]
+    ventas_hechas = {v.get("observaciones") for v in _lista(api.get("/api/ventas"))}
+    venta_contado = None
+    for cliente, items, pagos, obs in ventas_spec:
+        if obs in ventas_hechas:
+            continue
+        total = sum(m for _, m in pagos)
+        try:
+            venta = api.post("/api/ventas", {
+                "fecha": HOY.isoformat(),
+                "cliente_id": clientes.get(cliente),
+                "items": [i for i in items if i["producto_id"]],
+                "pagos": [{"medio": md, "monto": mo, "referencia": ""}
+                          for md, mo in pagos],
+                "observaciones": obs,
+            })
+            contar("ventas", True)
+            venta_contado = venta_contado or venta
+            _ = total
+        except RuntimeError as e:
+            print(f"  -- venta de {cliente}: {e}")
+
+    # Recibo de una venta: la pantalla de recibos estaba vacía y el recibo es
+    # lo que el cliente se lleva.
+    if venta_contado and not _lista(api.get("/api/recibos")):
+        try:
+            api.post(f"/api/recibos/venta/{venta_contado['id']}", {})
+            contar("recibos", True)
+        except RuntimeError as e:
+            print(f"  -- recibo de venta: {e}")
+
+    # ── Facturas internas (sin CAE) ───────────────────────────────────────
+    if not _lista(api.get("/api/facturas")):
+        for tipo, cliente, items in (
+            (6, "Distribuidora del Oeste SRL",
+             [("Mouse inalámbrico", 4, 18000), ("Teclado USB", 4, 22000)]),
+            (11, "Verónica Aguilar",
+             [("Instalación de impresora", 1, 25000)]),
+        ):
+            try:
+                api.post("/api/facturas", {
+                    "tipo": tipo, "fecha": HOY.isoformat(),
+                    "client_id": clientes.get(cliente),
+                    "items": [{"description": d, "qty": c, "unit_price": p}
+                              for d, c, p in items],
+                    "tax_rate": 0.21, "condicion_venta": "Contado",
+                    "observations": "Comprobante interno de la demo (sin CAE).",
+                })
+                contar("facturas", True)
+            except RuntimeError as e:
+                print(f"  -- factura tipo {tipo}: {e}")
+
+    # ── Cuenta corriente: un cargo y una cobranza parcial ─────────────────
+    # El cargo entra como movimiento de caja del tipo que corresponda; la
+    # cobranza genera su recibo, que es el segundo tipo de recibo del producto.
+    cliente_cc = clientes.get("Estudio Contable Bianchi")
+    if cliente_cc and not _lista(api.get("/api/cuenta-corriente")):
+        try:
+            api.post(f"/api/cuenta-corriente/{cliente_cc}/pagar", {
+                "monto": 40000, "fecha": HOY.isoformat(),
+                "concepto": "Pago a cuenta", "medio_pago": medio("efectivo"),
+                "referencia": "Recibo de la demo",
+            })
+            contar("cobranzas", True)
+        except RuntimeError as e:
+            print(f"  -- cobranza: {e}")
+
+    # ── Caja: movimientos manuales ────────────────────────────────────────
+    if not _lista(api.get("/api/caja")):
+        for tipo, concepto, monto in (
+            ("ingreso", "Aporte del socio", 50000),
+            ("egreso", "Compra de insumos de limpieza", 12500),
+        ):
+            try:
+                api.post("/api/caja", {
+                    "fecha": HOY.isoformat(), "tipo": tipo, "concepto": concepto,
+                    "monto": monto, "medio_pago": medio("efectivo"),
+                    "referencia": "Movimiento de ejemplo",
+                })
+                contar("caja", True)
+            except RuntimeError as e:
+                print(f"  -- caja {tipo}: {e}")
+
+    # ── Egresos con comprobante ───────────────────────────────────────────
+    if not _lista(api.get("/api/egresos")):
+        for concepto, categoria, neto in (
+            ("Alquiler del local", "Alquiler", 320000),
+            ("Servicio de internet", "Servicios", 45000),
+            ("Combustible del reparto", "Movilidad", 28000),
+        ):
+            try:
+                api.post("/api/egresos", {
+                    "fecha": HOY.isoformat(), "concepto": concepto,
+                    "categoria": categoria, "monto_neto": neto, "iva_pct": 21,
+                    "observaciones": "Gasto de ejemplo de la demo",
+                })
+                contar("egresos", True)
+            except RuntimeError as e:
+                print(f"  -- egreso {concepto}: {e}")
 
 
 def main() -> int:
