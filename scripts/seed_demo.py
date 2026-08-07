@@ -235,6 +235,9 @@ def sembrar(api: Api) -> None:
     print("Tesorería…")
     _sembrar_tesoreria(api, contar)
 
+    print("Bandeja de MercadoPago…")
+    _sembrar_bandeja_mp(api, contar)
+
     # 🔴 El stock se vuelve a fijar DESPUÉS de las ventas, y no es redundante:
     # las ventas descuentan, así que sin esto la primera corrida terminaba en
     # 117 unidades y la segunda —que saltea las ventas ya creadas— en 120. El
@@ -261,6 +264,66 @@ def sembrar(api: Api) -> None:
     print()
     for clave, (creados, existentes) in sorted(hechos.items()):
         print(f"  {clave:<13} {creados} creados, {existentes} ya estaban")
+
+
+def _sembrar_bandeja_mp(api: Api, contar) -> None:
+    """Cobros de MercadoPago esperando factura.
+
+    🔴 **Por qué hace falta una ruta aparte y no alcanza con la API normal.**
+    La bandeja se llena **sincronizando contra MercadoPago de verdad**:
+    `/api/mp-bandeja/sincronizar` exige el Access Token de la cuenta y sale a
+    la red. Una demo pública no tiene cuenta de MP ni puede tenerla, así que
+    esta pantalla era la única que seguía abriéndose vacía — y es de las que
+    mejor muestran el producto, porque es el cobro que entra y se factura solo.
+    Por eso el producto expone `/api/mp-bandeja/demo/sembrar`, que **existe
+    sólo con `DEMO_MODE`**.
+
+    Se siembran las **dos** solapas: cobros y transferencias bancarias
+    entrantes. Con una sola llena la pantalla queda a medias.
+
+    Y se dejan **pendientes**, no facturados: lo que hay que mostrar es la
+    acción disponible —el botón de facturar— y no un historial cerrado. Uno
+    de los cobros va sin CUIT a propósito, que es el caso en el que el
+    producto pide completar los datos antes de facturar.
+    """
+    bandeja = api.get("/api/mp-bandeja") or {}
+    if bandeja.get("pendientes") or bandeja.get("transferencias"):
+        contar("mp_bandeja", False)
+        return
+
+    items = [
+        {"mp_payment_id": "demo-105544321", "monto": 148000,
+         "payer_name": "Distribuidora del Oeste SRL",
+         "payer_email": "pagos@distribuidoradeloeste.com.ar",
+         "payer_id_number": "30709988775", "payment_type": "account_money",
+         "payment_method": "account_money",
+         "descripcion": "Pago de factura de servicios", "clase": "pago"},
+        {"mp_payment_id": "demo-105544322", "monto": 62500,
+         "payer_name": "Verónica Aguilar", "payer_email": "veronica.aguilar@example.com.ar",
+         "payer_id_number": "27284561239", "payment_type": "credit_card",
+         "payment_method": "visa", "descripcion": "Cobro con QR en mostrador",
+         "clase": "pago"},
+        # Sin CUIT: es el caso en que el producto pide completar los datos del
+        # pagador antes de poder emitir el comprobante.
+        {"mp_payment_id": "demo-105544323", "monto": 19800,
+         "payer_name": "Consumidor final", "payer_email": "",
+         "payer_id_number": "", "payment_type": "debit_card",
+         "payment_method": "maestro", "descripcion": "Venta de mostrador",
+         "clase": "pago"},
+        {"mp_payment_id": "demo-880011", "monto": 315000,
+         "payer_name": "Estudio Contable Márquez",
+         "payer_email": "administracion@estudiomarquez.com.ar",
+         "payer_id_number": "30715544663", "payment_type": "bank_transfer",
+         "payment_method": "cvu", "descripcion": "Transferencia recibida",
+         "clase": "transferencia"},
+    ]
+    try:
+        r = api.post("/api/mp-bandeja/demo/sembrar", items)
+        for _ in range(int((r or {}).get("creados", 0))):
+            contar("mp_bandeja", True)
+    except RuntimeError as e:
+        # Fuera de una demo la ruta no existe: es lo esperado, no un error.
+        print(f"  (bandeja de MP: {e})")
 
 
 def _sembrar_tesoreria(api: Api, contar) -> None:
