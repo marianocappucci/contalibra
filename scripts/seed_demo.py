@@ -241,9 +241,11 @@ def sembrar(api: Api) -> None:
     #
     # Va en modo `absoluto`, que fija la existencia en vez de sumarla: correrlo
     # de nuevo no cambia nada.
+    # 🔴 Acá NO se saltea el cero, a diferencia de la carga inicial. Allá 0
+    # significa "no toques, dejalo sin abastecer"; acá significa "volvé a
+    # cero". Salteándolo, cada corrida empujaba ese ítem un poco más abajo
+    # —negativo— y el seed dejaba de ser idempotente.
     for codigo, cantidad in STOCK.items():
-        if cantidad == 0:
-            continue
         api.post(f"/api/stock/{productos[codigo]}/ajuste", {
             "modo": "absoluto", "cantidad": cantidad,
             "referencia": "Ajuste de inventario",
