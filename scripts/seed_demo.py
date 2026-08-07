@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import urllib.error
 import urllib.request
@@ -302,6 +303,27 @@ def _sembrar_presupuestos(api: Api, clientes: dict, contar) -> None:
                 print(f"  -- estado {estado}: {e}")
 
 
+def _sesion_del_visitante(base: str):
+    """Una sesión con el usuario de la demo, si la instancia es una demo.
+
+    Existe para lo que el producto ordena **por usuario**: un turno de caja
+    abierto por el admin no aparece en la pantalla del visitante, aunque esté
+    ahí. Las credenciales salen del entorno del contenedor —las mismas dos
+    variables que encienden el auto-login— y nunca de la línea de comandos.
+    """
+    usuario = os.environ.get("DEMO_USERNAME", "").strip()
+    clave = os.environ.get("DEMO_PASSWORD", "")
+    if not usuario or not clave:
+        return None
+    sesion = Api(base)
+    try:
+        sesion.post("/api/login", {"username": usuario, "password": clave})
+    except RuntimeError as e:
+        print(f"  -- no se pudo entrar como {usuario}: {e}")
+        return None
+    return sesion
+
+
 def _sembrar_operacion(api: Api, clientes: dict, productos: dict, contar) -> None:
     """Un día de operación: turno de caja, ventas, facturas, recibos, cobranza
     de cuenta corriente, movimientos de caja y egresos.
@@ -317,17 +339,38 @@ def _sembrar_operacion(api: Api, clientes: dict, productos: dict, contar) -> Non
     PDF con su maqueta real, sin pedir un CAE contra el padrón ni emitir nada
     fiscal desde una demo pública. Decidido con el humano el 2026-08-06.
     """
-    # ── Turno de caja: sin uno abierto, la caja no acepta movimientos ──────
-    turnos = _lista(api.get("/api/turnos"))
-    if not turnos:
-        try:
-            api.post("/api/turnos/abrir", {
-                "monto_inicial": 25000,
-                "notas": "Apertura de caja de la demo",
-            })
-            contar("turno", True)
-        except RuntimeError as e:
-            print(f"  -- turno: {e}")
+    # ── Turno de caja, abierto POR EL VISITANTE ───────────────────────────
+    # 🔴 `GET /api/turnos` filtra por usuario cuando quien pregunta no es
+    # admin (`usuario_id=None if es_admin else user["id"]`), y eso está bien:
+    # un cajero ve sus turnos, no los de todos. Pero el seed corre como
+    # **admin**, así que un turno abierto por él le queda invisible al
+    # visitante y la pantalla se le abre vacía igual.
+    #
+    # Por eso esto se hace con una sesión del propio usuario de la demo. Es la
+    # regla general para todo lo que el producto ordena por usuario: sembrarlo
+    # con el usuario que lo va a mirar, no con el que tiene permisos.
+    visitante = _sesion_del_visitante(api.base)
+    if visitante is not None:
+        if not _lista(visitante.get("/api/turnos")):
+            try:
+                visitante.post("/api/turnos/abrir", {
+                    "monto_inicial": 25000,
+                    "notas": "Apertura de caja de la demo",
+                })
+                contar("turno", True)
+            except RuntimeError as e:
+                print(f"  -- turno del visitante: {e}")
+    else:
+        # Sin credenciales de visitante (dev, por ejemplo) el turno se abre con
+        # el usuario que corre el seed: alcanza para que la caja opere.
+        if not _lista(api.get("/api/turnos")):
+            try:
+                api.post("/api/turnos/abrir", {
+                    "monto_inicial": 25000, "notas": "Apertura de caja",
+                })
+                contar("turno", True)
+            except RuntimeError as e:
+                print(f"  -- turno: {e}")
 
     medios = _lista(api.get("/api/ventas/medios-pago")) or ["Efectivo"]
     def medio(preferido: str) -> str:
