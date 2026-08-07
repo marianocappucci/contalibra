@@ -14,7 +14,11 @@ un REGINFO que ARCA rechaza.
 Se encontró midiendo el export de la demo, que salía vacío por otro motivo
 (sólo entran los egresos `tipo_comprobante = 'factura'`).
 """
-from app.web.routers.libros_iva import _alicuota_de_egreso, _compras_alicuotas
+from app.web.routers.libros_iva import (
+    _alicuota_de_egreso,
+    _compras_alicuotas,
+    _resumen_compras,
+)
 
 
 def _egreso(neto, iva_monto, iva_pct, numero="0003-00001842"):
@@ -83,3 +87,24 @@ def test_una_fila_vieja_en_puntos_tambien_sale_bien():
 
 def test_los_egresos_sin_iva_no_entran():
     assert _compras_alicuotas([_egreso(100000, 0, 0)]) == ""
+
+
+# ── La tarjeta de resumen ─────────────────────────────────────────────────
+
+def test_el_resumen_agrupa_en_puntos():
+    """Tercer lugar con la misma confusión: el resumen agrupaba por el campo
+    crudo, así que la tarjeta encabezaba la columna con "0.21%"."""
+    r = _resumen_compras([_egreso(100000, 21000, 0.21)])
+
+    assert list(r["por_tasa"]) == [21.0]
+
+
+def test_el_resumen_junta_las_filas_viejas_con_las_nuevas():
+    """🔴 Lo que agrupar por el campo crudo rompía de verdad: dos compras al
+    21% guardadas en unidades distintas salían como **dos tasas separadas**, y
+    ninguna de las dos sumaba bien."""
+    r = _resumen_compras([_egreso(100000, 21000, 0.21), _egreso(50000, 10500, 21.0)])
+
+    assert list(r["por_tasa"]) == [21.0]
+    assert r["por_tasa"][21.0]["cbtes"] == 2
+    assert r["por_tasa"][21.0]["neto"] == 150000

@@ -312,9 +312,13 @@ def _resumen_compras(egresos: list) -> dict:
     por_tasa    = {}
 
     for e in egresos:
-        pct = float(e.get("iva_pct") or 0)
         iva = float(e.get("iva_monto") or 0)
         neto = float(e.get("monto_neto") or 0)
+        # En puntos, igual que el resumen de ventas: agrupar por el campo crudo
+        # partía el resumen en una tasa "0.21" que la tarjeta muestra como
+        # "0.21%", y que además no agrupa junto a las filas viejas guardadas
+        # en puntos.
+        pct = _alicuota_de_egreso(neto, iva)
         if pct not in por_tasa:
             por_tasa[pct] = {"neto": 0.0, "iva": 0.0, "cbtes": 0}
         por_tasa[pct]["neto"]  += neto
