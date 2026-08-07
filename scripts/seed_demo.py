@@ -232,6 +232,23 @@ def sembrar(api: Api) -> None:
     print("Operación del día (turno, ventas, facturas, caja, cobranzas)…")
     _sembrar_operacion(api, clientes, productos, contar)
 
+    # 🔴 El stock se vuelve a fijar DESPUÉS de las ventas, y no es redundante:
+    # las ventas descuentan, así que sin esto la primera corrida terminaba en
+    # 117 unidades y la segunda —que saltea las ventas ya creadas— en 120. El
+    # seed dejaba de ser idempotente y el reset diario mostraba números
+    # distintos según cuántas veces hubiera corrido. Lo agarró
+    # `test_la_segunda_corrida_no_cambia_el_stock`.
+    #
+    # Va en modo `absoluto`, que fija la existencia en vez de sumarla: correrlo
+    # de nuevo no cambia nada.
+    for codigo, cantidad in STOCK.items():
+        if cantidad == 0:
+            continue
+        api.post(f"/api/stock/{productos[codigo]}/ajuste", {
+            "modo": "absoluto", "cantidad": cantidad,
+            "referencia": "Ajuste de inventario",
+        })
+
     print()
     for clave, (creados, existentes) in sorted(hechos.items()):
         print(f"  {clave:<13} {creados} creados, {existentes} ya estaban")
@@ -303,7 +320,7 @@ def _sembrar_presupuestos(api: Api, clientes: dict, contar) -> None:
                 print(f"  -- estado {estado}: {e}")
 
 
-def _sesion_del_visitante(base: str):
+def _sesion_del_visitante(api):
     """Una sesión con el usuario de la demo, si la instancia es una demo.
 
     Existe para lo que el producto ordena **por usuario**: un turno de caja
@@ -314,6 +331,12 @@ def _sesion_del_visitante(base: str):
     usuario = os.environ.get("DEMO_USERNAME", "").strip()
     clave = os.environ.get("DEMO_PASSWORD", "")
     if not usuario or not clave:
+        return None
+    # `base` sólo existe en el `Api` real. La suite corre el seed contra un
+    # doble que habla directo con la app, sin URL: ahí no hay segunda sesión
+    # que abrir, y el tramo cae al camino del usuario que corre el seed.
+    base = getattr(api, "base", None)
+    if not base:
         return None
     sesion = Api(base)
     try:
@@ -349,7 +372,7 @@ def _sembrar_operacion(api: Api, clientes: dict, productos: dict, contar) -> Non
     # Por eso esto se hace con una sesión del propio usuario de la demo. Es la
     # regla general para todo lo que el producto ordena por usuario: sembrarlo
     # con el usuario que lo va a mirar, no con el que tiene permisos.
-    visitante = _sesion_del_visitante(api.base)
+    visitante = _sesion_del_visitante(api)
     if visitante is not None:
         if not _lista(visitante.get("/api/turnos")):
             try:
