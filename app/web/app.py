@@ -2,7 +2,7 @@ import os
 import re
 
 
-from fastapi import FastAPI, Request, Depends
+from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -50,6 +50,10 @@ from app.web.api_auth import (  # noqa: F401
     get_current_user_json, require_admin_json, require_admin_o_servicio_json,
 )
 from app.web.modules_gate import require_module
+from libracore.comprobantes_router import (
+    build_comprobantes_bandeja_router,
+    build_comprobantes_ingesta_router,
+)
 
 app = FastAPI(title="Contalibra")
 
@@ -255,6 +259,38 @@ app.include_router(
 )
 app.include_router(
     api_logs_router.router,
+    dependencies=[Depends(require_admin_json)],
+)
+
+
+def _quien_resolvio(request: Request) -> str:
+    """Con qué nombre se firma la resolución de un comprobante pendiente.
+
+    Se lee de la sesión y no del payload a propósito: esto es la trazabilidad
+    de quién aprobó facturarle algo a alguien, y un campo del cuerpo lo elige
+    el cliente. Devuelve vacío en vez de romper si no hay sesión — el gate del
+    router ya se ocupó de que la haya.
+    """
+    try:
+        usuario = get_current_user_json(request)
+    except HTTPException:
+        return ""
+    return usuario.get("nombre") or usuario.get("username") or ""
+
+
+# La bandeja de lo que otro producto de la familia dejó para facturar acá (hoy
+# LibraDesk). Van en DOS routers porque no se protegen igual, y el orden de las
+# dependencias no alcanzaría: FastAPI evalúa las del router antes que las de la
+# ruta. Ver `libracore/comprobantes_router.py`.
+app.include_router(
+    # Lo deposita otro sistema, sin humano detrás. Mismo gate que Usuarios, que
+    # es el otro endpoint que atiende a la suite y no a una persona.
+    build_comprobantes_ingesta_router(),
+    dependencies=[Depends(require_admin_o_servicio_json)],
+)
+app.include_router(
+    # La bandeja la trabaja una persona, y decide facturar: sólo admin.
+    build_comprobantes_bandeja_router(usuario_actual=_quien_resolvio),
     dependencies=[Depends(require_admin_json)],
 )
 
