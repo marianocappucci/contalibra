@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from app import config_manager
 from app import database as db
+from libracore.db import comprobantes_pendientes
 from libraauth.session_auth import ROLES_PROHIBIDOS_EN_DEMO, demo_username
 
 from app.web.api_auth import get_current_user_json
@@ -52,6 +53,9 @@ def _serialize_user(user: dict) -> dict:
         # de regresion funcional.
         "empresa_nombre": cfg.get("empresa_nombre", ""),
         "mp_pending_count": db.get_mp_pending_count(),
+        # El badge de "Comprobantes a facturar". Sin esto la pantalla existe y
+        # nadie la abre: lo que llega de otro sistema no lo anuncia nadie.
+        "comprobantes_pendientes_count": comprobantes_pendientes.contar_pendientes(),
     }
 
 

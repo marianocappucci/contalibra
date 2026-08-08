@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import { Eye, Plus, Receipt, Trash2 } from 'lucide-react'
+import { Eye, Inbox, Plus, Receipt, Trash2, TriangleAlert } from 'lucide-react'
 import { SelectBuscable } from 'libra-ui/SelectBuscable'
 
 function todayIso(): string {
@@ -29,13 +29,21 @@ const CONDICIONES_VENTA = [
   'Cheque', 'Transferencia Bancaria', 'Otros medios de pago electrónico', 'Otra',
 ]
 
-// Prefill opcional para "Duplicar" (FacturaDetalle.tsx) o "Generar factura"
-// desde un presupuesto aceptado (PresupuestoDetalle.tsx) — navigate con
-// state, en vez de query string, para no tener que serializar los items.
+// Prefill opcional para "Duplicar" (FacturaDetalle.tsx), "Generar factura"
+// desde un presupuesto aceptado (PresupuestoDetalle.tsx) o desde la bandeja de
+// comprobantes pendientes (ComprobantesPendientes.tsx) — navigate con state, en
+// vez de query string, para no tener que serializar los items.
 type PrefillState = {
   tipo?: string; clienteId?: string; clienteNombreLibre?: string; concepto?: string
   condicionVenta?: string; taxRate?: string; items?: ItemRow[]; observations?: string
   fchServDesde?: string; fchServHasta?: string; fchVtoPago?: string; puntoVenta?: string
+  // Los pendientes que esta factura viene a cubrir. Viajan escondidos: el
+  // usuario ve los ítems, no los ids, y al emitir el backend los cierra.
+  comprobantesPendientesIds?: number[]
+  // Lo que el motor aplastó al agrupar (dos alícuotas, dos condiciones de
+  // venta). Se muestra arriba del formulario porque la decisión es de quien
+  // está por emitir, no del que agrupó.
+  avisos?: string[]
 }
 
 export function FacturaNueva() {
@@ -128,6 +136,9 @@ export function FacturaNueva() {
       ...(requiereFechasServicio
         ? { fch_serv_desde: fchServDesde, fch_serv_hasta: fchServHasta, fch_vto_pago: fchVtoPago }
         : {}),
+      ...(prefill?.comprobantesPendientesIds?.length
+        ? { comprobantes_pendientes_ids: prefill.comprobantesPendientesIds }
+        : {}),
     }
   }
 
@@ -170,6 +181,30 @@ export function FacturaNueva() {
       <h2 className="flex items-center gap-2 text-lg font-semibold"><Receipt className="size-5 text-primary" />Nueva factura</h2>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
+
+      {prefill?.comprobantesPendientesIds?.length ? (
+        <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
+          <p className="flex items-center gap-2 font-medium">
+            <Inbox className="size-4 text-primary" />
+            {prefill.comprobantesPendientesIds.length === 1
+              ? 'Esta factura cubre 1 comprobante de la bandeja.'
+              : `Esta factura cubre ${prefill.comprobantesPendientesIds.length} comprobantes de la bandeja.`}
+          </p>
+          <p className="mt-1 text-muted-foreground">
+            Se cierran en la bandeja recién cuando la factura se emita. Podés
+            editar todo antes de emitir.
+          </p>
+          {prefill.avisos?.length ? (
+            <ul className="mt-2 grid gap-1">
+              {prefill.avisos.map((aviso) => (
+                <li key={aviso} className="flex items-start gap-2 text-amber-700 dark:text-amber-400">
+                  <TriangleAlert className="mt-0.5 size-4 shrink-0" />{aviso}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
 
       {tiposInfo && (
         <Card>

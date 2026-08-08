@@ -43,6 +43,7 @@ import { Recibos } from './pages/Recibos'
 import { PresupuestoForm } from './pages/PresupuestoForm'
 import { PresupuestoDetalle } from './pages/PresupuestoDetalle'
 import { MpBandeja } from './pages/MpBandeja'
+import { ComprobantesPendientes } from './pages/ComprobantesPendientes'
 import { LibrosIva } from './pages/LibrosIva'
 import { Reportes } from './pages/Reportes'
 import { CajaMedios } from './pages/CajaMedios'
@@ -385,6 +386,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <MpBandeja />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/comprobantes-pendientes"
+        element={
+          <ProtectedRoute>
+            <ComprobantesPendientes />
           </ProtectedRoute>
         }
       />

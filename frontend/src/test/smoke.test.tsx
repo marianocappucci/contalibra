@@ -70,6 +70,7 @@ function conSesion() {
             // Forma extendida de Contalibra/Restolibra: el Layout arma el
             // sidebar con `modulos`.
             nombre: 'Ana', modulos: [], empresa_nombre: 'Prueba', mp_pending_count: 0,
+            comprobantes_pendientes_count: 0,
           })
         : String(url).includes(RUTA_DASHBOARD)
           ? json(RESUMEN_DASHBOARD)
