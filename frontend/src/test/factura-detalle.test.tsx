@@ -54,6 +54,7 @@ function montarDetalle(cuerpo: unknown) {
       return Promise.resolve(json({
         id: '1', username: 'ana', name: 'Ana', role: 'admin', active: true,
         nombre: 'Ana', modulos: [], empresa_nombre: 'Prueba', mp_pending_count: 0,
+        comprobantes_pendientes_count: 0,
       }))
     }
     if (u.includes('/api/facturas/1')) return Promise.resolve(json(cuerpo))

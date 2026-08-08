@@ -1,6 +1,6 @@
 import {
   BarChart3, BookOpen, BookText, Boxes, Calculator, Clock, CreditCard, FileText, History,
-  Landmark, LayoutDashboard, Package, Receipt, ReceiptText, Settings, ShoppingBag,
+  Inbox, Landmark, LayoutDashboard, Package, Receipt, ReceiptText, Settings, ShoppingBag,
   ShoppingCart, SquareStack, Store, Tag, Truck, UserCog, Users, Wallet, Warehouse,
 } from 'lucide-react'
 import { createLayout, type NavSection } from 'libra-ui/Layout'
@@ -67,6 +67,16 @@ const NAV_SECTIONS: NavSection<User>[] = [
     items: [{
       to: '/mp-bandeja', label: 'Pagos MercadoPago', icon: CreditCard,
       badge: (u) => u.mp_pending_count || undefined,
+    }],
+  },
+  {
+    items: [{
+      // Lo que otro producto de la familia (hoy LibraDesk) dejó para facturar
+      // acá. Sin badge la pantalla existe y nadie la abre: nada avisa que
+      // llegó algo de afuera.
+      to: '/comprobantes-pendientes', label: 'Comprobantes a facturar', icon: Inbox,
+      adminOnly: true,
+      badge: (u) => u.comprobantes_pendientes_count || undefined,
     }],
   },
   {
