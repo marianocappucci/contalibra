@@ -284,14 +284,31 @@ def _repuntar_fk_ventas_pagos_postgres(conn):
     if any("REFERENCES sales(" in d[1] for d in definiciones):
         return
 
-    _avisar_pagos_huerfanos(conn)
+    huerfanas = _avisar_pagos_huerfanos(conn)
 
     for nombre, definicion in definiciones:
         if "venta_id" in definicion:
             conn.execute(f"ALTER TABLE ventas_pagos DROP CONSTRAINT {nombre}")
+
+    # 🔴 `NOT VALID` cuando hay filas colgadas, y es el equivalente EXACTO de lo
+    # que hace el camino de SQLite.
+    #
+    # Allá el rebuild copia las filas con el pragma apagado: las huérfanas
+    # sobreviven y la FK queda declarada pero sin verificar sobre ellas. Es
+    # deliberado — son registros de dinero, y descartarlos tiene que ser
+    # decisión de una persona y no efecto de un deploy.
+    #
+    # PostgreSQL **no acepta** agregar una FK que las filas existentes violan.
+    # `NOT VALID` dice exactamente lo mismo: no revises lo que ya está, aplicá
+    # la regla de acá en adelante. Sin esto las únicas salidas serían tumbar el
+    # arranque o borrar las filas, y las dos son peores.
+    #
+    # Se termina de validar a mano, con `ALTER TABLE ventas_pagos VALIDATE
+    # CONSTRAINT ventas_pagos_venta_id_fkey`, cuando alguien resolvió esas filas.
+    sufijo = " NOT VALID" if huerfanas else ""
     conn.execute(
         "ALTER TABLE ventas_pagos ADD CONSTRAINT ventas_pagos_venta_id_fkey "
-        "FOREIGN KEY (venta_id) REFERENCES sales(id) ON DELETE CASCADE"
+        f"FOREIGN KEY (venta_id) REFERENCES sales(id) ON DELETE CASCADE{sufijo}"
     )
     conn.commit()
 
@@ -315,6 +332,7 @@ def _avisar_pagos_huerfanos(conn):
             "tal cual, pero quedan como referencias colgadas: revisar a mano.",
             flush=True,
         )
+    return huerfanas
 
 
 def _migrar_ventas_pagos_a_sales(conn):
