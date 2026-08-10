@@ -53,19 +53,50 @@ ADMIN_USER = "admin"
 ADMIN_PASS = os.environ["ADMIN_PASSWORD"]
 
 
+def _vaciar_postgres():
+    """El equivalente de borrar el .db, cuando no hay .db.
+
+    Se borra el SCHEMA y no la base: DROP DATABASE exige que no quede ninguna
+    conexion abierta. Y antes se termina a las que quedaron del test anterior:
+    una conexion "idle in transaction" sostiene locks sobre `public` y el DROP
+    se queda esperandola sin fallar -- 20 minutos de cuelgue silencioso, medido
+    en VentaLibra.
+
+    `IF EXISTS` porque una corrida interrumpida a mitad de este bloque deja la
+    base sin `public`, y sin eso todas las siguientes mueren en la primera
+    linea.
+    """
+    import psycopg
+
+    with psycopg.connect(
+        db_core.DB_PATH.replace("postgresql+psycopg://", "postgresql://", 1),
+        autocommit=True,
+    ) as conexion:
+        conexion.execute(
+            "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
+            "WHERE datname = current_database() AND pid <> pg_backend_pid()"
+        )
+        conexion.execute("DROP SCHEMA IF EXISTS public CASCADE")
+        conexion.execute("CREATE SCHEMA public")
+
+
 def _reset_data_dir():
-    """Base y config de cero, misma ruta.
+    """Base y config de cero, misma ruta (o mismo schema).
 
     El dispose es obligatorio: el engine de db_usuarios tiene un pool de
     conexiones abiertas sobre el archivo; borrar el .db debajo de una
     conexion viva deja a SQLite escribiendo en un inode huerfano y los
-    tests "ven" datos que ya no existen en disco.
+    tests "ven" datos que ya no existen en disco. Contra PostgreSQL hace falta
+    igual, y por un motivo distinto: esas conexiones bloquean el DROP SCHEMA.
     """
     db_usuarios._engine.dispose()
-    for suffix in ("", "-wal", "-shm"):
-        path = db_core.DB_PATH + suffix
-        if os.path.exists(path):
-            os.unlink(path)
+    if db_core.ES_POSTGRES:
+        _vaciar_postgres()
+    else:
+        for suffix in ("", "-wal", "-shm"):
+            path = db_core.DB_PATH + suffix
+            if os.path.exists(path):
+                os.unlink(path)
     config_json = os.path.join(_TMP, "config.json")
     if os.path.exists(config_json):
         os.unlink(config_json)

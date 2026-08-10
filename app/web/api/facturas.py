@@ -13,6 +13,7 @@ en JSON la logica de `POST /facturas/borrador-pdf` del router viejo
 emitir).
 """
 import datetime
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
@@ -21,11 +22,14 @@ from app import config_manager
 from app import database as db
 from app import pdf_generator as pdf_gen
 from libracore.cobros import MedioNoEsDeCobro, registrar_cobro_factura
+from libracore.db import comprobantes_pendientes
 from libracore.facturas_borrador import armar_borrador
 from app.web.api_auth import get_current_user_json, require_role_json
 from app.web.helpers.arca_helper import get_next_numero_with_arca, solicitar_cae as _solicitar_cae
 from app.web.helpers.email_helper import send_comprobante, smtp_configurado
 from app.web.helpers.form_helper import calculate_totals
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/facturas", tags=["facturas"])
 
@@ -94,6 +98,10 @@ class FacturaPayload(BaseModel):
     client_address: str = ""
     client_iva: str = ""
     items: list[ItemPayload]
+    # Los comprobantes de la bandeja que esta factura viene a cubrir. Llega
+    # armado por `POST /api/comprobantes-pendientes/facturar-prefill` y viaja
+    # escondido en el formulario: el usuario ve los ítems, no los ids.
+    comprobantes_pendientes_ids: list[int] = []
 
 
 class CobroPayload(BaseModel):
@@ -279,6 +287,25 @@ async def crear(payload: FacturaPayload, user: dict = Depends(get_current_user_j
             monto=totals["total"], referencia="", factura_id=factura_id,
             medio_pago="Cuenta Corriente", usuario_id=user["id"],
         )
+
+    # Cierra los pendientes de la bandeja que esta factura cubrió. Va acá, al
+    # final y **después del CAE**, y no falla la request si algo no se pudo
+    # marcar: para este punto la factura ya existe y está autorizada, así que
+    # un error no la desharía — dejaría al usuario creyendo que no se emitió.
+    # Lo que queda sin marcar sigue visible en la bandeja, que es el peor caso
+    # tolerable: se ve y se resuelve a mano.
+    if payload.comprobantes_pendientes_ids:
+        quien = user.get("nombre") or user.get("username") or ""
+        for comprobante_id in payload.comprobantes_pendientes_ids:
+            try:
+                comprobantes_pendientes.marcar_facturado(
+                    comprobante_id, factura_id, quien,
+                )
+            except Exception:
+                logger.exception(
+                    "No se pudo marcar el comprobante pendiente %s como "
+                    "facturado por la factura %s", comprobante_id, factura_id,
+                )
 
     return db.get_factura(factura_id)
 

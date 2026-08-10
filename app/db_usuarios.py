@@ -45,7 +45,7 @@ from libraauth.smtp_settings import (  # noqa: F401  (re-exportados para el rout
     resolver_smtp_config,
 )
 
-from app.db_core import DB_PATH
+from app.db_core import DB_PATH, ES_POSTGRES
 
 # Roles reales de Contalibra (`ROLES` de frontend/src/api.ts y el literal del
 # tipo `Usuario`). El default de libraauth es ("admin","staff") y no sirve aca:
@@ -53,7 +53,16 @@ from app.db_core import DB_PATH
 # backend no valida el rol por su cuenta -- este es el unico control.
 ROLES = ("admin", "operador", "cajero")
 
-_engine = create_engine(f"sqlite:///{DB_PATH}", connect_args={"check_same_thread": False})
+# La URL salia siempre como `sqlite:///...`, aunque el destino fuera una URL
+# PostgreSQL: la interpolacion la convertia en una ruta relativa sin sentido.
+# `postgresql://` va tal cual, con el driver psycopg que es el de la familia, y
+# `connect_args` es de SQLite.
+if ES_POSTGRES:
+    _engine = create_engine(DB_PATH.replace("postgresql://", "postgresql+psycopg://", 1))
+else:
+    _engine = create_engine(
+        f"sqlite:///{DB_PATH}", connect_args={"check_same_thread": False}
+    )
 # Ya NO es un no-op desde libraauth v0.5.0: crea `password_reset_tokens` (la
 # tabla de la recuperacion de contrasena) la primera vez. `usuarios` sigue sin
 # tocarse, porque `create_all` no altera tablas que ya existen.

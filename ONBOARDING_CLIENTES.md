@@ -45,13 +45,21 @@ Cada cliente corre en su propio contenedor, aislado en `clientes/<slug>/`, todos
 
 ### Setup único del servidor (ya hecho, dejar documentado)
 
-`nuevo_cliente.py`/`panel_admin.py` usan `httpx` para hablar con la API de Nginx Proxy Manager (proxy + SSL automático). El Python del sistema en el VPS no tiene `pip` disponible por política de Debian (PEP 668), así que estos scripts corren con un venv dedicado en `/root/contalibra/.venv-scripts` (gitignored, no se versiona). Si hay que recrearlo en otro servidor:
+`nuevo_cliente.py`/`panel_admin.py` son wrappers finos sobre `libracore.provisioning`, y usan `httpx` para hablar con la API de Nginx Proxy Manager (proxy + SSL automático). El Python del sistema en el VPS no tiene `pip` disponible por política de Debian (PEP 668), así que estos scripts corren con un venv dedicado en `/root/contalibra/.venv-scripts` — **gitignored: no se versiona y no llega por `git pull`**. Si hay que recrearlo en otro servidor:
 
 ```bash
-apt-get install -y python3-pip python3-venv
+apt-get install -y python3-venv
 python3 -m venv /root/contalibra/.venv-scripts
-/root/contalibra/.venv-scripts/bin/pip install httpx
+/root/contalibra/.venv-scripts/bin/pip install \
+  "libracore @ git+ssh://git@github-libracore/marianocappucci/libracore.git@<TAG>"
 ```
+
+Dos cosas que no son obvias:
+
+- **`<TAG>` es el pin que declara el `pyproject.toml` de *este* repo**, no un número común a la familia. Cada producto pinea su propia versión de LibraCore, y el venv del host tiene que espejar la suya: si queda atrás, el CLI opera con un motor distinto del que corre la instancia — ya frenó un deploy acá.
+- **La URL va por SSH (`git+ssh://git@github-libracore/…`), no por HTTPS.** En este VPS el `https://` del `pyproject.toml` falla: la autenticación es por deploy key con alias en `~/.ssh/config`. `httpx` y el resto de las dependencias entran solas con LibraCore.
+
+> Esta guía decía `pip install httpx` a secas. Alcanzaba cuando estos scripts eran propios de Contalibra; desde que la lógica vive en `libracore.provisioning`, un venv con sólo `httpx` se crea bien y falla en el primer `import`.
 
 Todos los comandos de abajo se ejecutan con `.venv-scripts/bin/python3` en vez de `python3` a secas (o activá el venv con `source .venv-scripts/bin/activate`).
 
@@ -78,11 +86,15 @@ El wizard interactivo pide nombre, slug, puerto, dominio y credenciales de admin
 
 Ver `--help` implícito (`panel_admin.py` sin comando muestra el menú con todas las opciones: logs, restore de DB, proxies NPM, etc.)
 
+Lo mismo se hace por navegador desde el backoffice, en **https://admin.contalibra.com.ar** (alta, baja, edición, plan, backup, SMTP y usuarios de cada instancia).
+
 ### DNS / Dominio
 
 - Configurar el subdominio del cliente (ej: `nombre-cliente.contalibra.com.ar`)
 - Apuntar el DNS al IP del servidor
 - El proxy + SSL se gestionan automáticamente vía NPM desde `nuevo_cliente.py` / `panel_admin.py` (comandos `npm-crear` / `npm-eliminar` / `npm-listar`)
+
+> ⚠️ **Al dar de baja una instancia, el proxy no se va solo.** `eliminar` baja el contenedor y borra el directorio, nada más. Correr **`npm-eliminar <slug>` antes**, porque después no queda `cliente.json` de donde leer el dominio — y ese comando depende de que el campo `domain` esté cargado ahí. La baja desde el backoffice sí borra el proxy, pero también sólo si `domain` está cargado.
 
 ---
 
