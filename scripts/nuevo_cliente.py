@@ -20,6 +20,7 @@ from libracore.provisioning.nuevo_cliente import (
 REPO_ROOT = Path(__file__).parent.parent.resolve()
 
 configure(
+    postgres=True,
     product_name="CONTALIBRA",
     image_name="contalibra:latest",
     container_prefix="contalibra",
