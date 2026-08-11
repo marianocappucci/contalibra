@@ -8,6 +8,7 @@ que anular no toque la plata.
 """
 import datetime
 import io
+import re
 
 from pypdf import PdfReader
 
@@ -42,6 +43,23 @@ def _deudor(client, name, monto=1000.0):
 
 def _texto_del_pdf(contenido: bytes) -> str:
     return "\n".join(p.extract_text() for p in PdfReader(io.BytesIO(contenido)).pages)
+
+
+def _sin_la_hora_de_generacion(pdf: bytes) -> bytes:
+    """El mismo PDF generado dos veces difiere en dos campos que llevan la hora:
+    `/CreationDate` y el `/ID`, que deriva de ella.
+
+    🔴 Sin esto el test es **flaky y no lo parece**: compara byte a byte, y sólo
+    falla cuando las dos generaciones caen a los dos lados de un segundo.
+    Frenó dos deploys el 2026-08-11, las dos veces con el mismo commit dando
+    verde en otro run — o sea que el rojo no decía nada del código.
+
+    Se saca sólo eso: todo el resto del documento se sigue comparando byte a
+    byte, que es lo que hace fuerte a este test.
+    """
+    pdf = re.sub(rb"/CreationDate \(D:[0-9]+Z?\)", b"/CreationDate ()", pdf)
+    pdf = re.sub(rb"/ID \[<[0-9A-Fa-f]+><[0-9A-Fa-f]+>\]", b"/ID []", pdf)
+    return pdf
 
 
 # ── Cobranza de cuenta corriente ─────────────────────────────────────────────
@@ -161,7 +179,13 @@ def test_reimprimir_devuelve_el_mismo_papel(admin_client):
                                   json={"monto": 1000.0, "fecha": HOY}).json()["recibo_id"]
     primero = admin_client.get(f"/api/recibos/{recibo_id}/pdf").content
     segundo = admin_client.get(f"/api/recibos/{recibo_id}/pdf").content
-    assert primero == segundo
+    assert _sin_la_hora_de_generacion(primero) == _sin_la_hora_de_generacion(segundo)
+
+    # La normalizacion tiene que sacar la hora y NADA MAS: si se comiera el
+    # cuerpo, el assert de arriba pasaria con dos recibos distintos.
+    assert b"%PDF-" in _sin_la_hora_de_generacion(primero)
+    assert "Reimprime" in _texto_del_pdf(_sin_la_hora_de_generacion(primero))
+    assert b"/CreationDate (D:" not in _sin_la_hora_de_generacion(primero)
 
 
 # ── Anulación ────────────────────────────────────────────────────────────────
