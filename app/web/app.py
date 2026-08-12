@@ -54,6 +54,8 @@ from libracore.comprobantes_router import (
     build_comprobantes_bandeja_router,
     build_comprobantes_ingesta_router,
 )
+from libracore.config_router import build_backup_router
+from libracore.respaldo import Instancia
 
 app = FastAPI(title="Contalibra")
 
@@ -192,6 +194,42 @@ app.include_router(
 )
 app.include_router(
     api_config_router.router,
+    dependencies=[Depends(require_admin_json)],
+)
+# Datos / Backup, del motor (LibraCore v1.10.0+). Reemplaza a la implementacion
+# propia que vivia en `web/routers/config.py` y `web/api/config.py`.
+#
+# 🔴 La propia estaba ROTA desde el corte a PostgreSQL, en los dos caminos, y
+# las dos formas de fallar escribian la URL de la base -- con la contrasena--
+# en el mensaje de error:
+#
+#   - `GET /config/backup-db` hacia `FileResponse(db.DB_PATH)`. Con PostgreSQL
+#     eso es una URL, no un archivo: `RuntimeError: File at path
+#     postgresql://usuario:CLAVE@host/base does not exist.`
+#   - `POST /api/config/restore-db` exigia que el archivo empezara con
+#     `SQLite format 3\x00` -- o sea que rechazaba de plano el `.dump` que el
+#     propio producto venia generando-- y despues hacia
+#     `shutil.move(tmp, db.DB_PATH)`, que sobre una URL crea un archivo **con
+#     la contrasena en el nombre**.
+#
+# Ademas el backup propio se llevaba solo la base: dejaba afuera los logos y
+# los **certificados de ARCA**, que son los que dejan facturar. El del motor
+# toma la instancia entera.
+#
+# `cerrar_conexiones`/`reabrir_conexiones` van en None a proposito: este
+# producto no sostiene un pool -- `libracore.db.core.get_connection()` abre y
+# cierra una conexion por llamada--, asi que no hay descriptor viejo que
+# invalidar. En PostgreSQL, ademas, el restore es del lado del servidor.
+app.include_router(
+    build_backup_router(
+        lambda: Instancia(
+            nombre="contalibra",
+            bases=([] if db.ES_POSTGRES else [db.DB_PATH]),
+            postgres_url=(db.DB_PATH if db.ES_POSTGRES else None),
+            directorios=[config_router.LOGO_DIR, config_router.CERTS_DIR],
+        ),
+        config_router.BACKUPS_DIR,
+    ),
     dependencies=[Depends(require_admin_json)],
 )
 app.include_router(
