@@ -16,6 +16,19 @@ license = { text = "Proprietary" }
 dependencies = [
     # libracore provee facturacion/caja/ARCA y la base donde vive `usuarios`.
     # El auth SALIO de aca el 2026-07-30 y ahora lo da libraauth.
+    #
+    # v1.28.4 -> v1.31.0 (2026-08-12). Son dos:
+    #
+    # - v1.30.0: un comprobante se fecha con SU fecha y no con el reloj, asi que
+    #   reimprimirlo da byte a byte el mismo archivo. Toca todo lo que este
+    #   producto emite: los tickets, factura, remito, presupuesto, los recibos y
+    #   el resumen de cuenta corriente.
+    # - v1.31.0: `pinear_image` escribia la imagen de la app en el primer
+    #   `image:` del compose. **Aca eso es el sidecar**: en docker-compose.yml
+    #   `contalibra-postgres` (con `image: postgres:16`) va declarado ANTES que
+    #   `contalibra-dev`, o sea el layout exacto donde el bug le pone la imagen
+    #   de la aplicacion al contenedor de la base. Ahora el servicio se elige
+    #   por `container_name`.
     "libracore @ git+https://github.com/marianocappucci/libracore.git@v1.31.0",
     # v0.7.0 sube al motor las transferencias entre depositos y la guarda de
     # disponibilidad, que hasta ahora vivian solo aca (`db_productos.
