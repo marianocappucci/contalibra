@@ -1,7 +1,5 @@
 import os
 
-import datetime
-import shutil
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from typing import Annotated
@@ -33,8 +31,8 @@ BACKUPS_DIR = os.path.join(_DATA_DIR, "backups")
 # servicio/ticket/restore-db/categorias-producto/categorias-egreso) se
 # removieron en el corte de la migracion a React -- ver
 # wiki/entities/contalibra.md, Etapa D. Solo quedan la descarga del logo
-# y los backups de la DB, y los helpers de backup que reusa
-# web/api/config.py (importados de aca tal cual, no duplicados).
+# y las tres rutas de datos (`LOGO_DIR`, `CERTS_DIR`, `BACKUPS_DIR`), que
+# `web/api/config.py` y el router de backup del motor importan de aca.
 
 
 @router.get("/config/empresa/logo", include_in_schema=False)
@@ -49,85 +47,27 @@ def config_logo(user: Auth):
     return FileResponse(path, media_type=media)
 
 
-def _listar_backups() -> list[dict]:
-    """Devuelve los backups automáticos disponibles, ordenados del más reciente al más antiguo."""
-    if not os.path.exists(BACKUPS_DIR):
-        return []
-    result = []
-    for f in sorted(os.listdir(BACKUPS_DIR), reverse=True):
-        # `.dump` ademas de `.db`: una instancia en PostgreSQL guarda dumps de
-        # `pg_dump`, no copias de archivo. Sin esto la pantalla de Backups se
-        # ve vacia aunque los backups existan.
-        if not f.endswith((".db", ".dump")):
-            continue
-        path = os.path.join(BACKUPS_DIR, f)
-        stat = os.stat(path)
-        result.append({
-            "filename": f,
-            "size_mb":  round(stat.st_size / 1_048_576, 2),
-            "mtime":    datetime.datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
-        })
-    return result
-
-
-def _hacer_backup_automatico(motivo: str = "auto") -> str:
-    """Hace checkpoint WAL y guarda copia de la DB actual. Retorna la ruta del backup."""
-    os.makedirs(BACKUPS_DIR, exist_ok=True)
-    # Eliminar backups automáticos que superen los 10 más recientes
-    backups = sorted(
-        [f for f in os.listdir(BACKUPS_DIR) if f.endswith((".db", ".dump"))],
-        reverse=True,
-    )
-    for old in backups[9:]:
-        try:
-            os.unlink(os.path.join(BACKUPS_DIR, old))
-        except OSError:
-            pass
-    # Checkpoint WAL antes de copiar
-    try:
-        with db.get_connection() as conn:
-            conn.execute("PRAGMA wal_checkpoint(FULL)")
-    except Exception:
-        pass
-    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-
-    # 🔴 Con la base en PostgreSQL no hay archivo que copiar. `shutil.copy2()`
-    # sobre una URL tira `FileNotFoundError` con la URL entera -- contrasena
-    # incluida-- en el mensaje. El equivalente es `pg_dump`, que ademas da una
-    # foto coherente sin bloquear a quien escribe, igual que el checkpoint de
-    # arriba en SQLite.
-    if db.ES_POSTGRES:
-        from libracore.respaldo import _dump_postgres
-
-        dest = os.path.join(BACKUPS_DIR, f"backup_{motivo}_{ts}.dump")
-        _dump_postgres(db.DB_PATH, dest)
-        return dest
-
-    dest = os.path.join(BACKUPS_DIR, f"backup_{motivo}_{ts}.db")
-    shutil.copy2(db.DB_PATH, dest)
-    return dest
-
-
-@router.get("/config/backup-db")
-def config_backup_db(user: Auth):
-    hoy      = datetime.date.today().strftime("%Y%m%d")
-    filename = f"contalibra_backup_{hoy}.db"
-    # Checkpoint WAL antes de servir el archivo
-    try:
-        with db.get_connection() as conn:
-            conn.execute("PRAGMA wal_checkpoint(FULL)")
-    except Exception:
-        pass
-    return FileResponse(db.DB_PATH, media_type="application/octet-stream",
-                        filename=filename)
-
-
-@router.get("/config/backup-db/{filename}")
-def config_download_autobackup(filename: str, user: Auth):
-    """Descarga un backup automático específico."""
-    if ".." in filename or "/" in filename:
-        raise HTTPException(400)
-    path = os.path.join(BACKUPS_DIR, filename)
-    if not os.path.exists(path):
-        raise HTTPException(404)
-    return FileResponse(path, media_type="application/octet-stream", filename=filename)
+# 🔴 Acá vivían `_listar_backups()`, `_hacer_backup_automatico()` y las rutas
+# `/config/backup-db[/{filename}]`. Se removieron el 2026-08-12: la pantalla de
+# Datos / Backup pasa a salir de `libracore.respaldo`, igual que en los otros
+# cuatro productos. El router del motor se monta en `web/app.py`, y `BACKUPS_DIR`
+# de acá arriba es el directorio que recibe.
+#
+# **No fue una normalización de prolijidad: lo propio estaba roto.** Desde el
+# corte a PostgreSQL del 2026-08-09/10, los dos caminos fallaban escribiendo la
+# URL de la base —con la contraseña— en el mensaje de error:
+#
+#   - `GET /config/backup-db` servía `FileResponse(db.DB_PATH)`, y con
+#     PostgreSQL eso es una URL, no un archivo.
+#   - `POST /api/config/restore-db` exigía `SQLite format 3\x00`, o sea que
+#     rechazaba de plano el `.dump` que el propio producto generaba, y después
+#     hacía `shutil.move(tmp, db.DB_PATH)` sobre esa misma URL.
+#
+# Y aun andando, el backup propio se llevaba **sólo la base**: los logos y los
+# certificados de ARCA —los que dejan facturar— quedaban afuera. El del motor
+# toma la instancia entera, en un ZIP.
+#
+# Los archivos `.db`/`.dump` que ya estén en `BACKUPS_DIR` dejan de aparecer en
+# la pantalla, porque el motor lista `.zip`. Medido antes de decidirlo: las dos
+# instancias con clientes reales tenían **cero** archivos ahí, así que no se le
+# saca nada a nadie. Los de las demos quedan en disco y se los lleva el reset.
