@@ -12,29 +12,42 @@ desplegar actualizaciones del sistema.
 3. [Setup inicial del servidor](#setup-inicial-del-servidor)
 4. [Alta de un cliente nuevo](#alta-de-un-cliente-nuevo)
 5. [Gestión diaria con panel_admin.py](#gestión-diaria-con-panel_adminpy)
-6. [Desplegar una actualización](#desplegar-una-actualización)
-7. [Cuándo reconstruir la imagen vs solo reiniciar](#cuándo-reconstruir-la-imagen-vs-solo-reiniciar)
-8. [Backup y restauración](#backup-y-restauración)
-9. [Proxy y SSL (Nginx Proxy Manager)](#proxy-y-ssl-nginx-proxy-manager)
-10. [Gestión del estado del servicio](#gestión-del-estado-del-servicio)
-11. [Website de marketing (contalibra.com.ar)](#website-de-marketing-contalibracomar)
-12. [Estructura de directorios](#estructura-de-directorios)
+6. [Migrar la base antes de desplegar](#migrar-la-base-antes-de-desplegar)
+7. [Desplegar una actualización](#desplegar-una-actualización)
+8. [Cuándo reconstruir la imagen vs solo reiniciar](#cuándo-reconstruir-la-imagen-vs-solo-reiniciar)
+9. [Backup y restauración](#backup-y-restauración)
+10. [Proxy y SSL (Nginx Proxy Manager)](#proxy-y-ssl-nginx-proxy-manager)
+11. [Gestión del estado del servicio](#gestión-del-estado-del-servicio)
+12. [Website de marketing (contalibra.com.ar)](#website-de-marketing-contalibracomar)
+13. [Estructura de directorios](#estructura-de-directorios)
 
 ---
 
 ## Entornos dev y producción
 
-El sistema maneja dos entornos completamente separados que corren en el mismo servidor.
+El servidor corre **una instancia de dev** y **N instancias multi-tenant**, una por
+cliente. No hay un "entorno de producción" único: cada cliente es una instancia
+aislada bajo `clientes/<slug>/`, con su contenedor, su sidecar de datos y su pin de
+imagen propios.
 
-| | Desarrollo | Producción |
+| | Desarrollo | Cada instancia de cliente |
 |---|---|---|
-| Rama git | `develop` | `main` |
-| Puerto | `8071` | `8070` |
-| Contenedor Docker | `contalibra-dev` | `contalibra` |
-| docker-compose | `docker-compose.yml` | `docker-compose.prod.yml` |
-| Base de datos | `./dev-data/contalibra.db` | `./contalibra.db` |
-| Código | Volumen montado (hot-reload) | Copiado en la imagen |
+| Puerto | `8071` | uno por instancia, desde `8070` |
+| Contenedor Docker | `contalibra-dev` | `contalibra` (compulibra), `contalibra-demo`, … |
+| docker-compose | `docker-compose.yml` (raíz del repo) | `clientes/<slug>/docker-compose.yml` |
+| Base de datos | PostgreSQL, sidecar `contalibra-postgres` | PostgreSQL, un sidecar propio por instancia |
+| Código | Volumen montado `./:/app` (hot-reload) | Copiado en una imagen **pineada** |
 | Badge en UI | `DEV` amarillo en sidebar | Sin badge |
+
+> El checkout del VPS (`/root/contalibra`) corre **`main`**, y de él salen tanto el
+> bind mount de dev como los builds de las instancias de cliente.
+
+> ⚠️ **`clientes/` está en el `.gitignore`**: los compose de instancia viven sólo en
+> el VPS. Son configuración de instancia, no código, y no llegan por `git pull`.
+
+> ⚠️ **El contenedor de la instancia `compulibra` se llama `contalibra`, a secas** —
+> nombre histórico, anterior a la convención `<producto>-<slug>`. Importa al pasarle
+> instancias a cualquier comando que reciba nombres de contenedor.
 
 ### Flujo de trabajo diario
 
@@ -57,33 +70,77 @@ docker compose up -d --build    # usa docker-compose.yml → puerto 8071
 
 ### Promover cambios a producción
 
-Cuando los cambios están listos para producción, ejecutar el script de deploy **desde la rama `develop`**:
+> 🔴 **`scripts/deploy-prod.sh` ya no existe.** Se eliminó en el commit `ccb3137`
+> junto con `docker-compose.prod.yml`, cuando `compulibra` —la instancia de
+> producción original— pasó a vivir en `clientes/compulibra/` como cualquier otro
+> cliente. Aquel script desplegaba **un solo tenant**: construía una imagen y
+> reiniciaba el contenedor `contalibra` y nada más. Hoy hay N instancias, cada una
+> con su pin de imagen, y el deploy las mueve a todas.
+
+La promoción tiene dos mitades: **el código va por PR**, y **el deploy se hace en el
+servidor**.
+
+**1. Promover el código a `main`** (desde WSL local, no en el servidor):
 
 ```bash
-# Sin bump de versión (usa la versión actual en version.py)
-./scripts/deploy-prod.sh
-
-# Con bump de versión (actualiza version.py, commitea, mergea y tagea)
-./scripts/deploy-prod.sh 1.3.0
+gh pr create --base main --head develop --title "Deploy: <resumen>"
+# con el CI en verde:
+gh pr merge --merge
 ```
 
-El script hace automáticamente:
-1. Verifica que estás en `develop` y no hay cambios sin commitear
-2. (Opcional) Actualiza `version.py` y commitea el bump
-3. Hace merge `develop → main` con `--no-ff`
-4. Crea el git tag `vX.Y.Z`
-5. Construye la imagen de producción y reinicia el contenedor `contalibra`
-6. Vuelve a `develop` y pushea ambas ramas + el tag a origin
+**2. Desplegar en el servidor**, desde `/root/contalibra` (que corre `main`):
+
+```bash
+cd /root/contalibra
+git pull
+
+# ⚠️ Antes de levantar nada: ver "Migrar la base antes de desplegar"
+# Sin ese paso el código nuevo puede escribir columnas que la base no tiene.
+
+./.venv-scripts/bin/python3 scripts/panel_admin.py actualizar
+```
+
+`actualizar` construye **una imagen nueva** con tag de deploy
+(`contalibra:vAAAA.MM.DD-hhmm`), repinea el `image:` del compose de cada instancia
+**que esté corriendo** y la levanta con `docker compose up -d`. Una instancia detenida
+se saltea **sin repinear**: queda en la versión que ya tenía, para que arrancarla más
+tarde no la salte a código que no se desplegó para ella.
+
+Con un slug despliega una sola instancia; sin argumentos, todas:
+
+```bash
+./.venv-scripts/bin/python3 scripts/panel_admin.py actualizar compulibra
+```
+
+> **Los scripts corren con `./.venv-scripts/bin/python3`, no con el `python3` del
+> sistema.** `nuevo_cliente.py` y `panel_admin.py` son wrappers finos sobre
+> `libracore.provisioning`, y el Python del sistema del VPS no tiene `pip` por
+> política de Debian (PEP 668). Ese venv está **gitignored**: no llega por `git pull`.
+> Si LibraCore subió de versión, hay que actualizarlo también — `actualizar` avisa
+> cuando el venv quedó atrás del pin del `pyproject.toml`.
+
+### Verificar qué quedó desplegado
+
+```bash
+./.venv-scripts/bin/python3 scripts/panel_admin.py versiones
+```
+
+Muestra dos columnas distintas a propósito: **pineado** (lo que dice el compose, la
+intención) y **corriendo** (lo que dice `docker inspect`, el hecho). Un contenedor
+creado desde `:latest` sigue diciendo `:latest` aunque el tag ya apunte a otra imagen,
+así que comparar nombres da un falso "todo en orden".
 
 ### Versionado
 
-La versión del sistema se define en `version.py`:
+> **`version.py` ya no existe en este repo.** Se fue con el deploy de un solo tenant.
 
-```python
-VERSION = "1.2.0"
-```
+La versión de un deploy es un **timestamp**, `vAAAA.MM.DD-hhmm`, y lo que nombra es
+**la imagen** — que es lo que permite que el compose de cada instancia pinee una
+versión concreta en vez de un `:latest` mutable. Es a propósito que no sea la versión
+del producto: un deploy puede repetir código (un rebuild por un bump de dependencia,
+por ejemplo), y lo que hay que poder distinguir es el deploy, no el código.
 
-Se muestra en el sidebar de la UI. Cada deploy a producción debe tener su propio tag git (`v1.2.0`, `v1.3.0`, etc.) y su entrada en `CHANGELOG.md`.
+Los cambios de cara al usuario siguen yendo a `CHANGELOG.md`.
 
 ---
 
@@ -97,10 +154,9 @@ VPS
 │   └── clientes/              ← un subdirectorio por cliente
 │       ├── mitienda/
 │       │   ├── docker-compose.yml
-│       │   ├── cliente.json   ← metadatos del cliente
-│       │   ├── backups/       ← backups automáticos de la DB
+│       │   ├── cliente.json   ← metadatos del cliente y versión desplegada
+│       │   ├── backups/       ← backups de la instancia
 │       │   └── data/          ← montado en /app/data dentro del contenedor
-│       │       ├── contalibra.db
 │       │       ├── config.json
 │       │       ├── logos/
 │       │       └── arca_certs/
@@ -109,14 +165,16 @@ VPS
 └── nginx-proxy-manager        ← proxy inverso con SSL automático
 ```
 
-**Principio clave**: el directorio `/root/contalibra` completo se monta como
-volumen en `/app` dentro de cada contenedor. Esto significa que **los cambios
-de código se aplican sin reconstruir la imagen** — solo se necesita reiniciar
-el contenedor. La imagen Docker solo necesita reconstruirse cuando cambian las
-dependencias Python (`pyproject.toml`).
+**Principio clave**: cada instancia de cliente es un silo. Tiene su propio
+contenedor, su propio **sidecar de PostgreSQL** (sin puerto publicado, en una red
+`contalibra-<slug>-datos` propia), su propio `data/` con la configuración y los
+adjuntos, y su propio pin de imagen. No hay ningún componente de datos compartido
+entre instancias.
 
-Cada cliente tiene su propia base de datos SQLite aislada, sin ningún
-componente compartido entre instancias.
+El código **va copiado dentro de la imagen**, que cada compose pinea por tag. Por eso
+un cambio de código no se aplica reiniciando: hay que construir una imagen nueva y
+mover la instancia a ella, que es lo que hace `panel_admin.py actualizar`. La única
+excepción es la instancia de **dev**, que monta `./:/app` y corre con `--reload`.
 
 ---
 
@@ -146,7 +204,7 @@ dependencias). Las siguientes veces es mucho más rápido por caché.
 Si vas a usar dominios con SSL automático:
 
 ```bash
-python3 scripts/npm_setup.py
+./.venv-scripts/bin/python3 scripts/npm_setup.py
 ```
 
 El script pregunta la URL de NPM (típicamente `http://localhost:81`), las
@@ -160,7 +218,7 @@ que es el gateway Docker). Guarda la config en `scripts/.npm_config.json`
 
 ```bash
 cd /root/contalibra
-python3 scripts/nuevo_cliente.py
+./.venv-scripts/bin/python3 scripts/nuevo_cliente.py
 ```
 
 El script es interactivo y guía paso a paso:
@@ -218,7 +276,7 @@ Los módulos se asignan según el plan del cliente desde el backoffice
 una pantalla de auto-gestión de módulos dentro del sistema del cliente.
 
 ```bash
-python3 scripts/panel_admin.py
+./.venv-scripts/bin/python3 scripts/panel_admin.py
 # → opción 2 (info) para ver el slug exacto
 ```
 
@@ -228,8 +286,8 @@ python3 scripts/panel_admin.py
 
 ```bash
 cd /root/contalibra
-python3 scripts/panel_admin.py           # menú interactivo
-python3 scripts/panel_admin.py listar    # lista rápida desde CLI
+./.venv-scripts/bin/python3 scripts/panel_admin.py           # menú interactivo
+./.venv-scripts/bin/python3 scripts/panel_admin.py listar    # lista rápida desde CLI
 ```
 
 ### Menú disponible
@@ -252,12 +310,99 @@ python3 scripts/panel_admin.py listar    # lista rápida desde CLI
 
 ---
 
+## Migrar la base antes de desplegar
+
+**Paso obligatorio de todo deploy que traiga una versión nueva de LibraCore.**
+
+Las tablas del motor —`clients`, facturación, caja, recibos— las define **LibraCore**,
+no este repo, y su schema evoluciona con una cadena de migraciones de Alembic. Cuando
+sube el pin de `libracore` en `pyproject.toml`, el código nuevo puede esperar columnas
+que la base todavía no tiene.
+
+> 🔴 **Sin este paso, el código nuevo escribe contra un schema viejo.** Y no falla al
+> arrancar, que es lo que lo hace peligroso: falla más tarde, cuando alguien toca la
+> pantalla que usa la columna nueva — y para entonces la instancia ya está sirviendo.
+
+### Setup único: el script no llega por `git pull`
+
+`migrar_instancias.sh` vive en el repo de **LibraCore**, en `scripts/` — **fuera del
+paquete Python**, así que no lo trae `pip install libracore` ni el `git pull` de este
+repo. Hace falta un checkout del motor en el servidor:
+
+```bash
+git clone git@github-libracore:marianocappucci/libracore.git /root/libracore
+```
+
+El alias `github-libracore` ya está en el `~/.ssh/config` del VPS, apuntando a la
+deploy key de solo lectura de ese repo.
+
+### Correr las migraciones
+
+En el servidor, **después del `git pull` de este repo y antes de `actualizar`**:
+
+```bash
+git -C /root/libracore pull
+
+# 1. DRY-RUN (es el default): dice qué instancias encontró y contra qué base iría
+LIBRACORE_REF=v1.28.4 /root/libracore/scripts/migrar_instancias.sh \
+  contalibra-dev contalibra-demo contalibra
+
+# 2. Revisada la lista, aplicar:
+LIBRACORE_REF=v1.28.4 /root/libracore/scripts/migrar_instancias.sh --si \
+  contalibra-dev contalibra-demo contalibra
+```
+
+El dry-run imprime, sin tocar nada:
+
+```
+LibraCore ref: v1.28.4
+MODO DRY-RUN — nada se va a modificar (pasá --si para aplicar)
+
+→ contalibra-dev
+    base: postgresql://***:***@contalibra-postgres:5432/contalibra
+    red:  contalibra-dev-datos
+```
+
+**`LIBRACORE_REF` es el tag que pinea el `pyproject.toml` de _este_ repo**, no un
+número común a la familia: cada producto pinea su propia versión del motor.
+
+```bash
+grep libracore pyproject.toml
+```
+
+**Los argumentos son nombres de contenedor, no slugs** — y el de `compulibra` es
+`contalibra` a secas.
+
+> **El dry-run no es una formalidad.** La lista sale de inspeccionar contenedores, así
+> que una instancia de cliente pasada por error se migra igual que una de dev. Mirar
+> la lista antes de `--si`.
+
+Antes de aplicar sobre una instancia de cliente, backup:
+
+```bash
+./.venv-scripts/bin/python3 scripts/panel_admin.py backup compulibra
+```
+
+### Por qué un contenedor efímero y no `alembic` en el host
+
+> 🔴 **El host no puede resolver la URL de una instancia.** El destino es
+> `postgresql://…@contalibra-postgres:5432/…`, y ese nombre es un **alias de la red de
+> Docker** del sidecar de datos: desde afuera de esa red no existe. Correr las
+> migraciones derecho en el host falla con *"could not translate host name"*.
+
+Por eso el script las corre en un contenedor efímero adosado a la **misma red** que la
+instancia. Las URLs se imprimen siempre enmascaradas: la de PostgreSQL lleva la
+contraseña del sidecar adentro.
+
+---
+
 ## Desplegar una actualización
 
-### Flujo normal (cambios de código o templates)
+### Flujo normal
 
-Cuando modificás Python, HTML, CSS o cualquier archivo del sistema y lo
-verificaste localmente:
+Cada instancia corre una **imagen pineada** con el código copiado adentro, así que un
+deploy es siempre: traer el código, migrar la base, y construir y mover las instancias
+a la imagen nueva.
 
 ```bash
 cd /root/contalibra
@@ -265,72 +410,94 @@ cd /root/contalibra
 # 1. Traer los cambios del repo
 git pull
 
-# 2. Reiniciar todos los contenedores activos
-python3 scripts/panel_admin.py actualizar
+# 2. Migrar la base — ver "Migrar la base antes de desplegar"
+LIBRACORE_REF=$(grep -oP 'libracore\.git@\K[^"]+' pyproject.toml) \
+  /root/libracore/scripts/migrar_instancias.sh --si \
+  contalibra-dev contalibra-demo contalibra
+
+# 3. Construir la imagen nueva y mover las instancias a ella
+./.venv-scripts/bin/python3 scripts/panel_admin.py actualizar
 ```
 
-**¿Por qué funciona sin reconstruir la imagen?**
-El directorio `/root/contalibra` está montado como volumen en `/app` dentro
-de cada contenedor. Al reiniciar, uvicorn levanta con el código nuevo que
-ya está en disco.
+El paso 3 hace el build: **no hay un `docker build` aparte**, tampoco cuando cambian
+las dependencias de `pyproject.toml`. `actualizar` construye la imagen con tag de
+deploy y recién entonces repinea y levanta cada instancia.
 
-### Si cambiaron las dependencias (pyproject.toml)
+> ⚠️ **El orden importa.** `actualizar` levanta los contenedores con el código nuevo
+> apenas termina el build. Si las migraciones no corrieron antes, el código nuevo
+> queda sirviendo contra el schema viejo.
 
-Cuando agregaste o actualizaste paquetes Python:
-
-```bash
-cd /root/contalibra
-
-# 1. Traer los cambios
-git pull
-
-# 2. Reconstruir la imagen (instala las nuevas dependencias)
-docker build -t contalibra:latest .
-
-# 3. Reiniciar todos los contenedores con la nueva imagen
-python3 scripts/panel_admin.py actualizar
-```
+> **La instancia de dev es la excepción**: monta `./:/app` y corre uvicorn con
+> `--reload`, así que toma el código nuevo con el `git pull`, sin build. Su base **sí**
+> necesita las migraciones igual.
 
 ### Actualizar un solo cliente (sin afectar a los demás)
 
 ```bash
-python3 scripts/panel_admin.py restart mitienda
+./.venv-scripts/bin/python3 scripts/panel_admin.py actualizar compulibra
+```
 
-# O con docker directamente:
-docker compose -f clientes/mitienda/docker-compose.yml restart
+`restart` sólo reinicia el contenedor con la imagen que ya tenía pineada — **no trae
+código nuevo**:
+
+```bash
+./.venv-scripts/bin/python3 scripts/panel_admin.py restart compulibra
 ```
 
 ### Verificar que todo quedó bien
 
 ```bash
-# Ver estado de todos los contenedores
-python3 scripts/panel_admin.py listar
+# Estado de todas las instancias
+./.venv-scripts/bin/python3 scripts/panel_admin.py listar
 
-# Ver logs de un cliente específico si hay problemas
-python3 scripts/panel_admin.py logs mitienda
+# Qué versión quedó pineada y cuál está corriendo de verdad
+./.venv-scripts/bin/python3 scripts/panel_admin.py versiones
+
+# Logs de una instancia, si hay problemas
+./.venv-scripts/bin/python3 scripts/panel_admin.py logs compulibra
 ```
 
 ---
 
 ## Cuándo reconstruir la imagen vs solo reiniciar
 
-| Cambio realizado | ¿Reconstruir imagen? | ¿Reiniciar contenedores? |
-|------------------|----------------------|--------------------------|
-| Código Python (`.py`) | No | Sí |
-| Templates HTML (`.html`) | No | Sí |
-| CSS / JS | No | Sí |
-| `pyproject.toml` (nuevas dependencias) | **Sí** | Sí (después del build) |
-| `Dockerfile` | **Sí** | Sí (después del build) |
-| Variables de entorno en `docker-compose.yml` | No | Sí |
+En las instancias de cliente el código viaja **dentro de la imagen**, así que casi todo
+cambio del repo necesita `actualizar` (que construye y mueve). `restart` sirve para
+cambios que no son código.
+
+| Cambio realizado | Qué correr |
+|------------------|------------|
+| Código Python (`.py`) | `actualizar` |
+| Templates HTML / CSS / JS | `actualizar` |
+| `pyproject.toml` (nuevas dependencias) | `actualizar` |
+| `Dockerfile` | `actualizar` |
+| Pin de `libracore` en `pyproject.toml` | **migrar** y después `actualizar` |
+| Variables de entorno en el compose de la instancia | `restart` |
+| Estado del servicio (activar/pausar/suspender) | nada — es inmediato |
 
 ---
 
 ## Backup y restauración
 
+> ⚠️ **Esta sección describe el mecanismo de la época de SQLite y quedó atrás del corte
+> a PostgreSQL.** Sigue siendo cierta para los adjuntos y la configuración de `data/`,
+> pero **no para la base**:
+>
+> - `restore-db` y `list-backups` operan sobre archivos `.db` de SQLite. En una
+>   instancia ya migrada, el `.db` que queda en `data/` está **congelado en el momento
+>   del corte** — restaurarlo no revierte la base que la instancia usa de verdad, y no
+>   avisa.
+> - El respaldo real de PostgreSQL lo hace un `pg_dump` por instancia, desde el cron
+>   nocturno del VPS (`dump_postgres_instancias.sh`, 03:40). Deja los `.dump` en
+>   `clientes/<slug>/backups/`, al lado de los `.db` viejos.
+>
+> Documentar el backup/restore de PostgreSQL para este producto está **pendiente**.
+> Hasta entonces, ante una restauración de base, mirar el dump, no el `.db`.
+
 ### Backup manual desde el panel admin
 
 ```bash
-python3 scripts/panel_admin.py backup mitienda
+./.venv-scripts/bin/python3 scripts/panel_admin.py backup mitienda
 ```
 
 Genera dos archivos:
@@ -341,10 +508,10 @@ Genera dos archivos:
 
 ```bash
 # Interactivo (muestra lista de backups disponibles):
-python3 scripts/panel_admin.py restore-db mitienda
+./.venv-scripts/bin/python3 scripts/panel_admin.py restore-db mitienda
 
 # Pasando el archivo directamente:
-python3 scripts/panel_admin.py restore-db mitienda contalibra_20260512_143022.db
+./.venv-scripts/bin/python3 scripts/panel_admin.py restore-db mitienda contalibra_20260512_143022.db
 ```
 
 El proceso: para el contenedor → backup automático del estado actual → restaura → reinicia.
@@ -352,7 +519,7 @@ El proceso: para el contenedor → backup automático del estado actual → rest
 ### Ver backups disponibles
 
 ```bash
-python3 scripts/panel_admin.py list-backups mitienda
+./.venv-scripts/bin/python3 scripts/panel_admin.py list-backups mitienda
 ```
 
 ### El cliente también puede hacer backup/restore
@@ -368,7 +535,7 @@ automático antes de cualquier restauración.
 ### Setup inicial (una sola vez)
 
 ```bash
-python3 scripts/npm_setup.py
+./.venv-scripts/bin/python3 scripts/npm_setup.py
 ```
 
 ### Al crear un cliente nuevo
@@ -379,13 +546,13 @@ automáticamente al final del proceso.
 ### Crear proxy manualmente para un cliente existente
 
 ```bash
-python3 scripts/panel_admin.py
+./.venv-scripts/bin/python3 scripts/panel_admin.py
 # → opción pa (crear proxy NPM)
 ```
 
 O desde CLI:
 ```bash
-python3 scripts/panel_admin.py npm-crear mitienda
+./.venv-scripts/bin/python3 scripts/panel_admin.py npm-crear mitienda
 ```
 
 ### Prerequisito de DNS
@@ -402,18 +569,18 @@ Para corte por falta de pago u otras situaciones:
 
 ```bash
 # Mostrar estado actual
-python3 scripts/panel_admin.py estado mitienda
+./.venv-scripts/bin/python3 scripts/panel_admin.py estado mitienda
 
 # Poner en modo aviso (acceso con banner amarillo)
-python3 scripts/panel_admin.py pausar mitienda
+./.venv-scripts/bin/python3 scripts/panel_admin.py pausar mitienda
 → Mensaje para el cliente: Regularizá tu suscripción para evitar la suspensión.
 
 # Suspender acceso completo
-python3 scripts/panel_admin.py suspender mitienda
+./.venv-scripts/bin/python3 scripts/panel_admin.py suspender mitienda
 → Mensaje para el cliente: Servicio suspendido por falta de pago. Contactar a soporte.
 
 # Reactivar
-python3 scripts/panel_admin.py activar mitienda
+./.venv-scripts/bin/python3 scripts/panel_admin.py activar mitienda
 ```
 
 El cambio de estado es inmediato — no requiere reiniciar el contenedor.
