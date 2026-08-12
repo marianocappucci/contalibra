@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react'
-import { api, ApiError, type ArcaConfig, type Backup, type CategoriaEgreso, type ConfigCfg } from '../api'
+import { api, ApiError, type ArcaConfig, type Backup, type CategoriaEgreso, type ConfigCfg, type ResguardoExterno } from '../api'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -798,6 +798,7 @@ function DatosTab({ saving, setSaving, setError, describeError }: {
   setError: (v: string | null) => void; describeError: (err: unknown) => string
 }) {
   const [backups, setBackups] = useState<Backup[]>([])
+  const [externo, setExterno] = useState<ResguardoExterno | null>(null)
   const [restoreMsg, setRestoreMsg] = useState<string | null>(null)
   const [restoreFile, setRestoreFile] = useState<File | null>(null)
   const [confirmRestore, setConfirmRestore] = useState(false)
@@ -807,6 +808,11 @@ function DatosTab({ saving, setSaving, setError, describeError }: {
 
   async function cargar() {
     try {
+      // El estado de la copia externa no bloquea la pantalla: si falla, los
+      // backups locales se muestran igual.
+      api.get<ResguardoExterno>('/api/config/resguardo-externo')
+        .then(setExterno)
+        .catch(() => setExterno(null))
       setBackups(await api.get<Backup[]>('/api/config/backups'))
     } catch (err) {
       setError(describeError(err))
@@ -874,6 +880,44 @@ function DatosTab({ saving, setSaving, setError, describeError }: {
           {restoreMsg && <p className="text-sm text-emerald-600 dark:text-emerald-400">{restoreMsg}</p>}
         </CardContent>
       </Card>
+
+      {/* Copia externa. Tres estados y no dos: quien no contrató el add-on no
+          tiene que ver una alarma, sino la propuesta. */}
+      {externo && (externo.contratado ? (
+        <Card className={`sm:col-span-2 ${externo.al_dia ? 'border-emerald-500/40' : 'border-amber-500/60'}`}>
+          <CardHeader>
+            <CardTitle className={`flex items-center gap-2 text-base ${externo.al_dia ? '' : 'text-amber-600 dark:text-amber-400'}`}>
+              <Database className="size-4" />
+              Copia externa {externo.al_dia ? 'al día' : 'con problemas'}
+            </CardTitle>
+            <CardDescription>
+              {externo.al_dia
+                ? <>Tus backups también se guardan fuera de este servidor, en <span className="font-mono">{externo.detalle?.destino}</span>.</>
+                : externo.motivo}
+            </CardDescription>
+          </CardHeader>
+          {externo.al_dia && externo.detalle && (
+            <CardContent>
+              <p className="text-xs text-muted-foreground">
+                Última copia: {externo.detalle.cuando}
+                {externo.detalle.archivo && <> — <span className="font-mono">{externo.detalle.archivo}</span></>}
+                {externo.detalle.en_destino != null && <> · {externo.detalle.en_destino} copias guardadas afuera</>}
+              </p>
+            </CardContent>
+          )}
+        </Card>
+      ) : (
+        <Card className="sm:col-span-2 border-dashed">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base text-muted-foreground"><Database className="size-4" />Copia externa</CardTitle>
+            <CardDescription>
+              Tus backups viven en este servidor. Con el resguardo externo se copian
+              todas las noches a tu propia cuenta de Google Drive o Dropbox, así
+              siguen estando aunque el servidor no esté. Consultanos para activarlo.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      ))}
 
       <Card className="sm:col-span-2">
         <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Database className="size-4" />Backups automáticos guardados en el servidor</CardTitle></CardHeader>
