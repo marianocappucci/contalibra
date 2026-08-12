@@ -322,6 +322,26 @@ export type ConfigData = { cfg: ConfigCfg; arca: ArcaConfig | Record<string, nev
 
 export type Backup = { filename: string; size_mb: number; mtime: string }
 
+/** Estado de la copia del backup en la nube del cliente (add-on).
+ *
+ * `contratado: false` es "no tenés el add-on", **no** una falla: la pantalla no
+ * tiene que mostrar una alarma a quien no lo contrató. Y `al_dia: false` con
+ * `contratado: true` sí es una alarma — puede ser que la última subida falló, o
+ * que anduvo pero hace días. El backend distingue los casos en `motivo`. */
+export type ResguardoExterno = {
+  contratado: boolean
+  al_dia: boolean | null
+  motivo: string | null
+  detalle: {
+    cuando: string | null
+    archivo: string | null
+    destino: string | null
+    bytes: number | null
+    en_destino: number | null
+    error: string | null
+  } | null
+}
+
 export type Deposito = {
   id: number
   nombre: string
