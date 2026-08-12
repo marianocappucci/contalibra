@@ -16,7 +16,7 @@ license = { text = "Proprietary" }
 dependencies = [
     # libracore provee facturacion/caja/ARCA y la base donde vive `usuarios`.
     # El auth SALIO de aca el 2026-07-30 y ahora lo da libraauth.
-    "libracore @ git+https://github.com/marianocappucci/libracore.git@v1.28.4",
+    "libracore @ git+https://github.com/marianocappucci/libracore.git@v1.31.0",
     # v0.7.0 sube al motor las transferencias entre depositos y la guarda de
     # disponibilidad, que hasta ahora vivian solo aca (`db_productos.
     # transferir_stock`) y arrastraban dos defectos: no eran atomicas y el
