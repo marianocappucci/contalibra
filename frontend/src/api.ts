@@ -277,9 +277,12 @@ export const ROLES = [
   { value: 'cajero', label: 'Cajero' },
 ] as const
 
+// `GET /api/config` sigue devolviendo `servicio_estado` y `servicio_mensaje`
+// —viven en el mismo `config.json`—, pero no se declaran acá a propósito: no
+// son configuración del cliente. El corte de servicio se administra desde el
+// backoffice de superadmin. Declararlos invita a volver a ponerles un
+// formulario encima.
 export type ConfigCfg = {
-  servicio_estado: 'activo' | 'pausado' | 'suspendido'
-  servicio_mensaje: string
   empresa_nombre: string
   empresa_direccion: string
   empresa_cuit: string
