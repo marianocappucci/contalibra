@@ -1,9 +1,15 @@
 import { createLogin } from 'libra-ui/Login'
+import { LOGO, WORDMARK } from '@/branding'
 import { useAuth } from '../context/AuthContext'
 
 export const Login = createLogin({
   productName: 'Contalibra',
   productInitial: 'C',
+  // El logo y el nombre en Montserrat Bold (libra-ui v0.23.0). `productInitial`
+  // sigue arriba porque es el fallback del motor: si el asset no resuelve, la
+  // pantalla muestra la inicial en vez de un hueco.
+  logo: { src: LOGO, className: 'h-[72px] w-[72px]' },
+  wordmarkClassName: `${WORDMARK} text-[22px]`,
   redirectTo: '/dashboard',
   useAuth,
   formatError: (err) => err.detail,
