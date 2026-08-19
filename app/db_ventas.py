@@ -206,6 +206,10 @@ def _venta_dict(row, items: list, pagos: list) -> dict:
         "subtotal": float(row["subtotal"]), "descuento": float(row["descuento"]),
         "total": float(row["total"]),
         "estado": _estado_de_row(row["status"], row["status_detail"]),
+        # El crudo además del legible: `estado` puede venir pisado por
+        # `status_detail`, así que no sirve para decidir. Lo necesita
+        # `venta_facturacion`, que no debe emitir sobre una venta anulada.
+        "status": row["status"],
         "factura_id": row["factura_id"], "remito_id": row["remito_id"],
         "usuario_id": row["usuario_id"], "observaciones": row["observaciones"],
         "created_at": row["created_at"], "turno_id": row["turno_id"],
