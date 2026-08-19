@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { PasswordInput } from 'libra-ui/PasswordInput'
@@ -364,6 +365,21 @@ function MpTab({ cfg, setCfg, saving, guardar }: {
         </div>
         <Field label="User ID (QR)" value={cfg.mp_user_id} onChange={(v) => setCfg({ ...cfg, mp_user_id: v })} />
         <Field label="POS ID (QR)" value={cfg.mp_pos_id} onChange={(v) => setCfg({ ...cfg, mp_pos_id: v })} />
+        <div className="col-span-full flex items-start gap-3 rounded-md border p-3">
+          <Switch
+            id="mp-auto-facturar-ventas"
+            checked={!!cfg.mp_auto_facturar_ventas}
+            onCheckedChange={(v) => setCfg({ ...cfg, mp_auto_facturar_ventas: v })}
+          />
+          <div className="grid gap-1">
+            <Label htmlFor="mp-auto-facturar-ventas">Facturar automáticamente las ventas cobradas por QR</Label>
+            <p className="text-xs text-muted-foreground">
+              Al acreditarse el pago, se emite la factura con CAE y queda vinculada a la venta.
+              Sin cliente asignado se emite a Consumidor Final. Apagado, la venta queda sin facturar
+              y se emite desde el detalle de la venta.
+            </p>
+          </div>
+        </div>
         <div className="col-span-full grid gap-1.5 rounded-md border bg-muted/40 p-3 text-sm">
           <p className="font-medium">URL del webhook para registrar en MercadoPago</p>
           <div className="flex gap-2">
@@ -379,6 +395,7 @@ function MpTab({ cfg, setCfg, saving, guardar }: {
             mp_access_token: cfg.mp_access_token, mp_webhook_secret: cfg.mp_webhook_secret,
             mp_concepto_descripcion: cfg.mp_concepto_descripcion, mp_iva_rate: cfg.mp_iva_rate,
             mp_user_id: cfg.mp_user_id, mp_pos_id: cfg.mp_pos_id,
+            mp_auto_facturar_ventas: !!cfg.mp_auto_facturar_ventas,
           })}>
             <Save />{saving ? 'Guardando…' : 'Guardar MercadoPago'}
           </Button>

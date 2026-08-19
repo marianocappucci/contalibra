@@ -88,6 +88,10 @@ class MercadoPagoPayload(BaseModel):
     mp_iva_rate: str = "0"
     mp_user_id: str = ""
     mp_pos_id: str = ""
+    # Cuando el QR dinámico de una venta se acredita, emitir la factura sola.
+    # Apagado por defecto: prender la emisión automática de comprobantes
+    # fiscales es una decisión del cliente, no un default.
+    mp_auto_facturar_ventas: bool = False
 
 
 @router.put("/mp")

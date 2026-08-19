@@ -298,6 +298,7 @@ export type ConfigCfg = {
   mp_iva_rate: string
   mp_user_id: string
   mp_pos_id: string
+  mp_auto_facturar_ventas: boolean
   email_smtp_host: string
   email_smtp_port: string
   email_smtp_user: string
