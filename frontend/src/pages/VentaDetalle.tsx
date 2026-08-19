@@ -34,6 +34,7 @@ export function VentaDetalle() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [confirmAnular, setConfirmAnular] = useState(false)
+  const [facturando, setFacturando] = useState(false)
 
   useEffect(() => {
     cargar()
@@ -65,6 +66,20 @@ export function VentaDetalle() {
       await cargar()
     } catch (err) {
       setError(describeError(err))
+    }
+  }
+
+  async function facturar() {
+    if (!detalle) return
+    setError(null)
+    setFacturando(true)
+    try {
+      await api.post(`/api/ventas/${detalle.id}/facturar`)
+      await cargar()
+    } catch (err) {
+      setError(describeError(err))
+    } finally {
+      setFacturando(false)
     }
   }
 
@@ -176,7 +191,11 @@ export function VentaDetalle() {
 
           {(detalle.estado === 'cobrada' || detalle.estado === 'parcial') && (
             <div className="flex flex-wrap justify-end gap-2 border-t pt-4">
-              {!detalle.factura_id && <Button asChild size="sm" variant="outline"><Link to="/facturas/nueva"><ReceiptText />Generar factura</Link></Button>}
+              {!detalle.factura_id && (
+                <Button size="sm" variant="outline" disabled={facturando} onClick={facturar}>
+                  <ReceiptText />{facturando ? 'Facturando…' : 'Generar factura'}
+                </Button>
+              )}
               {!detalle.remito_id && <Button asChild size="sm" variant="outline"><Link to="/remitos/nuevo"><PackageCheck />Generar remito</Link></Button>}
               {user?.role === 'admin' && (
                 <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setConfirmAnular(true)}><Ban />Anular venta</Button>

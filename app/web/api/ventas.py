@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app import database as db
+from app import venta_facturacion
 from app.web.api_auth import get_current_user_json, require_role_json
 
 router = APIRouter(prefix="/api/ventas", tags=["ventas"])
@@ -126,3 +127,18 @@ def anular(vid: int, user: dict = Depends(get_current_user_json)):
         raise HTTPException(404, "Venta no encontrada")
     db.anular_venta(vid, usuario_id=user["id"])
     return db.get_venta(vid)
+
+
+@router.post("/{vid}/facturar")
+async def facturar(vid: int, user: dict = Depends(get_current_user_json)):
+    """Emite la factura de la venta y las vincula.
+
+    Es el mismo camino que usa el webhook de MercadoPago cuando la
+    auto-facturación está activada, así que sirve también para reintentar una
+    venta cuyo CAE falló. Idempotente: si ya tiene factura devuelve esa.
+    """
+    try:
+        factura = await venta_facturacion.facturar_venta(vid, usuario_id=user["id"])
+    except venta_facturacion.VentaNoFacturable as e:
+        raise HTTPException(422, str(e))
+    return {"venta": db.get_venta(vid), "factura": factura}

@@ -17,6 +17,7 @@ from app import pdf_generator as pdf_gen
 from app import arca_wsaa
 from app import arca_wsfe
 from app import mp_facturacion
+from app import venta_facturacion
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -110,15 +111,36 @@ async def webhook_mercadopago(request: Request):
             venta_id = None
 
         if venta_id:
+            factura_id = None
             if status == "approved":
                 db.set_venta_mp_payment(venta_id, payment_id)
                 db.add_venta_pago_referencia_mp(venta_id, payment_id)
                 logger.info("Venta %s pagada vía QR MP, payment_id=%s", venta_id, payment_id)
+
+                # Hasta el 2026-08-19 acá se retornaba directo y la venta
+                # cobrada por QR no se facturaba por ningún camino. Emitir es
+                # idempotente (`facturar_venta` devuelve la factura existente),
+                # así que un reintento de MP no duplica el comprobante.
+                if cfg.get("mp_auto_facturar_ventas"):
+                    try:
+                        factura = await venta_facturacion.facturar_venta(venta_id)
+                        factura_id = factura["id"]
+                        logger.info(
+                            "Auto-factura de venta %s: id=%s CAE=%s",
+                            venta_id, factura_id, factura.get("cae") or "sin CAE",
+                        )
+                    except Exception as e:
+                        # No se propaga: el cobro ya está registrado y perderlo
+                        # sería peor que quedarse sin la factura, que se puede
+                        # emitir después con el botón del detalle de venta.
+                        logger.error("Error auto-facturando venta %s: %s", venta_id, e)
+
             db.create_mp_pago(
                 mp_payment_id=payment_id, status=status,
                 monto=pago.get("transaction_amount", 0),
                 payer_email=pago.get("payer", {}).get("email", ""),
-                payer_name="", factura_id=None,
+                payer_name="", factura_id=factura_id,
+                estado_factura="facturado" if factura_id else None,
             )
             return JSONResponse({"ok": True, "msg": f"venta {venta_id} {status}"}, status_code=200)
     # ────────────────────────────────────────────────────────────────────────
