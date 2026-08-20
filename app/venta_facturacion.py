@@ -212,10 +212,16 @@ async def facturar_venta(venta_id: int, *, usuario_id: int | None = None) -> dic
 
     db.vincular_venta_factura(venta_id, factura_id)
 
+    # La plata de esta venta ya entró a la caja cuando se cobró; lo que faltaba
+    # era atarla al comprobante. Sin esto la factura sale "Sin cobrar" aunque el
+    # dinero esté adentro — y registrar un cobro nuevo lo contaría dos veces.
+    vinculados = db.vincular_cobros_de_venta(venta["numero"], factura_id)
+
     logger.info(
-        "Venta %s facturada: %s %04d-%08d (CAE %s)",
+        "Venta %s facturada: %s %04d-%08d (CAE %s), %s movimiento/s de caja vinculado/s",
         venta["numero"], _TIPO_LABEL.get(tipo, "Factura"),
         punto_venta, factura["numero"], factura.get("cae") or "sin CAE",
+        vinculados,
     )
     return factura
 

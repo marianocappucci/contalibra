@@ -157,7 +157,7 @@ def crear_venta_directa(fecha: str, items: list, subtotal: float, descuento: flo
                     label = MEDIOS_PAGO_LABELS.get(p["medio"], p["medio"])
                     create_caja_movimiento(
                         fecha=fecha, tipo="ingreso",
-                        concepto=f"Venta {numero} — {label}",
+                        concepto=_CONCEPTO_VENTA.format(numero=numero) + label,
                         monto=p["monto"], referencia=p.get("referencia", ""),
                         medio_pago=p["medio"], usuario_id=usuario_id, conn=conn,
                     )
@@ -216,6 +216,39 @@ def _venta_dict(row, items: list, pagos: list) -> dict:
         "mp_order_id": row["mp_order_id"] or "", "mp_payment_id": row["mp_payment_id"] or "",
         "pagos": pagos,
     }
+
+
+#: El prefijo con el que `crear_venta_directa` nombra sus movimientos de caja.
+#  Vive acá arriba y no inline para que las dos funciones que dependen del
+#  formato —la que lo escribe y la que lo busca— se rompan juntas si cambia.
+_CONCEPTO_VENTA = "Venta {numero} — "
+
+
+def vincular_cobros_de_venta(numero: str, factura_id: int) -> int:
+    """Marca los movimientos de caja de una venta como el cobro de su factura.
+
+    Una factura figura cobrada cuando existen `caja_movimientos` con su
+    `factura_id` (ver `get_cobros_factura` en libracore). Los de una venta se
+    crean **antes** de que la factura exista y sin ese campo, así que la
+    pantalla de Comprobantes mostraba "Sin cobrar" un comprobante cuya plata ya
+    estaba en la caja — reportado el 2026-08-20, con 8 facturas así.
+
+    🔴 **No registra un cobro nuevo, vincula el que ya está.** Pasar por
+    `registrar_cobro_factura` habría creado un segundo movimiento por el mismo
+    dinero: la venta ya lo había registrado al cobrarse, y el ingreso quedaría
+    contado dos veces.
+
+    Devuelve cuántos movimientos vinculó. Cero es un resultado válido: una venta
+    en cuenta corriente o sin pagos no tiene nada que vincular.
+    """
+    with get_connection() as conn:
+        cur = conn.execute(
+            "UPDATE caja_movimientos SET factura_id=? "
+            "WHERE factura_id IS NULL AND tipo='ingreso' AND concepto LIKE ?",
+            (factura_id, _CONCEPTO_VENTA.format(numero=numero) + "%"),
+        )
+        conn.commit()
+        return cur.rowcount
 
 
 def _factura_display(tipo, punto_venta, numero) -> str | None:
