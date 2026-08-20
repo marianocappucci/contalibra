@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { api, ApiError, MEDIOS_PAGO_LABELS, type Venta } from '../api'
 import { useAuth } from '../context/AuthContext'
@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
-  ArrowLeft, Printer, FileCheck, CheckCircle2, Ban, ReceiptText, PackageCheck, QrCode,
+  ArrowLeft, Printer, FileCheck, CheckCircle2, Ban, ReceiptText, PackageCheck, QrCode, Loader2,
 } from 'lucide-react'
 
 function formatCurrency(value: number): string {
@@ -25,6 +25,20 @@ function estadoLabel(estado: string): string {
   return ESTADO_LABELS[estado] ?? estado
 }
 
+type QrEstado = 'idle' | 'creando' | 'esperando' | 'acreditado'
+
+const POLL_MS = 3000
+// Cinco minutos: pasado eso el cliente ya se fue del mostrador. Cortar el poll
+// no cancela nada del lado de MercadoPago — si paga después, el webhook lo
+// acredita igual.
+const ESPERA_MAXIMA_MS = 5 * 60 * 1000
+
+//: Los medios que se cobran escaneando el QR de la caja. `add_venta_pago_referencia_mp`
+//  (db_ventas.py) sella la referencia sobre una fila de pago con uno de estos
+//  medios: sin esa fila el pago se acredita en MercadoPago y no queda atado a
+//  la venta.
+const MEDIOS_QR = ['mercadopago', 'billetera', 'cuenta_dni', 'qr']
+
 export function VentaDetalle() {
   const { id } = useParams<{ id: string }>()
   const ventaId = Number(id)
@@ -35,11 +49,18 @@ export function VentaDetalle() {
   const [error, setError] = useState<string | null>(null)
   const [confirmAnular, setConfirmAnular] = useState(false)
   const [facturando, setFacturando] = useState(false)
+  const [qrEstado, setQrEstado] = useState<QrEstado>('idle')
+  const [qrError, setQrError] = useState<string | null>(null)
+  const pollRef = useRef<number | null>(null)
 
   useEffect(() => {
     cargar()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ventaId])
+
+  // Sin esto el poll sigue corriendo contra una venta que ya no está en
+  // pantalla: el usuario navega a otra y cada 3 segundos sale un request.
+  useEffect(() => frenarPoll, [])
 
   function describeError(err: unknown): string {
     if (err instanceof ApiError) return err.detail
@@ -69,6 +90,59 @@ export function VentaDetalle() {
     }
   }
 
+  function frenarPoll() {
+    if (pollRef.current !== null) {
+      window.clearInterval(pollRef.current)
+      pollRef.current = null
+    }
+  }
+
+  // Empuja el monto de la venta al punto de venta de MercadoPago. El QR es el
+  // fijo de la caja —el cartel impreso—, así que no hay nada que mostrar en
+  // pantalla: lo que cambia es qué cobra ese QR cuando alguien lo escanea.
+  async function cobrarConQr() {
+    if (!detalle) return
+    setQrError(null)
+    setQrEstado('creando')
+    try {
+      await api.post(`/ventas/${detalle.id}/mp-qr`)
+    } catch (err) {
+      setQrError(describeError(err))
+      setQrEstado('idle')
+      return
+    }
+    setQrEstado('esperando')
+    const hasta = Date.now() + ESPERA_MAXIMA_MS
+    pollRef.current = window.setInterval(async () => {
+      let estado: string
+      try {
+        estado = (await api.get<{ status: string }>(`/ventas/${detalle.id}/mp-status`)).status
+      } catch (err) {
+        frenarPoll()
+        setQrEstado('idle')
+        setQrError(describeError(err))
+        return
+      }
+      if (estado === 'approved') {
+        frenarPoll()
+        setQrEstado('acreditado')
+        await cargar()
+        return
+      }
+      if (estado === 'rejected' || estado === 'cancelled') {
+        frenarPoll()
+        setQrEstado('idle')
+        setQrError('El pago fue rechazado o cancelado en MercadoPago.')
+        return
+      }
+      if (Date.now() > hasta) {
+        frenarPoll()
+        setQrEstado('idle')
+        setQrError('Se agotó la espera. Si el cliente pagó igual, el cobro se acredita solo cuando MercadoPago avise; si no, volvé a intentar.')
+      }
+    }, POLL_MS)
+  }
+
   async function facturar() {
     if (!detalle) return
     setError(null)
@@ -82,6 +156,13 @@ export function VentaDetalle() {
       setFacturando(false)
     }
   }
+
+  // Sin una fila de pago con medio de QR no hay dónde sellar la referencia del
+  // cobro, así que el botón no se ofrece: ver el comentario de MEDIOS_QR.
+  const puedeCobrarConQr = !!detalle
+    && detalle.estado !== 'anulada'
+    && !detalle.mp_payment_id
+    && detalle.pagos.some((p) => MEDIOS_QR.includes(p.medio))
 
   return (
     <div className="grid gap-4">
@@ -136,8 +217,30 @@ export function VentaDetalle() {
                     <div className="mt-1 flex justify-between border-t pt-1.5 font-semibold">
                       <span>Total cobrado</span><span>{formatCurrency(detalle.pagos.reduce((a, p) => a + p.monto, 0))}</span>
                     </div>
-                    {detalle.mp_payment_id && (
+                    {detalle.mp_payment_id ? (
                       <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground"><QrCode className="size-3.5" />Cobrado por QR de MercadoPago.</p>
+                    ) : puedeCobrarConQr && (
+                      <div className="mt-2 grid gap-2 border-t pt-2">
+                        {qrEstado === 'esperando' ? (
+                          <>
+                            <p className="flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+                              <Loader2 className="size-3.5 animate-spin" />Esperando el pago…
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              El QR de la caja ya está cobrando {formatCurrency(detalle.total)}. Pedile al cliente que lo escanee.
+                            </p>
+                          </>
+                        ) : qrEstado === 'acreditado' ? (
+                          <p className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                            <CheckCircle2 className="size-3.5" />Pago acreditado.
+                          </p>
+                        ) : (
+                          <Button size="sm" variant="outline" disabled={qrEstado === 'creando'} onClick={cobrarConQr}>
+                            <QrCode />{qrEstado === 'creando' ? 'Preparando el QR…' : 'Cobrar con QR'}
+                          </Button>
+                        )}
+                        {qrError && <p className="text-xs text-destructive">{qrError}</p>}
+                      </div>
                     )}
                   </>
                 )}

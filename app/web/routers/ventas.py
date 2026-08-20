@@ -22,11 +22,14 @@ def _usuario_id(username: str):
 
 # Las paginas Jinja2 de este router (list/nueva/detail/anular) se
 # removieron en el corte de la migracion a React -- ver
-# wiki/entities/contalibra.md, Etapa D. Quedan el flujo de QR dinamico de
-# MercadoPago y las descargas de ticket/recibo, que la SPA nueva
-# (web/api/ventas.py) linkea/consume directo -- el QR en vivo todavia no
-# esta cableado en la SPA (ver nota de alcance en Ventas.tsx), pero el
-# endpoint sigue disponible para cuando se construya esa pantalla.
+# wiki/entities/contalibra.md, Etapa D. Quedan el flujo de QR de MercadoPago
+# y las descargas de ticket/recibo, que la SPA nueva (web/api/ventas.py)
+# linkea/consume directo.
+#
+# El QR quedo sin cablear en la SPA desde ese corte hasta el 2026-08-19: el
+# endpoint existia y no lo llamaba nadie, asi que elegir "Mercado Pago" como
+# medio de pago registraba el medio sin cobrar nada. Ahora lo llama el boton
+# "Cobrar con QR" de VentaDetalle.tsx.
 
 
 @router.post("/ventas/{vid}/mp-qr")
