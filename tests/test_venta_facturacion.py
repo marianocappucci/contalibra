@@ -214,3 +214,89 @@ def test_un_qr_rechazado_no_factura(admin_client, monkeypatch):
 
     detalle = admin_client.get(f"/api/ventas/{venta['id']}").json()
     assert not detalle["factura_id"]
+
+
+# ── El poll del botón "Cobrar con QR" ───────────────────────────────────────
+#
+# 🔴 Hasta el 2026-08-20 sólo facturaba el webhook. En la instancia real el
+# webhook **no llegaba nunca** —0 POST a  contra 5 a
+#  en el log— así que el único camino vivo era este poll, que acreditaba
+# el pago y dejaba la venta "Sin facturar". Reportado por el humano con una
+# venta cobrada por QR que nunca genero comprobante.
+
+def _pago_aprobado(venta_id: int, monto: float) -> dict:
+    return {
+        "id": 55512345678, "status": "approved", "transaction_amount": monto,
+        "external_reference": f"venta-{venta_id}",
+        "payer": {"email": "comprador@ejemplo.com"},
+        "payment_type_id": "account_money",
+    }
+
+
+def test_el_poll_factura_cuando_el_pago_se_acredita(admin_client, monkeypatch):
+    venta = _venta(admin_client)
+    _configurar_mp(admin_client, auto=True)
+
+    async def _buscar(referencia, access_token):
+        assert referencia == f"venta-{venta["id"]}"
+        return _pago_aprobado(venta["id"], venta["total"])
+
+    monkeypatch.setattr(mp_api, "buscar_pago_por_referencia", _buscar)
+
+    resp = admin_client.get(f"/ventas/{venta["id"]}/mp-status")
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["status"] == "approved"
+    assert resp.json()["factura_id"]
+
+    assert admin_client.get(f"/api/ventas/{venta["id"]}").json()["factura_id"]
+
+
+def test_el_poll_no_factura_con_la_automatica_apagada(admin_client, monkeypatch):
+    venta = _venta(admin_client)
+    _configurar_mp(admin_client, auto=False)
+
+    async def _buscar(referencia, access_token):
+        return _pago_aprobado(venta["id"], venta["total"])
+
+    monkeypatch.setattr(mp_api, "buscar_pago_por_referencia", _buscar)
+
+    resp = admin_client.get(f"/ventas/{venta["id"]}/mp-status")
+    assert resp.json()["status"] == "approved"
+    assert resp.json()["factura_id"] is None
+    assert not admin_client.get(f"/api/ventas/{venta["id"]}").json()["factura_id"]
+
+
+def test_el_poll_repetido_no_emite_dos_facturas(admin_client, monkeypatch):
+    """El poll pega cada 3 segundos: sin idempotencia serian N comprobantes."""
+    venta = _venta(admin_client)
+    _configurar_mp(admin_client, auto=True)
+
+    async def _buscar(referencia, access_token):
+        return _pago_aprobado(venta["id"], venta["total"])
+
+    monkeypatch.setattr(mp_api, "buscar_pago_por_referencia", _buscar)
+
+    primera = admin_client.get(f"/ventas/{venta["id"]}/mp-status").json()["factura_id"]
+    segunda = admin_client.get(f"/ventas/{venta["id"]}/mp-status").json()["factura_id"]
+
+    assert primera == segunda
+    assert len(admin_client.get("/api/facturas").json()["items"]) == 1
+
+
+def test_una_venta_ya_acreditada_y_sin_factura_se_factura_al_consultarla(admin_client, monkeypatch):
+    """El caso real: la venta se acredito antes de que este camino emitiera."""
+    venta = _venta(admin_client)
+    _configurar_mp(admin_client, auto=False)
+
+    async def _buscar(referencia, access_token):
+        return _pago_aprobado(venta["id"], venta["total"])
+
+    monkeypatch.setattr(mp_api, "buscar_pago_por_referencia", _buscar)
+    admin_client.get(f"/ventas/{venta["id"]}/mp-status")
+    assert not admin_client.get(f"/api/ventas/{venta["id"]}").json()["factura_id"]
+
+    _configurar_mp(admin_client, auto=True)
+    resp = admin_client.get(f"/ventas/{venta["id"]}/mp-status")
+
+    assert resp.json()["factura_id"]
+    assert admin_client.get(f"/api/ventas/{venta["id"]}").json()["factura_id"]

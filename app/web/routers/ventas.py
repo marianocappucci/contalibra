@@ -3,13 +3,17 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response, JSONResponse
 
+import logging
+
 from app import database as db
 from app import config_manager
 from app import mp_api
+from app import venta_facturacion
 from app.web.auth import require_auth
 from libracore.pdf_generator import generate_pdf_recibo_doc
 from libracore.recibos import SinCobros
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 Auth = Annotated[str, Depends(require_auth)]
 
@@ -79,15 +83,55 @@ async def venta_mp_qr(vid: int, user: Auth):
     return JSONResponse({"ok": True, "order_id": order_id})
 
 
+async def _facturar_si_corresponde(vid: int, cfg: dict) -> int | None:
+    """Emite la factura de la venta si la instancia tiene la automática prendida.
+
+    Existe porque hay **dos** caminos por los que se entera de que el QR se
+    pagó —el webhook de MercadoPago y este poll— y hasta el 2026-08-20 sólo el
+    primero facturaba. En la instancia real el webhook **no llegaba nunca** (0
+    POST a `/webhooks/mercadopago` en el log, contra 5 a `mp-qr`), así que el
+    único camino vivo era justamente el que no emitía: la venta quedaba cobrada
+    y "Sin facturar".
+
+    No propaga el error: el cobro ya está registrado, y perderlo sería peor que
+    quedarse sin la factura, que se puede emitir con el botón del detalle.
+    """
+    if not cfg.get("mp_auto_facturar_ventas"):
+        return None
+    try:
+        factura = await venta_facturacion.facturar_venta(vid)
+    except Exception as e:
+        logger.error("Error auto-facturando venta %s: %s", vid, e)
+        return None
+    logger.info("Auto-factura de venta %s: id=%s CAE=%s",
+                vid, factura["id"], factura.get("cae") or "sin CAE")
+    return factura["id"]
+
+
 @router.get("/ventas/{vid}/mp-status")
 async def venta_mp_status(vid: int, user: Auth):
-    """Consulta si el pago QR de esta venta ya fue aprobado."""
+    """Consulta si el pago QR de esta venta ya fue aprobado.
+
+    Es un GET con efectos: sella la referencia del pago y, si corresponde, emite
+    la factura. Emitir es idempotente (`facturar_venta` devuelve la que ya
+    exista), así que el poll pegándole cada 3 segundos no duplica nada.
+    """
     venta = db.get_venta(vid)
     if not venta:
         raise HTTPException(404)
 
     if venta.get("mp_payment_id"):
-        return JSONResponse({"status": "approved", "payment_id": venta["mp_payment_id"]})
+        # Ya estaba acreditada. Se intenta facturar igual: cubre a las que se
+        # acreditaron antes de que existiera esto, y a las que fallaron al
+        # emitir la primera vez.
+        factura_id = venta.get("factura_id") or await _facturar_si_corresponde(
+            vid, config_manager.load()
+        )
+        return JSONResponse({
+            "status": "approved",
+            "payment_id": venta["mp_payment_id"],
+            "factura_id": factura_id,
+        })
 
     cfg = config_manager.load()
     access_token = cfg.get("mp_access_token", "")
@@ -107,7 +151,12 @@ async def venta_mp_status(vid: int, user: Auth):
         payment_id = str(pago["id"])
         db.set_venta_mp_payment(vid, payment_id)
         db.add_venta_pago_referencia_mp(vid, payment_id)
-        return JSONResponse({"status": "approved", "payment_id": payment_id})
+        factura_id = await _facturar_si_corresponde(vid, cfg)
+        return JSONResponse({
+            "status": "approved",
+            "payment_id": payment_id,
+            "factura_id": factura_id,
+        })
 
     return JSONResponse({"status": status})
 
