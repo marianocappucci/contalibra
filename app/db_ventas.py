@@ -223,10 +223,20 @@ def _factura_display(tipo, punto_venta, numero) -> str | None:
 
     Una sola definición para el listado y el detalle: cuando vivía sólo en el
     listado, el detalle no tenía qué mostrar.
+
+    🔴 Hasta el 2026-08-20 imprimía el **tipo numérico** de ARCA: la pantalla
+    decía `11 0005-00000070` y el operador tenía que saber que 11 es Factura C.
+    Los labels salen de [[libracore]] y no de una tabla nueva acá — ya hay
+    cuatro copias del mismo diccionario en este repo, y esta habría sido la
+    quinta.
     """
     if not tipo or not numero:
         return None
-    return f"{tipo} {str(punto_venta or 0).zfill(4)}-{str(numero).zfill(8)}"
+    # El import va adentro para no arrastrar la pila del PDF en cada consulta de
+    # ventas. Mismo criterio que `libracore.cobros`, que lo importa igual.
+    from libracore.pdf_generator import _TIPO_LABELS
+    etiqueta = _TIPO_LABELS.get(tipo, str(tipo))
+    return f"{etiqueta} {str(punto_venta or 0).zfill(4)}-{str(numero).zfill(8)}"
 
 
 def _items_de(conn, venta_id: int) -> list[dict]:
