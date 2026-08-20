@@ -136,8 +136,8 @@ export function VentaDetalle() {
                     <div className="mt-1 flex justify-between border-t pt-1.5 font-semibold">
                       <span>Total cobrado</span><span>{formatCurrency(detalle.pagos.reduce((a, p) => a + p.monto, 0))}</span>
                     </div>
-                    {detalle.pagos.some((p) => ['mercadopago', 'billetera', 'cuenta_dni'].includes(p.medio)) && detalle.estado === 'cobrada' && (
-                      <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground"><QrCode className="size-3.5" />Cobro con QR dinámico de MercadoPago: alcance recortado deliberadamente en esta etapa (ver wiki/entities/contalibra.md, Etapa C).</p>
+                    {detalle.mp_payment_id && (
+                      <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground"><QrCode className="size-3.5" />Cobrado por QR de MercadoPago.</p>
                     )}
                   </>
                 )}
