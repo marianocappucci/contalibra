@@ -12,7 +12,7 @@ import datetime
 
 import pytest
 
-from app.web import api_auth
+from libraauth.session_auth import PANEL_TOKEN_ENV
 
 HOY = datetime.date.today().isoformat()
 TOKEN = "token-de-panel-para-la-suite"
@@ -20,7 +20,7 @@ TOKEN = "token-de-panel-para-la-suite"
 
 @pytest.fixture
 def con_token_de_panel(monkeypatch):
-    monkeypatch.setenv(api_auth.PANEL_TOKEN_ENV, TOKEN)
+    monkeypatch.setenv(PANEL_TOKEN_ENV, TOKEN)
     return {"X-Panel-Auth": TOKEN}
 
 
@@ -71,9 +71,9 @@ def test_un_admin_de_la_instancia_tambien_entra(admin_client):
 # ── Los números ─────────────────────────────────────────────────────────────
 
 def test_una_venta_aparece_en_el_resumen(admin_client):
-    antes = admin_client.get("/api/resumen").json()["ventas"]
+    antes = admin_client.get("/api/resumen").json()["comercio"]["ventas"]
     _venta(admin_client, total=3000.0)
-    despues = admin_client.get("/api/resumen").json()["ventas"]
+    despues = admin_client.get("/api/resumen").json()["comercio"]["ventas"]
 
     assert despues["cantidad"] == antes["cantidad"] + 1
     assert despues["monto"] == antes["monto"] + 3000.0
@@ -81,11 +81,11 @@ def test_una_venta_aparece_en_el_resumen(admin_client):
 
 def test_una_venta_anulada_no_cuenta(admin_client):
     venta = _venta(admin_client)
-    con_venta = admin_client.get("/api/resumen").json()["ventas"]["cantidad"]
+    con_venta = admin_client.get("/api/resumen").json()["comercio"]["ventas"]["cantidad"]
 
     admin_client.post(f"/api/ventas/{venta['id']}/anular")
 
-    assert admin_client.get("/api/resumen").json()["ventas"]["cantidad"] == con_venta - 1
+    assert admin_client.get("/api/resumen").json()["comercio"]["ventas"]["cantidad"] == con_venta - 1
 
 
 def test_sin_cobrar_es_un_conteo_y_no_una_muestra(admin_client):
@@ -113,7 +113,7 @@ def test_sin_cobrar_es_un_conteo_y_no_una_muestra(admin_client):
         assert resp.status_code == 200, resp.text
         admin_client.post(f"/api/ventas/{resp.json()['id']}/facturar")
 
-    assert admin_client.get("/api/resumen").json()["sin_cobrar"]["cantidad"] == 9
+    assert admin_client.get("/api/resumen").json()["nucleo"]["sin_cobrar"]["cantidad"] == 9
 
 
 def test_la_instancia_se_identifica(admin_client):
@@ -134,7 +134,7 @@ def test_por_defecto_es_el_mes_en_curso(admin_client):
 def test_un_periodo_viejo_no_trae_las_ventas_de_hoy(admin_client):
     _venta(admin_client)
     resp = admin_client.get("/api/resumen", params={"desde": "2020-01-01", "hasta": "2020-01-31"})
-    assert resp.json()["ventas"]["cantidad"] == 0
+    assert resp.json()["comercio"]["ventas"]["cantidad"] == 0
 
 
 def test_una_fecha_que_no_es_fecha_da_422(admin_client):
