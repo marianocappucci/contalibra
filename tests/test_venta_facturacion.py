@@ -300,3 +300,27 @@ def test_una_venta_ya_acreditada_y_sin_factura_se_factura_al_consultarla(admin_c
 
     assert resp.json()["factura_id"]
     assert admin_client.get(f"/api/ventas/{venta["id"]}").json()["factura_id"]
+
+
+def test_el_detalle_muestra_el_comprobante_de_la_venta(admin_client):
+    """El detalle no podia mostrar la factura:  lo armaba solo
+    el listado, asi que en  llegaba siempre vacio y el bloque
+    "Factura generada" de VentaDetalle era codigo muerto. Reportado el
+    2026-08-20 como "no me muestra la factura hasta que refresco"."""
+    venta = _venta(admin_client)
+    detalle = admin_client.get(f"/api/ventas/{venta["id"]}").json()
+    assert detalle["factura_display"] is None
+
+    admin_client.post(f"/api/ventas/{venta["id"]}/facturar")
+
+    detalle = admin_client.get(f"/api/ventas/{venta["id"]}").json()
+    assert detalle["factura_display"], "el detalle tiene que nombrar el comprobante"
+    listado = admin_client.get("/api/ventas", params={"tab": "facturadas"}).json()
+    fila = next(v for v in listado if v["id"] == venta["id"])
+    assert detalle["factura_display"] == fila["factura_display"]
+
+
+def test_una_venta_anulada_no_inventa_comprobante(admin_client):
+    venta = _venta(admin_client)
+    admin_client.post(f"/api/ventas/{venta["id"]}/anular")
+    assert admin_client.get(f"/api/ventas/{venta["id"]}").json()["factura_display"] is None
