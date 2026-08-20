@@ -34,7 +34,12 @@ def _usuario_id(username: str):
 
 @router.post("/ventas/{vid}/mp-qr")
 async def venta_mp_qr(vid: int, user: Auth):
-    """Crea una orden QR Dinámico en MP para esta venta y devuelve el QR como data-URL."""
+    """Pone el monto de esta venta a cobrar en el QR de la caja.
+
+    No devuelve ninguna imagen: es el modelo de **QR fijo por punto de venta**,
+    o sea el cartel impreso del mostrador, que no cambia nunca. Lo que cambia es
+    cuánto cobra cuando alguien lo escanea. Ver `libracore.mp_api.crear_orden_qr`.
+    """
     venta = db.get_venta(vid)
     if not venta:
         raise HTTPException(404)
@@ -42,16 +47,17 @@ async def venta_mp_qr(vid: int, user: Auth):
     cfg = config_manager.load()
     access_token = cfg.get("mp_access_token", "")
     pos_id       = cfg.get("mp_pos_id", "")
+    user_id      = cfg.get("mp_user_id", "")
 
-    if not access_token or not pos_id:
-        raise HTTPException(400, detail="Configurá el Access Token y el POS ID de MercadoPago en Configuración → Integraciones.")
+    if not access_token or not pos_id or not user_id:
+        raise HTTPException(400, detail="Configurá el Access Token, el User ID y el POS ID de MercadoPago en Configuración → Integraciones.")
 
     external_ref = f"venta-{vid}"
     titulo = f"Venta {venta['numero']}"
 
     try:
         resultado = await mp_api.crear_orden_qr(
-            user_id=cfg.get("mp_user_id", ""),
+            user_id=user_id,
             pos_id=pos_id,
             access_token=access_token,
             external_reference=external_ref,
@@ -62,11 +68,15 @@ async def venta_mp_qr(vid: int, user: Auth):
     except RuntimeError as e:
         raise HTTPException(502, detail=str(e))
 
+    # MercadoPago contesta 204 sin cuerpo, así que `resultado` viene vacío: la
+    # referencia externa es el único identificador que queda de esta orden, y
+    # alcanza porque es la misma con la que vuelve el pago en el webhook.
     order_id = resultado.get("in_store_order_id", external_ref)
     db.set_venta_mp_order(vid, order_id)
 
-    qr_data = resultado.get("qr_data", "")
-    return JSONResponse({"ok": True, "qr_data": qr_data, "order_id": order_id})
+    # Se devolvía también `qr_data`, que en este modelo no existe: el QR es el
+    # cartel impreso de la caja y no hay imagen que mandar.
+    return JSONResponse({"ok": True, "order_id": order_id})
 
 
 @router.get("/ventas/{vid}/mp-status")
