@@ -218,6 +218,17 @@ def _venta_dict(row, items: list, pagos: list) -> dict:
     }
 
 
+def _factura_display(tipo, punto_venta, numero) -> str | None:
+    """El comprobante como lo lee una persona: `FACTURA C 0005-00000011`.
+
+    Una sola definición para el listado y el detalle: cuando vivía sólo en el
+    listado, el detalle no tenía qué mostrar.
+    """
+    if not tipo or not numero:
+        return None
+    return f"{tipo} {str(punto_venta or 0).zfill(4)}-{str(numero).zfill(8)}"
+
+
 def _items_de(conn, venta_id: int) -> list[dict]:
     rows = conn.execute(
         """SELECT item_id, description_snapshot, quantity, unit_price
@@ -278,12 +289,7 @@ def get_all_ventas(desde: str = "", hasta: str = "", q: str = "",
             d["fac_tipo"] = r["fac_tipo"]
             d["fac_pv"] = r["fac_pv"]
             d["fac_numero"] = r["fac_numero"]
-            if r["fac_tipo"] and r["fac_numero"]:
-                pv = str(r["fac_pv"] or 0).zfill(4)
-                num = str(r["fac_numero"]).zfill(8)
-                d["factura_display"] = f"{r['fac_tipo']} {pv}-{num}"
-            else:
-                d["factura_display"] = None
+            d["factura_display"] = _factura_display(r["fac_tipo"], r["fac_pv"], r["fac_numero"])
             result.append(d)
     return result
 
@@ -300,7 +306,23 @@ def get_venta(vid: int) -> dict | None:
                 "SELECT * FROM ventas_pagos WHERE venta_id=? ORDER BY id", (vid,)
             ).fetchall()
         ]
-        return _venta_dict(row, _items_de(conn, vid), pagos)
+        d = _venta_dict(row, _items_de(conn, vid), pagos)
+
+        # 🔴 Faltaba, y el detalle no podía mostrar la factura de la venta.
+        # `VentaDetalle.tsx` renderiza el bloque "Factura generada" mirando
+        # `factura_display`, que sólo lo armaba `get_all_ventas`: en el detalle
+        # llegaba siempre `undefined`, así que ese bloque era código muerto y
+        # daba igual cuántas veces se refrescara. El listado sí lo mostraba, y
+        # de ahí salía la sensación de que el detalle "se actualiza recién al
+        # refrescar" (2026-08-20, reportado cobrando por QR en el mostrador).
+        fac = conn.execute(
+            "SELECT tipo, punto_venta, numero FROM facturas WHERE id=?",
+            (d["factura_id"],),
+        ).fetchone() if d["factura_id"] else None
+        d["factura_display"] = _factura_display(
+            fac["tipo"], fac["punto_venta"], fac["numero"]
+        ) if fac else None
+        return d
 
 
 def anular_venta(vid: int, usuario_id: int | None = None) -> None:
