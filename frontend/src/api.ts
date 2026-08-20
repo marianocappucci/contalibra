@@ -516,6 +516,9 @@ export type Venta = {
   factura_id: number | null
   factura_display: string | null
   remito_id: number | null
+  // Los devuelve `_venta_dict` desde siempre; faltaban aca.
+  mp_order_id: string
+  mp_payment_id: string
 }
 
 export type ProductoBusqueda = { id: number; codigo: string; nombre: string; precio_venta: number; unidad: string }
