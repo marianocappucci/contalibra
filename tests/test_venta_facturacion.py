@@ -324,3 +324,18 @@ def test_una_venta_anulada_no_inventa_comprobante(admin_client):
     venta = _venta(admin_client)
     admin_client.post(f"/api/ventas/{venta["id"]}/anular")
     assert admin_client.get(f"/api/ventas/{venta["id"]}").json()["factura_display"] is None
+
+
+def test_el_comprobante_se_muestra_con_su_nombre(admin_client):
+    """Decia "11 0005-00000070": el tipo numerico de ARCA en pantalla, y el
+    operador teniendo que saber que 11 es Factura C. Reportado el 2026-08-20 al
+    verificar el deploy."""
+    vid = _venta(admin_client)["id"]
+    admin_client.post(f"/api/ventas/{vid}/facturar")
+
+    display = admin_client.get(f"/api/ventas/{vid}").json()["factura_display"]
+
+    assert display.startswith("FACTURA "), display
+    assert not display.split()[0].isdigit(), f"quedo el tipo numerico: {display}"
+    # El numero de comprobante sigue completo detras del nombre.
+    assert "-" in display.split()[-1]
