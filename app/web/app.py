@@ -2,12 +2,12 @@ import os
 import re
 
 
+from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.responses import RedirectResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from app.spa import TIPOS_PROPIOS, archivo_publico
+from app.spa import montar_spa
 from starlette.middleware.base import BaseHTTPMiddleware
 import httpx
 
@@ -596,15 +596,4 @@ _LOCAL_FRONTEND_DIST = os.path.join(
 FRONTEND_DIST = _DOCKER_FRONTEND_DIST if os.path.isdir(_DOCKER_FRONTEND_DIST) else _LOCAL_FRONTEND_DIST
 
 if os.path.isdir(FRONTEND_DIST):
-    from fastapi.responses import FileResponse
-
-    app.mount(
-        "/assets", StaticFiles(directory=os.path.join(FRONTEND_DIST, "assets")), name="frontend-assets"
-    )
-
-    @app.get("/{full_path:path}", include_in_schema=False)
-    async def spa_fallback(full_path: str):
-        archivo = archivo_publico(FRONTEND_DIST, full_path)
-        if archivo is not None:
-            return FileResponse(archivo, media_type=TIPOS_PROPIOS.get(archivo.suffix))
-        return FileResponse(os.path.join(FRONTEND_DIST, "index.html"))
+    montar_spa(app, FRONTEND_DIST)
