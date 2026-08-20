@@ -27,6 +27,44 @@ function estadoLabel(estado: string): string {
 
 type QrEstado = 'idle' | 'creando' | 'esperando' | 'acreditado'
 
+/** Dos notas cortas, sintetizadas. Sin archivo de audio a propósito: no hay
+ *  nada que descargar ni que sirva el backend, y suena igual sin internet.
+ *
+ *  El `AudioContext` se crea con el click de "Cobrar con QR" y no al acreditar:
+ *  los navegadores bloquean el audio que no nace de un gesto del usuario, y la
+ *  acreditación llega desde un `setInterval`, que no cuenta como gesto. */
+function crearAudio(): AudioContext | null {
+  try {
+    const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+    return Ctor ? new Ctor() : null
+  } catch {
+    return null
+  }
+}
+
+function sonarCampanita(ctx: AudioContext | null) {
+  if (!ctx) return
+  // Un contexto creado antes de cualquier gesto puede quedar suspendido.
+  if (ctx.state === 'suspended') void ctx.resume()
+  const notas = [
+    { hz: 1318.5, en: 0 },      // mi6
+    { hz: 1760.0, en: 0.13 },   // la6
+  ]
+  for (const { hz, en } of notas) {
+    const osc = ctx.createOscillator()
+    const vol = ctx.createGain()
+    osc.type = 'sine'
+    osc.frequency.value = hz
+    const t = ctx.currentTime + en
+    vol.gain.setValueAtTime(0.0001, t)
+    vol.gain.exponentialRampToValueAtTime(0.28, t + 0.01)
+    vol.gain.exponentialRampToValueAtTime(0.0001, t + 0.42)
+    osc.connect(vol).connect(ctx.destination)
+    osc.start(t)
+    osc.stop(t + 0.45)
+  }
+}
+
 const POLL_MS = 3000
 // Cinco minutos: pasado eso el cliente ya se fue del mostrador. Cortar el poll
 // no cancela nada del lado de MercadoPago — si paga después, el webhook lo
@@ -52,6 +90,7 @@ export function VentaDetalle() {
   const [qrEstado, setQrEstado] = useState<QrEstado>('idle')
   const [qrError, setQrError] = useState<string | null>(null)
   const pollRef = useRef<number | null>(null)
+  const audioRef = useRef<AudioContext | null>(null)
 
   useEffect(() => {
     cargar()
@@ -102,6 +141,9 @@ export function VentaDetalle() {
   // pantalla: lo que cambia es qué cobra ese QR cuando alguien lo escanea.
   async function cobrarConQr() {
     if (!detalle) return
+    // Acá, con el click todavía en curso, es el único momento en que el
+    // navegador deja abrir el audio.
+    audioRef.current = audioRef.current ?? crearAudio()
     setQrError(null)
     setQrEstado('creando')
     try {
@@ -125,6 +167,7 @@ export function VentaDetalle() {
       }
       if (estado === 'approved') {
         frenarPoll()
+        sonarCampanita(audioRef.current)
         setQrEstado('acreditado')
         await cargar()
         return

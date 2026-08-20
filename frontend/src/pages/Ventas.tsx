@@ -58,10 +58,34 @@ const MEDIOS_PAGO_SHORT: Record<string, string> = {
 }
 
 type ItemRow = { nombre: string; qty: string; precio: string; producto_id: number | null }
-type PagoRow = { medio: string; monto: string; referencia: string }
+//: `tocado` marca que el cajero escribió el monto a mano. Mientras esté en
+//  false la fila se autocompleta con lo que falta cubrir, así el caso normal
+//  —un solo medio por el total— no obliga a tipear el importe, y el pago
+//  dividido sigue mandando en cuanto alguien lo escribe.
+type PagoRow = { medio: string; monto: string; referencia: string; tocado: boolean }
 
 const EMPTY_ITEM: ItemRow = { nombre: '', qty: '1', precio: '0', producto_id: null }
-const EMPTY_PAGO: PagoRow = { medio: 'efectivo', monto: '', referencia: '' }
+const EMPTY_PAGO: PagoRow = { medio: 'efectivo', monto: '', referencia: '', tocado: false }
+
+
+/** Input de importe, con el `$` adentro y pegado a la izquierda. */
+function MoneyInput({ value, onChange, className = '', placeholder }: {
+  value: string
+  onChange: (v: string) => void
+  className?: string
+  placeholder?: string
+}) {
+  return (
+    <div className={`relative ${className}`}>
+      <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-sm text-muted-foreground">$</span>
+      <Input
+        type="number" step="0.01" value={value} placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className="pl-6"
+      />
+    </div>
+  )
+}
 
 export function Ventas() {
   const { user } = useAuth()
@@ -180,8 +204,13 @@ export function Ventas() {
     setItems((rows) => rows.filter((_, i) => i !== index))
   }
 
-  function updatePago(index: number, field: keyof PagoRow, value: string) {
+  function updatePago(index: number, field: 'medio' | 'referencia', value: string) {
     setPagos((rows) => rows.map((r, i) => i === index ? { ...r, [field]: value } : r))
+  }
+
+  /** El monto escrito a mano manda: la fila deja de autocompletarse. */
+  function updateMontoPago(index: number, value: string) {
+    setPagos((rows) => rows.map((r, i) => i === index ? { ...r, monto: value, tocado: true } : r))
   }
 
   function addPagoRow() {
@@ -194,7 +223,19 @@ export function Ventas() {
 
   const subtotalCalc = items.reduce((acc, r) => acc + (Number(r.qty) || 0) * (Number(r.precio) || 0), 0)
   const totalCalc = Math.max(0, subtotalCalc - (Number(descuento) || 0))
-  const pagadoCalc = pagos.reduce((acc, p) => acc + (Number(p.monto) || 0), 0)
+
+  // Lo que falta cubrir sin contar las filas que todavía se autocompletan.
+  const cubiertoAMano = pagos.reduce((acc, p) => acc + (p.tocado ? Number(p.monto) || 0 : 0), 0)
+  const sugerido = Math.round(Math.max(0, totalCalc - cubiertoAMano) * 100) / 100
+
+  //: El importe efectivo de cada fila: el escrito, o el sugerido si nadie la tocó.
+  //  Se reparte entre las filas sin tocar poniéndolo en la primera, para que dos
+  //  filas vacías no sumen el total dos veces.
+  const primeraSinTocar = pagos.findIndex((p) => !p.tocado)
+  const montoDeFila = (row: PagoRow, i: number): string =>
+    row.tocado ? row.monto : (i === primeraSinTocar && sugerido > 0 ? String(sugerido) : '')
+
+  const pagadoCalc = pagos.reduce((acc, p, i) => acc + (Number(montoDeFila(p, i)) || 0), 0)
   const difCalc = Math.round((totalCalc - pagadoCalc) * 100) / 100
 
   async function crearVenta() {
@@ -209,7 +250,12 @@ export function Ventas() {
         descuento: Number(descuento) || 0,
         cliente_id: clienteId ? Number(clienteId) : null,
         observaciones,
-        pagos: pagos.filter((p) => Number(p.monto) > 0).map((p) => ({ medio: p.medio, monto: Number(p.monto), referencia: p.referencia })),
+        // `montoDeFila` y no `p.monto`: la fila que nadie tocó lleva el importe
+        // sugerido, que es lo que el cajero está viendo en pantalla. Mandar
+        // `p.monto` dejaría la venta sin pagos aunque la pantalla dijera otra cosa.
+        pagos: pagos
+          .map((p, i) => ({ medio: p.medio, monto: Number(montoDeFila(p, i)) || 0, referencia: p.referencia }))
+          .filter((p) => p.monto > 0),
       })
       setShowNueva(false)
       navigate(`/ventas/${venta.id}`)
@@ -392,7 +438,7 @@ export function Ventas() {
                       </div>
                     )}
                     <Input type="number" step="0.01" value={row.qty} onChange={(e) => updateItem(i, 'qty', e.target.value)} className="w-20" placeholder="Cant." />
-                    <Input type="number" step="0.01" value={row.precio} onChange={(e) => updateItem(i, 'precio', e.target.value)} className="w-28" placeholder="Precio" />
+                    <MoneyInput value={row.precio} onChange={(v) => updateItem(i, 'precio', v)} className="w-32" placeholder="Precio" />
                     <span className="w-28 text-sm text-muted-foreground">{formatCurrency((Number(row.qty) || 0) * (Number(row.precio) || 0))}</span>
                     {items.length > 1 && <Button size="sm" variant="ghost" onClick={() => removeItemRow(i)}><X />Quitar</Button>}
                   </div>
@@ -410,7 +456,7 @@ export function Ventas() {
                         {Object.entries(MEDIOS_PAGO_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
                       </SelectContent>
                     </Select>
-                    <Input type="number" step="0.01" value={row.monto} onChange={(e) => updatePago(i, 'monto', e.target.value)} className="w-28" placeholder="Monto" />
+                    <MoneyInput value={montoDeFila(row, i)} onChange={(v) => updateMontoPago(i, v)} className="w-32" placeholder="Monto" />
                     <Input value={row.referencia} onChange={(e) => updatePago(i, 'referencia', e.target.value)} className="w-40" placeholder="Referencia" />
                     {pagos.length > 1 && <Button size="sm" variant="ghost" onClick={() => removePagoRow(i)}><X />Quitar</Button>}
                   </div>
@@ -424,7 +470,7 @@ export function Ventas() {
               </div>
 
               <div className="flex flex-wrap items-end gap-4 border-t pt-4">
-                <div className="grid gap-1.5"><Label>Descuento</Label><Input type="number" step="0.01" value={descuento} onChange={(e) => setDescuento(e.target.value)} className="w-28" /></div>
+                <div className="grid gap-1.5"><Label>Descuento</Label><MoneyInput value={descuento} onChange={setDescuento} className="w-32" /></div>
                 <p className="text-sm">Subtotal: <span className="font-medium">{formatCurrency(subtotalCalc)}</span></p>
                 <p className="text-sm">Total: <span className="font-medium">{formatCurrency(totalCalc)}</span></p>
               </div>
