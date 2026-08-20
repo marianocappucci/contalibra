@@ -30,6 +30,7 @@ from libraauth.demo_codigos import DemoCodigoRepository
 from libraauth.session_auth import build_demo_codigos_router, demo_username
 from app.web.api import auth as api_auth_router
 from app.web.api import dashboard as api_dashboard_router
+from app.web.api import resumen as api_resumen_router
 from app.web.api import clientes as api_clientes_router
 from app.web.api import productos as api_productos_router
 from app.web.api import listas_precio as api_listas_precio_router
@@ -192,6 +193,10 @@ app.include_router(libros_iva_router.router)
 _auth_json = Depends(get_current_user_json)
 app.include_router(api_auth_router.router)
 app.include_router(api_dashboard_router.router)
+# `resumen` también gatea adentro, con su propia dependencia: acepta la
+# credencial del panel del dueño, que no es usuario de esta instancia y por lo
+# tanto no pasaría `_auth_json`.
+app.include_router(api_resumen_router.router)
 app.include_router(
     api_clientes_router.router,
     dependencies=[_auth_json, Depends(require_module("clientes"))],
