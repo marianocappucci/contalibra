@@ -4,7 +4,7 @@ import { type ColumnDef } from '@tanstack/react-table'
 import { api, ApiError, type ComprobantePendiente, type PrefillComprobantes } from '../api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { BadgeEstado } from 'libra-ui/badge-estado'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -277,7 +277,7 @@ export function ComprobantesPendientes() {
         if (c.estado === 'facturado') {
           return c.factura_id
             ? <Button asChild size="sm" variant="outline"><Link to={`/facturas/${c.factura_id}`}><ReceiptText className="mr-1 size-4" />Ver factura</Link></Button>
-            : <Badge variant="default">Facturado</Badge>
+            : <BadgeEstado tono="ok">Facturado</BadgeEstado>
         }
         return (
           <span className="block w-full truncate text-muted-foreground" title={c.motivo_descarte || undefined}>

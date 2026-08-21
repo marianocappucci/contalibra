@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { BadgeEstado } from 'libra-ui/badge-estado'
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogClose,
 } from '@/components/ui/dialog'
@@ -170,9 +171,9 @@ export function Recibos() {
       header: 'Estado',
       cell: ({ row }) => (
         row.original.anulado ? (
-          <Badge variant="destructive" title={row.original.anulado_motivo || undefined}><Ban />Anulado</Badge>
+          <BadgeEstado tono="negativo" title={row.original.anulado_motivo || undefined}><Ban />Anulado</BadgeEstado>
         ) : (
-          <Badge className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-400">Vigente</Badge>
+          <BadgeEstado tono="ok">Vigente</BadgeEstado>
         )
       ),
     },
