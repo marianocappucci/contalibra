@@ -7,6 +7,7 @@ import { api, ApiError, IVA_CONDITIONS, type AliasFacturacion, type Cliente, typ
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { BadgeEstado, type TonoEstado } from 'libra-ui/badge-estado'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
@@ -35,8 +36,8 @@ const TIPO_LABELS: Record<number, string> = {
   3: 'NC A', 8: 'NC B', 13: 'NC C',
 }
 
-const ESTADO_PRESUPUESTO_VARIANT: Record<string, 'default' | 'secondary' | 'destructive'> = {
-  aprobado: 'default', aceptado: 'default', rechazado: 'destructive',
+const ESTADO_PRESUPUESTO_TONO: Record<string, TonoEstado> = {
+  aprobado: 'ok', aceptado: 'ok', rechazado: 'negativo',
 }
 
 const ESTADO_PRESUPUESTO_LABEL: Record<string, string> = {
@@ -254,7 +255,7 @@ export function ClienteDetalle() {
             <IdCard className="size-5 text-primary" />
             {cliente ? cliente.name : 'Cliente'}
           </h2>
-          {cliente && !cliente.activo && <Badge variant="secondary">Inactivo</Badge>}
+          {cliente && !cliente.activo && <BadgeEstado tono="neutro">Inactivo</BadgeEstado>}
         </div>
         <div className="flex flex-wrap gap-2">
           {cliente && cliente.activo && (
@@ -537,9 +538,9 @@ export function ClienteDetalle() {
                         <td className="p-3 text-right font-medium">{formatCurrency(f.total)}</td>
                         <td className="p-3 text-center">
                           {f.cae && f.cae !== 'PENDIENTE' ? (
-                            <Badge className="bg-emerald-600 text-white dark:bg-emerald-500">Autorizada</Badge>
+                            <BadgeEstado tono="ok">Autorizada</BadgeEstado>
                           ) : (
-                            <Badge className="bg-amber-500 text-white dark:bg-amber-600">Pendiente</Badge>
+                            <BadgeEstado tono="atencion">Pendiente</BadgeEstado>
                           )}
                         </td>
                         <td className="p-3 text-right">
@@ -578,9 +579,9 @@ export function ClienteDetalle() {
                         <td className="p-3 text-muted-foreground">{p.valid_until || '—'}</td>
                         <td className="p-3 text-right font-medium">{formatCurrency(p.total)}</td>
                         <td className="p-3 text-center">
-                          <Badge variant={ESTADO_PRESUPUESTO_VARIANT[p.status] ?? 'secondary'}>
+                          <BadgeEstado tono={ESTADO_PRESUPUESTO_TONO[p.status] ?? 'neutro'}>
                             {ESTADO_PRESUPUESTO_LABEL[p.status] ?? p.status ?? 'Borrador'}
-                          </Badge>
+                          </BadgeEstado>
                         </td>
                         <td className="p-3 text-right">
                           <Button asChild size="icon" variant="outline"><Link to={`/presupuestos/${p.id}`}><Eye /></Link></Button>

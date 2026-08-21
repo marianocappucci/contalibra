@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
+import { BadgeEstado } from 'libra-ui/badge-estado'
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogClose,
 } from '@/components/ui/dialog'
@@ -28,26 +28,26 @@ const TIPO_LABELS: Record<string, string> = { entrada: 'Entrada', salida: 'Salid
 
 function TipoBadge({ tipo }: { tipo: string }) {
   if (tipo === 'entrada') {
-    return <Badge className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-400"><ArrowDownToLine />Entrada</Badge>
+    return <BadgeEstado tono="ok"><ArrowDownToLine />Entrada</BadgeEstado>
   }
   if (tipo === 'salida') {
-    return <Badge variant="destructive"><ArrowUpFromLine />Salida</Badge>
+    return <BadgeEstado tono="negativo"><ArrowUpFromLine />Salida</BadgeEstado>
   }
   if (tipo === 'venta') {
-    return <Badge><ShoppingCart />Venta</Badge>
+    return <BadgeEstado tono="curso"><ShoppingCart />Venta</BadgeEstado>
   }
   if (tipo === 'ajuste') {
-    return <Badge variant="secondary"><RotateCcw />Ajuste</Badge>
+    return <BadgeEstado tono="neutro"><RotateCcw />Ajuste</BadgeEstado>
   }
-  return <Badge variant="outline">{TIPO_LABELS[tipo] ?? tipo}</Badge>
+  return <BadgeEstado tono="neutro">{TIPO_LABELS[tipo] ?? tipo}</BadgeEstado>
 }
 
 function EstadoBadge({ p }: { p: StockItem }) {
   const critico = p.stock_actual <= 0
   const bajo = p.stock_minimo > 0 && p.stock_actual <= p.stock_minimo
-  if (critico) return <Badge variant="destructive">Sin stock</Badge>
-  if (bajo) return <Badge className="bg-amber-500/15 text-amber-700 hover:bg-amber-500/15 dark:text-amber-400">Bajo mínimo</Badge>
-  return <Badge className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-400">OK</Badge>
+  if (critico) return <BadgeEstado tono="negativo">Sin stock</BadgeEstado>
+  if (bajo) return <BadgeEstado tono="atencion">Bajo mínimo</BadgeEstado>
+  return <BadgeEstado tono="ok">OK</BadgeEstado>
 }
 
 const MODOS_AJUSTE = [
@@ -271,7 +271,7 @@ export function Stock() {
           <p>
             <strong>{alertas.length} producto{alertas.length > 1 ? 's' : ''} con stock bajo mínimo:</strong>{' '}
             {alertas.map((a) => (
-              <Badge key={a.id} className="ml-1 bg-amber-500/15 text-amber-700 hover:bg-amber-500/15 dark:text-amber-400">{a.nombre} ({formatEntero(a.stock_actual)} {a.unidad})</Badge>
+              <BadgeEstado key={a.id} tono="atencion" className="ml-1">{a.nombre} ({formatEntero(a.stock_actual)} {a.unidad})</BadgeEstado>
             ))}
           </p>
         </div>
