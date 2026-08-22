@@ -375,7 +375,7 @@ export function ComprobantesPendientes() {
               {descartando.cliente_razon} · {formatCurrency(descartando.total)}.
               No se factura y el sistema de origen deja de reenviarlo.
             </p>
-            <div className="grid gap-1.5">
+            <div className="grid gap-2">
               <Label htmlFor="motivo">Motivo</Label>
               <Input
                 id="motivo" value={motivo} onChange={(e) => setMotivo(e.target.value)}
