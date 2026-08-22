@@ -310,7 +310,7 @@ export function Stock() {
               )}
             </div>
 
-            <div className="grid gap-1.5">
+            <div className="grid gap-2">
               <Label>Tipo de ajuste</Label>
               <div className="flex flex-wrap gap-2">
                 {MODOS_AJUSTE.map((m) => (
@@ -328,12 +328,12 @@ export function Stock() {
             </div>
 
             <div className="flex flex-wrap items-end gap-3">
-              <div className="grid gap-1.5">
+              <div className="grid gap-2">
                 <Label>{modo === 'absoluto' ? `Stock nuevo (${productoAjustando?.unidad ?? ''})` : modo === 'entrada' ? `Cantidad a ingresar (${productoAjustando?.unidad ?? ''})` : `Cantidad a retirar (${productoAjustando?.unidad ?? ''})`}</Label>
                 <Input type="number" step="0.01" value={cantidad} onChange={(e) => setCantidad(e.target.value)} className="w-40" />
               </div>
-              <div className="grid gap-1.5"><Label>Fecha</Label><Input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="w-40" /></div>
-              <div className="grid gap-1.5"><Label>Motivo / Referencia</Label><Input value={referencia} onChange={(e) => setReferencia(e.target.value)} className="w-56" placeholder="Ej: Compra, conteo físico, rotura…" /></div>
+              <div className="grid gap-2"><Label>Fecha</Label><Input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="w-40" /></div>
+              <div className="grid gap-2"><Label>Motivo / Referencia</Label><Input value={referencia} onChange={(e) => setReferencia(e.target.value)} className="w-56" placeholder="Ej: Compra, conteo físico, rotura…" /></div>
             </div>
             {resultado !== null && (
               <p className={`text-sm ${resultado < 0 ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'}`}>
