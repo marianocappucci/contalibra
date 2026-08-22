@@ -12,6 +12,7 @@ import { DataTable, sortableHeader } from 'libra-ui/data-table'
 import {
   Inbox, ReceiptText, X, Package, Wrench, FileText, FileSpreadsheet, Info,
 } from 'lucide-react'
+import { TituloPantalla } from 'libra-ui/titulo-pantalla'
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value)
@@ -294,9 +295,7 @@ export function ComprobantesPendientes() {
 
   return (
     <div className="grid gap-4">
-      <h2 className="flex items-center gap-2 text-lg font-semibold">
-        <Inbox className="size-5 text-primary" />Comprobantes a facturar
-      </h2>
+      <TituloPantalla icono={Inbox}>Comprobantes a facturar</TituloPantalla>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 

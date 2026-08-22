@@ -15,10 +15,8 @@ import {
 import { anchoColumnaAcciones, DataTable, sortableHeader } from 'libra-ui/data-table'
 import { formatEntero } from '@/lib/utils'
 import { SelectBuscable } from 'libra-ui/SelectBuscable'
-import {
-  Archive, AlertTriangle, Pencil, History, RefreshCw, ArrowDownToLine, ArrowUpFromLine,
-  ShoppingCart, RotateCcw, X, Filter,
-} from 'lucide-react'
+import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, Boxes, Filter, History, Pencil, RefreshCw, RotateCcw, ShoppingCart, X } from 'lucide-react'
+import { TituloPantalla } from 'libra-ui/titulo-pantalla'
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10)
@@ -259,7 +257,7 @@ export function Stock() {
   return (
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
-        <h2 className="flex items-center gap-2 text-lg font-semibold"><Archive className="size-5 text-primary" />Stock</h2>
+        <TituloPantalla icono={Boxes}>Stock</TituloPantalla>
         <Button variant="outline" onClick={toggleMovimientos}><History />Historial de movimientos</Button>
       </div>
 

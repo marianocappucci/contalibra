@@ -11,8 +11,9 @@ import { Label } from '@/components/ui/label'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import { ArrowLeft, ArrowLeftRight, Info } from 'lucide-react'
+import { ArrowLeft, ArrowLeftRight, Info, Warehouse } from 'lucide-react'
 import { SelectBuscable } from 'libra-ui/SelectBuscable'
+import { TituloPantalla } from 'libra-ui/titulo-pantalla'
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10)
@@ -74,7 +75,7 @@ export function DepositoTransferencia() {
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="flex items-center gap-2 text-lg font-semibold"><ArrowLeftRight className="size-5 text-primary" />Transferir stock</h2>
+        <TituloPantalla icono={Warehouse}>Transferir stock</TituloPantalla>
         <Button asChild size="sm" variant="outline"><Link to="/depositos"><ArrowLeft />Volver</Link></Button>
       </div>
 

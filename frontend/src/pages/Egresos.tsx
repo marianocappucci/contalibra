@@ -26,9 +26,8 @@ import {
 } from '@/components/ui/form'
 import { anchoColumnaAcciones, DataTable, sortableHeader } from 'libra-ui/data-table'
 import { SelectBuscable } from 'libra-ui/SelectBuscable'
-import {
-  ArrowUpCircle, CheckCircle2, Eye, Filter, Hourglass, Plus, X,
-} from 'lucide-react'
+import { ArrowUpCircle, CheckCircle2, Eye, Filter, Hourglass, Plus, ShoppingBag, X } from 'lucide-react'
+import { TituloPantalla } from 'libra-ui/titulo-pantalla'
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10)
@@ -203,9 +202,7 @@ export function Egresos() {
     <Dialog open={nuevoOpen} onOpenChange={setNuevoOpen}>
       <div className="grid gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="flex items-center gap-2 text-lg font-semibold">
-            <ArrowUpCircle className="size-5 text-destructive" />Egresos
-          </h2>
+          <TituloPantalla icono={ShoppingBag}>Egresos</TituloPantalla>
           <DialogTrigger asChild>
             <Button onClick={abrirNuevo}><Plus />Nuevo egreso</Button>
           </DialogTrigger>

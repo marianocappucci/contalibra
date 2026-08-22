@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/select'
 import { Calculator, Trash2 } from 'lucide-react'
 import { SelectBuscable } from 'libra-ui/SelectBuscable'
+import { TituloPantalla } from 'libra-ui/titulo-pantalla'
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10)
@@ -127,9 +128,7 @@ export function PresupuestoForm() {
 
   return (
     <div className="grid gap-4">
-      <h2 className="flex items-center gap-2 text-lg font-semibold">
-        <Calculator className="size-5 text-primary" />{editingId ? 'Editar presupuesto' : 'Nuevo presupuesto'}
-      </h2>
+      <TituloPantalla icono={Calculator}>{editingId ? 'Editar presupuesto' : 'Nuevo presupuesto'}</TituloPantalla>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 

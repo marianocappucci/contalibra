@@ -17,6 +17,7 @@ import {
   ExternalLink, Info, Mail, Package, Phone, Plus, Power, Printer, Receipt, Save, Send,
   Settings, ShieldCheck, Tag, Trash2, Upload,
 } from 'lucide-react'
+import { TituloPantalla } from 'libra-ui/titulo-pantalla'
 
 type CategoriaProducto = { id: number; nombre: string }
 
@@ -165,7 +166,7 @@ export function Config() {
 
   return (
     <div className="grid gap-4">
-      <h2 className="flex items-center gap-2 text-lg font-semibold"><Settings className="size-5" />Configuración</h2>
+      <TituloPantalla icono={Settings}>Configuración</TituloPantalla>
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2">
         <Tabs value={tab} onValueChange={(v) => { setTab(v as TabId); setSaved(null); setError(null) }}>
