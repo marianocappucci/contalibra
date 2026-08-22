@@ -210,9 +210,9 @@ export function Recibos() {
 
       <Card>
         <CardContent className="flex flex-wrap items-end gap-3 pt-6">
-          <div className="grid gap-1.5"><Label>Desde</Label><Input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className="w-auto" /></div>
-          <div className="grid gap-1.5"><Label>Hasta</Label><Input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className="w-auto" /></div>
-          <div className="grid gap-1.5">
+          <div className="grid gap-2"><Label>Desde</Label><Input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className="w-auto" /></div>
+          <div className="grid gap-2"><Label>Hasta</Label><Input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className="w-auto" /></div>
+          <div className="grid gap-2">
             <Label>Buscar</Label>
             <div className="relative">
               <Search className="pointer-events-none absolute left-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -265,7 +265,7 @@ export function Recibos() {
               no la plata. El número queda consumido y el papel se puede seguir
               imprimiendo, con la franja de anulado.
             </p>
-            <div className="grid gap-1.5">
+            <div className="grid gap-2">
               <Label>Motivo <span className="font-normal text-muted-foreground">(opcional)</span></Label>
               <Input value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Se imprimió mal, se cargó dos veces…" />
             </div>

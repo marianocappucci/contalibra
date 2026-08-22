@@ -284,7 +284,7 @@ export function ListaPrecioDetalle() {
                   <SheetTitle className="flex items-center gap-2"><Percent className="size-4" />Actualizar precios en lote</SheetTitle>
                 </SheetHeader>
                 <div className="grid gap-4 px-4">
-                  <div className="grid gap-1.5">
+                  <div className="grid gap-2">
                     <Label>Base de cálculo</Label>
                     <Select value={loteBase} onValueChange={(v) => setLoteBase(v as typeof loteBase)}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
@@ -295,7 +295,7 @@ export function ListaPrecioDetalle() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="grid gap-1.5">
+                  <div className="grid gap-2">
                     <Label>Porcentaje de ajuste</Label>
                     <Input
                       type="number" step="0.1" value={lotePorcentaje}
@@ -303,7 +303,7 @@ export function ListaPrecioDetalle() {
                       placeholder="Ej: 10 para +10%, -5 para -5%"
                     />
                   </div>
-                  <div className="grid gap-1.5">
+                  <div className="grid gap-2">
                     <Label>Aplicar a</Label>
                     <Select value={loteCategoria || '__todas__'} onValueChange={(v) => setLoteCategoria(v === '__todas__' ? '' : v)}>
                       <SelectTrigger><SelectValue placeholder="Todos los productos" /></SelectTrigger>
@@ -336,7 +336,7 @@ export function ListaPrecioDetalle() {
                   <p className="text-sm text-muted-foreground">
                     Reemplaza los precios existentes en esta lista con los precios de la fuente seleccionada.
                   </p>
-                  <div className="grid gap-1.5">
+                  <div className="grid gap-2">
                     <Label>Importar desde</Label>
                     <Select value={importFuente} onValueChange={(v) => setImportFuente(v as typeof importFuente)}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
@@ -348,7 +348,7 @@ export function ListaPrecioDetalle() {
                     </Select>
                   </div>
                   {importFuente === 'lista' && (
-                    <div className="grid gap-1.5">
+                    <div className="grid gap-2">
                       <Label>Lista de origen</Label>
                       <Select value={importFuenteListaId} onValueChange={setImportFuenteListaId}>
                         <SelectTrigger><SelectValue placeholder="Elegir lista…" /></SelectTrigger>
@@ -377,11 +377,11 @@ export function ListaPrecioDetalle() {
                   <DialogTitle className="flex items-center gap-2"><Settings className="size-4" />Configurar lista</DialogTitle>
                 </DialogHeader>
                 <div className="grid gap-3">
-                  <div className="grid gap-1.5">
+                  <div className="grid gap-2">
                     <Label>Nombre</Label>
                     <Input value={configNombre} onChange={(e) => setConfigNombre(e.target.value)} />
                   </div>
-                  <div className="grid gap-1.5">
+                  <div className="grid gap-2">
                     <Label>Descripción</Label>
                     <Input value={configDescripcion} onChange={(e) => setConfigDescripcion(e.target.value)} />
                   </div>
