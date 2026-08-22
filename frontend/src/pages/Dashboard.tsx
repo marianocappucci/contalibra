@@ -4,10 +4,8 @@ import { api, ApiError, type DashboardData } from '../api'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
-import {
-  Gauge, Receipt, ArrowDownCircle, ArrowUpCircle, Wallet, ClipboardList,
-  Hourglass, CheckCircle2, Inbox, History,
-} from 'lucide-react'
+import { ArrowDownCircle, ArrowUpCircle, CheckCircle2, ClipboardList, History, Hourglass, Inbox, LayoutDashboard, Receipt, Wallet } from 'lucide-react'
+import { TituloPantalla } from 'libra-ui/titulo-pantalla'
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(value)
@@ -52,7 +50,7 @@ export function Dashboard() {
   return (
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
-        <h2 className="flex items-center gap-2 text-lg font-semibold"><Gauge className="size-5 text-primary" />Dashboard</h2>
+        <TituloPantalla icono={LayoutDashboard}>Dashboard</TituloPantalla>
         {data && (
           <span className="text-sm text-muted-foreground">{formatDate(data.mes_hasta)}</span>
         )}
