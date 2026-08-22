@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { BadgeEstado } from 'libra-ui/badge-estado'
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogClose,
 } from '@/components/ui/dialog'
@@ -17,6 +18,7 @@ import { anchoColumnaAcciones, DataTable, sortableHeader } from 'libra-ui/data-t
 import {
   Ban, BookOpen, FileDown, ReceiptText, Search, ShoppingCart, X,
 } from 'lucide-react'
+import { TituloPantalla } from 'libra-ui/titulo-pantalla'
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10)
@@ -170,9 +172,9 @@ export function Recibos() {
       header: 'Estado',
       cell: ({ row }) => (
         row.original.anulado ? (
-          <Badge variant="destructive" title={row.original.anulado_motivo || undefined}><Ban />Anulado</Badge>
+          <BadgeEstado tono="negativo" title={row.original.anulado_motivo || undefined}><Ban />Anulado</BadgeEstado>
         ) : (
-          <Badge className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-400">Vigente</Badge>
+          <BadgeEstado tono="ok">Vigente</BadgeEstado>
         )
       ),
     },
@@ -202,11 +204,8 @@ export function Recibos() {
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="flex items-center gap-2 text-lg font-semibold">
-          <ReceiptText className="size-5 text-primary" />
-          Recibos
-          {!loading && <Badge variant="secondary">{total}</Badge>}
-        </h2>
+        <TituloPantalla icono={ReceiptText}>Recibos
+          {!loading && <Badge variant="secondary">{total}</Badge>}</TituloPantalla>
       </div>
 
       <Card>

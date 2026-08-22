@@ -4,7 +4,7 @@ import { type ColumnDef } from '@tanstack/react-table'
 import { api, ApiError, type ComprobantePendiente, type PrefillComprobantes } from '../api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { BadgeEstado } from 'libra-ui/badge-estado'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -12,6 +12,7 @@ import { DataTable, sortableHeader } from 'libra-ui/data-table'
 import {
   Inbox, ReceiptText, X, Package, Wrench, FileText, FileSpreadsheet, Info,
 } from 'lucide-react'
+import { TituloPantalla } from 'libra-ui/titulo-pantalla'
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value)
@@ -277,7 +278,7 @@ export function ComprobantesPendientes() {
         if (c.estado === 'facturado') {
           return c.factura_id
             ? <Button asChild size="sm" variant="outline"><Link to={`/facturas/${c.factura_id}`}><ReceiptText className="mr-1 size-4" />Ver factura</Link></Button>
-            : <Badge variant="default">Facturado</Badge>
+            : <BadgeEstado tono="ok">Facturado</BadgeEstado>
         }
         return (
           <span className="block w-full truncate text-muted-foreground" title={c.motivo_descarte || undefined}>
@@ -294,9 +295,7 @@ export function ComprobantesPendientes() {
 
   return (
     <div className="grid gap-4">
-      <h2 className="flex items-center gap-2 text-lg font-semibold">
-        <Inbox className="size-5 text-primary" />Comprobantes a facturar
-      </h2>
+      <TituloPantalla icono={Inbox}>Comprobantes a facturar</TituloPantalla>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 

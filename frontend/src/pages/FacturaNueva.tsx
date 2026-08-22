@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/select'
 import { Eye, Inbox, Plus, Receipt, Trash2, TriangleAlert } from 'lucide-react'
 import { SelectBuscable } from 'libra-ui/SelectBuscable'
+import { TituloPantalla } from 'libra-ui/titulo-pantalla'
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10)
@@ -178,7 +179,7 @@ export function FacturaNueva() {
 
   return (
     <div className="grid gap-4">
-      <h2 className="flex items-center gap-2 text-lg font-semibold"><Receipt className="size-5 text-primary" />Nueva factura</h2>
+      <TituloPantalla icono={Receipt}>Nueva factura</TituloPantalla>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
