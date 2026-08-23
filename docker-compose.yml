@@ -15,6 +15,7 @@ services:
   # Sin `ports:` a propósito: sólo se llega desde la red interna.
   contalibra-postgres:
     image: postgres:16
+    command: postgres -c timezone=America/Argentina/Buenos_Aires
     container_name: contalibra-postgres
     restart: unless-stopped
     environment:
