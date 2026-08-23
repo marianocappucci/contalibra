@@ -167,3 +167,59 @@ def _terminos_ya_aceptados(request):
     mp.setattr(TerminosRepository, "esta_aceptada", lambda self: True)
     yield
     mp.undo()
+
+
+# ── Ningun test sale a la red de verdad ─────────────────────────────────────
+#
+# 🔴 Lo pone un caso real del 2026-08-23. `app/mp_api.py` es un shim
+# (`from libracore.mp_api import ...`), asi que `app.mp_api.obtener_pago` es un
+# binding DISTINTO del que resuelve el codigo del motor. Cuando el webhook se
+# mudo a `libracore.mp_webhook`, tres tests que hacian
+# `monkeypatch.setattr(mp_api, "obtener_pago", ...)` dejaron de interceptar
+# nada y **salieron a la API real de MercadoPago**: 401, y el caso se leyo como
+# "no facturo".
+#
+# El problema no es el 401 -- es que un test pueda pegarle a un servicio
+# externo sin que nadie se entere. En un runner con credenciales validas
+# hubiera pasado en verde consultando pagos ajenos.
+#
+# Con esto, un parcheo que erra el modulo falla diciendo QUE se intento llamar.
+
+_HOSTS_PROHIBIDOS = ("api.mercadopago.com", "afip.gov.ar", "arca.gob.ar")
+
+
+@pytest.fixture(autouse=True)
+def sin_red_de_verdad(monkeypatch, request):
+    """Corta cualquier salida a un servicio externo desde la suite.
+
+    Se puede levantar en un test puntual con `@pytest.mark.con_red`, para el
+    dia que haga falta un test de integracion de verdad.
+    """
+    if request.node.get_closest_marker("con_red"):
+        return
+
+    import httpx
+
+    real = httpx.AsyncHTTPTransport.handle_async_request
+    real_sync = httpx.HTTPTransport.handle_request
+
+    def _revisar(request_):
+        host = request_.url.host or ""
+        if any(host.endswith(p) or host == p for p in _HOSTS_PROHIBIDOS):
+            raise RuntimeError(
+                f"Un test intento salir a {host} ({request_.url}). "
+                "Casi seguro un monkeypatch que erro el modulo: si la funcion "
+                "vive en libracore, hay que parchear `libracore.<modulo>`, no "
+                "el shim de `app/`."
+            )
+
+    async def _async(self, request_, **kw):
+        _revisar(request_)
+        return await real(self, request_, **kw)
+
+    def _sync(self, request_, **kw):
+        _revisar(request_)
+        return real_sync(self, request_, **kw)
+
+    monkeypatch.setattr(httpx.AsyncHTTPTransport, "handle_async_request", _async)
+    monkeypatch.setattr(httpx.HTTPTransport, "handle_request", _sync)
