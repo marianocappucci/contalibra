@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { ArrowDownCircle, ArrowUpCircle, CheckCircle2, ClipboardList, History, Hourglass, Inbox, LayoutDashboard, Receipt, Wallet } from 'lucide-react'
 import { TituloPantalla } from 'libra-ui/titulo-pantalla'
+import { fecha } from '@/lib/fechas'
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(value)
@@ -17,12 +18,7 @@ function formatCurrency(value: number): string {
 // `12/8/2026`: barra en vez de guion, y sin cero a la izquierda ni en el dia
 // ni en el mes.
 function formatDate(value: string): string {
-  const partes = new Intl.DateTimeFormat('es-AR', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-  }).formatToParts(new Date(value))
-  const p: Record<string, string> = {}
-  for (const parte of partes) p[parte.type] = parte.value
-  return `${p.day}-${p.month}-${p.year}`
+  return fecha(value)
 }
 
 export function Dashboard() {

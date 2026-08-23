@@ -18,6 +18,7 @@ import {
   Settings, ShieldCheck, Tag, Trash2, Upload,
 } from 'lucide-react'
 import { TituloPantalla } from 'libra-ui/titulo-pantalla'
+import { fechaHora } from '@/lib/fechas'
 
 type CategoriaProducto = { id: number; nombre: string }
 
@@ -902,7 +903,7 @@ function DatosTab({ saving, setSaving, setError, describeError }: {
                   <li key={b.filename} className="flex items-center justify-between py-2 text-sm">
                     <div>
                       <p className="font-mono font-medium">{b.filename}</p>
-                      <p className="text-muted-foreground">{b.mtime} — {b.size_mb} MB</p>
+                      <p className="text-muted-foreground">{fechaHora(b.mtime)} — {b.size_mb} MB</p>
                     </div>
                     <Button asChild size="sm" variant="outline">
                       <a href={`/api/config/backups/${b.filename}`} download><Download />Descargar</a>
