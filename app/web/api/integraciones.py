@@ -56,6 +56,16 @@ class ConsultaPayload(BaseModel):
     importe: float = Field(gt=0)
     medio_pago: str = Field(min_length=1)
     paciente: PacientePayload
+    #: La alícuota de la prestación, si el emisor la sabe. `None` manda el
+    #: default de esta instancia. En salud el caso normal es el **exento**, y
+    #: esa configuración es del producto que presta, no del que factura.
+    #:
+    #: 🔴 **Es una fracción, no un porcentaje**, y por eso el `le=1`: mandar
+    #: `21` queriendo decir 21% facturaría al **2100%**, y ni el emisor ni esta
+    #: casa tienen forma de notarlo — el total lo pone la venta, así que el
+    #: comprobante sale con un neto absurdo y un CAE real encima. Rebotar con
+    #: 422 es lo único que lo detiene a tiempo.
+    iva_rate: float | None = Field(default=None, ge=0, le=1)
     #: Si además de registrar la venta hay que emitir la factura. En `false`
     #: queda como venta cobrada sin comprobante, para facturarla desde acá.
     facturar: bool = True
@@ -171,7 +181,9 @@ async def registrar_consulta(payload: ConsultaPayload):
     # el proceso muriera justo acá, un reintento crearía una segunda venta. Se
     # asume: partir esa función para pasarle la referencia sería tocar el camino
     # del mostrador, que es el que usan todos los días.
-    db.registrar_origen(venta_id, payload.sistema, payload.referencia)
+    db.registrar_origen(
+        venta_id, payload.sistema, payload.referencia, payload.iva_rate,
+    )
 
     factura = await _facturar(venta_id, usuario["id"]) if payload.facturar else None
     return {"venta": db.get_venta(venta_id), "factura": factura, "ya_existia": False}
