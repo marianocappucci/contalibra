@@ -113,6 +113,19 @@ def _reset_data_dir():
     config_json = os.path.join(_TMP, "config.json")
     if os.path.exists(config_json):
         os.unlink(config_json)
+    # 🔴 Y los certificados de ARCA, que hasta el 2026-08-24 SOBREVIVIAN al
+    # reset. El proceso de pytest tiene un solo DATA_DIR, asi que el par que
+    # dejaba un test se lo encontraba el siguiente --- y desde que el router
+    # del motor chequea que certificado y clave sean pareja, ese resto hace
+    # que la subida del test siguiente se rechace con 422. El sintoma no se
+    # parece a la causa: el test falla diciendo "no esta configurado".
+    certs = os.path.join(_TMP, "arca_certs")
+    if os.path.isdir(certs):
+        for nombre in os.listdir(certs):
+            try:
+                os.unlink(os.path.join(certs, nombre))
+            except OSError:
+                pass
     # `password_reset_tokens` la crea db_usuarios AL IMPORTARSE (un
     # create_all de una sola vez), no init_db(). Borrar el archivo deja al
     # modulo ya importado creyendo que la tabla existe, y el flujo de
