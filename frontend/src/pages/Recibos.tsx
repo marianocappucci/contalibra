@@ -19,15 +19,7 @@ import {
   Ban, BookOpen, FileDown, ReceiptText, Search, ShoppingCart, X,
 } from 'lucide-react'
 import { TituloPantalla } from 'libra-ui/titulo-pantalla'
-
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10)
-}
-
-function firstOfMonthIso(): string {
-  const d = new Date()
-  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10)
-}
+import { hoyISO, primerDiaDelMesISO } from 'libra-ui/fechas'
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value)
@@ -39,8 +31,8 @@ function formatCurrency(value: number): string {
 export function Recibos() {
   const { user } = useAuth()
 
-  const [desde, setDesde] = useState(firstOfMonthIso())
-  const [hasta, setHasta] = useState(todayIso())
+  const [desde, setDesde] = useState(primerDiaDelMesISO())
+  const [hasta, setHasta] = useState(hoyISO())
   const [q, setQ] = useState('')
   const [incluirAnulados, setIncluirAnulados] = useState(true)
   const [page, setPage] = useState(1)
