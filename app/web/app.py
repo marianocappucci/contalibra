@@ -31,6 +31,7 @@ from libraauth.session_auth import build_demo_codigos_router, demo_username
 from libraauth.terminos import TerminosRepository, build_terminos_router
 from app.web.api import auth as api_auth_router
 from app.web.api import dashboard as api_dashboard_router
+from app.web.api import integraciones as api_integraciones_router
 from app.web.api import resumen as api_resumen_router
 from app.web.api import clientes as api_clientes_router
 from app.web.api import productos as api_productos_router
@@ -237,6 +238,15 @@ app.include_router(
     api_usuarios_router.router,
     dependencies=[Depends(require_admin_o_servicio_json)],
 )
+# Consultas que llegan desde otro producto de la familia (lo estrena MedLibra).
+#
+# 🔴 **Sin dependencia acá**: el router gatea adentro, y con DOS niveles
+# distintos a propósito. `/consultas` acepta el token de servicio —es lo que usa
+# el producto emisor, que no es usuario de esta instancia—, pero `/config`
+# exige **admin de la instancia**: quién recibe las ventas externas lo decide
+# quien es dueño de la caja, no quien tiene el token. Colgar acá una
+# dependencia única aplanaría esa diferencia.
+app.include_router(api_integraciones_router.router)
 app.include_router(
     # Solo el correo saliente, no todo `/api/config` — ver el comentario en
     # web/api/config.py sobre por que es un router aparte.
