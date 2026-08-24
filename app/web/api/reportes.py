@@ -35,6 +35,13 @@ def obtener(desde: str = "", hasta: str = "", agrupacion: str = "dia"):
         "productos": db.get_reporte_productos_top(desde, hasta),
         "caja": db.get_reporte_caja(desde, hasta),
         "stock_bajo": db.get_reporte_stock_bajo(),
+        # 🔴 Las etiquetas viajan con el reporte, igual que en `/caja-medios`.
+        # Sin esto la pantalla las declaraba por su cuenta —era la copia número
+        # 10 del vocabulario— y ya divergía: decía "Billetera" donde el resto de
+        # la casa dice "Otras billeteras". Lleva **los históricos también**: un
+        # reporte mira meses para atrás, y ahí hay filas con `tarjeta` y
+        # `mercado_pago`.
+        "medio_label": MEDIO_LABEL,
     }
 
 

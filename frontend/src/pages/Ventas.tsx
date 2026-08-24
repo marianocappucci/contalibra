@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { type ColumnDef } from '@tanstack/react-table'
 import {
-  api, ApiError, IVA_CONDITIONS, MEDIOS_PAGO_LABELS,
+  api, ApiError, IVA_CONDITIONS,
   type Cliente, type ListaPrecio, type ProductoBusqueda, type Venta,
   opcionesCliente,
 } from '../api'
+import { useMediosPago } from '../lib/medios-pago'
 import { useAuth } from '../context/AuthContext'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -45,18 +46,15 @@ function estadoLabel(estado: string): string {
   return ESTADO_LABELS[estado] ?? estado
 }
 
-// Nomenclatura acotada para la columna Medios de pago de la lista -- el
-// detalle de la venta (un click en la fila) ya muestra el desglose completo
-// con el label largo de MEDIOS_PAGO_LABELS y el monto por medio.
-const MEDIOS_PAGO_SHORT: Record<string, string> = {
-  efectivo: 'Efec.',
-  transferencia: 'Transf.',
-  mercadopago: 'MP',
-  cuenta_dni: 'C. DNI',
-  billetera: 'Billet.',
-  cuenta_corriente: 'Cta. Cte.',
-  cheque: 'Cheque',
-}
+// 🔴 Acá había un `MEDIOS_PAGO_SHORT` propio: **la novena copia** del
+// vocabulario en este repo, y le faltaban las tarjetas. Las abreviaturas sí son
+// una decisión de pantalla —"Tarjeta de débito" no entra en esta columna— pero
+// viven en `libra-ui/medios-pago`, compartidas con Restolibra, y son un lookup
+// PARCIAL con fallback: un medio nuevo en LibraCore aparece con su nombre
+// completo en vez de romper la grilla.
+//
+// El detalle de la venta (un click en la fila) muestra el desglose completo con
+// el label largo y el monto por medio.
 
 type ItemRow = { nombre: string; qty: string; precio: string; producto_id: number | null }
 //: `tocado` marca que el cajero escribió el monto a mano. Mientras esté en
@@ -89,6 +87,7 @@ function MoneyInput({ value, onChange, className = '', placeholder }: {
 }
 
 export function Ventas() {
+  const { medios, etiquetaCorta: etiquetaCortaDeMedio } = useMediosPago()
   const { user } = useAuth()
   const navigate = useNavigate()
   const [ventas, setVentas] = useState<Venta[]>([])
@@ -300,7 +299,7 @@ export function Ventas() {
           {row.original.pagos.length === 0
             ? <span className="text-muted-foreground">—</span>
             : row.original.pagos.map((p, i) => (
-              <Badge key={i} variant="outline" className="font-normal">{MEDIOS_PAGO_SHORT[p.medio] ?? p.medio}</Badge>
+              <Badge key={i} variant="outline" className="font-normal">{etiquetaCortaDeMedio(p.medio)}</Badge>
             ))}
         </div>
       ),
@@ -454,7 +453,11 @@ export function Ventas() {
                     <Select value={row.medio} onValueChange={(v) => updatePago(i, 'medio', v)}>
                       <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {Object.entries(MEDIOS_PAGO_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                        {/* 🔴 Del motor. Esta lista era la copia TypeScript, y
+                            el backend ahora **valida** el medio: ofrecer uno que
+                            no está en la canónica —`cheque`— daba un 422 recién
+                            al guardar la venta, con el mostrador esperando. */}
+                        {medios.map((m) => <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>)}
                       </SelectContent>
                     </Select>
                     <MoneyInput value={montoDeFila(row, i)} onChange={(v) => updateMontoPago(i, v)} className="w-32" placeholder="Monto" />

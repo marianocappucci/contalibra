@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { api, ApiError, MEDIOS_PAGO_LABELS, type CajaConfig } from '../api'
+import { api, ApiError, type CajaConfig } from '../api'
+import { useMediosPago } from '../lib/medios-pago'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,9 +15,17 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { SquareStack, Plus, Eye, Pencil, Trash2, Star, Wallet, Check } from 'lucide-react'
 import { TituloPantalla } from 'libra-ui/titulo-pantalla'
 
-const TODOS_MEDIOS = Object.keys(MEDIOS_PAGO_LABELS)
+// 🔴 Acá había un `TODOS_MEDIOS = Object.keys(MEDIOS_PAGO_LABELS)`, o sea la
+// copia TypeScript de la lista del motor. **Ésta es la pantalla donde más dolía**:
+// es donde se elige qué medios habilita una caja, así que un medio que la copia
+// no tuviera —las tarjetas— no se podía habilitar en ninguna caja del mundo, y
+// uno que tuviera de más —`cheque`— se podía habilitar y después el backend lo
+// rechazaba al cobrar.
+//
+// Ahora sale de `GET /api/cajas/medios-disponibles`, que es el motor.
 
 export function Cajas() {
+  const { medios: TODOS_MEDIOS, etiqueta: etiquetaDeMedio } = useMediosPago()
   const [cajas, setCajas] = useState<CajaConfig[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -143,7 +152,7 @@ export function Cajas() {
                   <p className="mb-1 text-sm text-muted-foreground">Medios de pago:</p>
                   <div className="flex flex-wrap gap-1">
                     {c.medios_pago.length > 0 ? (
-                      c.medios_pago.map((m) => <Badge key={m} variant="outline">{MEDIOS_PAGO_LABELS[m] ?? m}</Badge>)
+                      c.medios_pago.map((m) => <Badge key={m} variant="outline">{etiquetaDeMedio(m)}</Badge>)
                     ) : (
                       <span className="text-sm text-muted-foreground">Sin medios configurados</span>
                     )}
@@ -184,9 +193,9 @@ export function Cajas() {
               <Label>Medios de pago habilitados</Label>
               <div className="flex flex-wrap gap-3">
                 {TODOS_MEDIOS.map((m) => (
-                  <label key={m} className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" checked={mediosPago.includes(m)} onChange={() => toggleMedio(m)} />
-                    {MEDIOS_PAGO_LABELS[m]}
+                  <label key={m.id} className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={mediosPago.includes(m.id)} onChange={() => toggleMedio(m.id)} />
+                    {m.label}
                   </label>
                 ))}
               </div>
