@@ -53,15 +53,33 @@ _TIPO_LABEL = {1: "Factura A", 6: "Factura B", 11: "Factura C"}
 # Misma tasa por defecto que el formulario manual (`FacturaPayload.tax_rate`).
 IVA_RATE_DEFAULT = 0.21
 
-# Los ids son los de `MEDIOS_PAGO` en `web/api/ventas.py`; los valores, los de
+# Los ids son los de `libracore.medios_pago.ELEGIBLES`; los valores, los de
 # `CONDICIONES_VENTA` en `web/api/facturas.py` (que es lo que acepta ARCA).
+#
+# 🔴 **La tarjeta va partida porque ARCA la parte.** Débito y crédito son dos
+# condiciones de venta distintas en el comprobante, y por eso el vocabulario de
+# la familia las distingue desde v1.50.0 — un `tarjeta` a secas obligaba a
+# adivinar o a caer en "Otra", que es declarar de menos.
+#
+# Los históricos (`tarjeta`, `mercado_pago`, `debito`, `credito`) entran acá
+# también: **hay ventas viejas con esos medios**, y facturarlas después no puede
+# caer en "Otra" sólo porque la grafía cambió.
 _MEDIO_A_CONDICION = {
     "efectivo": "Contado",
     "transferencia": "Transferencia Bancaria",
+    "tarjeta_debito": "Tarjeta de Débito",
+    "tarjeta_credito": "Tarjeta de Crédito",
+    "cheque": "Cheque",
     "mercadopago": "Otros medios de pago electrónico",
     "cuenta_dni": "Otros medios de pago electrónico",
     "billetera": "Otros medios de pago electrónico",
     "cuenta_corriente": "Cuenta Corriente",
+    # Grafías históricas — ver `libracore.medios_pago.HISTORICOS`.
+    "tarjeta": "Tarjeta de Crédito",
+    "debito": "Tarjeta de Débito",
+    "credito": "Tarjeta de Crédito",
+    "mercado_pago": "Otros medios de pago electrónico",
+    "qr": "Otros medios de pago electrónico",
 }
 
 

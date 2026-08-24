@@ -60,7 +60,14 @@ dependencies = [
     # cuenta en cuenta corriente" terminaba en 202,2 mm en una hoja de 210.
     #
     # Es anterior a v1.37.0 y aquel arreglo no lo cubria.
-    "libracore @ git+https://github.com/marianocappucci/libracore.git@v1.45.0",
+    #
+    # v1.50.0 sube al motor el vocabulario de medios de pago, que estaba
+    # declarado 28 veces en 11 repos y ya divergia en seis formas. Agrega
+    # `tarjeta_debito`, `tarjeta_credito` y `cheque` a la lista canonica --
+    # `db.caja.MEDIOS_PAGO_LABELS` sigue existiendo como alias, asi que los
+    # imports de aca heredan los medios nuevos. Ver
+    # wiki/concepts/medios-de-pago-familia-libra.md.
+    "libracore @ git+https://github.com/marianocappucci/libracore.git@v1.50.0",
     # v0.7.0 sube al motor las transferencias entre depositos y la guarda de
     # disponibilidad, que hasta ahora vivian solo aca (`db_productos.
     # transferir_stock`) y arrastraban dos defectos: no eran atomicas y el

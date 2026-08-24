@@ -9,7 +9,7 @@ import datetime
 from fastapi import APIRouter
 
 from app import database as db
-from app.web.routers.reportes import _MEDIO_LABEL, _pivot_caja_medios, _totales_por_medio
+from app.web.routers.reportes import MEDIO_LABEL, _pivot_caja_medios, _totales_por_medio
 
 router = APIRouter(prefix="/api/reportes", tags=["reportes"])
 
@@ -49,5 +49,5 @@ def caja_medios(desde: str = "", hasta: str = "", caja_id: int = 0):
         "cajas_config": db.get_all_cajas(),
         "cajas": cajas_pivot,
         "totales": _totales_por_medio(cajas_pivot),
-        "medio_label": _MEDIO_LABEL,
+        "medio_label": MEDIO_LABEL,
     }
