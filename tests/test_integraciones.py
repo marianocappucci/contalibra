@@ -224,6 +224,104 @@ def test_un_cuit_que_ya_es_cliente_no_se_duplica(configurado: TestClient):
     assert len(db.get_all_clients()) == 1
 
 
+# ── La alícuota que trae el emisor ─────────────────────────────────────────
+#
+# 🔴 **En salud la mayoría de las prestaciones están EXENTAS**, y esa
+# configuración es del producto que las presta (MedLibra la guarda por
+# prestación), no del negocio que factura. Sin honrarla, una consulta exenta se
+# declaraba al 21% **en silencio**: acá no hay forma de saber que lo era.
+
+
+@pytest.fixture
+def responsable_inscripto(configurado: TestClient) -> TestClient:
+    """El emisor como Responsable Inscripto.
+
+    🔴 **Sin esto los tests de alícuota pasan por la razón equivocada.** El
+    default del config es *Monotributista*, que emite siempre **tipo C** — y un
+    C no discrimina IVA, así que `iva_amount` da 0 con o sin el cambio que estos
+    tests dicen medir. Se descubrió porque el control (*sin alícuota declarada
+    corresponde el 21%*) se puso en rojo mientras el caso principal pasaba en
+    verde: el par delató lo que cada uno por separado no podía.
+    """
+    puesto = configurado.put("/api/config/empresa", json={
+        "empresa_nombre": "Consultorio Norte",
+        "empresa_iva_condition": "Responsable Inscripto",
+    })
+    assert puesto.status_code == 200, puesto.text
+    return configurado
+
+
+def test_la_alicuota_que_manda_el_emisor_se_respeta(responsable_inscripto: TestClient):
+    """Exenta: el total va entero al subtotal y el IVA queda en 0."""
+    creada = _mandar(responsable_inscripto, facturar=True, iva_rate=0)
+    assert creada.status_code == 200, creada.text
+    factura = creada.json()["factura"]
+    assert factura["total"] == 2500.0
+    assert factura["iva_amount"] == 0.0
+    assert factura["subtotal"] == 2500.0
+
+
+def test_sin_alicuota_declarada_manda_el_default_de_esta_casa(
+    responsable_inscripto: TestClient,
+):
+    """🔴 El control. Sin esto, "poner siempre 0" pasaría el test de arriba — y
+    todas las ventas externas saldrían exentas, que es el error inverso y peor:
+    IVA no declarado."""
+    creada = _mandar(responsable_inscripto, facturar=True)
+    factura = creada.json()["factura"]
+    assert factura["total"] == 2500.0
+    assert factura["iva_amount"] > 0, "sin alícuota declarada corresponde el 21%"
+
+
+def test_la_alicuota_sobrevive_a_facturar_despues(responsable_inscripto: TestClient):
+    """🔴 Se guarda con la venta, no sólo se pasa en la llamada.
+
+    Una venta que entró sin facturar —o cuyo CAE falló— se factura después:
+    desde la pantalla de Ventas, o reintentando. Si la alícuota viviera sólo en
+    el pedido original, esos caminos volverían al default y la consulta exenta
+    saldría al 21% sin que nada avise."""
+    creada = _mandar(responsable_inscripto, facturar=False, iva_rate=0)
+    venta_id = creada.json()["venta"]["id"]
+    assert creada.json()["factura"] is None
+
+    facturada = responsable_inscripto.post(f"/api/ventas/{venta_id}/facturar")
+    assert facturada.status_code == 200, facturada.text
+    assert facturada.json()["factura"]["iva_amount"] == 0.0
+
+
+def test_un_porcentaje_en_vez_de_una_fraccion_rebota(responsable_inscripto: TestClient):
+    """🔴 `21` queriendo decir 21% facturaría al **2100%**.
+
+    Y no se notaría: el total lo pone la venta, así que el comprobante sale con
+    un neto absurdo y un CAE real encima — que no se borra, se anula con nota de
+    crédito. Falla cerrado con 422 antes de crear nada."""
+    rechazado = _mandar(responsable_inscripto, facturar=True, iva_rate=21)
+    assert rechazado.status_code == 422
+    assert db.get_all_ventas() == [], "no se crea la venta si el pedido no valida"
+
+
+def test_una_alicuota_valida_del_borde_entra(responsable_inscripto: TestClient):
+    """🔴 El control: con `le=1` mal puesto (un `lt=1`, o un `le=0.5`) el test de
+    arriba pasaría igual y el 100% quedaría rechazado sin motivo."""
+    aceptado = _mandar(responsable_inscripto, facturar=False, iva_rate=1)
+    assert aceptado.status_code == 200, aceptado.text
+
+
+def test_una_venta_del_mostrador_no_se_ve_afectada(responsable_inscripto: TestClient):
+    """🔴 El control por el otro lado: `get_alicuota_externa` devuelve `None`
+    para una venta que no vino de afuera, así que el mostrador sigue con el
+    default de siempre."""
+    venta = responsable_inscripto.post("/api/ventas", json={
+        "fecha": "2026-08-24",
+        "items": [{"nombre": "Producto", "qty": 1, "precio": 2500.0}],
+        "pagos": [{"medio": "efectivo", "monto": 2500.0}],
+    })
+    assert venta.status_code == 200, venta.text
+    facturada = responsable_inscripto.post(f"/api/ventas/{venta.json()['id']}/facturar")
+    assert facturada.status_code == 200, facturada.text
+    assert facturada.json()["factura"]["iva_amount"] > 0
+
+
 # ── La facturación ─────────────────────────────────────────────────────────
 
 def test_con_facturar_emite_el_comprobante(configurado: TestClient):

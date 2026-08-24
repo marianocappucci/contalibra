@@ -83,6 +83,7 @@ from app.db_egresos import (  # noqa: F401
 from app.db_modulos import get_modulos, apply_plan  # noqa: F401
 from app.db_integraciones import (  # noqa: F401
     crear_tablas as crear_tablas_integraciones,
+    get_alicuota_externa,
     get_origen_de_venta,
     get_usuario_integraciones,
     get_venta_por_referencia,

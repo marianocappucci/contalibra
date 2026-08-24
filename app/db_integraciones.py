@@ -38,6 +38,21 @@ venta que ya existe en vez de crear otra.
 Va en tabla aparte y no en una columna de `sales` por lo mismo que `venta_links`
 —que es el precedente de esta casa—: `sales` es de LibraCommerce y no tiene por
 qué saber de qué producto de la suite vino una venta.
+
+## La alícuota viene con la venta, no la decide esta casa
+
+`ventas_origen_externo.iva_rate` guarda la alícuota que declaró el emisor. Es la
+única forma de facturar bien una consulta médica: **en salud la mayoría de las
+prestaciones están exentas**, y cuál corresponde es configuración *de la
+prestación*, que vive en el producto que la presta. Acá no hay nada que nos
+permita saberlo — sin el dato, una consulta exenta se declara al 21% **en
+silencio**, y eso no se descubre hasta la inspección.
+
+Se guarda con la venta y no se pasa sólo en la llamada, para que valga también
+cuando se factura después: desde la pantalla de Ventas, o reintentando una que
+falló el CAE. `None` —no vino de afuera, o vino sin declararla— manda el default
+de esta casa, que es lo correcto: no sabemos nada que el emisor no nos haya
+dicho. Ver `venta_facturacion._alicuota`.
 """
 # Desde `app.db_core` y no desde `libracore.db.core`: importarlo es lo que
 # garantiza que `configure()` ya corrió con el destino de ESTA instancia. Es la
@@ -65,10 +80,37 @@ def crear_tablas(conn) -> None:
             venta_id   INTEGER PRIMARY KEY REFERENCES sales(id) ON DELETE CASCADE,
             sistema    TEXT NOT NULL,
             referencia TEXT NOT NULL,
+            iva_rate   REAL,
             creado_en  TEXT NOT NULL,
             UNIQUE (sistema, referencia)
         )
     """)
+    # 🔴 `CREATE TABLE IF NOT EXISTS` **no le agrega la columna a una tabla que
+    # ya existe**, y la tabla se creó ayer sin `iva_rate`. Sin este ALTER, una
+    # instancia que ya corrió el `init_db()` anterior queda con el schema viejo
+    # y `get_alicuota_externa` revienta con "no such column" — o peor, en
+    # PostgreSQL, deja la consulta exenta facturada al 21% si alguien la envuelve
+    # en un try. Es la misma guarda que usa `_migrar_ventas_pagos_a_sales`.
+    if "iva_rate" not in _columnas(conn, "ventas_origen_externo"):
+        conn.execute("ALTER TABLE ventas_origen_externo ADD COLUMN iva_rate REAL")
+
+
+def _columnas(conn, tabla: str) -> set[str]:
+    """Los nombres de columna de una tabla, en los dos motores.
+
+    `PRAGMA table_info` es de SQLite; contra PostgreSQL se pregunta al catálogo.
+    """
+    try:
+        filas = conn.execute(f"PRAGMA table_info({tabla})").fetchall()
+        if filas:
+            return {f[1] for f in filas}
+    except Exception:  # noqa: BLE001 — PostgreSQL no conoce PRAGMA
+        pass
+    filas = conn.execute(
+        "SELECT column_name FROM information_schema.columns WHERE table_name = ?",
+        (tabla,),
+    ).fetchall()
+    return {f[0] for f in filas}
 
 
 # ── El usuario de integraciones ────────────────────────────────────────────
@@ -119,7 +161,8 @@ def get_venta_por_referencia(sistema: str, referencia: str) -> int | None:
     return fila["venta_id"] if fila else None
 
 
-def registrar_origen(venta_id: int, sistema: str, referencia: str, conn=None) -> None:
+def registrar_origen(venta_id: int, sistema: str, referencia: str,
+                     iva_rate: float | None = None, conn=None) -> None:
     """Ata la venta a su referencia externa.
 
     Acepta `conn` para poder ir **en la misma transacción** que la venta: si se
@@ -127,11 +170,12 @@ def registrar_origen(venta_id: int, sistema: str, referencia: str, conn=None) ->
     venta sin referencia — y el reintento siguiente la volvería a crear, que es
     exactamente lo que esta tabla existe para impedir.
     """
-    sql = ("INSERT INTO ventas_origen_externo (venta_id, sistema, referencia, creado_en)"
-           " VALUES (?,?,?,?)")
+    sql = ("INSERT INTO ventas_origen_externo"
+           " (venta_id, sistema, referencia, iva_rate, creado_en)"
+           " VALUES (?,?,?,?,?)")
     # `_ar_now()` de esta casa devuelve un **string** `YYYY-MM-DD HH:MM:SS`, no
     # un datetime: es el mismo formato que guardan las demás tablas de acá.
-    valores = (venta_id, sistema, referencia, _ar_now())
+    valores = (venta_id, sistema, referencia, iva_rate, _ar_now())
     if conn is not None:
         conn.execute(sql, valores)
         return
@@ -143,8 +187,21 @@ def registrar_origen(venta_id: int, sistema: str, referencia: str, conn=None) ->
 def get_origen_de_venta(venta_id: int) -> dict | None:
     with get_connection() as conn:
         fila = conn.execute(
-            "SELECT sistema, referencia, creado_en FROM ventas_origen_externo"
+            "SELECT sistema, referencia, iva_rate, creado_en FROM ventas_origen_externo"
             " WHERE venta_id = ?",
             (venta_id,),
         ).fetchone()
     return dict(fila) if fila else None
+
+
+def get_alicuota_externa(venta_id: int) -> float | None:
+    """La alícuota que trajo el producto emisor, o `None`.
+
+    `None` cubre **dos casos distintos y da igual**: la venta no vino de afuera,
+    o vino sin alícuota declarada. En los dos manda el default de esta casa, que
+    es lo correcto — acá no hay nada que sepamos que el emisor no nos dijo.
+    """
+    origen = get_origen_de_venta(venta_id)
+    if origen is None:
+        return None
+    return origen.get("iva_rate")
