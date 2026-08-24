@@ -12,6 +12,12 @@ import datetime
 
 from app import database as db
 from app import mp_api
+# 🔑 `obtener_pago` lo resuelve el WEBHOOK, que vive en `libracore`, asi que
+# se parchea el modulo del motor. `app.mp_api` es un shim y su atributo es
+# otro binding: parchearlo no intercepta nada y el test sale a la API real.
+# `buscar_pago_por_referencia`, en cambio, lo llama codigo de ESTE repo
+# (`web/api/ventas.py`), y por eso sigue parcheandose en `app.mp_api`.
+from libracore import mp_api as mp_api_del_motor
 
 HOY = datetime.date.today().isoformat()
 
@@ -171,7 +177,7 @@ def test_el_qr_acreditado_factura_solo_si_esta_activado(admin_client, monkeypatc
     async def _pago(payment_id, access_token):
         return _pago_qr(venta["id"], venta["total"])
 
-    monkeypatch.setattr(mp_api, "obtener_pago", _pago)
+    monkeypatch.setattr(mp_api_del_motor, "obtener_pago", _pago)
 
     resp = admin_client.post("/webhooks/mercadopago",
                              json={"type": "payment", "data": {"id": "987654321"}})
@@ -190,7 +196,7 @@ def test_apagado_el_qr_acredita_pero_no_factura(admin_client, monkeypatch):
     async def _pago(payment_id, access_token):
         return _pago_qr(venta["id"], venta["total"])
 
-    monkeypatch.setattr(mp_api, "obtener_pago", _pago)
+    monkeypatch.setattr(mp_api_del_motor, "obtener_pago", _pago)
 
     admin_client.post("/webhooks/mercadopago",
                       json={"type": "payment", "data": {"id": "987654322"}})
@@ -207,7 +213,7 @@ def test_un_qr_rechazado_no_factura(admin_client, monkeypatch):
     async def _pago(payment_id, access_token):
         return _pago_qr(venta["id"], venta["total"], status="rejected")
 
-    monkeypatch.setattr(mp_api, "obtener_pago", _pago)
+    monkeypatch.setattr(mp_api_del_motor, "obtener_pago", _pago)
 
     admin_client.post("/webhooks/mercadopago",
                       json={"type": "payment", "data": {"id": "987654323"}})

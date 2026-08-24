@@ -118,3 +118,6 @@ website/
 /backoffice/
 *.db.bak-*
 scripts/.npm_config.json.bak-*
+
+# Reporte JUnit que emite el paso de tests del CI para su gate.
+frontend/vitest.xml

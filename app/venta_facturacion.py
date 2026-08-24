@@ -144,6 +144,30 @@ def _condicion_venta(venta: dict) -> str:
     return "Contado"
 
 
+def _alicuota(venta_id: int, tipo: int) -> float:
+    """Qué alícuota le corresponde a esta venta.
+
+    🔴 **Una venta que llegó de otro producto puede traer la suya**, y hay que
+    respetarla. El caso vivo es [[medlibra]]: en salud la mayoría de las
+    prestaciones están **exentas**, y esa configuración es de la prestación —
+    vive en el producto que la presta, no en el negocio que factura. Sin esto,
+    una consulta exenta se declaraba al 21% **en silencio**, porque acá no hay
+    forma de saber que lo era.
+
+    Se lee de `ventas_origen_externo` y no del pedido que la creó, para que
+    valga también cuando se factura después: desde la pantalla de Ventas, o
+    reintentando una que falló el CAE. Si se pasara sólo en la llamada, esos dos
+    caminos volverían al default sin avisar.
+
+    El tipo C (11, monotributista) manda igual: ese comprobante no discrimina
+    IVA, venga de donde venga.
+    """
+    if tipo == 11:
+        return 0.0
+    propia = db.get_alicuota_externa(venta_id)
+    return IVA_RATE_DEFAULT if propia is None else float(propia)
+
+
 async def facturar_venta(venta_id: int, *, usuario_id: int | None = None) -> dict:
     """Emite la factura de una venta, pide el CAE, genera el PDF y las vincula.
 
@@ -175,7 +199,7 @@ async def facturar_venta(venta_id: int, *, usuario_id: int | None = None) -> dic
             cliente = registrado
 
     tipo = _tipo_comprobante(emisor_cond, cliente.get("iva_condition", "Consumidor Final"))
-    iva_rate = 0.0 if tipo == 11 else IVA_RATE_DEFAULT
+    iva_rate = _alicuota(venta_id, tipo)
 
     items, subtotal, iva_amount, total = _armar_items(venta, iva_rate)
     if not items:

@@ -14,6 +14,19 @@ dispone el engine de SQLAlchemy (db_usuarios lo fija en import), borra
 el archivo .db y deja que el evento startup de web/app.py (init_db +
 ensure_admin_user) lo reconstruya de cero.
 """
+
+# --- Zona horaria de la suite ---------------------------------------------
+# Argentina, UTC-3 fijo, sin horario de verano. Se fija ACA y no se hereda de
+# la maquina: el CI y WSL corren en UTC, asi que un test que compare una
+# fecha da distinto segun donde se corra, y a las 21:00 de Argentina el
+# `date.today()` del proceso ya devuelve manana. Antes de cualquier import
+# del producto, porque `tzset()` no alcanza a lo ya importado.
+import os as _os
+import time as _time
+
+_os.environ["TZ"] = "America/Argentina/Buenos_Aires"
+_time.tzset()
+
 import os
 import sys
 import tempfile
@@ -100,6 +113,19 @@ def _reset_data_dir():
     config_json = os.path.join(_TMP, "config.json")
     if os.path.exists(config_json):
         os.unlink(config_json)
+    # 🔴 Y los certificados de ARCA, que hasta el 2026-08-24 SOBREVIVIAN al
+    # reset. El proceso de pytest tiene un solo DATA_DIR, asi que el par que
+    # dejaba un test se lo encontraba el siguiente --- y desde que el router
+    # del motor chequea que certificado y clave sean pareja, ese resto hace
+    # que la subida del test siguiente se rechace con 422. El sintoma no se
+    # parece a la causa: el test falla diciendo "no esta configurado".
+    certs = os.path.join(_TMP, "arca_certs")
+    if os.path.isdir(certs):
+        for nombre in os.listdir(certs):
+            try:
+                os.unlink(os.path.join(certs, nombre))
+            except OSError:
+                pass
     # `password_reset_tokens` la crea db_usuarios AL IMPORTARSE (un
     # create_all de una sola vez), no init_db(). Borrar el archivo deja al
     # modulo ya importado creyendo que la tabla existe, y el flujo de
@@ -131,3 +157,95 @@ def admin_client(client):
     resp = client.post("/api/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
     assert resp.status_code == 200, f"login admin fallo: {resp.status_code} {resp.text}"
     return client
+
+
+# ── Términos y Condiciones: aceptados para el resto de la suite ─────────────
+#
+# Desde libraauth v0.31.0 el motor corta con 403 **cualquier** llamada gateada
+# por rol mientras la instancia no haya aceptado la versión vigente del
+# contrato. Sin esta excepción, la suite entera se pone roja de golpe: cada
+# test que loguea y pide datos recibe el 403 del gate en vez de lo que iba a
+# medir, y el rojo no dice nada sobre el dominio.
+#
+# 🔴 **Esto NO apaga el gate donde importa.** El corte tiene su propio archivo,
+# `test_terminos_gate.py`, que se marca con `sin_aceptar_terminos` y queda
+# afuera de esta excepción. Si alguien borrara el cableado de
+# `app.state.terminos`, esa marca es lo único que se pondría rojo.
+
+
+@pytest.fixture(autouse=True)
+def _terminos_ya_aceptados(request):
+    if request.node.get_closest_marker("sin_aceptar_terminos"):
+        yield
+        return
+
+    from libraauth.terminos import TerminosRepository
+
+    # 🔴 **`MonkeyPatch()` propio y no el fixture `monkeypatch`.** El fixture es
+    # uno solo por test y lo comparten todas las fixtures que lo pidan, asi que
+    # un `monkeypatch.undo()` en el cuerpo de un test —que existe, y es
+    # legitimo— deshace TAMBIEN este parche y le prende el gate a la mitad del
+    # test. El sintoma no se parece a la causa: la llamada siguiente devuelve
+    # 403 y el test explota con un `KeyError` sobre la clave que esperaba en el
+    # JSON. Lo encontro `test_despues_de_un_fallo_el_boton_puede_emitirlo` de
+    # VentaLibra.
+    mp = pytest.MonkeyPatch()
+    mp.setattr(TerminosRepository, "esta_aceptada", lambda self: True)
+    yield
+    mp.undo()
+
+
+# ── Ningun test sale a la red de verdad ─────────────────────────────────────
+#
+# 🔴 Lo pone un caso real del 2026-08-23. `app/mp_api.py` es un shim
+# (`from libracore.mp_api import ...`), asi que `app.mp_api.obtener_pago` es un
+# binding DISTINTO del que resuelve el codigo del motor. Cuando el webhook se
+# mudo a `libracore.mp_webhook`, tres tests que hacian
+# `monkeypatch.setattr(mp_api, "obtener_pago", ...)` dejaron de interceptar
+# nada y **salieron a la API real de MercadoPago**: 401, y el caso se leyo como
+# "no facturo".
+#
+# El problema no es el 401 -- es que un test pueda pegarle a un servicio
+# externo sin que nadie se entere. En un runner con credenciales validas
+# hubiera pasado en verde consultando pagos ajenos.
+#
+# Con esto, un parcheo que erra el modulo falla diciendo QUE se intento llamar.
+
+_HOSTS_PROHIBIDOS = ("api.mercadopago.com", "afip.gov.ar", "arca.gob.ar")
+
+
+@pytest.fixture(autouse=True)
+def sin_red_de_verdad(monkeypatch, request):
+    """Corta cualquier salida a un servicio externo desde la suite.
+
+    Se puede levantar en un test puntual con `@pytest.mark.con_red`, para el
+    dia que haga falta un test de integracion de verdad.
+    """
+    if request.node.get_closest_marker("con_red"):
+        return
+
+    import httpx
+
+    real = httpx.AsyncHTTPTransport.handle_async_request
+    real_sync = httpx.HTTPTransport.handle_request
+
+    def _revisar(request_):
+        host = request_.url.host or ""
+        if any(host.endswith(p) or host == p for p in _HOSTS_PROHIBIDOS):
+            raise RuntimeError(
+                f"Un test intento salir a {host} ({request_.url}). "
+                "Casi seguro un monkeypatch que erro el modulo: si la funcion "
+                "vive en libracore, hay que parchear `libracore.<modulo>`, no "
+                "el shim de `app/`."
+            )
+
+    async def _async(self, request_, **kw):
+        _revisar(request_)
+        return await real(self, request_, **kw)
+
+    def _sync(self, request_, **kw):
+        _revisar(request_)
+        return real_sync(self, request_, **kw)
+
+    monkeypatch.setattr(httpx.AsyncHTTPTransport, "handle_async_request", _async)
+    monkeypatch.setattr(httpx.HTTPTransport, "handle_request", _sync)

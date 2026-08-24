@@ -81,6 +81,15 @@ from app.db_egresos import (  # noqa: F401
     create_pago_egreso,
 )
 from app.db_modulos import get_modulos, apply_plan  # noqa: F401
+from app.db_integraciones import (  # noqa: F401
+    crear_tablas as crear_tablas_integraciones,
+    get_alicuota_externa,
+    get_origen_de_venta,
+    get_usuario_integraciones,
+    get_venta_por_referencia,
+    registrar_origen,
+    set_usuario_integraciones,
+)
 from app.db_listas_precio import (  # noqa: F401
     get_all_listas_precio,
     get_lista_precio,
@@ -456,6 +465,12 @@ def init_db():
                 mp_payment_id TEXT DEFAULT ''
             )
         """)
+
+        # Ventas que entran desde otro producto de la familia, y el usuario al
+        # que se atribuyen. Mismo criterio que `venta_links`: de qué producto de
+        # la suite vino una venta no es dominio de LibraCommerce. Ver
+        # `db_integraciones.py`.
+        crear_tablas_integraciones(conn)
 
         # Seed de módulos: inserta sólo los que no existen aún. La lista de
         # módulos (y el plan que los habilita) es específica de Contalibra —

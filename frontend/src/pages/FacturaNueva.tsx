@@ -13,10 +13,7 @@ import {
 import { Eye, Inbox, Plus, Receipt, Trash2, TriangleAlert } from 'lucide-react'
 import { SelectBuscable } from 'libra-ui/SelectBuscable'
 import { TituloPantalla } from 'libra-ui/titulo-pantalla'
-
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10)
-}
+import { hoyISO } from 'libra-ui/fechas'
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value)
@@ -60,14 +57,14 @@ export function FacturaNueva() {
   const [clienteNombreLibre, setClienteNombreLibre] = useState(prefill?.clienteNombreLibre ?? '')
   const [concepto, setConcepto] = useState(prefill?.concepto ?? '1')
   const [puntoVenta, setPuntoVenta] = useState(prefill?.puntoVenta ?? '')
-  const [fecha, setFecha] = useState(todayIso())
+  const [fecha, setFecha] = useState(hoyISO())
   const [condicionVenta, setCondicionVenta] = useState(prefill?.condicionVenta ?? 'Contado')
   const [taxRate, setTaxRate] = useState(prefill?.taxRate ?? '0.21')
   const [observations, setObservations] = useState(prefill?.observations ?? '')
   const [items, setItems] = useState<ItemRow[]>(prefill?.items ?? [{ ...EMPTY_ITEM }])
-  const [fchServDesde, setFchServDesde] = useState(prefill?.fchServDesde ?? todayIso())
-  const [fchServHasta, setFchServHasta] = useState(prefill?.fchServHasta ?? todayIso())
-  const [fchVtoPago, setFchVtoPago] = useState(prefill?.fchVtoPago ?? todayIso())
+  const [fchServDesde, setFchServDesde] = useState(prefill?.fchServDesde ?? hoyISO())
+  const [fchServHasta, setFchServHasta] = useState(prefill?.fchServHasta ?? hoyISO())
+  const [fchVtoPago, setFchVtoPago] = useState(prefill?.fchVtoPago ?? hoyISO())
   const [saving, setSaving] = useState(false)
   const [previewing, setPreviewing] = useState(false)
   const [error, setError] = useState<string | null>(null)

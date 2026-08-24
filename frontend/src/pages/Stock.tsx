@@ -17,10 +17,7 @@ import { formatEntero } from '@/lib/utils'
 import { SelectBuscable } from 'libra-ui/SelectBuscable'
 import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, Boxes, Filter, History, Pencil, RefreshCw, RotateCcw, ShoppingCart, X } from 'lucide-react'
 import { TituloPantalla } from 'libra-ui/titulo-pantalla'
-
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10)
-}
+import { hoyISO } from 'libra-ui/fechas'
 
 const TIPO_LABELS: Record<string, string> = { entrada: 'Entrada', salida: 'Salida', ajuste: 'Ajuste', venta: 'Venta' }
 
@@ -70,7 +67,7 @@ export function Stock() {
   const [ajustandoId, setAjustandoId] = useState<number | null>(null)
   const [modo, setModo] = useState('absoluto')
   const [cantidad, setCantidad] = useState('')
-  const [fecha, setFecha] = useState(todayIso())
+  const [fecha, setFecha] = useState(hoyISO())
   const [referencia, setReferencia] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -141,7 +138,7 @@ export function Stock() {
     setAjustandoId(p.id)
     setModo('absoluto')
     setCantidad(String(p.stock_actual))
-    setFecha(todayIso())
+    setFecha(hoyISO())
     setReferencia('')
   }
 

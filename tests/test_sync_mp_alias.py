@@ -27,7 +27,13 @@ from pathlib import Path
 
 from app import config_manager
 from app import database as db
-from app import mp_api
+# 🔑 Se parchea `libracore.mp_api` y NO `app.mp_api`.
+#
+# `app/mp_api.py` es un shim (`from libracore.mp_api import ...`), asi que
+# su atributo es un binding DISTINTO. Desde que el sync vive en el motor,
+# parchear el del producto no intercepta nada y el test sale a la API real
+# de MercadoPago -- da 401 y el caso se lee como "no facturo".
+from libracore import mp_api
 
 RAIZ = Path(__file__).resolve().parent.parent
 
@@ -106,7 +112,9 @@ def test_el_cron_le_factura_al_cliente_del_alias(client, monkeypatch):
     monkeypatch.setattr(mp_api, "obtener_usuario_info", _info)
     monkeypatch.setattr(mp_api, "obtener_movimientos", _movs)
 
-    resultado = asyncio.run(_cargar_sync().sync_and_invoice(dias=2))
+    # `main()` corre el `asyncio.run` por dentro: es exactamente lo que
+    # ejecuta el cron, sin un camino de test paralelo.
+    resultado = _cargar_sync().main(["--dias", "2"])
     assert resultado["facturados"] == 1, resultado
 
     mov = db.get_mp_movimiento_by_mp_id(MOV_ID)
