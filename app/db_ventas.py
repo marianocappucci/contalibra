@@ -30,7 +30,8 @@ Contalibra, con `venta_id` = `sales.id`.
 import contextlib
 import sqlite3
 
-from libracore.db.caja import MEDIOS_PAGO_LABELS, create_caja_movimiento
+from libracore import medios_pago
+from libracore.db.caja import create_caja_movimiento
 from libracore.db.core import _ar_now
 from libracore.db.cuenta_corriente import create_cc_pago
 from libracore.db.reversiones import revertir_cobro_venta
@@ -154,7 +155,7 @@ def crear_venta_directa(fecha: str, items: list, subtotal: float, descuento: flo
                 for p in pagos:
                     add_venta_pago(venta_id, p["medio"], p["monto"],
                                    p.get("referencia", ""), conn=conn)
-                    label = MEDIOS_PAGO_LABELS.get(p["medio"], p["medio"])
+                    label = medios_pago.label(p["medio"])
                     create_caja_movimiento(
                         fecha=fecha, tipo="ingreso",
                         concepto=_CONCEPTO_VENTA.format(numero=numero) + label,
@@ -467,9 +468,12 @@ def get_venta_by_mp_order(mp_order_id: str) -> dict | None:
 def add_venta_pago_referencia_mp(venta_id: int, payment_id: str) -> None:
     """Actualiza la referencia del pago MP/billetera de la venta con el payment_id."""
     with get_connection() as conn:
+        # El criterio de "medio electrónico" sale del motor: este mismo
+        # `IN (...)` estaba escrito a mano en tres repos, y era el único lugar
+        # de la familia donde `qr` existía como valor.
         conn.execute(
-            """UPDATE ventas_pagos SET referencia=?
-               WHERE venta_id=? AND medio IN ('mercadopago','billetera','cuenta_dni','qr')
+            f"""UPDATE ventas_pagos SET referencia=?
+               WHERE venta_id=? AND {medios_pago.sql_es_electronico("medio")}
                AND (referencia IS NULL OR referencia='')""",
             (f"MP#{payment_id}", venta_id),
         )
