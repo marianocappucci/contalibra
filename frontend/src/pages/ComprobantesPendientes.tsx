@@ -13,6 +13,7 @@ import {
   Inbox, ReceiptText, X, Package, Wrench, FileText, FileSpreadsheet, Info,
 } from 'lucide-react'
 import { TituloPantalla } from 'libra-ui/titulo-pantalla'
+import { fecha } from '@/lib/fechas'
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value)
@@ -48,8 +49,8 @@ function OrigenBadge({ tipo, producto }: { tipo: string; producto: string }) {
 
 function periodo(c: ComprobantePendiente): string {
   if (!c.periodo_desde && !c.periodo_hasta) return '—'
-  if (c.periodo_desde === c.periodo_hasta) return c.periodo_desde
-  return `${c.periodo_desde || '—'} → ${c.periodo_hasta || '—'}`
+  if (c.periodo_desde === c.periodo_hasta) return fecha(c.periodo_desde)
+  return `${fecha(c.periodo_desde) || '—'} → ${fecha(c.periodo_hasta) || '—'}`
 }
 
 export function ComprobantesPendientes() {

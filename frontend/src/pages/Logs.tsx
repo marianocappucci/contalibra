@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/tabs'
 import { BookText, Boxes, CalendarDays, ChevronLeft, ChevronRight, ClipboardList, Clock, Download, ExternalLink, FileText, History, Inbox, LogIn, LogOut, PackageCheck, PiggyBank, Shield, ShoppingCart, User as UserIcon, XCircle } from 'lucide-react'
 import { TituloPantalla } from 'libra-ui/titulo-pantalla'
+import { fecha, fechaHora, horaConSegundos } from '@/lib/fechas'
 
 // Orden y set canonico de tipos -- coincide con TIPO_META de
 // web/api/logs.py (que a su vez preserva el dict del router Jinja2 viejo,
@@ -55,7 +56,7 @@ function formatCurrency(value: number): string {
 // (web/templates/admin/logs.html: `r.ts[11:19]`). db.get_actividad_log()
 // sigue devolviendo `ts` -- confirmado en vivo en el contenedor del VPS.
 function horaDe(ts: string): string {
-  return ts && ts.length > 10 ? ts.slice(11, 19) : '—'
+  return horaConSegundos(ts) || '—'
 }
 
 /** `2026-08-22` → `22-08-2026`. El backend manda la fecha del separador en ISO
@@ -68,8 +69,7 @@ function horaDe(ts: string): string {
  *  Una fecha con otra forma se devuelve tal cual en vez de recortarse a ciegas:
  *  mejor mostrar lo que vino que una cadena armada con pedazos de otra cosa. */
 export function aFechaLocal(iso: string): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
-  return m ? `${m[3]}-${m[2]}-${m[1]}` : iso
+  return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? fecha(iso) : iso
 }
 
 export function Logs() {
@@ -336,7 +336,7 @@ export function Logs() {
                             <Badge className={`gap-1 ${em.className}`}><EvIcon className="size-3.5" />{em.label}</Badge>
                             <span className="font-medium">{e.username}</span>
                           </div>
-                          <span className="font-mono text-xs text-muted-foreground">{e.ip || '—'} · {e.ts}</span>
+                          <span className="font-mono text-xs text-muted-foreground">{e.ip || '—'} · {fechaHora(e.ts)}</span>
                         </li>
                       )
                     })}
