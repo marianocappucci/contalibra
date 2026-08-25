@@ -34,6 +34,31 @@ import tempfile
 # --- Entorno ANTES de tocar ningun import del producto -------------------
 _TMP = tempfile.mkdtemp(prefix="contalibra-tests-")
 os.environ["DATA_DIR"] = _TMP
+
+# --- El motor: PostgreSQL y nada mas -------------------------------------
+#
+# 🔴 Sin esto la suite CAE A SQLITE en silencio: `db_core.py` deriva `DB_PATH`
+# de `DATA_DIR` y arma una ruta a un archivo, y `libracore.db.core.configure()`
+# decide el motor con `"://" in db_path` — sin URL, SQLite. La suite quedaba
+# verde y no decia nada del motor real.
+#
+# El modo SQLite se retiro el 2026-08-12 para toda la familia: los productos
+# corren sobre PostgreSQL y una suite verde sobre SQLite no chequea las FK, no
+# valida los tipos y acepta cadenas donde la base pide enteros. Los defectos
+# que PostgreSQL rechaza de entrada llegaban a produccion.
+#
+# El CI corria la suite DOS veces —una sin URL, o sea SQLite, y otra con
+# PostgreSQL— y la primera se saco junto con este guard. Es el mismo criterio
+# que LibraDesk aplica desde el 2026-08-12.
+if not os.environ.get("CONTALIBRA_DATABASE_URL"):
+    raise RuntimeError(
+        "La suite de Contalibra necesita PostgreSQL: defini "
+        "CONTALIBRA_DATABASE_URL (ej. "
+        "postgresql://contalibra:contalibra-ci@localhost:5432/contalibra). "
+        "Sin esa variable la suite correria sobre SQLite, que es lo que se "
+        "retiro el 2026-08-12: una suite verde sobre SQLite no dice nada "
+        "sobre el motor real."
+    )
 # SessionAuth (libraauth) exige SECRET_KEY fuera de development y la app
 # no levanta sin el. Un valor fijo ademas hace deterministas las cookies.
 os.environ["SECRET_KEY"] = "suite-secret-no-productivo"
