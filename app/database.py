@@ -90,6 +90,7 @@ from app.db_integraciones import (  # noqa: F401
     registrar_origen,
     set_usuario_integraciones,
 )
+from app.schema_propio import init_schema_propio  # noqa: F401  (lo usa init_db)
 from app.db_listas_precio import (  # noqa: F401
     get_all_listas_precio,
     get_lista_precio,
@@ -451,26 +452,18 @@ def init_db():
                 " VALUES ('Depósito principal', '', 1, 1)"
             )
 
-        # Referencias cruzadas entre la venta (LibraCommerce) y contextos que
-        # no son suyos: facturación/remitos y turno de caja (LibraCore) y
-        # MercadoPago. No van dentro de `sales` para no meter dominio ajeno en
-        # el motor genérico — ver db_ventas.py.
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS venta_links (
-                venta_id      INTEGER PRIMARY KEY REFERENCES sales(id) ON DELETE CASCADE,
-                factura_id    INTEGER REFERENCES facturas(id) ON DELETE SET NULL,
-                remito_id     INTEGER REFERENCES remitos(id) ON DELETE SET NULL,
-                turno_id      INTEGER REFERENCES turnos_caja(id) ON DELETE SET NULL,
-                mp_order_id   TEXT DEFAULT '',
-                mp_payment_id TEXT DEFAULT ''
-            )
-        """)
-
-        # Ventas que entran desde otro producto de la familia, y el usuario al
-        # que se atribuyen. Mismo criterio que `venta_links`: de qué producto de
-        # la suite vino una venta no es dominio de LibraCommerce. Ver
-        # `db_integraciones.py`.
-        crear_tablas_integraciones(conn)
+        # Las 3 tablas propias de este producto —`venta_links`,
+        # `integraciones_config` y `ventas_origen_externo`—. El DDL vive en
+        # `app/schema_propio.py` y no acá desde el 2026-08-25, porque la
+        # baseline de Alembic (`migrations/versions/0001_baseline_contalibra.py`)
+        # llama a esa MISMA función: si el DDL siguiera suelto acá, la revisión
+        # tendría que re-expresarlo y serían dos fuentes de verdad que se
+        # desincronizan en el primer cambio.
+        #
+        # 🔴 Desde esa revisión la función es de **sólo lectura**: una columna
+        # nueva va como revisión de Alembic, no como línea agregada ahí. Ver su
+        # docstring para el reparto completo de las 61 tablas.
+        init_schema_propio(conn)
 
         # Seed de módulos: inserta sólo los que no existen aún. La lista de
         # módulos (y el plan que los habilita) es específica de Contalibra —
