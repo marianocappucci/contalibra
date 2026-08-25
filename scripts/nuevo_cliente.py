@@ -43,23 +43,31 @@ configure(
     image_name="contalibra:latest",
     container_prefix="contalibra",
     db_filename="contalibra.db",
-    # 🔴 **Este producto no tiene cadena propia de Alembic, pero SÍ corre la
-    # del motor.** Su esquema lo crean `init_core_schema()` y
-    # `init_commerce_schema()` al conectar, que **crean tablas que no existen y
-    # no alteran las que sí**. Lo que Alembic gobierna acá es el schema de
-    # LibraCore, que hasta el 2026-08-25 **no lo corría nadie**: sus migraciones
-    # no viajaban en el wheel.
+    # 🔑 **DOS cadenas, y el orden no es decorativo.** Tiene que decir lo MISMO
+    # que `panel_admin.py` y que el `command:` de dev del compose; hay un test
+    # que ata las tres puntas.
     #
-    # Medido ese día: de las tres instancias de este producto, la de dev estaba
-    # en `0002`, y las otras en `0001_baseline` o **sin `alembic_version`
-    # ninguna** — o sea producción atrás de dev, y sin las cuatro columnas que
-    # la revisión `0002` le agrega a `clients`.
+    # 1. `libracore-migrar` — el schema de LibraCore, que hasta el 2026-08-25
+    #    **no lo corría nadie**: sus migraciones no viajaban en el wheel.
+    #    Resuelve la base por `CONTALIBRA_DATABASE_URL`: acá el schema del core
+    #    vive en la MISMA base que el dominio, así que la resolución cae a la
+    #    del dominio a propósito — ver `libracore.migrar.url_de_core`.
     #
-    # `libracore-migrar` resuelve la base por `CONTALIBRA_DATABASE_URL`. Acá el
-    # schema del core vive en la MISMA base que el dominio, así que la
-    # resolución cae a la del dominio a propósito — ver
-    # `libracore.migrar.url_de_core`.
-    migraciones=(("libracore-migrar", "upgrade", "--prefijo", "contalibra"),),
+    # 2. `alembic` — la cadena **propia**, agregada el 2026-08-25. Gobierna las
+    #    3 tablas que son de este producto (`venta_links`,
+    #    `integraciones_config`, `ventas_origen_externo`); las otras 58 son de
+    #    los motores. Va SEGUNDA porque `venta_links` tiene FK contra
+    #    `facturas`, `remitos` y `turnos_caja`, que son de LibraCore.
+    #
+    # 🔴 Acá esto importa **más** que en el deploy: en un alta las migraciones
+    # corren ANTES del primer arranque, así que la baseline es lo primero que
+    # toca la base después del motor — no hay `init_db()` que le haya dejado las
+    # tablas de LibraCommerce puestas. Por eso la baseline llama a
+    # `init_commerce_schema()` ella misma; ver su docstring.
+    migraciones=(
+        ("libracore-migrar", "upgrade", "--prefijo", "contalibra"),
+        ("alembic", "upgrade", "head"),
+    ),
     repo_root=REPO_ROOT,
     base_port=8071,
     docs_auth_secret=os.environ.get("DOCS_AUTH_SECRET", ""),

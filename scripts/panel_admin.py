@@ -52,23 +52,37 @@ configure(
     image_name="contalibra:latest",
     container_prefix="contalibra",
     db_filename="contalibra.db",
-    # 🔴 **Este producto no tiene cadena propia de Alembic, pero SÍ corre la
-    # del motor.** Su esquema lo crean `init_core_schema()` y
-    # `init_commerce_schema()` al conectar, que **crean tablas que no existen y
-    # no alteran las que sí**. Lo que Alembic gobierna acá es el schema de
-    # LibraCore, que hasta el 2026-08-25 **no lo corría nadie**: sus migraciones
-    # no viajaban en el wheel.
+    # 🔑 **DOS cadenas, y el orden no es decorativo.**
     #
-    # Medido ese día: de las tres instancias de este producto, la de dev estaba
-    # en `0002`, y las otras en `0001_baseline` o **sin `alembic_version`
-    # ninguna** — o sea producción atrás de dev, y sin las cuatro columnas que
-    # la revisión `0002` le agrega a `clients`.
+    # 1. `libracore-migrar` — el schema de LibraCore, que hasta el 2026-08-25
+    #    **no lo corría nadie**: sus migraciones no viajaban en el wheel. Medido
+    #    ese día: de las tres instancias de este producto, la de dev estaba en
+    #    `0002` y las otras en `0001_baseline` o **sin `alembic_version`
+    #    ninguna** — producción atrás de dev, y sin las cuatro columnas que la
+    #    revisión `0002` le agrega a `clients`.
     #
-    # `libracore-migrar` resuelve la base por `CONTALIBRA_DATABASE_URL`. Acá el
-    # schema del core vive en la MISMA base que el dominio, así que la
-    # resolución cae a la del dominio a propósito — ver
-    # `libracore.migrar.url_de_core`.
-    migraciones=(("libracore-migrar", "upgrade", "--prefijo", "contalibra"),),
+    #    Resuelve la base por `CONTALIBRA_DATABASE_URL`: acá el schema del core
+    #    vive en la MISMA base que el dominio, así que la resolución cae a la
+    #    del dominio a propósito — ver `libracore.migrar.url_de_core`.
+    #
+    # 2. `alembic` — la cadena **propia**, agregada el 2026-08-25. Gobierna las
+    #    3 tablas que son de este producto (`venta_links`,
+    #    `integraciones_config`, `ventas_origen_externo`); las otras 58 son de
+    #    los motores. Va SEGUNDA porque `venta_links` tiene FK contra
+    #    `facturas`, `remitos` y `turnos_caja`, que son de LibraCore: al revés,
+    #    la baseline muere con `relation "facturas" does not exist` en un alta
+    #    nueva, donde las migraciones corren antes del primer arranque.
+    #
+    #    Usa `alembic_version_contalibra`, no `alembic_version` — esa última es
+    #    la del motor y corre contra esta misma base. Ver `migrations/env.py`.
+    #
+    # Son dos comandos y no un `sh -c "a && b"` para que el `[ERROR]` del deploy
+    # diga **cuál de las dos** falló, que es el dato que uno necesita a las tres
+    # de la mañana.
+    migraciones=(
+        ("libracore-migrar", "upgrade", "--prefijo", "contalibra"),
+        ("alembic", "upgrade", "head"),
+    ),
     repo_root=REPO_ROOT,
     base_port=8071,
 )
