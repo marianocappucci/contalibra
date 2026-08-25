@@ -34,6 +34,11 @@ def _consulta(**cambios) -> dict:
         "facturar": False,
     }
     cuerpo.update(cambios)
+    # `pagos` y `medio_pago` son excluyentes: mandar los dos es un pedido
+    # ambiguo y el endpoint lo rechaza. El default de este helper es la forma
+    # vieja, así que pedir `pagos` saca la otra.
+    if cuerpo.get("pagos"):
+        cuerpo.pop("medio_pago", None)
     return cuerpo
 
 
@@ -222,6 +227,171 @@ def test_un_cuit_que_ya_es_cliente_no_se_duplica(configurado: TestClient):
     )
     assert primera.json()["venta"]["cliente_id"] == segunda.json()["venta"]["cliente_id"]
     assert len(db.get_all_clients()) == 1
+
+
+# ── Una consulta con más de un pago ────────────────────────────────────────
+#
+# 🔴 **El caso que motiva todo esto es el turno señado.** MedLibra cobra la seña
+# cuando se reserva y el saldo cuando se atiende, y pueden ser medios distintos.
+# Mandando un solo `medio_pago`, 400 de seña por MercadoPago y 600 en efectivo
+# entraban acá como **1000 en efectivo**: la venta cerraba por el total correcto
+# y el reparto de la caja quedaba mal. El cierre no cuadra contra el arqueo y la
+# diferencia no tiene de dónde salir.
+
+
+def _pagos_de(venta: dict) -> dict:
+    """`{medio: monto}` de la venta creada."""
+    return {p["medio"]: p["monto"] for p in venta["pagos"]}
+
+
+def test_una_sena_y_un_saldo_entran_como_DOS_pagos(configurado: TestClient):
+    creada = _mandar(configurado, importe=1000.0, pagos=[
+        {"medio": "mercadopago", "monto": 400.0, "referencia": "seña"},
+        {"medio": "efectivo", "monto": 600.0},
+    ])
+    assert creada.status_code == 200, creada.text
+    venta = creada.json()["venta"]
+    assert _pagos_de(venta) == {"mercadopago": 400.0, "efectivo": 600.0}
+    assert venta["total"] == 1000.0
+    assert venta["estado"] == "cobrada"
+
+
+def test_cada_pago_genera_su_movimiento_de_caja(configurado: TestClient):
+    """🔴 **Éste es el test que mide el defecto real**, y no el de arriba.
+
+    Que la venta guarde dos pagos no alcanza: lo que se descuadra es la **caja**,
+    y el cierre la agrupa por el `medio_pago` de `caja_movimientos`. Si los dos
+    movimientos salieran con el mismo medio —o si saliera uno solo por 1000— la
+    venta se vería bien y el arqueo seguiría sin cuadrar.
+    """
+    abierto = configurado.post("/api/turnos/abrir", json={"monto_inicial": 0.0})
+    assert abierto.status_code == 200, abierto.text
+
+    _mandar(configurado, importe=1000.0, pagos=[
+        {"medio": "mercadopago", "monto": 400.0},
+        {"medio": "efectivo", "monto": 600.0},
+    ])
+
+    cierre = configurado.get(f"/api/turnos/{abierto.json()['id']}")
+    assert cierre.status_code == 200, cierre.text
+    por_medio = cierre.json()["resumen"]["pagos_por_medio"]
+    assert por_medio.get("efectivo") == 600.0, por_medio
+    assert por_medio.get("mercadopago") == 400.0, por_medio
+
+
+def test_la_forma_vieja_de_un_solo_medio_sigue_andando(configurado: TestClient):
+    """🔴 El control de compatibilidad. Un emisor que todavía no se actualizó
+    manda `medio_pago`, y romperlo dejaría sus consultas rebotando con 422 —
+    visibles en su pantalla de facturación externa, pero sin facturar."""
+    creada = _mandar(configurado, medio_pago="transferencia")
+    assert creada.status_code == 200, creada.text
+    assert _pagos_de(creada.json()["venta"]) == {"transferencia": 2500.0}
+
+
+def test_mandar_las_dos_formas_a_la_vez_se_rechaza(configurado: TestClient):
+    """Es un pedido ambiguo: no se sabe si el importe entero va por el medio
+    suelto o si los pagos son el detalle. Elegir uno sería adivinar."""
+    ambiguo = configurado.post("/api/integraciones/consultas", json={
+        **_consulta(), "medio_pago": "efectivo",
+        "pagos": [{"medio": "efectivo", "monto": 2500.0}],
+    })
+    assert ambiguo.status_code == 422
+    assert db.get_all_ventas() == []
+
+
+def test_sin_ninguna_de_las_dos_se_rechaza(configurado: TestClient):
+    """El control por el otro lado: sin esto, "aceptar si falta una" dejaría
+    entrar un pedido sin medio de pago y la venta se marcaría cobrada igual."""
+    cuerpo = _consulta()
+    cuerpo.pop("medio_pago")
+    sin_medio = configurado.post("/api/integraciones/consultas", json=cuerpo)
+    assert sin_medio.status_code == 422
+    assert db.get_all_ventas() == []
+
+
+# ── Los pagos tienen que cerrar ────────────────────────────────────────────
+
+def test_pagos_que_no_suman_el_importe_se_rechazan(configurado: TestClient):
+    """🔴 **Falla cerrado, y por una razón concreta.**
+
+    Este endpoint marca la venta `cobrada` sin mirar lo pagado — a diferencia de
+    `POST /api/ventas`, que deriva el estado. Con pagos que no cierran, eso es
+    una venta que dice estar cobrada y no lo está, y el descuadre aparece a fin
+    de mes sin nada que lo explique.
+    """
+    corto = _mandar(configurado, importe=1000.0, pagos=[
+        {"medio": "efectivo", "monto": 600.0},
+    ])
+    assert corto.status_code == 422
+    assert "600" in corto.text and "1000" in corto.text, corto.text
+    assert db.get_all_ventas() == [], "no se crea la venta si el pedido no cierra"
+
+
+def test_pagos_que_suman_de_mas_tambien_se_rechazan(configurado: TestClient):
+    """El otro lado del mismo error: cobrar 1200 por una consulta de 1000 mete
+    200 en la caja que ninguna venta explica."""
+    largo = _mandar(configurado, importe=1000.0, pagos=[
+        {"medio": "efectivo", "monto": 600.0},
+        {"medio": "mercadopago", "monto": 600.0},
+    ])
+    assert largo.status_code == 422
+    assert db.get_all_ventas() == []
+
+
+def test_una_suma_con_centavos_de_float_no_se_rechaza_por_eso(configurado: TestClient):
+    """🔴 El control que evita rechazar un pedido correcto. Los dos lados vienen
+    de floats, así que la suma puede no dar el total exacto en binario: comparar
+    sin redondear haría rebotar un reparto legítimo, y la consulta terminaría
+    sin facturar por un problema de representación.
+
+    ⚠️ **Los números importan.** Acá había `33.33 + 33.33 + 33.34` contra
+    `100.0`, que en binario da **exactamente** `100.0` — el test pasaba con y sin
+    el redondeo, o sea que no medía nada. Lo delató la mutación: sacar el
+    `round()` no lo ponía en rojo. Éstos sí: `198.99 + 172.47` da
+    `371.46000000000004`.
+    """
+    assert 198.99 + 172.47 != 371.46, "el caso dejó de romper: buscar otro"
+    partido = _mandar(configurado, importe=371.46, pagos=[
+        {"medio": "efectivo", "monto": 198.99},
+        {"medio": "transferencia", "monto": 172.47},
+    ])
+    assert partido.status_code == 200, partido.text
+
+
+# ── El vocabulario de medios ───────────────────────────────────────────────
+
+def test_un_medio_que_no_existe_se_rechaza(configurado: TestClient):
+    """🔴 Hasta el 2026-08-24 acá entraba **cualquier string**: `PagoPayload.
+    medio` del mostrador es `str` pelado y `add_venta_pago()` tampoco mira. Un
+    medio inventado creaba su movimiento de caja y salía en el cierre como un
+    bucket suelto con el nombre crudo — la plata bien contada y el reparto mal.
+
+    Es exactamente cómo MedLibra venía mandando `tarjeta`, que no existía en
+    ninguna lista de esta casa."""
+    inventado = _mandar(configurado, pagos=[
+        {"medio": "criptomonedas", "monto": 2500.0},
+    ])
+    assert inventado.status_code == 422
+    assert "criptomonedas" in inventado.text
+    assert db.get_all_ventas() == []
+
+
+def test_la_grafia_vieja_tampoco_se_acepta_al_escribir(configurado: TestClient):
+    """`tarjeta` se **lee** —hay ventas viejas con ese medio— pero no se
+    escribe. Es la mitad que hace que la normalización avance en vez de
+    quedarse: si se aceptara, MedLibra nunca migraría a `tarjeta_debito`."""
+    vieja = _mandar(configurado, pagos=[{"medio": "tarjeta", "monto": 2500.0}])
+    assert vieja.status_code == 422
+
+
+def test_la_tarjeta_partida_si_entra(configurado: TestClient):
+    """🔴 El control: sin esto, "rechazar todo lo que diga tarjeta" pasaría el
+    test de arriba y el medio nuevo no serviría para nada."""
+    creada = _mandar(configurado, pagos=[
+        {"medio": "tarjeta_debito", "monto": 2500.0},
+    ])
+    assert creada.status_code == 200, creada.text
+    assert _pagos_de(creada.json()["venta"]) == {"tarjeta_debito": 2500.0}
 
 
 # ── La alícuota que trae el emisor ─────────────────────────────────────────

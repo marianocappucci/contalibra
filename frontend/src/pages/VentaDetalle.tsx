@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { api, ApiError, MEDIOS_PAGO_LABELS, type Venta } from '../api'
+import { api, ApiError, type Venta } from '../api'
+import { useEtiquetaDeMedio } from '../lib/medios-pago'
+import { esElectronico } from 'libra-ui/medios-pago'
 import { useAuth } from '../context/AuthContext'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -74,13 +76,17 @@ const POLL_MS = 3000
 // acredita igual.
 const ESPERA_MAXIMA_MS = 5 * 60 * 1000
 
-//: Los medios que se cobran escaneando el QR de la caja. `add_venta_pago_referencia_mp`
-//  (db_ventas.py) sella la referencia sobre una fila de pago con uno de estos
-//  medios: sin esa fila el pago se acredita en MercadoPago y no queda atado a
-//  la venta.
-const MEDIOS_QR = ['mercadopago', 'billetera', 'cuenta_dni', 'qr']
+// 🔴 Acá había un `MEDIOS_QR = ['mercadopago','billetera','cuenta_dni','qr']`
+// escrito a mano, y el `VentaDetalle.tsx` de Restolibra tenía el mismo **sin
+// `qr`** — ya divergiendo. Ahora sale de `libra-ui/medios-pago`, que lo espeja
+// de `libracore.medios_pago.MEDIOS_ELECTRONICOS`.
+//
+// No es una lista cualquiera: `add_venta_pago_referencia_mp` (db_ventas.py)
+// sella la referencia sobre una fila de pago con uno de estos medios, y **sin
+// esa fila el pago se acredita en MercadoPago y no queda atado a la venta**.
 
 export function VentaDetalle() {
+  const etiquetaDeMedio = useEtiquetaDeMedio()
   const { id } = useParams<{ id: string }>()
   const ventaId = Number(id)
   const { user } = useAuth()
@@ -203,12 +209,12 @@ export function VentaDetalle() {
     }
   }
 
-  // Sin una fila de pago con medio de QR no hay dónde sellar la referencia del
-  // cobro, así que el botón no se ofrece: ver el comentario de MEDIOS_QR.
+  // Sin una fila de pago con un medio electrónico no hay dónde sellar la
+  // referencia del cobro, así que el botón no se ofrece: ver la nota de arriba.
   const puedeCobrarConQr = !!detalle
     && detalle.estado !== 'anulada'
     && !detalle.mp_payment_id
-    && detalle.pagos.some((p) => MEDIOS_QR.includes(p.medio))
+    && detalle.pagos.some((p) => esElectronico(p.medio))
 
   return (
     <div className="grid gap-4">
@@ -251,7 +257,7 @@ export function VentaDetalle() {
                     {detalle.pagos.map((p, i) => (
                       <div key={i} className="grid gap-0.5">
                         <div className="flex justify-between">
-                          <Badge variant="outline">{MEDIOS_PAGO_LABELS[p.medio] ?? p.medio}</Badge>
+                          <Badge variant="outline">{etiquetaDeMedio(p.medio)}</Badge>
                           <span className="font-medium">{formatCurrency(p.monto)}</span>
                         </div>
                         {p.referencia && <p className="flex items-center gap-1 text-xs text-muted-foreground"><CheckCircle2 className="size-3.5 text-emerald-600" />Ref: {p.referencia}</p>}

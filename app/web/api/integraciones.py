@@ -20,9 +20,28 @@ queda **fuera de todo turno**: el cierre de caja no la ve. Fallar cerrado es lo
 
 `(sistema, referencia)` es único. Un reintento del emisor —un timeout, un deploy
 en el medio— devuelve **la misma venta**, no una segunda con su segunda factura.
+
+## 🔴 Una consulta puede tener MÁS DE UN pago
+
+Hasta el 2026-08-24 el pedido traía **un solo `medio_pago`** y la venta se creaba
+con un único pago por el importe entero. Para el mostrador alcanza; para un turno
+señado, no: MedLibra cobra la seña cuando se reserva y el saldo cuando se
+atiende, y pueden ser medios distintos.
+
+Con 400 de seña por MercadoPago y 600 en efectivo, lo que entraba acá eran **1000
+en efectivo**. La venta cerraba por el total correcto —la plata estaba bien
+contada— y **el reparto de la caja estaba mal**. Un cierre que dice que entraron
+1000 en efectivo cuando entraron 600 no cuadra contra el arqueo, y la diferencia
+no tiene de dónde salir.
+
+`pagos` es la lista. `medio_pago` sigue aceptándose para no romper a un emisor
+que todavía no se actualizó, pero **son excluyentes**: mandar los dos es un
+pedido ambiguo y se rechaza en vez de elegir uno.
 """
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+
+from libracore import medios_pago
 
 from app import database as db
 from app import venta_facturacion
@@ -45,6 +64,21 @@ class PacientePayload(BaseModel):
     condicion_iva: str = ""
 
 
+class PagoConsultaPayload(BaseModel):
+    """Un cobro de la consulta. Una seña y un saldo son dos de éstos."""
+
+    #: 🔴 Se valida contra el vocabulario de la familia y **falla cerrado**.
+    #: Hasta hoy acá entraba cualquier string: `PagoPayload.medio` del mostrador
+    #: es `str` pelado y `add_venta_pago()` tampoco mira. Un medio inventado
+    #: creaba su movimiento de caja y salía en el cierre como un bucket suelto
+    #: con el nombre crudo — la plata bien contada y el reparto mal. Es
+    #: exactamente cómo MedLibra venía mandando `tarjeta`, que no existía en
+    #: ninguna lista de esta casa.
+    medio: str = Field(min_length=1)
+    monto: float = Field(gt=0)
+    referencia: str = ""
+
+
 class ConsultaPayload(BaseModel):
     #: Qué producto manda. Junto con `referencia` forma la clave de idempotencia.
     sistema: str = Field(min_length=1)
@@ -54,7 +88,12 @@ class ConsultaPayload(BaseModel):
     fecha: str
     descripcion: str = Field(min_length=1)
     importe: float = Field(gt=0)
-    medio_pago: str = Field(min_length=1)
+    #: La forma vieja: **un solo** pago por el importe entero. Se sigue
+    #: aceptando para no romper a un emisor que no se actualizó todavía.
+    medio_pago: str = ""
+    #: La forma nueva: los pagos reales de la consulta. Una seña cobrada por
+    #: MercadoPago y un saldo en efectivo son dos entradas.
+    pagos: list[PagoConsultaPayload] = Field(default_factory=list)
     paciente: PacientePayload
     #: La alícuota de la prestación, si el emisor la sabe. `None` manda el
     #: default de esta instancia. En salud el caso normal es el **exento**, y
@@ -69,6 +108,53 @@ class ConsultaPayload(BaseModel):
     #: Si además de registrar la venta hay que emitir la factura. En `false`
     #: queda como venta cobrada sin comprobante, para facturarla desde acá.
     facturar: bool = True
+
+    @model_validator(mode="after")
+    def _validar_los_pagos(self):
+        """Los pagos, en cualquiera de las dos formas, tienen que cerrar.
+
+        🔴 **Falla cerrado, y por una razón concreta**: este endpoint marca la
+        venta `cobrada` sin mirar lo pagado (a diferencia de `POST /api/ventas`,
+        que deriva el estado). Con pagos que no suman el importe, eso sería una
+        venta que dice estar cobrada y no lo está — y el descuadre aparece a fin
+        de mes, sin nada que lo explique.
+        """
+        if self.pagos and self.medio_pago:
+            raise ValueError(
+                "Mandá `pagos` o `medio_pago`, no los dos: con ambos el pedido "
+                "es ambiguo y elegir uno por nuestra cuenta sería adivinar."
+            )
+        if not self.pagos and not self.medio_pago:
+            raise ValueError("Falta el medio de pago: mandá `pagos` o `medio_pago`.")
+
+        for pago in self.pagos:
+            # `validar()` levanta `MedioDePagoInvalido`, que es un `ValueError`,
+            # así que pydantic lo convierte en 422 con el mensaje adentro.
+            medios_pago.validar(pago.medio)
+        if self.medio_pago:
+            medios_pago.validar(self.medio_pago)
+
+        if self.pagos:
+            # Al centavo. Redondear a dos decimales antes de comparar porque los
+            # dos lados vienen de floats: 400.0 + 600.0 puede no dar 1000.0 exacto
+            # y rechazar por eso sería rechazar un pedido correcto.
+            total = round(sum(p.monto for p in self.pagos), 2)
+            if total != round(self.importe, 2):
+                raise ValueError(
+                    f"Los pagos suman {total} y la consulta dice {self.importe}. "
+                    "Una venta que se marca cobrada tiene que estar cobrada entera."
+                )
+        return self
+
+    def pagos_normalizados(self) -> list[dict]:
+        """Los pagos en la forma que espera `crear_venta_directa`, venga el
+        pedido en la forma nueva o en la vieja."""
+        if self.pagos:
+            return [
+                {"medio": p.medio, "monto": p.monto, "referencia": p.referencia}
+                for p in self.pagos
+            ]
+        return [{"medio": self.medio_pago, "monto": self.importe, "referencia": ""}]
 
 
 class UsuarioIntegracionesPayload(BaseModel):
@@ -173,7 +259,7 @@ async def registrar_consulta(payload: ConsultaPayload):
         usuario_id=usuario["id"],
         observaciones=f"{payload.sistema} · {payload.referencia}",
         estado="cobrada",
-        pagos=[{"medio": payload.medio_pago, "monto": payload.importe, "referencia": ""}],
+        pagos=payload.pagos_normalizados(),
         stock_habilitado=bool(mods.get("stock")),
     )
     # Fuera de la transacción de la venta: `crear_venta_directa` la abre y la

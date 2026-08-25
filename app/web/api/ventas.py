@@ -12,7 +12,9 @@ directo, sin reimplementarlos.
 import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+
+from libracore import medios_pago
 
 from app import database as db
 from app import venta_facturacion
@@ -20,14 +22,9 @@ from app.web.api_auth import get_current_user_json, require_role_json
 
 router = APIRouter(prefix="/api/ventas", tags=["ventas"])
 
-MEDIOS_PAGO = [
-    {"id": "efectivo", "label": "Efectivo"},
-    {"id": "transferencia", "label": "Transferencia"},
-    {"id": "mercadopago", "label": "Mercado Pago"},
-    {"id": "cuenta_dni", "label": "Cuenta DNI"},
-    {"id": "billetera", "label": "Otras billeteras"},
-    {"id": "cuenta_corriente", "label": "Cuenta corriente"},
-]
+# 🔴 Del motor, no de una copia escrita acá — ver la nota en `api/cajas.py`, que
+# tenía esta misma lista repetida byte a byte en el mismo repo.
+MEDIOS_PAGO = medios_pago.para_selector()
 
 
 class ItemPayload(BaseModel):
@@ -38,9 +35,22 @@ class ItemPayload(BaseModel):
 
 
 class PagoPayload(BaseModel):
+    #: 🔴 **Se valida.** Hasta el 2026-08-24 era un `str` pelado, y
+    #: `add_venta_pago()` tampoco miraba: la lista de medios sólo existía para
+    #: poblar el `<Select>`. Un medio inventado entraba, creaba su movimiento de
+    #: caja y salía en el cierre como un bucket suelto con el nombre crudo — la
+    #: plata bien contada y **el reparto mal**. Nadie se enteraba.
+    #:
+    #: Las seis grafías de siempre siguen siendo válidas, así que un frontend
+    #: viejo no se rompe; lo que rebota es lo que nunca debió entrar.
     medio: str
     monto: float
     referencia: str = ""
+
+    @field_validator("medio")
+    @classmethod
+    def _medio_del_vocabulario(cls, v: str) -> str:
+        return medios_pago.validar(v)
 
 
 class VentaPayload(BaseModel):
@@ -54,7 +64,11 @@ class VentaPayload(BaseModel):
 
 
 @router.get("/medios-pago")
-def medios_pago():
+def listar_medios_pago():
+    # 🔴 Se llamaba `medios_pago` y **tapaba al módulo del motor** dentro de este
+    # archivo: `medios_pago.validar(...)` reventaba con "'function' object has no
+    # attribute 'validar'". La ruta no cambia — el nombre de la función no es
+    # parte del contrato HTTP.
     return MEDIOS_PAGO
 
 
