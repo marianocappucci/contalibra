@@ -27,6 +27,23 @@ export type {
 // este modulo, y aca abajo hay tipos propios que usan `Factura`.
 import type { Factura } from 'libra-ui/facturas'
 
+// La bandeja de MercadoPago: sus tipos viven en `libra-ui/mp` desde la v0.45.0,
+// junto a la pantalla que los muestra. Estaban declarados acá y, palabra por
+// palabra, también en el otro producto.
+//
+// 🔑 El `export type ... from` re-exporta pero NO trae el nombre al ámbito de
+// este módulo, y acá abajo hay tipos propios que usan `Cliente` — de ahí el
+// `import type` de al lado. Mismo cuidado que con `Factura`.
+export type { Cliente, MpMovimiento, MpPago } from 'libra-ui/mp'
+import type { Cliente } from 'libra-ui/mp'
+
+// La lista de condiciones frente al IVA la fija ARCA, no el producto: vive en
+// `libra-ui/facturas` desde la v0.45.0. Estaba escrita idéntica en los dos
+// productos, y una lista fiscal que diverge es cómo un cliente termina cargado
+// con una condición que una instancia acepta y la otra no.
+export { IVA_CONDITIONS } from 'libra-ui/facturas'
+
+
 export type User = {
   username: string
   nombre: string
@@ -124,18 +141,6 @@ export type MovimientoCaja = {
   medio_pago: string
 }
 
-export type Cliente = {
-  id: number
-  name: string
-  address: string
-  cuit_dni: string
-  email: string
-  phone: string
-  iva_condition: string
-  auto_facturar: number
-  activo: number
-}
-
 export type AliasFacturacion = {
   id: number
   tipo: 'cuit' | 'email'
@@ -153,15 +158,6 @@ export type ClienteConAlias = Cliente & {
   presupuestos: Presupuesto[]
   remitos: Remito[]
 }
-
-export const IVA_CONDITIONS = [
-  'Responsable Inscripto',
-  'Monotributista',
-  'IVA Exento',
-  'Consumidor Final',
-  'No Alcanzado',
-  'IVA No Responsable',
-] as const
 
 export type Producto = {
   id: number
@@ -588,43 +584,6 @@ export type Presupuesto = {
 }
 
 export const ESTADOS_PRESUPUESTO = ['borrador', 'enviado', 'aceptado', 'rechazado', 'vencido', 'facturado'] as const
-
-export type MpPago = {
-  id: number
-  mp_payment_id: string
-  monto: number
-  payer_email: string
-  payer_name: string
-  payment_type: string | null
-  payment_method: string | null
-  descripcion_mp: string | null
-  payer_id_type: string | null
-  payer_id_number: string | null
-  estado_factura: string
-  factura_id: number | null
-  created_at: string
-  cliente: Cliente | null
-}
-
-export type MpMovimiento = {
-  id: number
-  mp_movement_id: string
-  tipo: string
-  monto: number
-  fecha: string
-  descripcion: string
-  origen_nombre: string
-  origen_banco: string | null
-  origen_cbu: string | null
-  payer_email: string
-  payer_name: string
-  payer_id_type: string | null
-  payer_id_number: string
-  estado_factura: string
-  factura_id: number | null
-  created_at: string
-  cliente: Cliente | null
-}
 
 export type LibroIvaFactura = {
   id: number; tipo: number; punto_venta: number; numero: number; fecha: string
