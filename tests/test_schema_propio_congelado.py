@@ -191,3 +191,93 @@ def test_las_dos_cadenas_no_comparten_la_tabla_de_version():
         f"la tabla del motor quedó en {del_motor[0]!r}, que no parece una "
         "revisión de LibraCore"
     )
+
+
+# ── La instancia que YA existe: la cadena de migraciones ────────────────────
+
+#: El DEFAULT que tenian las columnas de texto antes del arreglo, tal como
+#: PostgreSQL lo guarda. Es lo que hay hoy en las bases de produccion.
+_DEFAULT_VIEJO = "to_char(CURRENT_TIMESTAMP AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')"
+
+#: Las columnas de texto que HOY estampan la hora por DEFAULT.
+#:
+#: 🔑 Se filtra por `column_default`, no por nombre. `comprobantes_pendientes.
+#: resuelto_at` y `recibos.anulado_at` se llaman como las otras y **no tienen
+#: default**: la hora se la pone un `UPDATE` del codigo. Metiendolas por nombre,
+#: el test les forzaba un default que nunca tuvieron y despues se quejaba de que
+#: la migracion no se lo devolvia -- un rojo sobre algo que esta bien.
+_COLUMNAS_CON_RELOJ = (
+    "SELECT table_name, column_name FROM information_schema.columns "
+    "WHERE table_schema = current_schema() AND data_type = 'text' "
+    "AND (column_default LIKE '%interval%' "
+    "     OR column_default LIKE '%AT TIME ZONE ''UTC''%')"
+)
+
+
+def _texto_en_utc(conn):
+    return sorted(
+        (fila[0], fila[1])
+        for fila in conn.execute(
+            _COLUMNAS_CON_RELOJ + " AND column_default LIKE '%AT TIME ZONE ''UTC''%'"
+            " AND column_default NOT LIKE '%interval%'"
+        ).fetchall()
+    )
+
+
+def test_la_cadena_no_deja_ninguna_columna_de_texto_en_utc():
+    """🔴 La guarda que atrapo el hueco real.
+
+    Cada revision lleva su lista de columnas escrita a mano, y una lista a mano
+    no es un barrido: el ensayo del 2026-08-29 sobre una copia de la forma de
+    `libradesk-compulibra` mostro que despues de migrar quedaban dos columnas de
+    texto en UTC, una de ellas `clients.created_at` —que LibraDesk adopto del
+    motor en su revision `0017` y que ninguna lista contemplaba—.
+
+    Este test no mira la lista: mira **la base**, despues de correr la cadena
+    declarada. Una columna nueva que nadie agrego a ninguna revision aparece
+    aca, con su nombre.
+    """
+    from app import db_core
+
+    _vaciar()
+    _correr_la_cadena()
+
+    with db_core.get_connection() as conn:
+        columnas = [
+            (fila[0], fila[1])
+            for fila in conn.execute(_COLUMNAS_CON_RELOJ).fetchall()
+        ]
+        # Control: sin columnas para mirar, la lista vacia de abajo pasaria por
+        # verde para siempre.
+        assert len(columnas) >= 20, f"el barrido encontro solo {len(columnas)} columnas"
+
+        for tabla, columna in columnas:
+            conn.execute(
+                f'ALTER TABLE "{tabla}" ALTER COLUMN "{columna}" SET DEFAULT {_DEFAULT_VIEJO}'
+            )
+        # 🔴 Y se vacian las tablas de version. Sin esto la segunda corrida de
+        # la cadena no hace NADA --las revisiones ya estan aplicadas-- y el test
+        # informa que la cadena no arregla nada, sobre una base que en realidad
+        # nunca se migro. Vaciarlas reproduce lo que si es cierto en produccion:
+        # una base con el schema puesto y las revisiones nuevas sin correr.
+        for tabla in conn.execute(
+            "SELECT table_name FROM information_schema.tables "
+            "WHERE table_schema = current_schema() AND table_name LIKE 'alembic_version%'"
+        ).fetchall():
+            conn.execute(f'DELETE FROM "{tabla[0]}"')
+        # Y la de LibraCommerce, que lleva su propio registro y no es de Alembic:
+        # sus migraciones corren desde `init_schema()`, no desde la cadena.
+        conn.execute("DELETE FROM schema_migrations")
+        conn.commit()
+
+        # Control positivo: la base quedo como una de produccion.
+        assert len(_texto_en_utc(conn)) == len(columnas)
+
+    _correr_la_cadena()
+
+    with db_core.get_connection() as conn:
+        quedan = _texto_en_utc(conn)
+    assert quedan == [], (
+        "la cadena no alcanzo a estas columnas; hay que agregarlas a la revision "
+        f"correspondiente:\n{quedan}"
+    )
