@@ -164,7 +164,10 @@ def _pago_qr(venta_id: int, monto: float, status: str = "approved") -> dict:
 
 
 def _configurar_mp(client, auto: bool):
-    client.put("/api/config/mp", json={
+    # `/api/config/mercadopago` desde el 2026-08-30: lo sirve
+    # `libracore.mp_config_router`. El `PUT /api/config/mp` propio se fue con el
+    # `Config.tsx` que lo consumia.
+    client.put("/api/config/mercadopago", json={
         "mp_access_token": "TEST-token-de-suite",
         "mp_auto_facturar_ventas": auto,
     })
