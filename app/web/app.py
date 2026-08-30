@@ -65,7 +65,10 @@ from libracore.comprobantes_router import (
     build_comprobantes_bandeja_router,
     build_comprobantes_ingesta_router,
 )
-from libracore.config_router import build_backup_router
+from libracore.config_router import (
+    build_backup_router, build_empresa_admin_router, build_empresa_router,
+)
+from libracore.mp_config_router import build_mp_config_router
 from libracore.respaldo import Instancia
 
 app = FastAPI(title="Contalibra")
@@ -256,6 +259,31 @@ app.include_router(
 )
 app.include_router(
     api_config_router.router,
+    dependencies=[Depends(require_admin_json)],
+)
+# Datos de la empresa y logo, del motor. Reemplazan al `GET /api/config`
+# --que devolvia `config_manager.load()` ENTERO, o sea el token de MercadoPago
+# y la contrasena de SMTP en el JSON de una pantalla--, al `PUT /api/config/empresa`
+# y al `POST /api/config/empresa/logo` propios.
+#
+# La lectura va con el mismo gate que la escritura y no mas abierta: es la
+# convencion de esta instancia, donde `/api/config` entero es admin.
+#
+# 🔑 El del motor ademas BORRA los logos anteriores al subir uno nuevo. El
+# propio no: dejaba convivir `logo.png` y `logo.jpg`, y `resolve_logo_path`
+# elige por fecha de modificacion cuando el path guardado no existe --o sea que
+# el logo viejo puede volver solo, en el comprobante.
+app.include_router(build_empresa_router(), dependencies=[Depends(require_admin_json)])
+app.include_router(build_empresa_admin_router(), dependencies=[Depends(require_admin_json)])
+# MercadoPago, del motor. Reemplaza al `PUT /api/config/mp` propio.
+#
+# 🔴 Lo que cambia y no es cosmetico: el token vuelve ENMASCARADO. El
+# `GET /api/config` que se va lo devolvia entero, y con el la contrasena de
+# SMTP. Ademas suma el boton que le pregunta a MercadoPago si el token sirve, y
+# una puerta para desconectar la cuenta --con "vacio = no lo toques" no habia
+# otra forma.
+app.include_router(
+    build_mp_config_router(prefix="/api/config/mercadopago"),
     dependencies=[Depends(require_admin_json)],
 )
 # ARCA, del motor. Reemplaza al `PUT /api/config/arca` y al
