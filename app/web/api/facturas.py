@@ -19,6 +19,7 @@ import logging
 from libracore.db import comprobantes_pendientes
 from libracore.facturas_router import build_comprobantes_router
 
+from app.db_usuarios import smtp_config
 from app.web.api_auth import get_current_user_json, require_role_json
 
 logger = logging.getLogger(__name__)
@@ -58,4 +59,8 @@ router = build_comprobantes_router(
     # tiene en Integraciones, y mandar a la solapa equivocada es peor que no
     # decir nada.
     donde_configurar_smtp="Configuración → Email",
+    # 🔴 El SMTP sale de UNA sola parte desde el 2026-08-30 — ver `smtp_config`
+    # en `app/db_usuarios.py`, que explica cuál era la otra y por qué el
+    # síntoma de tener dos era mudo.
+    smtp_config=smtp_config,
 )

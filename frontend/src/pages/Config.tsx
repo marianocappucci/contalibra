@@ -17,13 +17,12 @@
  *
  *  - **Ticket** y **Categorías**, que son suyas: MedLibra no imprime comandas y
  *    LibraDesk no tiene mostrador.
- *  - **El correo.** Y no es una excepción cómoda: esta instancia tiene DOS
- *    configuraciones de SMTP. La que manda los mails de verdad es la de
- *    `config.json`, que lee `helpers/email_helper.py`; la del kit apunta a la
- *    de libraauth, que en este producto no la lee nadie para enviar. Cambiarla
- *    dejaría la pantalla configurando un SMTP que no envía nada. Unificar los
- *    dos stores quedó como trabajo aparte, decidido con el humano el
- *    2026-08-30. El **tutorial** sí es el del kit.
+ *  - **Del correo, sólo el botón de probar.** La sección es la del kit desde el
+ *    2026-08-30, cuando se unificaron los dos SMTP que tenía este producto
+ *    —ver `EmailCard` en `config-secciones.tsx`—. Lo que queda propio es
+ *    *Probar conexión*: `GET /api/email/probar` existe acá y en Restolibra y en
+ *    los otros seis no, así que subirlo al kit pondría en pantalla un botón que
+ *    en seis productos daría 404.
  *
  *  ## Lo que cambió del lado del backend
  *
