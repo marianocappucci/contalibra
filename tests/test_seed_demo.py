@@ -127,7 +127,9 @@ def test_emite_facturas_pero_ninguna_con_CAE(api):
     # Lo que el seed tiene que garantizar, entonces, es no dejar ARCA
     # configurado. Si alguien lo configurara en una demo, este test se pone en
     # rojo — que es exactamente cuando hay que enterarse.
-    assert not api.get("/api/config")["arca"], (
+    # `GET /api/config/arca` y no `/api/config`: el segundo se fue el 2026-08-30
+    # con la pantalla que lo consumia. Devuelve `null` si no hay fila.
+    assert not api.get("/api/config/arca"), (
         "el seed dejó ARCA configurado: una demo pública con certificado "
         "emitiría comprobantes fiscales de verdad"
     )
