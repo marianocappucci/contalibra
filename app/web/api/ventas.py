@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
 
 from libracore import medios_pago
+from libracore import pagos as acreditacion
 
 from app import database as db
 from app import venta_facturacion
@@ -95,10 +96,25 @@ def crear(payload: VentaPayload, user: dict = Depends(get_current_user_json)):
     descuento = min(max(0.0, payload.descuento), subtotal)
     total = round(subtotal - descuento, 2)
 
-    pagos = [{"medio": p.medio, "monto": p.monto, "referencia": p.referencia} for p in payload.pagos if p.monto > 0]
+    # 🔑 `estado` APROBADO: el mostrador declara que la plata **ya entró**, que
+    # es lo que significa cargar un pago acá — el cajero lo vio. Esto mantiene
+    # el comportamiento de hoy, y es a propósito: lo que va a cambiarlo es el
+    # cobro por QR, que pasa a declararse `PENDIENTE` en el paso siguiente.
+    #
+    # Que el estado se declare acá y no lo ponga la base es el punto: la columna
+    # tiene default `'aprobado'` para poder backfillear las filas viejas, así
+    # que sin esta línea un pago contaría como entrado sin que nadie lo decida.
+    pagos = [
+        {"medio": p.medio, "monto": p.monto, "referencia": p.referencia,
+         "estado": acreditacion.EstadoAcreditacion.APROBADO}
+        for p in payload.pagos if p.monto > 0
+    ]
     if not pagos:
         raise HTTPException(422, "Debe registrar al menos un medio de pago.")
-    total_pagado = round(sum(p["monto"] for p in pagos), 2)
+    # Sólo lo **acreditado** decide si la venta está cobrada. Hoy es todo, así
+    # que da lo mismo que antes; cuando el QR declare `PENDIENTE`, esta línea es
+    # la que hace que la venta nazca pendiente en vez de mentir.
+    total_pagado = float(acreditacion.acreditado(pagos))
 
     cliente_nombre = payload.cliente_nombre.strip()
     if payload.cliente_id:
