@@ -150,6 +150,19 @@ async def venta_mp_status(vid: int, user: Auth):
     if status == "approved":
         payment_id = str(pago["id"])
         db.set_venta_mp_payment(vid, payment_id)
+        # 🔴 **Acá entra la plata a la caja, y no antes.** Si la venta se creó
+        # con `cobrar_con_qr`, su pago quedó `PENDIENTE` y sin movimiento de
+        # caja; recién ahora que MercadoPago dice `approved` se acredita, se
+        # escribe el ingreso y se recalcula el estado de la venta.
+        #
+        # Idempotente por diseño: este endpoint se pollea **cada 3 segundos** y
+        # el webhook puede llegar en el medio. `acreditar_pago_qr` sólo toca lo
+        # que sigue pendiente, así que la segunda pasada no duplica el ingreso.
+        # `_usuario_id(user)` y no `user["id"]`: en ESTE router `require_auth`
+        # devuelve el **username**, no el usuario — está dicho arriba, en el
+        # docstring del helper. El movimiento de caja lo necesita para
+        # vincularse al turno del cajero.
+        db.acreditar_pago_qr(vid, payment_id, usuario_id=_usuario_id(user))
         db.add_venta_pago_referencia_mp(vid, payment_id)
         factura_id = await _facturar_si_corresponde(vid, cfg)
         return JSONResponse({

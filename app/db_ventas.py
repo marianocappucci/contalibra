@@ -29,6 +29,7 @@ Contalibra, con `venta_id` = `sales.id`.
 """
 import contextlib
 import sqlite3
+from decimal import Decimal
 
 from libracore import medios_pago
 # `acreditacion` y no `pagos`: en este módulo `pagos` es el parámetro con la
@@ -516,3 +517,87 @@ def add_venta_pago_referencia_mp(venta_id: int, payment_id: str) -> None:
             (f"MP#{payment_id}", venta_id),
         )
         conn.commit()
+
+
+def acreditar_pago_qr(venta_id: int, payment_id: str,
+                      usuario_id: int | None = None) -> bool:
+    """La plata del QR entró: se acreditan sus pagos pendientes.
+
+    🔴 **Este es el punto de acreditación**, la contracara de que
+    `crear_venta_directa` ya no escriba la caja al declarar. Hace las tres cosas
+    en una sola transacción:
+
+    1. pasa a `APROBADO` los pagos pendientes de la venta;
+    2. escribe **ahora** el movimiento de caja de cada uno;
+    3. recalcula el estado de la venta con lo acreditado.
+
+    Devuelve `True` si acreditó algo.
+
+    ## 🔑 Es idempotente, y no por prolijidad
+
+    El poll de `mp-status` pega **cada 3 segundos** y el webhook puede llegar en
+    el medio: sin esto, la misma plata entraría a la caja varias veces y el
+    arqueo cerraría de más. La idempotencia sale de la condición, no de un flag:
+    sólo se toca lo que está `PENDIENTE`, así que la segunda llamada no
+    encuentra nada y no escribe nada.
+
+    Una venta cuyos pagos ya estaban aprobados —el caso normal, cobrada en
+    efectivo— pasa por acá sin efecto.
+    """
+    with get_connection() as conn:
+        try:
+            pendientes = conn.execute(
+                "SELECT id, medio, monto FROM ventas_pagos "
+                "WHERE venta_id=? AND estado=? ORDER BY id",
+                (venta_id, acreditacion.EstadoAcreditacion.PENDIENTE.value),
+            ).fetchall()
+            if not pendientes:
+                return False
+
+            venta = conn.execute(
+                "SELECT number AS numero, occurred_on AS fecha, total "
+                "FROM sales WHERE id=?", (venta_id,)
+            ).fetchone()
+            if venta is None:
+                return False
+
+            for p in pendientes:
+                conn.execute(
+                    "UPDATE ventas_pagos SET estado=?, referencia=? WHERE id=?",
+                    (acreditacion.EstadoAcreditacion.APROBADO.value,
+                     f"MP#{payment_id}", p["id"]),
+                )
+                create_caja_movimiento(
+                    fecha=venta["fecha"], tipo="ingreso",
+                    concepto=(_CONCEPTO_VENTA.format(numero=venta["numero"])
+                              + medios_pago.label(p["medio"])),
+                    monto=p["monto"], referencia=f"MP#{payment_id}",
+                    medio_pago=p["medio"], usuario_id=usuario_id, conn=conn,
+                )
+
+            # El estado se recalcula con TODOS los pagos, no sólo los recién
+            # acreditados: una venta pagada mitad en efectivo y mitad por QR
+            # pasa a `cobrada` sólo cuando entra la segunda mitad.
+            todos = conn.execute(
+                "SELECT monto, estado FROM ventas_pagos WHERE venta_id=?",
+                (venta_id,),
+            ).fetchall()
+            acreditado = acreditacion.acreditado(
+                [{"monto": r["monto"], "estado": r["estado"]} for r in todos])
+            total = Decimal(str(venta["total"]))
+            if acreditado >= total:
+                nuevo = "cobrada"
+            elif acreditado > 0:
+                nuevo = "parcial"
+            else:
+                nuevo = "pendiente"
+            conn.execute(
+                "UPDATE sales SET status=?, status_detail=? WHERE id=?",
+                ("confirmed" if nuevo == "cobrada" else "draft", nuevo, venta_id),
+            )
+
+            conn.commit()
+            return True
+        except Exception:
+            conn.rollback()
+            raise
