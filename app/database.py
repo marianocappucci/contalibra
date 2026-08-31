@@ -264,6 +264,7 @@ from app.db_mp import (  # noqa: F401
 from app.db_ventas import (  # noqa: F401
     get_next_venta_numero,
     create_venta,
+    acreditar_pago_qr,
     add_venta_pago,
     crear_venta_directa,
     get_all_ventas,

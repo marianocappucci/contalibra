@@ -61,10 +61,24 @@ type ItemRow = { nombre: string; qty: string; precio: string; producto_id: numbe
 //  false la fila se autocompleta con lo que falta cubrir, así el caso normal
 //  —un solo medio por el total— no obliga a tipear el importe, y el pago
 //  dividido sigue mandando en cuanto alguien lo escribe.
-type PagoRow = { medio: string; monto: string; referencia: string; tocado: boolean }
+//: `cobrarConQr` es la diferencia entre "el cliente ya me transfirió" y "le voy
+//  a cobrar con el QR ahora". Las dos se cargan como `mercadopago`, y sin esto
+//  el backend no puede distinguirlas: la venta nacería cobrada y sumando al
+//  arqueo **antes de que nadie escanee nada**.
+type PagoRow = {
+  medio: string; monto: string; referencia: string; tocado: boolean
+  cobrarConQr: boolean
+}
 
 const EMPTY_ITEM: ItemRow = { nombre: '', qty: '1', precio: '0', producto_id: null }
-const EMPTY_PAGO: PagoRow = { medio: 'efectivo', monto: '', referencia: '', tocado: false }
+const EMPTY_PAGO: PagoRow = {
+  medio: 'efectivo', monto: '', referencia: '', tocado: false, cobrarConQr: false,
+}
+
+/** El medio con el que cobra el QR de caja. El backend **rechaza**
+ *  `cobrar_con_qr` en cualquier otro medio —dejaría la venta pendiente para
+ *  siempre, porque nada la acreditaría—, así que el check sólo aparece acá. */
+const MEDIO_DEL_QR = 'mercadopago'
 
 
 /** Input de importe, con el `$` adentro y pegado a la izquierda. */
@@ -205,7 +219,20 @@ export function Ventas() {
   }
 
   function updatePago(index: number, field: 'medio' | 'referencia', value: string) {
-    setPagos((rows) => rows.map((r, i) => i === index ? { ...r, [field]: value } : r))
+    setPagos((rows) => rows.map((r, i) => {
+      if (i !== index) return r
+      const fila = { ...r, [field]: value }
+      // 🔴 Cambiar de medio apaga el check. Si quedara prendido sobre
+      // `efectivo`, el backend rebota con 422 al guardar —con el mostrador
+      // esperando— y si además lo dejáramos pasar, la venta quedaría pendiente
+      // para siempre: nada acredita un pago en efectivo.
+      if (field === 'medio' && value !== MEDIO_DEL_QR) fila.cobrarConQr = false
+      return fila
+    }))
+  }
+
+  function updatePagoQr(index: number, valor: boolean) {
+    setPagos((rows) => rows.map((r, i) => i === index ? { ...r, cobrarConQr: valor } : r))
   }
 
   /** El monto escrito a mano manda: la fila deja de autocompletarse. */
@@ -254,7 +281,13 @@ export function Ventas() {
         // sugerido, que es lo que el cajero está viendo en pantalla. Mandar
         // `p.monto` dejaría la venta sin pagos aunque la pantalla dijera otra cosa.
         pagos: pagos
-          .map((p, i) => ({ medio: p.medio, monto: Number(montoDeFila(p, i)) || 0, referencia: p.referencia }))
+          .map((p, i) => ({
+            medio: p.medio, monto: Number(montoDeFila(p, i)) || 0, referencia: p.referencia,
+            // Sólo va en el medio del QR: el backend rechaza el resto, y
+            // mandarlo en `efectivo` por una fila que cambió de medio con el
+            // check puesto dejaría la venta pendiente para siempre.
+            cobrar_con_qr: p.medio === MEDIO_DEL_QR && p.cobrarConQr,
+          }))
           .filter((p) => p.monto > 0),
       })
       setShowNueva(false)
@@ -462,6 +495,21 @@ export function Ventas() {
                     </Select>
                     <MoneyInput value={montoDeFila(row, i)} onChange={(v) => updateMontoPago(i, v)} className="w-32" placeholder="Monto" />
                     <Input value={row.referencia} onChange={(e) => updatePago(i, 'referencia', e.target.value)} className="w-40" placeholder="Referencia" />
+                    {/* 🔴 Sólo en el medio del QR, y apagado por defecto: cargar
+                        un pago acá significa que la plata YA está, que es el caso
+                        de la enorme mayoría de las ventas. Este check es para
+                        decir lo contrario. */}
+                    {row.medio === MEDIO_DEL_QR && (
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={row.cobrarConQr}
+                          onChange={(e) => updatePagoQr(i, e.target.checked)}
+                          className="size-4"
+                        />
+                        Cobrar con QR ahora
+                      </label>
+                    )}
                     {pagos.length > 1 && <Button size="sm" variant="ghost" onClick={() => removePagoRow(i)}><X />Quitar</Button>}
                   </div>
                 ))}

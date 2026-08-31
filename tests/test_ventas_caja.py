@@ -246,3 +246,119 @@ def test_un_pago_sin_estado_no_entra(admin_client):
             pagos=[{"medio": "efectivo", "monto": 100.0, "referencia": ""}],
             stock_habilitado=False,
         )
+
+
+# ── El cobro por QR: la venta nace pendiente y se acredita despues ───────────
+#
+# 🔴 Este es el paso que CAMBIA el comportamiento. Hasta aca la venta nacia
+# "Cobrada" y con el movimiento de caja escrito antes de que nadie escaneara
+# nada; si el cliente no pagaba, el arqueo cerraba con plata que no entro.
+
+
+def _venta_con_qr(client, monto=500.0):
+    """Una venta que el mostrador declara que va a cobrar con el QR."""
+    r = client.post("/api/ventas", json={
+        "fecha": HOY,
+        "items": [{"nombre": "Con QR", "qty": 1, "precio": monto}],
+        "pagos": [{"medio": "mercadopago", "monto": monto, "cobrar_con_qr": True}],
+    })
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def test_una_venta_por_QR_nace_pendiente_y_sin_tocar_la_caja(admin_client):
+    """🔴 El defecto original, cerrado.
+
+    El cajero declara que va a cobrar con el QR: la plata todavia no entro, asi
+    que la venta no puede decir "Cobrada" ni sumar al arqueo.
+    """
+    antes = _ingresos_en_caja()
+    venta = _venta_con_qr(admin_client)
+
+    assert venta["estado"] == "pendiente", (
+        "la venta dice que esta cobrada y el cliente todavia no escaneo el QR")
+    assert _ingresos_en_caja() == antes, (
+        "entro plata a la caja por un cobro que no ocurrio")
+
+
+def test_al_acreditarse_entra_a_la_caja_y_la_venta_pasa_a_cobrada(admin_client):
+    """La otra mitad: cuando MercadoPago dice que entro, entra."""
+    from app import database as db
+
+    venta = _venta_con_qr(admin_client)
+    antes = _ingresos_en_caja()
+
+    assert db.acreditar_pago_qr(venta["id"], "999888777") is True
+
+    assert _ingresos_en_caja() == antes + 1
+    assert db.get_venta(venta["id"])["estado"] == "cobrada"
+
+
+def test_acreditar_dos_veces_NO_cobra_dos_veces(admin_client):
+    """🔴 El guard que evita cobrar de mas, y no es hipotetico.
+
+    `mp-status` se pollea CADA 3 SEGUNDOS y el webhook puede llegar en el
+    medio. Sin idempotencia, la misma plata entraria a la caja varias veces y
+    el arqueo cerraria de mas -- un error que el cajero descubre contando.
+    """
+    from app import database as db
+
+    venta = _venta_con_qr(admin_client)
+    db.acreditar_pago_qr(venta["id"], "999888777")
+    despues_de_una = _ingresos_en_caja()
+
+    assert db.acreditar_pago_qr(venta["id"], "999888777") is False
+    assert db.acreditar_pago_qr(venta["id"], "otro-id-todavia") is False
+    assert _ingresos_en_caja() == despues_de_una
+
+
+def test_una_venta_pagada_en_efectivo_no_cambia_en_nada(admin_client):
+    """El control: sin `cobrar_con_qr`, todo sigue como siempre.
+
+    Es la mitad que hay que no romper: la enorme mayoria de las ventas son
+    esta, y para ellas cargar un pago SIGNIFICA que la plata esta.
+    """
+    antes = _ingresos_en_caja()
+    venta = _venta(admin_client)
+    assert venta["estado"] == "cobrada"
+    assert _ingresos_en_caja() == antes + 1
+
+
+def test_medio_efectivo_con_cobrar_con_qr_rebota(admin_client):
+    """Un `cobrar_con_qr` sobre efectivo dejaria la venta pendiente PARA
+    SIEMPRE: nada la va a acreditar. Mejor 422 que una venta impaga que el
+    cajero jura haber cobrado."""
+    r = admin_client.post("/api/ventas", json={
+        "fecha": HOY,
+        "items": [{"nombre": "X", "qty": 1, "precio": 100.0}],
+        "pagos": [{"medio": "efectivo", "monto": 100.0, "cobrar_con_qr": True}],
+    })
+    assert r.status_code == 422
+
+
+def test_mitad_efectivo_mitad_QR(admin_client):
+    """El caso mixto: la seña en efectivo entra ya, el resto cuando escanee.
+
+    La venta queda `parcial` -- ni cobrada ni sin cobrar -- y la caja tiene
+    UN solo ingreso hasta que el QR se acredite.
+    """
+    from app import database as db
+
+    antes = _ingresos_en_caja()
+    r = admin_client.post("/api/ventas", json={
+        "fecha": HOY,
+        "items": [{"nombre": "Mixta", "qty": 1, "precio": 1000.0}],
+        "pagos": [
+            {"medio": "efectivo", "monto": 400.0},
+            {"medio": "mercadopago", "monto": 600.0, "cobrar_con_qr": True},
+        ],
+    })
+    assert r.status_code == 200, r.text
+    venta = r.json()
+
+    assert venta["estado"] == "parcial"
+    assert _ingresos_en_caja() == antes + 1
+
+    db.acreditar_pago_qr(venta["id"], "555")
+    assert _ingresos_en_caja() == antes + 2
+    assert db.get_venta(venta["id"])["estado"] == "cobrada"
