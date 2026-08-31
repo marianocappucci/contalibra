@@ -31,6 +31,9 @@ import contextlib
 import sqlite3
 
 from libracore import medios_pago
+# `acreditacion` y no `pagos`: en este módulo `pagos` es el parámetro con la
+# lista de líneas de `crear_venta_directa`, y el import quedaría tapado.
+from libracore import pagos as acreditacion
 from libracore.db.caja import create_caja_movimiento
 from libracore.db.core import Conexion, _ar_now
 from libracore.db.cuenta_corriente import create_cc_pago
@@ -116,12 +119,31 @@ def create_venta(numero: str, fecha: str, items: list, subtotal: float,
 
 
 def add_venta_pago(venta_id: int, medio: str, monto: float, referencia: str = "",
-                   conn: Conexion | None = None):
+                   conn: Conexion | None = None, *, estado: str):
+    """Una línea de pago de una venta.
+
+    🔴 **`estado` es obligatorio y va por nombre.** La columna tiene default
+    `'aprobado'` en la base —lo necesita el backfill de las filas viejas, ver
+    la revisión `0005` de LibraCore— así que un `INSERT` que la omitiera
+    contaría como plata que entró sin que nadie lo haya decidido. Ese es el
+    hueco que este parámetro cierra: acá el estado se declara, o no se escribe
+    la fila.
+
+    Los valores son los de `libracore.pagos.EstadoAcreditacion`, y la base
+    tiene un `CHECK` que no admite otros.
+    """
+    # Valida contra el vocabulario del motor antes de tocar la base: el error
+    # dice qué estado se intentó poner, en vez del `CheckViolation` de psycopg.
+    #
+    # `acreditacion` y no `pagos`: en este módulo `pagos` es el parámetro con la
+    # lista de líneas de `crear_venta_directa`, y el módulo quedaría tapado.
+    estado = acreditacion.estado_de({"estado": estado}).value
     cm = contextlib.nullcontext(conn) if conn is not None else get_connection()
     with cm as c:
         c.execute(
-            "INSERT INTO ventas_pagos (venta_id, medio, monto, referencia) VALUES (?,?,?,?)",
-            (venta_id, medio, monto, referencia),
+            "INSERT INTO ventas_pagos (venta_id, medio, monto, referencia, estado) "
+            "VALUES (?,?,?,?,?)",
+            (venta_id, medio, monto, referencia, estado),
         )
 
 
@@ -153,8 +175,24 @@ def crear_venta_directa(fecha: str, items: list, subtotal: float, descuento: flo
                     conn=conn,
                 )
                 for p in pagos:
+                    # 🔴 **El movimiento de caja se escribe al ACREDITAR, no al
+                    # declarar.** Hasta acá se escribía uno por cada medio en el
+                    # momento de crear la venta, así que una venta que se cobra
+                    # por QR metía la plata en la caja **antes de que nadie
+                    # escaneara nada**: si el cliente no pagaba, el arqueo del
+                    # turno cerraba con plata que no entró, y el error aparecía
+                    # horas después.
+                    #
+                    # El estado lo declara quien crea la venta —ver
+                    # `add_venta_pago`—; acá sólo se respeta. Un pago pendiente
+                    # queda registrado como línea (existe, se ve, se puede
+                    # acreditar después) y **no toca la caja**.
+                    estado_del_pago = acreditacion.estado_de(p)
                     add_venta_pago(venta_id, p["medio"], p["monto"],
-                                   p.get("referencia", ""), conn=conn)
+                                   p.get("referencia", ""), conn=conn,
+                                   estado=estado_del_pago.value)
+                    if estado_del_pago not in acreditacion.ACREDITAN:
+                        continue
                     label = medios_pago.label(p["medio"])
                     create_caja_movimiento(
                         fecha=fecha, tipo="ingreso",

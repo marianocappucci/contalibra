@@ -42,6 +42,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, model_validator
 
 from libracore import medios_pago
+from libracore import pagos as acreditacion
 
 from app import database as db
 from app import venta_facturacion
@@ -148,13 +149,23 @@ class ConsultaPayload(BaseModel):
 
     def pagos_normalizados(self) -> list[dict]:
         """Los pagos en la forma que espera `crear_venta_directa`, venga el
-        pedido en la forma nueva o en la vieja."""
+        pedido en la forma nueva o en la vieja.
+
+        🔑 `estado` APROBADO: por acá entran ventas que **otro sistema ya
+        cobró** —es el camino del token de integración—, así que la plata está.
+        Se declara igual en vez de dejar que lo ponga el default de la base:
+        el día que una integración mande un cobro que todavía no entró, el
+        cambio tiene que ser visible acá y no en un default invisible.
+        """
+        estado = acreditacion.EstadoAcreditacion.APROBADO
         if self.pagos:
             return [
-                {"medio": p.medio, "monto": p.monto, "referencia": p.referencia}
+                {"medio": p.medio, "monto": p.monto, "referencia": p.referencia,
+                 "estado": estado}
                 for p in self.pagos
             ]
-        return [{"medio": self.medio_pago, "monto": self.importe, "referencia": ""}]
+        return [{"medio": self.medio_pago, "monto": self.importe,
+                 "referencia": "", "estado": estado}]
 
 
 class UsuarioIntegracionesPayload(BaseModel):
