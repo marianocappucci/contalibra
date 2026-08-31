@@ -134,3 +134,115 @@ def test_no_abrir_dos_turnos_a_la_vez(admin_client):
         assert segundo.json()["id"] == primero.json()["id"]
     else:
         assert segundo.status_code in (409, 422)
+
+
+# ── El movimiento de caja se escribe al ACREDITAR, no al declarar ────────────
+#
+# 🔴 El defecto que esto cierra: hasta el 2026-08-31 `crear_venta_directa`
+# escribia un movimiento de caja por cada medio en el momento de crear la
+# venta. Una venta que se cobra por QR metia la plata en la caja **antes de que
+# nadie escaneara nada**, asi que si el cliente no pagaba el arqueo del turno
+# cerraba con plata que no entro -- y el error aparecia horas despues.
+
+
+def _ingresos_en_caja():
+    """Cuantos movimientos de ingreso tiene la caja, leidos de la TABLA.
+
+    Se mide la tabla y no un endpoint: lo que este paso afirma es que la caja
+    no se escribe, y un endpoint mete su propia forma --filtros, permisos,
+    paginado-- entre la afirmacion y el hecho.
+    """
+    from app.db_core import get_connection
+    with get_connection() as c:
+        return c.execute(
+            "SELECT count(*) FROM caja_movimientos WHERE tipo=?", ("ingreso",)
+        ).fetchone()[0]
+
+
+def test_un_pago_pendiente_NO_escribe_movimiento_de_caja(admin_client, monkeypatch):
+    """🔴 El gate del paso: la caja no se mueve por un pago que no entro.
+
+    Se crea la venta pasando el pago como `pendiente` --que es lo que va a
+    hacer el cobro por QR-- y se mide la caja antes y despues. Tiene que dar
+    exactamente lo mismo.
+    """
+    from app import database as db
+
+    antes = _ingresos_en_caja()
+
+    venta_id = db.crear_venta_directa(
+        fecha=HOY,
+        items=[{"nombre": "Con QR", "qty": 1, "precio": 500.0}],
+        subtotal=500.0, descuento=0.0, total=500.0,
+        cliente_id=None, cliente_nombre="", usuario_id=None, observaciones="",
+        estado="pendiente",
+        pagos=[{"medio": "mercadopago", "monto": 500.0, "referencia": "",
+                "estado": "pendiente"}],
+        stock_habilitado=False,
+    )
+    assert venta_id
+
+    despues = _ingresos_en_caja()
+    assert despues == antes, (
+        "un pago pendiente escribio un movimiento de caja: la venta todavia no "
+        "se cobro y el arqueo ya la cuenta")
+
+
+def test_un_pago_aprobado_SI_escribe_movimiento_de_caja(admin_client):
+    """El control positivo, y no es decorativo: sin el, una implementacion que
+    no escribiera NINGUN movimiento dejaria el test de arriba en verde y
+    rompería la caja de todas las ventas."""
+    from app import database as db
+
+    antes = _ingresos_en_caja()
+
+    db.crear_venta_directa(
+        fecha=HOY,
+        items=[{"nombre": "En efectivo", "qty": 1, "precio": 700.0}],
+        subtotal=700.0, descuento=0.0, total=700.0,
+        cliente_id=None, cliente_nombre="", usuario_id=None, observaciones="",
+        estado="cobrada",
+        pagos=[{"medio": "efectivo", "monto": 700.0, "referencia": "",
+                "estado": "aprobado"}],
+        stock_habilitado=False,
+    )
+
+    despues = _ingresos_en_caja()
+    assert despues == antes + 1
+
+
+def test_la_venta_del_POS_sigue_cobrando_como_hoy(admin_client):
+    """Este paso NO cambia el comportamiento del mostrador.
+
+    El POS declara sus pagos como `aprobado` --el cajero vio la plata-- asi que
+    la venta sigue naciendo cobrada y con su movimiento de caja. Lo que cambia
+    despues es el cobro por QR.
+    """
+    antes = _ingresos_en_caja()
+    venta = _venta(admin_client)
+    assert venta["estado"] == "cobrada"
+    assert _ingresos_en_caja() == antes + 1
+
+
+def test_un_pago_sin_estado_no_entra(admin_client):
+    """🔴 El hueco que dejo abierto la migracion, cerrado en el camino de
+    escritura.
+
+    La columna tiene default `'aprobado'` --lo necesita el backfill de las
+    filas viejas-- asi que un INSERT que la omita contaria como plata que
+    entro sin que nadie lo decida. Aca el estado se declara o revienta.
+    """
+    from app import database as db
+    from libracore import pagos as acreditacion
+
+    import pytest
+    with pytest.raises(acreditacion.PagoSinEstado):
+        db.crear_venta_directa(
+            fecha=HOY,
+            items=[{"nombre": "Sin estado", "qty": 1, "precio": 100.0}],
+            subtotal=100.0, descuento=0.0, total=100.0,
+            cliente_id=None, cliente_nombre="", usuario_id=None,
+            observaciones="", estado="cobrada",
+            pagos=[{"medio": "efectivo", "monto": 100.0, "referencia": ""}],
+            stock_habilitado=False,
+        )
