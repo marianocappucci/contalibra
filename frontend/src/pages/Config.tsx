@@ -17,12 +17,12 @@
  *
  *  - **Ticket** y **Categorías**, que son suyas: MedLibra no imprime comandas y
  *    LibraDesk no tiene mostrador.
- *  - **Del correo, sólo el botón de probar.** La sección es la del kit desde el
- *    2026-08-30, cuando se unificaron los dos SMTP que tenía este producto
- *    —ver `EmailCard` en `config-secciones.tsx`—. Lo que queda propio es
- *    *Probar conexión*: `GET /api/email/probar` existe acá y en Restolibra y en
- *    los otros seis no, así que subirlo al kit pondría en pantalla un botón que
- *    en seis productos daría 404.
+ *  🟢 **Del correo ya no queda nada propio.** La sección es la del kit desde el
+ *    2026-08-30, y el botón *Probar conexión* también lo es desde `libra-ui`
+ *    v0.55.0. Era lo último que este producto tenía envuelto: el botón existía
+ *    acá y en el otro, y en los seis restantes no. Hoy el endpoint lo pone el
+ *    motor (`libracore.smtp_router`) y lo montan los ocho, así que el
+ *    envoltorio se retiró junto con `GET /api/email/probar`.
  *
  *  ## Lo que cambió del lado del backend
  *
@@ -31,10 +31,10 @@
  *  Su único consumidor era este archivo. Lo reemplazan lecturas acotadas y los
  *  routers del motor, que devuelven los secretos enmascarados.
  */
-import { Mail, Package, Printer, Settings } from 'lucide-react'
+import { Package, Printer, Settings } from 'lucide-react'
 import { createConfiguracion } from 'libra-ui/Configuracion'
 
-import { CategoriasCard, EmailCard, TicketCard } from './config-secciones'
+import { CategoriasCard, TicketCard } from './config-secciones'
 
 export const Config = createConfiguracion({
   // El icono que el sidebar de este producto le da a /configuracion.
@@ -50,9 +50,12 @@ export const Config = createConfiguracion({
     // usaría en una instancia sin ninguna fila.
     arca: { basePath: '/api/config/arca' },
     // Ver el docstring: el correo de este producto NO es el del kit.
-    extra: [
-      { clave: 'email', label: 'Email / SMTP', icono: Mail, contenido: <EmailCard /> },
-    ],
+    // 🟢 La seccion del kit, sin envoltorio. Hasta hoy este producto la
+    // envolvia para agregarle el boton *Probar conexion*, que existia aca y en
+    // el otro y en los seis restantes no. Desde libra-ui v0.55.0 el boton es
+    // del kit y pega en `{basePath}/probar`, que es donde el motor monta el
+    // endpoint: el envoltorio dejo de tener razon de ser.
+    email: { basePath: '/api/config/smtp' },
   },
   propias: [
     { clave: 'ticket', label: 'Ticket / Impresora', icono: Printer, contenido: <TicketCard /> },

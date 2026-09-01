@@ -94,10 +94,32 @@ describe('el monto del pago se completa con el total', () => {
     await user.click(screen.getByRole('button', { name: /registrar venta/i }))
 
     await waitFor(() => expect(ultimoPost).not.toBeNull())
+    // `cobrar_con_qr: false` viaja SIEMPRE, también en efectivo: el estado del
+    // pago **se declara**, no se deja al default de la base. Ver `PagoPayload`
+    // y la columna `ventas_pagos.estado`, que tiene default `'aprobado'` sólo
+    // para poder backfillear las filas viejas.
     expect(ultimoPost!.body.pagos).toEqual([
-      { medio: 'efectivo', monto: 1500, referencia: '' },
+      { medio: 'efectivo', monto: 1500, referencia: '', cobrar_con_qr: false },
     ])
   })
+
+  // ⚠️ **Falta acá el test del check «Cobrar con QR ahora», y es deliberado.**
+  //
+  // Para ejercitarlo hay que cambiar el medio a MercadoPago, y el `Select` de
+  // Radix **no se abre en jsdom**: el trigger consulta `hasPointerCapture`, que
+  // jsdom no implementa, y el menú nunca aparece. Se probó con
+  // `pointerEventsCheck: 0` y con el polyfill de `hasPointerCapture` en el
+  // setup, y ninguno alcanzó.
+  //
+  // 🔴 Se descartó dejar sólo el negativo —"el check no está en efectivo"—
+  // porque **pasaría igual si el check no existiera en ninguna parte**: sin su
+  // positivo al lado no afirma nada.
+  //
+  // Lo que sí queda cubierto: que el campo viaja en el payload (el test de
+  // arriba, con `cobrar_con_qr: false`), y del lado del backend el 422 cuando
+  // llega en un medio que el QR no cobra, más los cuatro tests del circuito en
+  // `tests/test_ventas_caja.py`. Lo único sin cubrir es que la pantalla oculte
+  // el check, que es cosmético frente a eso.
 
   it('el monto escrito a mano no se pisa cuando cambia el total', async () => {
     const user = userEvent.setup()

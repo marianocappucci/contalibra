@@ -12,7 +12,7 @@ directo, sin reimplementarlos.
 import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 from libracore import medios_pago
 from libracore import pagos as acreditacion
@@ -26,6 +26,12 @@ router = APIRouter(prefix="/api/ventas", tags=["ventas"])
 # 🔴 Del motor, no de una copia escrita acá — ver la nota en `api/cajas.py`, que
 # tenía esta misma lista repetida byte a byte en el mismo repo.
 MEDIOS_PAGO = medios_pago.para_selector()
+
+#: El medio con el que cobra el QR de caja. Pasa por `medios_pago.validar` y no
+#: es un literal suelto: la grafía se normalizó a `mercadopago` el 2026-08-25
+#: —era la última divergencia del vocabulario de la familia— y este archivo no
+#: puede volver a tener su propia versión de ese string.
+MEDIO_DEL_QR = medios_pago.validar("mercadopago")
 
 
 class ItemPayload(BaseModel):
@@ -47,11 +53,44 @@ class PagoPayload(BaseModel):
     medio: str
     monto: float
     referencia: str = ""
+    #: 🔴 **"Este pago todavía no entró: lo voy a cobrar con el QR ahora."**
+    #:
+    #: Es la única forma de distinguir las dos cosas que el mostrador puede
+    #: querer decir con el medio `mercadopago`: *"el cliente ya me transfirió"*
+    #: —el cajero vio la plata— y *"le voy a cobrar recién ahora"*. Sin este
+    #: campo las dos entran iguales, y la venta nace cobrada con su movimiento
+    #: de caja escrito **antes de que nadie escanee nada**.
+    #:
+    #: Con esto en `true` el pago nace `PENDIENTE`: no cuenta para el estado de
+    #: la venta y **no toca la caja**. Lo acredita el poll del QR o el webhook,
+    #: cuando MercadoPago dice que la plata entró.
+    #:
+    #: Se eligió declararlo acá y no deducirlo del botón "Cobrar con QR" del
+    #: detalle: por ese otro camino el ingreso **ya está escrito**, y habría que
+    #: anularlo para volver atrás — dejando en el arqueo una anulación que nunca
+    #: fue tal, y una ventana en la que la caja cuenta plata que no entró.
+    cobrar_con_qr: bool = False
 
     @field_validator("medio")
     @classmethod
     def _medio_del_vocabulario(cls, v: str) -> str:
         return medios_pago.validar(v)
+
+    @model_validator(mode="after")
+    def _el_qr_es_de_mercadopago(self):
+        """Un `cobrar_con_qr` sobre efectivo no significa nada.
+
+        Rebota en vez de ignorarse: un frontend que lo mandara en el medio
+        equivocado dejaría la venta pendiente **para siempre** —nada la va a
+        acreditar— y el síntoma sería una venta impaga que el cajero jura haber
+        cobrado.
+        """
+        if self.cobrar_con_qr and self.medio != MEDIO_DEL_QR:
+            raise ValueError(
+                f"`cobrar_con_qr` sólo aplica al medio '{MEDIO_DEL_QR}': el QR "
+                f"de MercadoPago no cobra un pago en '{self.medio}'."
+            )
+        return self
 
 
 class VentaPayload(BaseModel):
@@ -96,24 +135,27 @@ def crear(payload: VentaPayload, user: dict = Depends(get_current_user_json)):
     descuento = min(max(0.0, payload.descuento), subtotal)
     total = round(subtotal - descuento, 2)
 
-    # 🔑 `estado` APROBADO: el mostrador declara que la plata **ya entró**, que
-    # es lo que significa cargar un pago acá — el cajero lo vio. Esto mantiene
-    # el comportamiento de hoy, y es a propósito: lo que va a cambiarlo es el
-    # cobro por QR, que pasa a declararse `PENDIENTE` en el paso siguiente.
+    # 🔑 **El mostrador declara si la plata entró o todavía no.**
+    #
+    # Sin `cobrar_con_qr` el pago es `APROBADO`: cargar un pago acá significa
+    # que el cajero vio la plata — una transferencia, el efectivo, la tarjeta.
+    # Con `cobrar_con_qr` el pago nace `PENDIENTE`, porque el cliente todavía
+    # no escaneó nada.
     #
     # Que el estado se declare acá y no lo ponga la base es el punto: la columna
     # tiene default `'aprobado'` para poder backfillear las filas viejas, así
     # que sin esta línea un pago contaría como entrado sin que nadie lo decida.
     pagos = [
         {"medio": p.medio, "monto": p.monto, "referencia": p.referencia,
-         "estado": acreditacion.EstadoAcreditacion.APROBADO}
+         "estado": (acreditacion.EstadoAcreditacion.PENDIENTE if p.cobrar_con_qr
+                    else acreditacion.EstadoAcreditacion.APROBADO)}
         for p in payload.pagos if p.monto > 0
     ]
     if not pagos:
         raise HTTPException(422, "Debe registrar al menos un medio de pago.")
-    # Sólo lo **acreditado** decide si la venta está cobrada. Hoy es todo, así
-    # que da lo mismo que antes; cuando el QR declare `PENDIENTE`, esta línea es
-    # la que hace que la venta nazca pendiente en vez de mentir.
+    # 🔴 Sólo lo **acreditado** decide si la venta está cobrada. Una venta que se
+    # va a cobrar con el QR nace `pendiente` y sin movimiento de caja: el arqueo
+    # no cuenta esa plata hasta que MercadoPago diga que entró.
     total_pagado = float(acreditacion.acreditado(pagos))
 
     cliente_nombre = payload.cliente_nombre.strip()
