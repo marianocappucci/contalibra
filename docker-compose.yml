@@ -116,6 +116,24 @@ services:
       - CONTALIBRA_DATABASE_URL=postgresql://contalibra:${CONTALIBRA_POSTGRES_PASSWORD:?hay que definirla en el .env del VPS}@contalibra-postgres:5432/contalibra
       - ENV=development
       - DOCS_AUTH_SECRET=${DOCS_AUTH_SECRET:-}
+      # 🔴 El token con el que ESTA instancia acepta llamadas de otro producto
+      # de la familia. Hoy lo usa el puente de MedLibra: el consultorio cierra
+      # un turno y lo manda a `POST /api/integraciones/consultas`, que es donde
+      # vive la contabilidad.
+      #
+      # 🔑 **Default VACÍO, y es la defensa.** Sin esta variable
+      # `token_de_servicio_valido` devuelve `False` **sin mirar el header**, así
+      # que los endpoints que aceptan "admin o servicio" se comportan como si
+      # sólo aceptaran admin. Un default con un valor real en el repo le daría
+      # acceso de servicio a cualquiera que lo lea, y `dev.contalibra.com.ar` es
+      # público. El valor vive en el `.env` del VPS, como el resto de los
+      # secretos de esta instancia.
+      #
+      # ⚠️ Del otro lado la variable se llama distinto —MedLibra la manda como
+      # `CONTALIBRA_SERVICE_TOKEN`— y es a propósito: son dos permisos, el que
+      # nosotros aceptamos y el que a ellos les dejamos usar. Compartir el
+      # nombre haría que rotar uno rote el otro sin que nadie lo pida.
+      - LIBRA_SERVICE_TOKEN=${LIBRA_SERVICE_TOKEN:-}
       # Recuperacion de contrasena (libraauth v0.5.0). Sin SMTP la app
       # levanta igual y POST /api/forgot-password devuelve 503: cargar
       # estas variables es lo unico que falta para que mande mails.
