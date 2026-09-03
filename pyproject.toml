@@ -71,11 +71,14 @@ dependencies = [
     # que este producto NO tenía en su contenedor (medido) y que
     # `libracore-migrar` necesita para aplicar la cadena del motor. Sin él, el
     # paso del deploy muere con un `ModuleNotFoundError` en vez de correr.
-    # v1.76.0: `apply_plan` saltea los add-ons opcionales (`plans.ADDONS`), la
-    # fundación del paquete mayorista de este repo — un add-on prendido sobrevive
-    # a los cambios de plan. Trae además el piso `pydantic>=2.9` (el resolver del
-    # CI en entorno limpio caía a pydantic v1). Ver plans.py::ADDONS.
-    "libracore[migrations] @ git+https://github.com/marianocappucci/libracore.git@v1.76.0",
+    # v1.78.0: la cuenta corriente normaliza el CUIT al cruzar `clients` con
+    # `facturas` (sacando los guiones de los dos lados antes de comparar). Sin
+    # esto, un cliente cuyo CUIT quedó cargado con guiones en la ficha pero sin
+    # ellos en alguna factura (las dos grafías conviven en la base real) veía
+    # su deuda por facturas invisible en el saldo — llegó a mostrar "a favor"
+    # en vez de deudor. Detectado en producción: Municipalidad de Suipacha,
+    # ver wiki/entities/contalibra.md (2026-09-03).
+    "libracore[migrations] @ git+https://github.com/marianocappucci/libracore.git@v1.78.0",
     # v0.7.0 sube al motor las transferencias entre depositos y la guarda de
     # disponibilidad, que hasta ahora vivian solo aca (`db_productos.
     # transferir_stock`) y arrastraban dos defectos: no eran atomicas y el
