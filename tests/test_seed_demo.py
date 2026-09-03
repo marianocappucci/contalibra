@@ -299,3 +299,41 @@ def test_donde_NO(url):
     reales facturando. Datos inventados mezclados ahí no se distinguen
     después."""
     assert url_no_productiva(url) is False
+
+
+def test_LA_FECHA_NO_SE_RESUELVE_AL_IMPORTAR(monkeypatch):
+    """🔴 La guarda del defecto que puso en rojo el CI de Restolibra el 2026-08-29.
+
+    `HOY` era un `date.today()` a nivel de módulo: quedaba congelado en el
+    instante del import. Un proceso que importa antes de medianoche y siembra
+    después —esta suite tarda casi ocho minutos, y el cron de la demo corre
+    sobre procesos que viven días— siembra para AYER, y después la pantalla de
+    tesorería se ve vacía el día que alguien la abre.
+
+    No se prueba llamando a `sembrar()`: eso es una corrida entera contra la
+    base. Se prueba la pieza que decide la fecha, que es donde vivía el defecto.
+    """
+    import datetime
+
+    import scripts.seed_demo as seed
+
+    # Se mueve el reloj DESPUÉS de que el módulo ya está importado, que es
+    # exactamente el cruce de medianoche a mitad de corrida.
+    otro_dia = datetime.date(2031, 7, 4)
+
+    class RelojMovido(datetime.date):
+        @classmethod
+        def today(cls):
+            return otro_dia
+
+    monkeypatch.setattr(seed, "date", RelojMovido)
+
+    assert seed._fijar_hoy() == otro_dia, (
+        "la fecha sigue viniendo del import: mover el reloj no la cambió"
+    )
+    # Y deja el módulo consistente: los lugares que siembran datos del día leen
+    # `seed.HOY`, no el valor devuelto.
+    assert seed.HOY == otro_dia, (
+        "`_fijar_hoy` devolvió la fecha nueva pero no actualizó `HOY`, que es "
+        "la que usan los sembradores"
+    )

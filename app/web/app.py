@@ -1,78 +1,80 @@
 import os
 import re
 
-
-from fastapi.staticfiles import StaticFiles
-from fastapi import FastAPI, HTTPException, Request, Depends
-from fastapi.responses import RedirectResponse, JSONResponse
-from fastapi.templating import Jinja2Templates
-
-from app.spa import montar_spa
-from starlette.middleware.base import BaseHTTPMiddleware
 import httpx
-
-from app import database as db
-from libracore.facturas_router import smtp_efectivo
-from libracore import arca_credenciales
-from app import config_manager
-from app import arca_wsaa
-from app import arca_wspadron
-from app.security_headers import SecurityHeadersMiddleware
-from app.web.auth import require_auth, get_current_user
-from app.web.routers import remitos, presupuestos, facturas, config as config_router, webhooks
-from app.web.routers import productos as productos_router
-from app.web.routers import ventas as ventas_router
-from app.web.routers import logs as logs_router
-from app.web.routers import reportes as reportes_router
-from app.web.routers import libros_iva as libros_iva_router
-from app import db_usuarios
-from app.web import auth as web_auth
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from libraauth.auth_events import AuthEventRepository
 from libraauth.demo_codigos import DemoCodigoRepository
 from libraauth.session_auth import build_demo_codigos_router, demo_username
 from libraauth.terminos import TerminosRepository, build_terminos_router
-from app.web.api import auth as api_auth_router
-from app.web.api import dashboard as api_dashboard_router
-from app.web.api import integraciones as api_integraciones_router
-from app.web.api import resumen as api_resumen_router
-from app.web.api import clientes as api_clientes_router
-from app.web.api import productos as api_productos_router
-from app.web.api import listas_precio as api_listas_precio_router
-from app.web.api import proveedores as api_proveedores_router
-from app.web.api import egresos as api_egresos_router
-from app.web.api import usuarios as api_usuarios_router
-from app.web.api import config as api_config_router
+from libracore import arca_credenciales
 from libracore.arca_router import build_arca_router
-from app.web.api import depositos as api_depositos_router
-from app.web.api import stock as api_stock_router
-from app.web.api import cuenta_corriente as api_cc_router
-from app.web.api import recibos as api_recibos_router
-from app.web.api import tesoreria as api_tesoreria_router
-from app.web.api import caja as api_caja_router
-from app.web.api import cajas as api_cajas_router
-from app.web.api import turnos as api_turnos_router
-from app.web.api import ventas as api_ventas_router
-from app.web.api import facturas as api_facturas_router
-from app.web.api import remitos as api_remitos_router
-from app.web.api import presupuestos as api_presupuestos_router
-from app.web.api import mp_bandeja as api_mp_bandeja_router
-from app.web.api import libros_iva as api_libros_iva_router
-from app.web.api import reportes as api_reportes_router
-from app.web.api import logs as api_logs_router
-from app.web.api_auth import (  # noqa: F401
-    get_current_user_json, require_admin_json, require_admin_o_servicio_json,
-)
-from app.web.modules_gate import require_module
 from libracore.comprobantes_router import (
     build_comprobantes_bandeja_router,
     build_comprobantes_ingesta_router,
 )
 from libracore.config_router import (
-    build_backup_router, build_empresa_admin_router, build_empresa_router,
+    build_backup_router,
+    build_empresa_admin_router,
+    build_empresa_router,
 )
+from libracore.facturas_router import smtp_efectivo
 from libracore.mp_config_router import build_mp_config_router
 from libracore.respaldo import Instancia
 from libracore.smtp_router import build_smtp_probe_router
+from starlette.middleware.base import BaseHTTPMiddleware
+
+from app import arca_wsaa, arca_wspadron, config_manager, db_usuarios
+from app import database as db
+from app.security_headers import SecurityHeadersMiddleware
+from app.spa import montar_spa
+from app.web import auth as web_auth
+from app.web.api import auth as api_auth_router
+from app.web.api import caja as api_caja_router
+from app.web.api import cajas as api_cajas_router
+from app.web.api import clientes as api_clientes_router
+from app.web.api import config as api_config_router
+from app.web.api import cuenta_corriente as api_cc_router
+from app.web.api import dashboard as api_dashboard_router
+from app.web.api import depositos as api_depositos_router
+from app.web.api import egresos as api_egresos_router
+from app.web.api import facturas as api_facturas_router
+from app.web.api import integraciones as api_integraciones_router
+from app.web.api import libros_iva as api_libros_iva_router
+from app.web.api import listas_precio as api_listas_precio_router
+from app.web.api import logs as api_logs_router
+from app.web.api import mayorista as api_mayorista_router
+from app.web.api import mayorista_listas as api_mayorista_listas_router
+from app.web.api import mp_bandeja as api_mp_bandeja_router
+from app.web.api import presupuestos as api_presupuestos_router
+from app.web.api import productos as api_productos_router
+from app.web.api import proveedores as api_proveedores_router
+from app.web.api import recibos as api_recibos_router
+from app.web.api import remitos as api_remitos_router
+from app.web.api import reportes as api_reportes_router
+from app.web.api import resumen as api_resumen_router
+from app.web.api import stock as api_stock_router
+from app.web.api import tesoreria as api_tesoreria_router
+from app.web.api import turnos as api_turnos_router
+from app.web.api import usuarios as api_usuarios_router
+from app.web.api import ventas as api_ventas_router
+from app.web.api_auth import (  # noqa: F401
+    get_current_user_json,
+    require_admin_json,
+    require_admin_o_servicio_json,
+)
+from app.web.auth import get_current_user, require_auth
+from app.web.modules_gate import require_module
+from app.web.routers import config as config_router
+from app.web.routers import facturas, presupuestos, remitos, webhooks
+from app.web.routers import libros_iva as libros_iva_router
+from app.web.routers import logs as logs_router
+from app.web.routers import productos as productos_router
+from app.web.routers import reportes as reportes_router
+from app.web.routers import ventas as ventas_router
 
 app = FastAPI(title="Contalibra")
 
@@ -221,6 +223,19 @@ app.include_router(api_resumen_router.router)
 app.include_router(
     api_clientes_router.router,
     dependencies=[_auth_json, Depends(require_module("clientes"))],
+)
+# Add-on mayorista: comparte el prefijo `/api/clientes` pero su gate es el del
+# add-on, no el de `clientes` (ver plans.py::ADDONS). Sus rutas
+# (`/{id}/lista-precio`) no chocan con las del router de clientes.
+app.include_router(
+    api_mayorista_router.router,
+    dependencies=[_auth_json, Depends(require_module("mayorista"))],
+)
+# Quiebres por cantidad y resolución de precio por cantidad. Mismo prefijo
+# `/api/listas-precio` que el router base, pero gateado por el add-on.
+app.include_router(
+    api_mayorista_listas_router.router,
+    dependencies=[_auth_json, Depends(require_module("mayorista"))],
 )
 app.include_router(
     api_productos_router.router,

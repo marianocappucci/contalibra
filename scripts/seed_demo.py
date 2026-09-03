@@ -45,7 +45,34 @@ from datetime import date, timedelta
 from http.cookiejar import CookieJar
 from urllib.parse import urlparse
 
+#: La fecha que la siembra considera «hoy». La leen los lugares que siembran
+#: datos del día — tesorería, presupuestos, la operación comercial.
+#:
+#: 🔴 **Se refresca en `sembrar()`, NO al importar el módulo.** Era
+#: `HOY = date.today()` a secas acá arriba, o sea congelada en el instante del
+#: import. Esta suite tarda casi ocho minutos: importar antes de medianoche y
+#: sembrar después significa **sembrar para ayer**. En Restolibra, con el mismo
+#: defecto, eso puso en rojo el CI de la promoción a producción del 2026-08-29
+#: a las 00:04 de Argentina, con el mismo código que había pasado en verde una
+#: hora antes. Se lee como un test inestable y es un dato viejo.
+#:
+#: Y no es sólo el test: la demo se resiembra por cron sobre un proceso que
+#: puede vivir días. Con la fecha del import, «un movimiento de caja de hoy»
+#: termina siendo uno del día que arrancó el proceso, y la pantalla se ve vacía.
 HOY = date.today()
+
+
+def _fijar_hoy() -> date:
+    """Resuelve `HOY` para esta corrida y lo devuelve.
+
+    Se hace UNA vez por siembra y no en cada uso: dentro de una misma corrida
+    todas las filas del día tienen que llevar la misma fecha, o un cruce de
+    medianoche a mitad de camino dejaría la mitad de la demo en un día y la
+    otra mitad en el siguiente.
+    """
+    global HOY
+    HOY = date.today()
+    return HOY
 
 #: Los subdominios que NO son de un cliente. Se compara el host entero o su
 #: primera etiqueta, **no como substring de la URL**: con substrings, un cliente
@@ -169,7 +196,11 @@ PROVEEDORES = [
 ]
 
 
-def sembrar(api: Api) -> None:
+def sembrar(api: Api) -> date:
+    # 🔴 Primera línea, y no en cada uso: ver `_fijar_hoy`. Se devuelve la
+    # fecha usada para que quien verifique «hay algo de hoy» pregunte por
+    # ESTA y no por `date.today()` al momento del assert.
+    hoy = _fijar_hoy()
     hechos = {}
 
     def contar(clave: str, nuevo: bool):
@@ -264,6 +295,8 @@ def sembrar(api: Api) -> None:
     print()
     for clave, (creados, existentes) in sorted(hechos.items()):
         print(f"  {clave:<13} {creados} creados, {existentes} ya estaban")
+
+    return hoy
 
 
 def _sembrar_bandeja_mp(api: Api, contar) -> None:

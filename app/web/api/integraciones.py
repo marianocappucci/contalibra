@@ -39,10 +39,9 @@ que todavía no se actualizó, pero **son excluyentes**: mandar los dos es un
 pedido ambiguo y se rechaza en vez de elegir uno.
 """
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field, model_validator
-
 from libracore import medios_pago
 from libracore import pagos as acreditacion
+from pydantic import BaseModel, Field, model_validator
 
 from app import database as db
 from app import venta_facturacion

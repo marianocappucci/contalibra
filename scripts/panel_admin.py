@@ -13,15 +13,45 @@ wiki/entities/libracore.md). Solo fija las constantes propias de Contalibra;
 la lógica real vive en LibraCore.
 """
 import os
+import subprocess
+import sys
 from pathlib import Path
 
-from libracore.provisioning import configure, client_from_config, forward_host_from_config, le_email_from_config, npm_available
+from libracore.provisioning import (
+    client_from_config,
+    configure,
+    forward_host_from_config,
+    le_email_from_config,
+    npm_available,
+)
 from libracore.provisioning.panel_admin import (
-    cli, cmd_activar, cmd_backup, cmd_backup_all, cmd_eliminar, cmd_estado_servicio,
-    cmd_info, cmd_list_backups, cmd_listar, cmd_logs, cmd_npm_crear, cmd_npm_eliminar,
-    cmd_npm_listar, cmd_pausar, cmd_restart, cmd_restore_db, cmd_start, cmd_stop,
-    cmd_suspender, cmd_actualizar, compose, container_status, find_client, interactive,
-    load_clients, pick_client, _set_servicio_estado,
+    _set_servicio_estado,
+    cli,
+    cmd_activar,
+    cmd_actualizar,
+    cmd_backup,
+    cmd_backup_all,
+    cmd_eliminar,
+    cmd_estado_servicio,
+    cmd_info,
+    cmd_list_backups,
+    cmd_listar,
+    cmd_logs,
+    cmd_npm_crear,
+    cmd_npm_eliminar,
+    cmd_npm_listar,
+    cmd_pausar,
+    cmd_restart,
+    cmd_restore_db,
+    cmd_start,
+    cmd_stop,
+    cmd_suspender,
+    compose,
+    container_status,
+    find_client,
+    interactive,
+    load_clients,
+    pick_client,
 )
 
 REPO_ROOT = Path(__file__).parent.parent.resolve()
@@ -92,5 +122,59 @@ configure(
 CLIENTES_DIR = REPO_ROOT / "clientes"
 _NPM_AVAILABLE = npm_available()
 
+def _addon(argv: list[str]) -> bool:
+    """`panel_admin.py addon <slug> <addon> on|off`.
+
+    Prende o apaga un add-on (módulo suelto de `plans.ADDONS`, ej. `mayorista`)
+    en la instancia de un cliente. Un add-on no pertenece a ningún plan, así que
+    el `set_plan` del backoffice no lo toca; este comando es el MVP para
+    habilitarlo (el botón en el backoffice queda como paso aparte).
+
+    Corre `set_addon` DENTRO del contenedor —donde `libracore.db.core` apunta al
+    PostgreSQL de la instancia—, igual que el alta aplica el plan
+    (`nuevo_cliente._aplicar_plan_en_contenedor`). El efecto es inmediato:
+    `require_module` relee `get_modulos()` en cada request, sin necesidad de
+    reiniciar.
+    """
+    if str(REPO_ROOT) not in sys.path:
+        sys.path.insert(0, str(REPO_ROOT))
+    import plans  # el plans.py del producto, que declara ADDONS
+
+    disponibles = ", ".join(sorted(plans.ADDONS)) or "(ninguno)"
+    if len(argv) != 3 or argv[2] not in ("on", "off"):
+        print("Uso: panel_admin.py addon <slug> <addon> on|off")
+        print(f"Add-ons: {disponibles}")
+        return False
+    slug, addon, estado = argv
+    if addon not in plans.ADDONS:
+        print(f"Add-on desconocido: {addon!r}. Disponibles: {disponibles}")
+        return False
+    cliente = find_client(slug)
+    if not cliente:
+        print(f"Cliente no encontrado: {slug!r}")
+        return False
+
+    on = "True" if estado == "on" else "False"
+    codigo = (
+        "import sys; sys.path.insert(0, '/app'); "
+        f"from app.database import set_addon; set_addon({addon!r}, {on})"
+    )
+    r = subprocess.run(
+        ["docker", "exec", cliente["container"], "python3", "-c", codigo],
+        capture_output=True, text=True,
+    )
+    if r.returncode != 0:
+        print(f"[ERROR] no se pudo aplicar el add-on en {slug!r}: {(r.stderr or r.stdout).strip()}")
+        return False
+    print(f"[OK] add-on {addon!r} {'habilitado' if estado == 'on' else 'deshabilitado'} en {slug!r}")
+    return True
+
+
 if __name__ == "__main__":
-    cli()
+    # El add-on es un comando propio de este wrapper (módulo suelto, no un plan):
+    # `cli()` de LibraCore no lo conoce. El resto de los comandos van a `cli()`.
+    if len(sys.argv) >= 2 and sys.argv[1] == "addon":
+        if _addon(sys.argv[2:]) is False:
+            sys.exit(1)
+    else:
+        cli()

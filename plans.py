@@ -55,32 +55,44 @@ def modulos_de_plan(plan: str) -> set[str]:
 # Superset de todos los módulos gateables = los del plan más alto (Premium).
 TODOS_LOS_MODULOS = set(PLAN_MODULOS["premium"])
 
+# Add-ons opcionales: módulos pagos que se habilitan por instancia y NO
+# pertenecen a ningún plan. No entran en `PLAN_MODULOS` ni en
+# `TODOS_LOS_MODULOS`, así que ni `apply_plan` (motor) ni `aplicar_plan_en_db`
+# (acá) los tocan al aplicar un plan — un add-on prendido sobrevive a subir o
+# bajar de plan, que es justo lo que se paga. `libracore.db.modulos.apply_plan`
+# lee este set con `getattr(plans, "ADDONS", set())`.
+#   - mayorista: lista de precios por cliente + quiebres por cantidad
+#     (paquete mayorista, ver wiki/analyses/distribuidora-mayorista-producto-candidato).
+ADDONS = {"mayorista"}
 
-def aplicar_plan_en_db(db_path: str, plan: str):
-    """Aplica un plan escribiendo el estado de módulos directo en la DB SQLite de un
-    cliente (`clientes/<slug>/data/contalibra.db`). Lo usa el backoffice para asignar /
-    subir / bajar el plan de una instancia sin depender del contenedor.
 
-    Es idempotente y crea las filas de módulos que falten (INSERT OR IGNORE + UPDATE),
-    así que funciona igual sobre una DB recién seedeada o una existente. Requiere que la
-    tabla `modulos` ya exista (la crea la app al iniciar).
+def aplicar_plan_en_db(db_path: str, plan: str) -> None:
+    """Aplica un plan escribiendo el estado de módulos en la base de un cliente.
+    Lo usa el backoffice para asignar / subir / bajar el plan de una instancia.
+
+    🔴 **`db_path` puede ser una ruta SQLite o una URL PostgreSQL**, y esto DELEGA
+    en `libracore.provisioning.apply_plan_modules`, que abre cualquiera de los dos
+    (`libracore.db.core.conectar`). Antes hacía `sqlite3.connect(db_path)` a secas:
+    contra una instancia PostgreSQL —que es lo que corre este producto— eso no
+    abría la base viva (fallaba con *"unable to open database file"* sobre la URL),
+    así que **el plan no se aplicaba** y los módulos quedaban como los dejó el seed
+    (todos prendidos). Es el mismo shim que ya usaban VentaLibra/Gestiolibra; se
+    migró el 2026-09-03 tras verificar el defecto en el VPS. Ver
+    wiki/entities/contalibra.md.
+
+    Idempotente (INSERT OR IGNORE + UPDATE). Requiere que la tabla `modulos` exista.
+
+    `- ADDONS`: aplicar un plan nunca toca un add-on (`mayorista`). Hoy es
+    equivalente a `TODOS_LOS_MODULOS` (los add-ons ya están afuera), pero deja la
+    invariante escrita.
     """
-    import sqlite3
+    from libracore.provisioning import apply_plan_modules
+
     if plan not in PLAN_MODULOS:
         raise ValueError(f"Plan desconocido: {plan!r}")
-    activos = modulos_de_plan(plan)
-    con = sqlite3.connect(db_path)
-    try:
-        for m in sorted(TODOS_LOS_MODULOS):
-            on = 1 if m in activos else 0
-            con.execute(
-                "INSERT OR IGNORE INTO modulos (modulo, habilitado, plan) VALUES (?,?,?)",
-                (m, on, plan),
-            )
-            con.execute(
-                "UPDATE modulos SET habilitado=?, plan=? WHERE modulo=?",
-                (on, plan, m),
-            )
-        con.commit()
-    finally:
-        con.close()
+    apply_plan_modules(
+        db_path,
+        active_modules=modulos_de_plan(plan),
+        all_modules=TODOS_LOS_MODULOS - ADDONS,
+        plan=plan,
+    )

@@ -41,7 +41,12 @@ pytestmark = pytest.mark.skipif(
 #: Las tablas que esta cadena gobierna. Las otras 58 son de los motores y no
 #: entran: si `libracommerce` agrega una columna a `sales`, este test no tiene
 #: por qué ponerse rojo.
-TABLAS_PROPIAS = ("integraciones_config", "venta_links", "ventas_origen_externo")
+TABLAS_PROPIAS = (
+    "cliente_lista_precio",
+    "integraciones_config",
+    "venta_links",
+    "ventas_origen_externo",
+)
 
 
 def _schema_de_las_propias() -> str:
@@ -51,18 +56,19 @@ def _schema_de_las_propias() -> str:
     y los nombres de constraint autogenerados, que cambian sin que el schema
     cambie y convertirían este test en ruido.
     """
+    marcadores = ", ".join("?" * len(TABLAS_PROPIAS))
     with db_core.get_connection() as conn:
         filas = conn.execute(
             "SELECT table_name, column_name, data_type, is_nullable, column_default "
             "FROM information_schema.columns "
-            "WHERE table_schema = 'public' AND table_name IN (?, ?, ?) "
+            f"WHERE table_schema = 'public' AND table_name IN ({marcadores}) "
             "ORDER BY table_name, column_name",
             TABLAS_PROPIAS,
         ).fetchall()
 
     # 🔴 El control que impide el falso verde más barato de todos: si las dos
     # rutas fallaran y dejaran la base vacía, comparar dos strings vacíos daría
-    # verde. Se exige que estén LAS TRES tablas, no "alguna".
+    # verde. Se exige que estén TODAS las tablas propias, no "alguna".
     presentes = {f[0] for f in filas}
     assert presentes == set(TABLAS_PROPIAS), (
         f"faltan tablas propias en la base: encontradas {sorted(presentes)}, "
@@ -133,10 +139,10 @@ def test_la_secuencia_declarada_levanta_el_schema_desde_cero():
         version = conn.execute(
             "SELECT version_num FROM alembic_version_contalibra"
         ).fetchall()
-    assert [f[0] for f in version] == ["0001_baseline_contalibra"], (
+    assert [f[0] for f in version] == ["0002_cliente_lista_precio"], (
         f"la cadena propia dejó {version} en `alembic_version_contalibra`"
     )
-    _schema_de_las_propias()  # exige que estén las tres
+    _schema_de_las_propias()  # exige que estén todas las propias
 
 
 def test_la_baseline_y_el_arranque_dejan_el_mismo_schema():
@@ -182,7 +188,7 @@ def test_las_dos_cadenas_no_comparten_la_tabla_de_version():
             "SELECT version_num FROM alembic_version_contalibra"
         ).fetchone()
 
-    assert propia[0] == "0001_baseline_contalibra"
+    assert propia[0] == "0002_cliente_lista_precio"
     assert del_motor[0] != propia[0], (
         "las dos cadenas escribieron la misma revisión: están compartiendo la "
         "tabla de versión."

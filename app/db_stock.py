@@ -22,9 +22,10 @@ movimiento, el stock siempre se calcula sumando.
 """
 import contextlib
 
+from libracore.db.core import Conexion
+
 from app.db_core import get_connection
 from app.db_productos import get_default_deposito_id
-from libracore.db.core import Conexion
 
 # Tipo de Contalibra -> movement_type semántico de LibraCommerce. El tipo
 # original se guarda aparte en `reason_code`, así que este mapeo puede ser
@@ -73,7 +74,8 @@ def add_movimiento_stock(producto_id: int, tipo: str, cantidad: float,
         return
     if tipo not in _TIPO_A_MOVEMENT_TYPE:
         raise ValueError(f"tipo de movimiento desconocido: {tipo!r}")
-    from datetime import date as _date, datetime as _datetime
+    from datetime import date as _date
+    from datetime import datetime as _datetime
     # Contalibra maneja `fecha` como 'YYYY-MM-DD'; `occurred_at` es un
     # timestamp ISO. Se normaliza siempre a la forma canónica completa para
     # que todos los movimientos ordenen igual entre sí — los migrados desde

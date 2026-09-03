@@ -38,9 +38,9 @@ DB_PATH = os.environ.get("CONTALIBRA_DATABASE_URL") or os.path.join(
 # tiene que morir ahi y no a la mitad de la primera pantalla.
 if not _lc_core.es_url_postgres(DB_PATH):
     raise RuntimeError(
-        "Contalibra corre solo sobre PostgreSQL y DB_PATH quedo en {!r}, que es "
+        f"Contalibra corre solo sobre PostgreSQL y DB_PATH quedo en {DB_PATH!r}, que es "
         "una ruta de archivo. Defini CONTALIBRA_DATABASE_URL con la URL de "
-        "la base.".format(DB_PATH)
+        "la base."
     )
 
 _lc_core.configure(db_path=DB_PATH)

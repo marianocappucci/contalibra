@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { api, ApiError, type CategoriaProducto, type ItemListaPrecio, type ListaPrecio } from '../api'
+import { useAuth } from '../context/AuthContext'
 import { type ColumnDef } from '@tanstack/react-table'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -40,6 +41,10 @@ export function ListaPrecioDetalle() {
   const { id } = useParams<{ id: string }>()
   const listaId = Number(id)
   const navigate = useNavigate()
+  const { user } = useAuth()
+  // El add-on mayorista habilita los quiebres por cantidad (una columna y un
+  // editor por producto). Sin él, la lista sigue siendo flat.
+  const hasMayorista = !!user?.modulos.includes('mayorista')
 
   const [lista, setLista] = useState<ListaPrecio | null>(null)
   const [categorias, setCategorias] = useState<CategoriaProducto[]>([])
@@ -70,6 +75,12 @@ export function ListaPrecioDetalle() {
   const [configActiva, setConfigActiva] = useState(true)
   const [configSaving, setConfigSaving] = useState(false)
   const [confirmDeleteLista, setConfirmDeleteLista] = useState(false)
+
+  // Add-on mayorista: editor de quiebres del producto abierto (null = cerrado).
+  const [quiebresProducto, setQuiebresProducto] = useState<ItemListaPrecio | null>(null)
+  const [quiebres, setQuiebres] = useState<{ min_quantity: string; amount: string }[]>([])
+  const [quiebresSaving, setQuiebresSaving] = useState(false)
+  const [quiebresError, setQuiebresError] = useState<string | null>(null)
 
   useEffect(() => {
     cargarLista()
@@ -237,6 +248,46 @@ export function ListaPrecioDetalle() {
     }
   }
 
+  async function abrirQuiebres(producto: ItemListaPrecio) {
+    setQuiebresProducto(producto)
+    setQuiebresError(null)
+    setQuiebres([])
+    try {
+      const qs = await api.get<{ min_quantity: number; amount: number }[]>(
+        `/api/listas-precio/${listaId}/items/${producto.id}/quiebres`,
+      )
+      setQuiebres(qs.map((q) => ({ min_quantity: String(q.min_quantity), amount: String(q.amount) })))
+    } catch (err) {
+      setQuiebresError(describeError(err))
+    }
+  }
+
+  function agregarQuiebre() { setQuiebres((qs) => [...qs, { min_quantity: '', amount: '' }]) }
+  function quitarQuiebre(i: number) { setQuiebres((qs) => qs.filter((_, idx) => idx !== i)) }
+  function actualizarQuiebre(i: number, field: 'min_quantity' | 'amount', value: string) {
+    setQuiebres((qs) => qs.map((q, idx) => idx === i ? { ...q, [field]: value } : q))
+  }
+
+  async function guardarQuiebres() {
+    if (!quiebresProducto) return
+    setQuiebresSaving(true)
+    setQuiebresError(null)
+    try {
+      // Sólo las filas completas; el backend valida cantidad>=2, precio>0 y no repetidos.
+      const payload = {
+        quiebres: quiebres
+          .filter((q) => q.min_quantity && q.amount)
+          .map((q) => ({ min_quantity: Number(q.min_quantity), amount: Number(q.amount) })),
+      }
+      await api.put(`/api/listas-precio/${listaId}/items/${quiebresProducto.id}/quiebres`, payload)
+      setQuiebresProducto(null)
+    } catch (err) {
+      setQuiebresError(describeError(err))
+    } finally {
+      setQuiebresSaving(false)
+    }
+  }
+
   const itemColumns = useMemo<ColumnDef<ItemListaPrecio>[]>(() => [
     { accessorKey: 'codigo', header: 'Código', cell: ({ row }) => <span className="font-mono text-xs">{row.original.codigo || '—'}</span> },
     { accessorKey: 'nombre', header: 'Producto', cell: ({ row }) => <span className="font-medium">{row.original.nombre}</span> },
@@ -265,8 +316,15 @@ export function ListaPrecioDetalle() {
         return <span className={`text-sm ${cls}`}>{label}</span>
       },
     },
+    ...(hasMayorista ? [{
+      id: 'quiebres',
+      header: 'Quiebres',
+      cell: ({ row }: { row: { original: ItemListaPrecio } }) => (
+        <Button size="sm" variant="outline" onClick={() => abrirQuiebres(row.original)}>Quiebres</Button>
+      ),
+    }] : []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [precios])
+  ], [precios, hasMayorista])
 
   return (
     <div className="grid gap-4">
@@ -452,6 +510,42 @@ export function ListaPrecioDetalle() {
           eliminarLista()
         }}
       />
+
+      <Dialog open={quiebresProducto !== null} onOpenChange={(o) => { if (!o) setQuiebresProducto(null) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Tag className="size-4" />Quiebres por cantidad</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <p className="text-sm text-muted-foreground">
+              Precios por cantidad para <strong>{quiebresProducto?.nombre}</strong>. El precio base de la lista
+              rige hasta el primer quiebre; de ahí en más, el precio del quiebre alcanzado.
+            </p>
+            {quiebresError && <p className="text-sm text-destructive">{quiebresError}</p>}
+            <div className="grid gap-2">
+              {quiebres.length === 0 && (
+                <p className="text-sm text-muted-foreground">Sin quiebres: el producto usa el precio base para toda cantidad.</p>
+              )}
+              {quiebres.map((q, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Desde</span>
+                  <Input type="number" step="1" min="2" className="w-24" placeholder="Cant." value={q.min_quantity}
+                    onChange={(e) => actualizarQuiebre(i, 'min_quantity', e.target.value)} />
+                  <span className="text-sm text-muted-foreground">u. →</span>
+                  <Input type="number" step="0.01" className="w-32" placeholder="Precio" value={q.amount}
+                    onChange={(e) => actualizarQuiebre(i, 'amount', e.target.value)} />
+                  <Button size="icon" variant="ghost" onClick={() => quitarQuiebre(i)}><Trash2 /></Button>
+                </div>
+              ))}
+              <div><Button size="sm" variant="outline" onClick={agregarQuiebre}>+ Agregar quiebre</Button></div>
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
+            <Button disabled={quiebresSaving} onClick={guardarQuiebres}>{quiebresSaving ? 'Guardando…' : 'Guardar quiebres'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -10,14 +10,15 @@ simulado, así que la suite recorre el flujo entero sin tocar ARCA.
 """
 import datetime
 
-from app import database as db
-from app import mp_api
 # 🔑 `obtener_pago` lo resuelve el WEBHOOK, que vive en `libracore`, asi que
 # se parchea el modulo del motor. `app.mp_api` es un shim y su atributo es
 # otro binding: parchearlo no intercepta nada y el test sale a la API real.
 # `buscar_pago_por_referencia`, en cambio, lo llama codigo de ESTE repo
 # (`web/api/ventas.py`), y por eso sigue parcheandose en `app.mp_api`.
 from libracore import mp_api as mp_api_del_motor
+
+from app import database as db
+from app import mp_api
 
 HOY = datetime.date.today().isoformat()
 
