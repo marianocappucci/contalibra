@@ -125,7 +125,7 @@ from app.db_logs import (  # noqa: F401
     registrar_auth_event,
 )
 from app.db_mayorista import crear_tabla_cliente_lista_precio  # noqa: F401  (lo usa init_db)
-from app.db_modulos import apply_plan, get_modulos  # noqa: F401
+from app.db_modulos import apply_plan, get_modulos, set_addon  # noqa: F401
 from app.db_mp import (  # noqa: F401
     crear_alias_facturacion,
     create_mp_movimiento,
