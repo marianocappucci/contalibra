@@ -121,6 +121,7 @@ from app.db_logs import (  # noqa: F401
     get_auth_log,
     registrar_auth_event,
 )
+from app.db_mayorista import crear_tabla_cliente_lista_precio  # noqa: F401  (lo usa init_db)
 from app.db_modulos import apply_plan, get_modulos  # noqa: F401
 from app.db_mp import (  # noqa: F401
     crear_alias_facturacion,
@@ -469,6 +470,14 @@ def init_db():
         # nueva va como revisión de Alembic, no como línea agregada ahí. Ver su
         # docstring para el reparto completo de las 61 tablas.
         init_schema_propio(conn)
+
+        # Tabla del add-on mayorista (asociación cliente → lista de precios).
+        # NO va dentro de `init_schema_propio` (congelada en la 0001): es una
+        # función aparte, llamada acá y por la revisión de Alembic
+        # `0002_cliente_lista_precio`. Va después de `init_schema_propio` porque
+        # sus FK apuntan a `clients` (core) y `price_lists` (commerce), ya
+        # creadas arriba. Ver `app/db_mayorista.py`.
+        crear_tabla_cliente_lista_precio(conn)
 
         # Seed de módulos: inserta sólo los que no existen aún. La lista de
         # módulos (y el plan que los habilita) es específica de Contalibra —
