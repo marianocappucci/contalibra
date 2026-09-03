@@ -14,7 +14,6 @@ Cada uno tiene su test y su control al lado.
 """
 import pytest
 from fastapi.testclient import TestClient
-
 from libraauth.session_auth import SERVICE_TOKEN_ENV, SERVICE_TOKEN_HEADER
 
 from app import database as db

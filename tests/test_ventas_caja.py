@@ -232,10 +232,10 @@ def test_un_pago_sin_estado_no_entra(admin_client):
     filas viejas-- asi que un INSERT que la omita contaria como plata que
     entro sin que nadie lo decida. Aca el estado se declara o revienta.
     """
-    from app import database as db
+    import pytest
     from libracore import pagos as acreditacion
 
-    import pytest
+    from app import database as db
     with pytest.raises(acreditacion.PagoSinEstado):
         db.crear_venta_directa(
             fecha=HOY,

@@ -1,6 +1,5 @@
 """Configuracion, gating de modulos por plan y corte de servicio."""
-from app import config_manager
-from app import db_core
+from app import config_manager, db_core
 from app import db_usuarios as db
 
 

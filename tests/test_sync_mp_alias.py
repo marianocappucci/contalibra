@@ -25,8 +25,6 @@ import asyncio
 import importlib.util
 from pathlib import Path
 
-from app import config_manager
-from app import database as db
 # 🔑 Se parchea `libracore.mp_api` y NO `app.mp_api`.
 #
 # `app/mp_api.py` es un shim (`from libracore.mp_api import ...`), asi que
@@ -34,6 +32,9 @@ from app import database as db
 # parchear el del producto no intercepta nada y el test sale a la API real
 # de MercadoPago -- da 401 y el caso se lee como "no facturo".
 from libracore import mp_api
+
+from app import config_manager
+from app import database as db
 
 RAIZ = Path(__file__).resolve().parent.parent
 

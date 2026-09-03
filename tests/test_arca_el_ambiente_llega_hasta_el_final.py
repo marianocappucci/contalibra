@@ -112,8 +112,9 @@ def test_una_demo_migrada_puede_consultar_el_padron(
     """🔴 La regresión que trae el bump del pin. Tras la migración `0007`, una
     instancia en homologación tiene las columnas de producción **vacías** — que
     es lo que este endpoint miraba para decidir si contestar 503."""
-    from app import arca_wsaa, arca_wspadron
     from libracore import config_manager
+
+    from app import arca_wsaa, arca_wspadron
 
     d = tmp_path / "arca_certs"
     d.mkdir()

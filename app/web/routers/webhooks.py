@@ -12,9 +12,10 @@ de este producto** y que el motor no tiene por qué conocer:
 """
 import logging
 
-from app import venta_facturacion
-from app import database as db
 from libracore.mp_webhook import build_mp_webhook_router
+
+from app import database as db
+from app import venta_facturacion
 
 logger = logging.getLogger(__name__)
 

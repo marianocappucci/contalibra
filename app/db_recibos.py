@@ -19,6 +19,7 @@ en tablas de LibraCore en esta misma base.
 from functools import partial
 
 from libracore import recibos as _recibos
+
 # Re-exportadas tal cual: la capa de datos no depende del producto.
 from libracore.db.recibos import (  # noqa: F401
     ORIGEN_CC_PAGO,

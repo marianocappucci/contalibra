@@ -12,10 +12,9 @@ directo, sin reimplementarlos.
 import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, field_validator, model_validator
-
 from libracore import medios_pago
 from libracore import pagos as acreditacion
+from pydantic import BaseModel, field_validator, model_validator
 
 from app import database as db
 from app import venta_facturacion

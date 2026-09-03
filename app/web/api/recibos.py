@@ -14,12 +14,12 @@ dos son 1:1), asi que estos POST se pueden repetir sin duplicar nada — ver
 el docstring de `libracore.recibos`.
 """
 from fastapi import APIRouter, Depends, HTTPException, Response
+from libracore.pdf_generator import generate_pdf_recibo_doc
+from libracore.recibos import SinCobros
 from pydantic import BaseModel
 
 from app import database as db
 from app.web.api_auth import get_current_user_json, require_admin_json
-from libracore.pdf_generator import generate_pdf_recibo_doc
-from libracore.recibos import SinCobros
 
 router = APIRouter(prefix="/api/recibos", tags=["recibos"])
 
