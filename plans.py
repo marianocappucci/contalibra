@@ -55,6 +55,16 @@ def modulos_de_plan(plan: str) -> set[str]:
 # Superset de todos los módulos gateables = los del plan más alto (Premium).
 TODOS_LOS_MODULOS = set(PLAN_MODULOS["premium"])
 
+# Add-ons opcionales: módulos pagos que se habilitan por instancia y NO
+# pertenecen a ningún plan. No entran en `PLAN_MODULOS` ni en
+# `TODOS_LOS_MODULOS`, así que ni `apply_plan` (motor) ni `aplicar_plan_en_db`
+# (acá) los tocan al aplicar un plan — un add-on prendido sobrevive a subir o
+# bajar de plan, que es justo lo que se paga. `libracore.db.modulos.apply_plan`
+# lee este set con `getattr(plans, "ADDONS", set())`.
+#   - mayorista: lista de precios por cliente + quiebres por cantidad
+#     (paquete mayorista, ver wiki/analyses/distribuidora-mayorista-producto-candidato).
+ADDONS = {"mayorista"}
+
 
 def aplicar_plan_en_db(db_path: str, plan: str):
     """Aplica un plan escribiendo el estado de módulos directo en la DB SQLite de un
@@ -71,7 +81,11 @@ def aplicar_plan_en_db(db_path: str, plan: str):
     activos = modulos_de_plan(plan)
     con = sqlite3.connect(db_path)
     try:
-        for m in sorted(TODOS_LOS_MODULOS):
+        # `- ADDONS`: aplicar un plan nunca toca un add-on. Hoy es equivalente a
+        # iterar TODOS_LOS_MODULOS (los add-ons ya están afuera), pero deja la
+        # invariante escrita: si alguien metiera un add-on en un set de plan por
+        # error, seguiría sin gatearse por plan.
+        for m in sorted(TODOS_LOS_MODULOS - ADDONS):
             on = 1 if m in activos else 0
             con.execute(
                 "INSERT OR IGNORE INTO modulos (modulo, habilitado, plan) VALUES (?,?,?)",
