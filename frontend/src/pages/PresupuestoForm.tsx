@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { api, ApiError, type Cliente, type Presupuesto, type ProductoBusqueda,
+import { api, ApiError, type Cliente, type ListaPrecio, type Presupuesto, type ProductoBusqueda,
   opcionesCliente,
 } from '../api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -46,10 +46,27 @@ export function PresupuestoForm() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sugerencias, setSugerencias] = useState<{ index: number; items: ProductoBusqueda[] } | null>(null)
+  // Lista de precios con la que se cotiza. `''` = precio de venta base. El
+  // selector aparece si la instancia tiene el modulo `listas_precio` (sin el,
+  // /api/listas-precio da 403 y la lista queda vacia). Con el add-on `mayorista`,
+  // ademas, se preselecciona la lista asignada al cliente elegido.
+  const [listasPrecio, setListasPrecio] = useState<ListaPrecio[]>([])
+  const [listaPrecioId, setListaPrecioId] = useState('')
 
   useEffect(() => {
     api.get<Cliente[]>('/api/clientes').then((c) => setClientes(c.filter((x) => x.activo))).catch(() => {})
+    api.get<ListaPrecio[]>('/api/listas-precio').then(setListasPrecio).catch(() => {})
   }, [])
+
+  // Add-on mayorista: al elegir un cliente, se preselecciona su lista asignada.
+  // Si la instancia no tiene el add-on, el endpoint da 403 y no se toca la
+  // seleccion manual. Con el add-on y sin lista asignada, vuelve al precio base.
+  useEffect(() => {
+    if (!clienteId) return
+    api.get<{ lista_id: number | null }>(`/api/clientes/${clienteId}/lista-precio`)
+      .then((r) => setListaPrecioId(r.lista_id === null ? '' : String(r.lista_id)))
+      .catch(() => {})
+  }, [clienteId])
 
   useEffect(() => {
     if (!editingId) return
@@ -86,7 +103,8 @@ export function PresupuestoForm() {
       return
     }
     try {
-      const res = await api.get<ProductoBusqueda[]>(`/productos/buscar?q=${encodeURIComponent(texto)}`)
+      const lp = listaPrecioId ? `&lista_id=${listaPrecioId}` : ''
+      const res = await api.get<ProductoBusqueda[]>(`/productos/buscar?q=${encodeURIComponent(texto)}${lp}`)
       setSugerencias({ index: i, items: res })
     } catch {
       setSugerencias(null)
@@ -163,6 +181,18 @@ export function PresupuestoForm() {
                   </SelectContent>
                 </Select>
               </div>
+              {listasPrecio.length > 0 && (
+                <div className="grid gap-2">
+                  <Label>Lista de precios</Label>
+                  <Select value={listaPrecioId || '__base__'} onValueChange={(v) => setListaPrecioId(v === '__base__' ? '' : v)}>
+                    <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__base__">— Precio de venta base —</SelectItem>
+                      {listasPrecio.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.nombre}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
 
             <div className="rounded-md border">
