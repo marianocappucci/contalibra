@@ -47,6 +47,7 @@ from app.web.api import libros_iva as api_libros_iva_router
 from app.web.api import listas_precio as api_listas_precio_router
 from app.web.api import logs as api_logs_router
 from app.web.api import mayorista as api_mayorista_router
+from app.web.api import mayorista_listas as api_mayorista_listas_router
 from app.web.api import mp_bandeja as api_mp_bandeja_router
 from app.web.api import presupuestos as api_presupuestos_router
 from app.web.api import productos as api_productos_router
@@ -228,6 +229,12 @@ app.include_router(
 # (`/{id}/lista-precio`) no chocan con las del router de clientes.
 app.include_router(
     api_mayorista_router.router,
+    dependencies=[_auth_json, Depends(require_module("mayorista"))],
+)
+# Quiebres por cantidad y resolución de precio por cantidad. Mismo prefijo
+# `/api/listas-precio` que el router base, pero gateado por el add-on.
+app.include_router(
+    api_mayorista_listas_router.router,
     dependencies=[_auth_json, Depends(require_module("mayorista"))],
 )
 app.include_router(

@@ -130,6 +130,71 @@ def get_precios_lista_dict(lista_id: int) -> dict[int, float]:
     return {r["item_id"]: r["amount"] for r in rows}
 
 
+# ── Quiebres por cantidad (add-on mayorista) ─────────────────────────────────
+#
+# El modelo flat de arriba escribe una fila por producto con `min_quantity IS
+# NULL` (el precio "1+"). El add-on mayorista agrega **quiebres**: filas EXTRA
+# para el mismo (lista, producto) con `min_quantity` seteado (ej. 10+ a $80).
+# `item_prices` ya los soporta y `SqliteCommerceRepository.resolve_price` ya los
+# resuelve por cantidad (elige el `min_quantity <= cantidad` más alto); acá sólo
+# se los guarda y se los lee. El gateo por `mayorista` va en la capa de API, no
+# acá. Ver wiki/analyses/distribuidora-mayorista-producto-candidato (slice 4).
+
+
+def get_quiebres(lista_id: int, producto_id: int) -> list[dict]:
+    """Los quiebres por cantidad del producto en la lista (sin el precio base).
+
+    Devuelve `[{min_quantity, amount}]` ordenado por cantidad. NO incluye la
+    fila base (`min_quantity IS NULL`), que es el precio "1+" del editor flat.
+    """
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT min_quantity, amount FROM item_prices "
+            "WHERE price_list_id=? AND item_id=? "
+            "AND branch_id IS NULL AND min_quantity IS NOT NULL "
+            "ORDER BY min_quantity",
+            (lista_id, producto_id),
+        ).fetchall()
+    return [{"min_quantity": float(r["min_quantity"]), "amount": float(r["amount"])} for r in rows]
+
+
+def set_quiebres(lista_id: int, producto_id: int, quiebres: list[dict]) -> None:
+    """Reemplaza los quiebres del producto en la lista (deja intacta la fila base).
+
+    `quiebres`: `[{min_quantity, amount}]`. Borra los quiebres anteriores (filas
+    con `min_quantity IS NOT NULL`) e inserta los nuevos. La fila base
+    (`min_quantity IS NULL`) no se toca — la maneja el editor flat.
+    """
+    with get_connection() as conn:
+        conn.execute(
+            "DELETE FROM item_prices WHERE price_list_id=? AND item_id=? "
+            "AND branch_id IS NULL AND min_quantity IS NOT NULL",
+            (lista_id, producto_id),
+        )
+        for q in quiebres:
+            conn.execute(
+                "INSERT INTO item_prices (item_id, price_list_id, amount, valid_from, min_quantity) "
+                "VALUES (?,?,?,?,?)",
+                (producto_id, lista_id, float(q["amount"]), _SIN_VIGENCIA, float(q["min_quantity"])),
+            )
+
+
+def resolver_precio_por_cantidad(lista_id: int, producto_id: int, cantidad: float) -> float | None:
+    """El precio efectivo del producto en la lista para esa cantidad.
+
+    Delega en `resolve_price` del motor, que entre las filas aplicables (base +
+    quiebres con `min_quantity <= cantidad`) elige el quiebre más alto. Devuelve
+    `None` si el producto no tiene ningún precio aplicable en la lista.
+    """
+    from decimal import Decimal
+
+    with get_connection() as conn:
+        precio = SqliteCommerceRepository(conn).resolve_price(
+            producto_id, price_list_id=lista_id, quantity=Decimal(str(cantidad)),
+        )
+    return float(precio) if precio is not None else None
+
+
 def _upsert_precio(conn, lista_id: int, producto_id: int, precio: float) -> None:
     """`item_prices` no tiene una PK natural (lista_id, producto_id) como
     tenía `lista_precio_items` -- admite varias filas por combinación

@@ -110,8 +110,11 @@ from app.db_listas_precio import (  # noqa: F401
     get_lista_precio_items,
     get_precio_en_lista,
     get_precios_lista_dict,
+    get_quiebres,
     importar_precios_lista,
+    resolver_precio_por_cantidad,
     save_lista_precio_items,
+    set_quiebres,
     update_lista_precio,
 )
 from app.db_logs import (  # noqa: F401

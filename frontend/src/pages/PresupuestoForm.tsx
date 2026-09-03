@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { api, ApiError, type Cliente, type ListaPrecio, type Presupuesto, type ProductoBusqueda,
   opcionesCliente,
 } from '../api'
+import { useAuth } from '../context/AuthContext'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,8 +20,10 @@ function formatCurrency(value: number): string {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value)
 }
 
-type ItemRow = { description: string; qty: string; unit_price: string }
-const EMPTY_ITEM: ItemRow = { description: '', qty: '1', unit_price: '0' }
+// `producto_id` se guarda sólo en el front (el presupuesto no lo persiste): lo
+// necesita el re-precio por cantidad del add-on mayorista.
+type ItemRow = { description: string; qty: string; unit_price: string; producto_id: number | null }
+const EMPTY_ITEM: ItemRow = { description: '', qty: '1', unit_price: '0', producto_id: null }
 
 // Misma pagina para alta y edicion, igual que el form.html viejo -- si hay
 // :id en la ruta (/presupuestos/:id/editar) precarga el presupuesto existente.
@@ -28,6 +31,8 @@ export function PresupuestoForm() {
   const { id } = useParams<{ id: string }>()
   const editingId = id ? Number(id) : null
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const hasMayorista = !!user?.modulos.includes('mayorista')
 
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [loadingPresupuesto, setLoadingPresupuesto] = useState(Boolean(editingId))
@@ -77,7 +82,9 @@ export function PresupuestoForm() {
       setValidUntil(p.valid_until)
       setTaxRate(String(p.tax_rate))
       setObservations(p.observations)
-      setItems(p.items.map((it) => ({ description: it.description, qty: String(it.qty), unit_price: String(it.unit_price) })))
+      // `producto_id: null`: el presupuesto guardado no lo tiene, así que un
+      // renglón precargado no re-cotiza por cantidad hasta que se re-elige el producto.
+      setItems(p.items.map((it) => ({ description: it.description, qty: String(it.qty), unit_price: String(it.unit_price), producto_id: null })))
     }).catch((err) => setError(describeError(err))).finally(() => setLoadingPresupuesto(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingId])
@@ -92,8 +99,28 @@ export function PresupuestoForm() {
     if (items.length <= 1) return
     setItems((rows) => rows.filter((_, idx) => idx !== i))
   }
-  function updateItem(i: number, field: keyof ItemRow, value: string) {
+  function updateItem(i: number, field: 'description' | 'qty' | 'unit_price', value: string) {
     setItems((rows) => rows.map((r, idx) => idx === i ? { ...r, [field]: value } : r))
+  }
+
+  // Add-on mayorista: re-cotiza el renglón por cantidad. El precio de un producto
+  // puede bajar por quiebre (10+, 50+…); el endpoint resuelve el que aplica a la
+  // cantidad. Sin el add-on o sin lista, no hace nada (queda el precio ya puesto).
+  async function reResolverPrecio(i: number, productoId: number | null, cantidad: number) {
+    if (!hasMayorista || !productoId || !listaPrecioId || !(cantidad > 0)) return
+    try {
+      const r = await api.get<{ precio: number | null }>(
+        `/api/listas-precio/${listaPrecioId}/precio?producto_id=${productoId}&cantidad=${cantidad}`,
+      )
+      if (r.precio !== null) {
+        setItems((rows) => rows.map((row, idx) => idx === i ? { ...row, unit_price: String(r.precio) } : row))
+      }
+    } catch { /* sin add-on o sin lista: se queda con el precio ya puesto */ }
+  }
+
+  function cambiarCantidad(i: number, value: string, productoId: number | null) {
+    updateItem(i, 'qty', value)
+    reResolverPrecio(i, productoId, Number(value))
   }
 
   async function buscarProducto(i: number, texto: string) {
@@ -112,8 +139,12 @@ export function PresupuestoForm() {
   }
 
   function elegirProducto(i: number, p: ProductoBusqueda) {
-    setItems((rows) => rows.map((r, idx) => idx === i ? { ...r, description: p.nombre, unit_price: String(p.precio_venta) } : r))
+    const cantidad = Number(items[i]?.qty) || 1
+    setItems((rows) => rows.map((r, idx) => idx === i ? { ...r, description: p.nombre, unit_price: String(p.precio_venta), producto_id: p.id } : r))
     setSugerencias(null)
+    // La búsqueda ya trae el precio base de la lista; re-resolver aplica el
+    // quiebre si la cantidad del renglón ya está por encima de uno.
+    reResolverPrecio(i, p.id, cantidad)
   }
 
   async function guardar() {
@@ -229,7 +260,7 @@ export function PresupuestoForm() {
                           </div>
                         )}
                       </td>
-                      <td className="p-2"><Input type="number" step="0.01" value={row.qty} onChange={(e) => updateItem(i, 'qty', e.target.value)} /></td>
+                      <td className="p-2"><Input type="number" step="0.01" value={row.qty} onChange={(e) => cambiarCantidad(i, e.target.value, row.producto_id)} /></td>
                       <td className="p-2"><Input type="number" step="0.01" value={row.unit_price} onChange={(e) => updateItem(i, 'unit_price', e.target.value)} /></td>
                       <td className="p-2 text-right font-medium">{formatCurrency((Number(row.qty) || 0) * (Number(row.unit_price) || 0))}</td>
                       <td className="p-2 text-right">
