@@ -1,17 +1,15 @@
 
-from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import Response, JSONResponse
-
 import logging
+from typing import Annotated
 
-from app import database as db
-from app import config_manager
-from app import mp_api
-from app import venta_facturacion
-from app.web.auth import require_auth
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import JSONResponse, Response
 from libracore.pdf_generator import generate_pdf_recibo_doc
 from libracore.recibos import SinCobros
+
+from app import config_manager, mp_api, venta_facturacion
+from app import database as db
+from app.web.auth import require_auth
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

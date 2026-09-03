@@ -1,13 +1,14 @@
 
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.responses import FileResponse
-from typing import Annotated
+from libracore.pdf_generator import generate_pdf_recibo_doc
+from libracore.recibos import SinCobros
 
 from app import database as db
 from app import pdf_generator as pdf_gen
 from app.web.auth import require_auth
-from libracore.pdf_generator import generate_pdf_recibo_doc
-from libracore.recibos import SinCobros
 
 router = APIRouter()
 

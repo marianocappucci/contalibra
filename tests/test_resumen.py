@@ -11,7 +11,6 @@ clientes distintos.
 import datetime
 
 import pytest
-
 from libraauth.session_auth import PANEL_TOKEN_ENV
 
 HOY = datetime.date.today().isoformat()

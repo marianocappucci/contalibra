@@ -5,9 +5,8 @@ de esta etapa. `GET /cajas/{id}/medios` (usado por el POS de ventas)
 sigue en `web/routers/cajas.py` sin tocar, se reusa desde la SPA cuando
 se migre Ventas."""
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-
 from libracore import medios_pago
+from pydantic import BaseModel
 
 from app import database as db
 

@@ -10,8 +10,8 @@ import os
 from libracore.admin.app import create_admin_app
 
 from admin import auth, services
-from admin.templates_config import templates
 from admin.routers import clientes as clientes_router
+from admin.templates_config import templates
 
 # `app/web/static` desde el re-empaquetado del 2026-07-31 (antes era
 # `web/static`). El backoffice NO es parte del paquete -- corre fuera de
