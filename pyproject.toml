@@ -71,7 +71,11 @@ dependencies = [
     # que este producto NO tenía en su contenedor (medido) y que
     # `libracore-migrar` necesita para aplicar la cadena del motor. Sin él, el
     # paso del deploy muere con un `ModuleNotFoundError` en vez de correr.
-    "libracore[migrations] @ git+https://github.com/marianocappucci/libracore.git@v1.75.0",
+    # v1.76.0: `apply_plan` saltea los add-ons opcionales (`plans.ADDONS`), la
+    # fundación del paquete mayorista de este repo — un add-on prendido sobrevive
+    # a los cambios de plan. Trae además el piso `pydantic>=2.9` (el resolver del
+    # CI en entorno limpio caía a pydantic v1). Ver plans.py::ADDONS.
+    "libracore[migrations] @ git+https://github.com/marianocappucci/libracore.git@v1.76.0",
     # v0.7.0 sube al motor las transferencias entre depositos y la guarda de
     # disponibilidad, que hasta ahora vivian solo aca (`db_productos.
     # transferir_stock`) y arrastraban dos defectos: no eran atomicas y el

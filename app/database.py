@@ -492,6 +492,13 @@ def init_db():
             ("cuenta_corriente",  1, "estandar"),
             ("listas_precio",     1, "estandar"),
             ("libros_iva",        1, "estandar"),
+            # Add-on opcional (paquete mayorista): NO pertenece a ningún plan.
+            # Arranca apagado y se habilita por instancia desde el backoffice.
+            # `plan="addon"` y no NULL porque la columna es NOT NULL; el valor es
+            # sólo bookkeeping (nadie lo lee para decidir gateo). `apply_plan` y
+            # `aplicar_plan_en_db` lo saltean vía `plans.ADDONS`, así que sobrevive
+            # a los cambios de plan.
+            ("mayorista",         0, "addon"),
         ]
         for modulo, habilitado, plan in _MODULOS_DEFAULT:
             conn.execute(
