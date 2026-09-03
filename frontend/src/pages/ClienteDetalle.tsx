@@ -3,7 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
-import { api, ApiError, IVA_CONDITIONS, type AliasFacturacion, type Cliente, type ClienteConAlias } from '../api'
+import { api, ApiError, IVA_CONDITIONS, type AliasFacturacion, type Cliente, type ClienteConAlias, type ListaPrecio } from '../api'
+import { useAuth } from '../context/AuthContext'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -21,7 +22,7 @@ import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose,
 } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/confirm-dialog'
-import { ArrowLeft, ArrowLeftRight, BarChart3, CheckCircle2, Eye, FileText, Inbox, Loader2, Pencil, Plus, Receipt, Search, Trash2, Truck, Undo2, Users, XCircle } from 'lucide-react'
+import { ArrowLeft, ArrowLeftRight, BarChart3, CheckCircle2, Eye, FileText, Inbox, Loader2, Pencil, Plus, Receipt, Search, Tags, Trash2, Truck, Undo2, Users, XCircle } from 'lucide-react'
 import { TituloPantalla } from 'libra-ui/titulo-pantalla'
 import { fecha } from '@/lib/fechas'
 
@@ -75,6 +76,10 @@ export function ClienteDetalle() {
   const { id } = useParams<{ id: string }>()
   const clienteId = Number(id)
   const navigate = useNavigate()
+  const { user } = useAuth()
+  // El add-on mayorista (ver plans.py::ADDONS): la ficha muestra el selector de
+  // lista sólo si la instancia lo tiene habilitado. `modulos` llega en /api/auth.
+  const hasMayorista = !!user?.modulos.includes('mayorista')
 
   const [cliente, setCliente] = useState<ClienteConAlias | null>(null)
   const [loading, setLoading] = useState(true)
@@ -85,6 +90,12 @@ export function ClienteDetalle() {
   const [aliasError, setAliasError] = useState<string | null>(null)
   const [savingAlias, setSavingAlias] = useState(false)
   const [confirmDeleteAlias, setConfirmDeleteAlias] = useState<AliasFacturacion | null>(null)
+
+  // Add-on mayorista: lista de precios asignada al cliente.
+  const [listas, setListas] = useState<ListaPrecio[]>([])
+  const [listaAsignada, setListaAsignada] = useState<number | null>(null)
+  const [guardandoLista, setGuardandoLista] = useState(false)
+  const [listaError, setListaError] = useState<string | null>(null)
 
   const [editOpen, setEditOpen] = useState(false)
   const [guardando, setGuardando] = useState(false)
@@ -101,6 +112,27 @@ export function ClienteDetalle() {
     cargar()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clienteId])
+
+  useEffect(() => {
+    if (!hasMayorista || !clienteId) return
+    api.get<ListaPrecio[]>('/api/listas-precio').then(setListas).catch(() => {})
+    api.get<{ lista_id: number | null }>(`/api/clientes/${clienteId}/lista-precio`)
+      .then((r) => setListaAsignada(r.lista_id))
+      .catch(() => {})
+  }, [hasMayorista, clienteId])
+
+  async function guardarLista(nuevoId: number | null) {
+    setGuardandoLista(true)
+    setListaError(null)
+    try {
+      await api.put(`/api/clientes/${clienteId}/lista-precio`, { lista_id: nuevoId })
+      setListaAsignada(nuevoId)
+    } catch (err) {
+      setListaError(describeError(err))
+    } finally {
+      setGuardandoLista(false)
+    }
+  }
 
   function describeError(err: unknown): string {
     if (err instanceof ApiError) return err.detail
@@ -455,6 +487,35 @@ export function ClienteDetalle() {
               </CardContent>
             </Card>
           </div>
+
+          {hasMayorista && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base"><Tags className="size-4" />Lista de precios (mayorista)</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-3">
+                <p className="text-xs text-muted-foreground">
+                  La lista asignada se usa como precio por defecto al facturar, remitir o presupuestar
+                  a <strong>{cliente.name}</strong>. Sin lista, se cotiza con el precio de venta base.
+                </p>
+                {listaError && <p className="text-sm text-destructive">{listaError}</p>}
+                <div className="flex items-center gap-2">
+                  <Label className="shrink-0">Lista asignada</Label>
+                  <Select
+                    value={listaAsignada === null ? '__base__' : String(listaAsignada)}
+                    onValueChange={(v) => guardarLista(v === '__base__' ? null : Number(v))}
+                    disabled={guardandoLista}
+                  >
+                    <SelectTrigger className="w-64"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__base__">— Precio de venta base —</SelectItem>
+                      {listas.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.nombre}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>

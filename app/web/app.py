@@ -46,6 +46,7 @@ from app.web.api import integraciones as api_integraciones_router
 from app.web.api import libros_iva as api_libros_iva_router
 from app.web.api import listas_precio as api_listas_precio_router
 from app.web.api import logs as api_logs_router
+from app.web.api import mayorista as api_mayorista_router
 from app.web.api import mp_bandeja as api_mp_bandeja_router
 from app.web.api import presupuestos as api_presupuestos_router
 from app.web.api import productos as api_productos_router
@@ -221,6 +222,13 @@ app.include_router(api_resumen_router.router)
 app.include_router(
     api_clientes_router.router,
     dependencies=[_auth_json, Depends(require_module("clientes"))],
+)
+# Add-on mayorista: comparte el prefijo `/api/clientes` pero su gate es el del
+# add-on, no el de `clientes` (ver plans.py::ADDONS). Sus rutas
+# (`/{id}/lista-precio`) no chocan con las del router de clientes.
+app.include_router(
+    api_mayorista_router.router,
+    dependencies=[_auth_json, Depends(require_module("mayorista"))],
 )
 app.include_router(
     api_productos_router.router,
