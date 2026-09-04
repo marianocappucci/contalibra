@@ -64,10 +64,10 @@ export function PresupuestoDetalle() {
     }
   }
 
-  async function cambiarEstado(estado: string, convertirRemito = false) {
+  async function cambiarEstado(estado: string, convertirRemito = false, valorizado = false) {
     setError(null)
     try {
-      await api.post(`/api/presupuestos/${presId}/estado`, { estado, convertir_remito: convertirRemito })
+      await api.post(`/api/presupuestos/${presId}/estado`, { estado, convertir_remito: convertirRemito, valorizado })
       await cargar()
     } catch (err) {
       setError(describeError(err))
@@ -222,7 +222,8 @@ export function PresupuestoDetalle() {
                     {st === 'enviado' && (
                       <>
                         <Button size="sm" onClick={() => cambiarEstado('aceptado', false)}><CheckCircle2 />Aceptar</Button>
-                        <Button size="sm" variant="outline" onClick={() => cambiarEstado('aceptado', true)}><RefreshCw />Aceptar y convertir a remito</Button>
+                        <Button size="sm" variant="outline" onClick={() => cambiarEstado('aceptado', true, false)}><RefreshCw />Aceptar y convertir a remito</Button>
+                        <Button size="sm" variant="outline" onClick={() => cambiarEstado('aceptado', true, true)}><RefreshCw />Convertir a remito valorizado</Button>
                         <Button size="sm" variant="outline" onClick={() => cambiarEstado('rechazado')}><XCircle />Rechazar</Button>
                       </>
                     )}
