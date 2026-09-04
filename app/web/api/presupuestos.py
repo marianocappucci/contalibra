@@ -53,16 +53,36 @@ class PresupuestoPayload(BaseModel):
 class EstadoPayload(BaseModel):
     estado: str
     convertir_remito: bool = False
+    # Se elige al convertir: el remito sale VALORIZADO (con precios, heredados
+    # del presupuesto) o pelado (nota de entrega sin precios, el default).
+    valorizado: bool = False
 
 
 class EmailPayload(BaseModel):
     email: str
 
 
-def _convertir_a_remito(presupuesto: dict):
-    # La lógica vive en el motor (libracore v1.79.0, convertir_presupuesto_a_remito);
-    # acá sólo se enchufa la arista del producto: el generador de PDF de Contalibra.
-    db.convertir_presupuesto_a_remito(presupuesto, generar_pdf=pdf_gen.generate_pdf)
+def _convertir_a_remito(presupuesto: dict, valorizado: bool = False):
+    # La conversión vive en el motor (libracore.convertir_presupuesto_a_remito);
+    # acá se enchufa el PDF del producto y la elección valorizado/pelado.
+    if valorizado:
+        # Hereda los precios del presupuesto y los MUESTRA en el PDF.
+        db.convertir_presupuesto_a_remito(
+            presupuesto,
+            generar_pdf=lambda r: pdf_gen.generate_pdf(r, show_prices=True),
+        )
+    else:
+        # Nota de entrega pelada: se tiran los precios (ítems description+qty,
+        # totales en 0) para que ni los datos ni el PDF los muestren.
+        pelado = {
+            **presupuesto,
+            "items": [
+                {"description": i["description"], "qty": i["qty"]}
+                for i in presupuesto["items"]
+            ],
+            "subtotal": 0, "tax_rate": 0, "tax_amount": 0, "total": 0,
+        }
+        db.convertir_presupuesto_a_remito(pelado, generar_pdf=pdf_gen.generate_pdf)
 
 
 @router.get("")
@@ -149,7 +169,7 @@ def cambiar_estado(pres_id: int, payload: EstadoPayload):
         raise HTTPException(422, "Estado inválido.")
     db.update_presupuesto_status(pres_id, payload.estado)
     if payload.estado == "aceptado" and payload.convertir_remito:
-        _convertir_a_remito(pres)
+        _convertir_a_remito(pres, payload.valorizado)
     return db.get_presupuesto(pres_id)
 
 
