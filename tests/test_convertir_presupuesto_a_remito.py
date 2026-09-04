@@ -21,7 +21,7 @@ def test_convertir_delega_en_el_motor_copia_importes_y_linkea(client):
         observations="entrega lunes",
     )
 
-    _convertir_a_remito(db.get_presupuesto(pres_id))
+    _convertir_a_remito(db.get_presupuesto(pres_id), valorizado=True)
 
     pres = db.get_presupuesto(pres_id)
     assert pres["remito_id"] is not None
