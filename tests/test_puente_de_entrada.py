@@ -51,12 +51,15 @@ def test_el_control_del_patron_encuentra_un_default_con_valor():
     con el patrón mal escrito daría verde para siempre sin mirar nada.
 
     Se le da una línea que **sí** tiene un default con valor y se comprueba que
-    la reconoce — la de `SECRET_KEY`, que existe en este mismo archivo.
+    la reconoce — la de `ADMIN_USER`, que existe en este mismo archivo. Hasta
+    F0 (2026-09-05) el control era `SECRET_KEY`, pero ese default se retiró a
+    propósito (un secreto no lleva default en un repo público) y el control se
+    quedó sin qué reconocer: por eso el control usa un default que NO es secreto.
     """
-    m = re.search(r"- SECRET_KEY=\$\{SECRET_KEY:-([^}]*)\}", COMPOSE)
-    assert m, "no se encontró `SECRET_KEY` para usar de control"
+    m = re.search(r"- ADMIN_USER=\$\{ADMIN_USER:-([^}]*)\}", COMPOSE)
+    assert m, "no se encontró `ADMIN_USER` para usar de control"
     assert m.group(1) != "", (
-        "el control esperaba que `SECRET_KEY` tuviera un default con valor; "
+        "el control esperaba que `ADMIN_USER` tuviera un default con valor; "
         "si dejó de tenerlo, este control ya no distingue nada"
     )
 
