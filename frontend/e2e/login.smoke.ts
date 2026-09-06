@@ -18,7 +18,11 @@ test('entra por /login y llega al Dashboard', async ({ page }) => {
   await page.getByRole('button', { name: 'Ingresar' }).click()
 
   await expect(page).toHaveURL(/\/dashboard/)
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+  // El título lo pinta `TituloPantalla` de libra-ui; no es un heading accesible con
+  // ese nombre (medido en la segunda corrida), así que se ancla por el texto exacto
+  // y por la desaparición del formulario de login.
+  await expect(page.getByText('Dashboard', { exact: true }).first()).toBeVisible()
+  await expect(page.locator('#username')).toHaveCount(0)
 })
 
 test('una credencial mala no entra (control)', async ({ page }) => {
@@ -29,5 +33,8 @@ test('una credencial mala no entra (control)', async ({ page }) => {
   await page.locator('#password').fill('esta-no-es')
   await page.getByRole('button', { name: 'Ingresar' }).click()
   await expect(page).toHaveURL(/\/login/)
-  await expect(page.getByText(/incorrect/i)).toBeVisible()
+  // El mensaje es el `detail` del backend de Contalibra (formatError), no el genérico
+  // de libra-ui: se ancla por el párrafo de error, que tiene la clase `text-destructive`.
+  await expect(page.locator('p.text-destructive')).toBeVisible()
+  await expect(page.locator('#username')).toBeVisible()
 })
