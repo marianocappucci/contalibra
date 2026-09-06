@@ -74,6 +74,7 @@ configure(
     # `init_commerce_schema()` ella misma; ver su docstring.
     migraciones=(
         ("libracore-migrar", "upgrade", "--prefijo", "contalibra"),
+        ("libracommerce-migrar", "upgrade", "--prefijo", "contalibra"),
         ("alembic", "upgrade", "head"),
     ),
     repo_root=REPO_ROOT,
