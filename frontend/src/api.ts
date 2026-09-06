@@ -28,6 +28,7 @@ export { UNIDADES, TIPO_MOVIMIENTO_LABELS, opcionesProducto } from 'libra-ui/com
 export type {
   Producto, CategoriaProducto, Deposito, StockItem, StockListado, MovimientoStock, StockPorDeposito,
 } from 'libra-ui/comercio/tipos'
+export type { ListaPrecio, ItemListaPrecio, Quiebre, ProductoBusqueda } from 'libra-ui/comercio/tipos'
 
 export type {
   BorradorDuplicado, Caja, Factura, FacturaDetalle, FacturaItem,
@@ -179,25 +180,7 @@ export type ConsultaCuit = {
   error?: string
 }
 
-export type ListaPrecio = {
-  id: number
-  nombre: string
-  descripcion: string
-  activa: number
-  es_default: number
-}
 
-export type ItemListaPrecio = {
-  id: number
-  codigo: string | null
-  nombre: string
-  unidad: string
-  categoria: string
-  precio_venta: number
-  precio_costo: number
-  precio_lista: number
-  en_lista: number
-}
 
 export type Proveedor = {
   id: number
@@ -507,7 +490,6 @@ export type Venta = {
   mp_payment_id: string
 }
 
-export type ProductoBusqueda = { id: number; codigo: string; nombre: string; precio_venta: number; unidad: string }
 
 
 export type TipoFactura = { value: number; label: string }

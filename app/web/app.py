@@ -15,6 +15,11 @@ from libracommerce.web.catalogo_router import (
     build_productos_router,
     build_stock_router,
 )
+from libracommerce.web.listas_router import (
+    build_buscar_productos_router,
+    build_listas_precio_router,
+    build_quiebres_router,
+)
 from libracore import arca_credenciales
 from libracore.arca_router import build_arca_router
 from libracore.comprobantes_router import (
@@ -49,10 +54,8 @@ from app.web.api import egresos as api_egresos_router
 from app.web.api import facturas as api_facturas_router
 from app.web.api import integraciones as api_integraciones_router
 from app.web.api import libros_iva as api_libros_iva_router
-from app.web.api import listas_precio as api_listas_precio_router
 from app.web.api import logs as api_logs_router
 from app.web.api import mayorista as api_mayorista_router
-from app.web.api import mayorista_listas as api_mayorista_listas_router
 from app.web.api import mp_bandeja as api_mp_bandeja_router
 from app.web.api import presupuestos as api_presupuestos_router
 from app.web.api import proveedores as api_proveedores_router
@@ -75,7 +78,6 @@ from app.web.routers import config as config_router
 from app.web.routers import facturas, presupuestos, remitos, webhooks
 from app.web.routers import libros_iva as libros_iva_router
 from app.web.routers import logs as logs_router
-from app.web.routers import productos as productos_router
 from app.web.routers import reportes as reportes_router
 from app.web.routers import ventas as ventas_router
 
@@ -198,7 +200,11 @@ app.include_router(presupuestos.router)
 app.include_router(facturas.router)
 app.include_router(config_router.router)
 app.include_router(webhooks.router)
-app.include_router(productos_router.router)
+# El autocompletado del punto de venta (`GET /productos/buscar`) es del motor
+# (P9-M2); la sesion la exige el propio endpoint, como el router historico.
+app.include_router(build_buscar_productos_router(
+    conexion=_abrir_conexion, usuario_actual=require_auth, solo_vendibles=False,
+))
 app.include_router(ventas_router.router)
 app.include_router(logs_router.router)
 app.include_router(reportes_router.router)
@@ -237,7 +243,7 @@ app.include_router(
 # Quiebres por cantidad y resolución de precio por cantidad. Mismo prefijo
 # `/api/listas-precio` que el router base, pero gateado por el add-on.
 app.include_router(
-    api_mayorista_listas_router.router,
+    build_quiebres_router(conexion=_abrir_conexion),
     dependencies=[_auth_json, Depends(require_module("mayorista"))],
 )
 app.include_router(
@@ -245,7 +251,7 @@ app.include_router(
     dependencies=[_auth_json, Depends(require_module("productos"))],
 )
 app.include_router(
-    api_listas_precio_router.router,
+    build_listas_precio_router(conexion=_abrir_conexion),
     dependencies=[_auth_json, Depends(require_module("listas_precio"))],
 )
 app.include_router(
