@@ -111,6 +111,7 @@ configure(
     # de la mañana.
     migraciones=(
         ("libracore-migrar", "upgrade", "--prefijo", "contalibra"),
+        ("libracommerce-migrar", "upgrade", "--prefijo", "contalibra"),
         ("alembic", "upgrade", "head"),
     ),
     repo_root=REPO_ROOT,
