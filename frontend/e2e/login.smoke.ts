@@ -18,6 +18,15 @@ test('entra por /login y llega al Dashboard', async ({ page }) => {
   await page.getByRole('button', { name: 'Ingresar' }).click()
 
   await expect(page).toHaveURL(/\/dashboard/)
+
+  // Una instancia recién nacida pone el gate de Términos y Condiciones delante
+  // de todo (libraauth v0.34.0, libra-ui GateTerminos): es lo que ve un cliente
+  // nuevo, y lo que en agosto dejó las ocho demos "vacías" sin que ningún
+  // unitario lo viera. El smoke lo atraviesa como el humano: tilda, acepta.
+  await expect(page.getByRole('heading', { name: /Términos y Condiciones/ })).toBeVisible()
+  await page.getByRole('checkbox', { name: /Leí y acepto/ }).check()
+  await page.getByRole('button', { name: 'Aceptar y continuar' }).click()
+
   // El título lo pinta `TituloPantalla` de libra-ui; no es un heading accesible con
   // ese nombre (medido en la segunda corrida), así que se ancla por el texto exacto
   // y por la desaparición del formulario de login.
