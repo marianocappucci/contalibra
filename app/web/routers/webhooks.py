@@ -1,82 +1,33 @@
-"""El webhook de MercadoPago de Contalibra.
+"""El webhook de MercadoPago de este producto.
 
-El mecanismo —firma, no creerle al cuerpo, contestar 200, idempotencia— vive en
-`libracore.mp_webhook` desde el 2026-08-23. Acá quedan **las dos reglas que son
-de este producto** y que el motor no tiene por qué conocer:
+El mecanismo —firma, no creerle al cuerpo, contestar 200, idempotencia— vive
+en `libracore.mp_webhook` desde el 2026-08-23, y desde P9-M3 (2026-09-06)
+también lo que pasa cuando el pago es el cobro por QR de una venta
+(`libracore.venta_facturacion.manejador_de_cobro_por_qr`: sella el pago,
+acredita, y factura si la automática está prendida), sobre las ventas de este
+producto vía `venta_facturacion.PUERTO`.
 
-1. Un pago con `external_reference` `venta-123` es el cobro por QR de una venta
-   presencial, no una suscripción: se aplica a esa venta.
-2. Un cobro cuya descripción empieza con *"Hosting Mensual"* se factura solo
-   aunque el cliente no tenga la bandera `auto_facturar`. Es el negocio de
-   hosting de esta empresa, no un concepto de la familia.
+Acá queda **la regla que es de este producto** y que el motor no tiene por qué
+conocer: un cobro cuya descripción empieza con *"Hosting Mensual"* se factura
+solo aunque el cliente no tenga la bandera `auto_facturar`. Es el negocio de
+hosting de la empresa de Contalibra; en Restolibra se conserva tal cual porque
+cambiar el comportamiento vigente no es tarea de una normalización (pregunta
+abierta para el humano).
 """
-import logging
-
 from libracore.mp_webhook import build_mp_webhook_router
+from libracore.venta_facturacion import manejador_de_cobro_por_qr
 
-from app import database as db
-from app import venta_facturacion
-
-logger = logging.getLogger(__name__)
-
-
-async def _cobro_de_venta_por_qr(
-    venta_id: int, payment_id: str, pago: dict, cfg: dict
-) -> int | None:
-    """Aplica a la venta el cobro que entró por su QR.
-
-    El motor sólo llama acá cuando el pago está **aprobado**, así que no hace
-    falta volver a chequearlo.
-
-    ⚠️ El `payment_id` llega por parámetro y **no** se saca de `pago["id"]`: el
-    que vale es el de la notificación que se está procesando, que es el que
-    sella la idempotencia y el que se guarda en `mp_pagos`. En producción
-    coinciden, pero la API no garantiza que el detalle eche el mismo id — y un
-    test de este repo cazó justamente eso.
-
-    Devuelve el id de la factura si se emitió, o `None`. Emitir es idempotente
-    (`facturar_venta` devuelve la factura existente), así que un reintento de
-    MercadoPago no duplica el comprobante.
-    """
-    db.set_venta_mp_payment(venta_id, payment_id)
-    # 🔴 **El otro camino de acreditación, y el que manda cuando el poll no
-    # está.** Si la venta se creó con `cobrar_con_qr`, su pago quedó
-    # `PENDIENTE` y sin movimiento de caja: acá se acredita, se escribe el
-    # ingreso y se recalcula el estado.
-    #
-    # Los dos caminos —éste y el poll de `mp-status`— llaman a lo mismo, y por
-    # eso importa que `acreditar_pago_qr` sea idempotente: el webhook puede
-    # llegar mientras el poll está corriendo, y MercadoPago además reintenta.
-    acreditado = db.acreditar_pago_qr(venta_id, payment_id)
-    db.add_venta_pago_referencia_mp(venta_id, payment_id)
-    logger.info("Venta %s pagada via QR de MercadoPago, payment_id=%s (acreditado=%s)",
-                venta_id, payment_id, acreditado)
-
-    # 🔴 Hasta el 2026-08-19 acá se retornaba directo y la venta cobrada por QR
-    # no se facturaba por ningún camino.
-    if not cfg.get("mp_auto_facturar_ventas"):
-        return None
-    factura = await venta_facturacion.facturar_venta(venta_id)
-    logger.info(
-        "Auto-factura de la venta %s: id=%s CAE=%s",
-        venta_id, factura["id"], factura.get("cae") or "sin CAE",
-    )
-    return factura["id"]
+from app.venta_facturacion import PUERTO
 
 
 def _es_hosting_mensual(client: dict, contexto: dict) -> bool:
-    """Cuándo se factura solo, en este producto.
-
-    La bandera del cliente **o** que el cobro sea del hosting mensual. La
-    segunda mitad es de acá: es el servicio que esta empresa vende y cobra
-    todos los meses por MercadoPago.
-    """
+    """La bandera del cliente **o** que el cobro sea del hosting mensual."""
     if client.get("auto_facturar"):
         return True
     return contexto["descripcion"].lower().startswith("hosting mensual")
 
 
 router = build_mp_webhook_router(
-    manejadores_de_referencia={"venta-": _cobro_de_venta_por_qr},
+    manejadores_de_referencia={"venta-": manejador_de_cobro_por_qr(PUERTO)},
     debe_auto_facturar=_es_hosting_mensual,
 )

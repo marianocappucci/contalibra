@@ -22,6 +22,7 @@ from libracommerce.web.listas_router import (
 )
 from libracore import arca_credenciales
 from libracore.arca_router import build_arca_router
+from libracore.caja_router import build_caja_router, build_cajas_router, build_turnos_router
 from libracore.comprobantes_router import (
     build_comprobantes_bandeja_router,
     build_comprobantes_ingesta_router,
@@ -44,8 +45,6 @@ from app.security_headers import SecurityHeadersMiddleware
 from app.spa import montar_spa
 from app.web import auth as web_auth
 from app.web.api import auth as api_auth_router
-from app.web.api import caja as api_caja_router
-from app.web.api import cajas as api_cajas_router
 from app.web.api import clientes as api_clientes_router
 from app.web.api import config as api_config_router
 from app.web.api import cuenta_corriente as api_cc_router
@@ -64,7 +63,6 @@ from app.web.api import remitos as api_remitos_router
 from app.web.api import reportes as api_reportes_router
 from app.web.api import resumen as api_resumen_router
 from app.web.api import tesoreria as api_tesoreria_router
-from app.web.api import turnos as api_turnos_router
 from app.web.api import usuarios as api_usuarios_router
 from app.web.api import ventas as api_ventas_router
 from app.web.api_auth import (  # noqa: F401
@@ -398,21 +396,33 @@ app.include_router(
     dependencies=[Depends(require_admin_json), Depends(require_module("tesoreria"))],
 )
 app.include_router(
-    api_caja_router.router,
+    build_caja_router(usuario_actual=get_current_user_json),
     dependencies=[_auth_json, Depends(require_module("caja"))],
 )
 app.include_router(
-    api_cajas_router.router,
+    build_cajas_router(),
     dependencies=[_auth_json, Depends(require_module("cajas"))],
 )
 app.include_router(
-    api_turnos_router.router,
+    # El resumen y el cierre son de `db_turnos`: leen `sales`, no la tabla
+    # `ventas` de LibraCore (P9-M3).
+    build_turnos_router(
+        usuario_actual=get_current_user_json,
+        resumen_turno=db.get_resumen_turno, cerrar_turno=db.cerrar_turno,
+    ),
     dependencies=[_auth_json],
 )
 app.include_router(
     api_ventas_router.router,
     dependencies=[_auth_json, Depends(require_module("ventas"))],
 )
+# La factura desde la venta y el cobro por QR (LibraCore), con el mismo prefijo
+# y el mismo gate que el punto de venta (P9-M3).
+app.include_router(
+    api_ventas_router.cobro,
+    dependencies=[_auth_json, Depends(require_module("ventas"))],
+)
+app.include_router(api_ventas_router.cobro_legado, dependencies=[_auth_json])
 app.include_router(
     api_facturas_router.router,
     dependencies=[_auth_json, Depends(require_module("facturacion"))],
