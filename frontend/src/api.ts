@@ -20,6 +20,15 @@ import type { OpcionSelect } from 'libra-ui/SelectBuscable'
 // MEDIOS_PAGO_LABELS se fue: era una copia de la lista del motor y divergia en
 // las dos direcciones. La lista sale de la API; las etiquetas y abreviaturas,
 // de 'libra-ui/medios-pago'. Ver lib/medios-pago.ts.
+// Los tipos y helpers del catalogo, el stock y los depositos viven en el kit
+// desde P9-M1 (2026-09-06): son el contrato JSON de las factories de
+// LibraCommerce, el mismo para los dos productos. Se re-exportan con los
+// nombres historicos para que el resto de las pantallas no cambie un import.
+export { UNIDADES, TIPO_MOVIMIENTO_LABELS, opcionesProducto } from 'libra-ui/comercio/tipos'
+export type {
+  Producto, CategoriaProducto, Deposito, StockItem, StockListado, MovimientoStock, StockPorDeposito,
+} from 'libra-ui/comercio/tipos'
+
 export type {
   BorradorDuplicado, Caja, Factura, FacturaDetalle, FacturaItem,
 } from 'libra-ui/facturas'
@@ -159,25 +168,8 @@ export type ClienteConAlias = Cliente & {
   remitos: Remito[]
 }
 
-export type Producto = {
-  id: number
-  codigo: string | null
-  nombre: string
-  descripcion: string
-  precio_venta: number
-  precio_costo: number
-  unidad: string
-  categoria: string
-  stock_minimo: number
-  estacion: string
-  vendible: number
-  activo: number
-  tipo: 'producto' | 'servicio'
-}
 
-export const UNIDADES = ['u', 'kg', 'g', 'lt', 'ml', 'm', 'cm', 'm²', 'caja', 'par', 'docena', 'pack'] as const
 
-export type CategoriaProducto = { id: number; nombre: string }
 
 export type ConsultaCuit = {
   nombre?: string
@@ -366,38 +358,9 @@ export type ResguardoExterno = {
   } | null
 }
 
-export type Deposito = {
-  id: number
-  nombre: string
-  descripcion: string
-  es_default: number
-  activo: number
-  total_productos?: number
-}
 
-export type StockItem = {
-  id: number
-  codigo: string | null
-  nombre: string
-  unidad: string
-  categoria: string
-  stock_minimo: number
-  activo: number
-  stock_actual: number
-}
 
-export type MovimientoStock = {
-  id: number
-  producto_id: number
-  producto_nombre: string
-  unidad: string
-  tipo: string
-  cantidad: number
-  referencia: string
-  fecha: string
-}
 
-export type StockPorDeposito = { id: number; nombre: string; es_default: number; stock_actual: number }
 
 export type ClienteConSaldoCC = { id: number; name: string; cuit_dni: string; saldo: number }
 
@@ -708,14 +671,3 @@ export function opcionesProveedor(proveedores: Proveedor[]): OpcionSelect[] {
 
 // Tipado estructural y no : Stock.tsx trabaja con ,
 // que trae los mismos cuatro campos sin ser el mismo tipo.
-export function opcionesProducto(
-  productos: { id: number; nombre: string; codigo?: string | null; categoria?: string }[],
-): OpcionSelect[] {
-  return productos.map((p) => ({
-    value: String(p.id),
-    // El codigo es lo que se tipea cuando se lo sabe de memoria, y lo que
-    // esta impreso en la etiqueta o en la lista de precios del proveedor.
-    label: p.nombre,
-    hint: [p.codigo, p.categoria].filter(Boolean).join(' · ') || undefined,
-  }))
-}
