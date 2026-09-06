@@ -10,6 +10,11 @@ from libraauth.auth_events import AuthEventRepository
 from libraauth.demo_codigos import DemoCodigoRepository
 from libraauth.session_auth import build_demo_codigos_router, demo_username
 from libraauth.terminos import TerminosRepository, build_terminos_router
+from libracommerce.web.catalogo_router import (
+    build_depositos_router,
+    build_productos_router,
+    build_stock_router,
+)
 from libracore import arca_credenciales
 from libracore.arca_router import build_arca_router
 from libracore.comprobantes_router import (
@@ -29,6 +34,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app import arca_wsaa, arca_wspadron, config_manager, db_usuarios
 from app import database as db
+from app.db_core import get_connection as _abrir_conexion
 from app.security_headers import SecurityHeadersMiddleware
 from app.spa import montar_spa
 from app.web import auth as web_auth
@@ -39,7 +45,6 @@ from app.web.api import clientes as api_clientes_router
 from app.web.api import config as api_config_router
 from app.web.api import cuenta_corriente as api_cc_router
 from app.web.api import dashboard as api_dashboard_router
-from app.web.api import depositos as api_depositos_router
 from app.web.api import egresos as api_egresos_router
 from app.web.api import facturas as api_facturas_router
 from app.web.api import integraciones as api_integraciones_router
@@ -50,13 +55,11 @@ from app.web.api import mayorista as api_mayorista_router
 from app.web.api import mayorista_listas as api_mayorista_listas_router
 from app.web.api import mp_bandeja as api_mp_bandeja_router
 from app.web.api import presupuestos as api_presupuestos_router
-from app.web.api import productos as api_productos_router
 from app.web.api import proveedores as api_proveedores_router
 from app.web.api import recibos as api_recibos_router
 from app.web.api import remitos as api_remitos_router
 from app.web.api import reportes as api_reportes_router
 from app.web.api import resumen as api_resumen_router
-from app.web.api import stock as api_stock_router
 from app.web.api import tesoreria as api_tesoreria_router
 from app.web.api import turnos as api_turnos_router
 from app.web.api import usuarios as api_usuarios_router
@@ -238,7 +241,7 @@ app.include_router(
     dependencies=[_auth_json, Depends(require_module("mayorista"))],
 )
 app.include_router(
-    api_productos_router.router,
+    build_productos_router(conexion=_abrir_conexion, usuario_actual=get_current_user_json),
     dependencies=[_auth_json, Depends(require_module("productos"))],
 )
 app.include_router(
@@ -366,11 +369,11 @@ app.include_router(
     dependencies=[Depends(require_admin_json)],
 )
 app.include_router(
-    api_depositos_router.router,
+    build_depositos_router(conexion=_abrir_conexion, usuario_actual=get_current_user_json),
     dependencies=[_auth_json, Depends(require_module("depositos"))],
 )
 app.include_router(
-    api_stock_router.router,
+    build_stock_router(conexion=_abrir_conexion, usuario_actual=get_current_user_json),
     dependencies=[_auth_json, Depends(require_module("stock"))],
 )
 app.include_router(
