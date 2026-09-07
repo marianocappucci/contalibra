@@ -11,7 +11,6 @@
 // dominio propios de Contalibra.
 export { ApiError, api } from 'libra-ui/api-client'
 
-import type { OpcionSelect } from 'libra-ui/SelectBuscable'
 
 // Dominio de facturacion: vive en libra-ui/facturas, compartido con el otro
 // producto que emite comprobantes. Se re-exporta desde aca para que los
@@ -29,18 +28,26 @@ export type {
   Producto, CategoriaProducto, Deposito, StockItem, StockListado, MovimientoStock, StockPorDeposito,
 } from 'libra-ui/comercio/tipos'
 export type { ListaPrecio, ItemListaPrecio, Quiebre, ProductoBusqueda } from 'libra-ui/comercio/tipos'
-import type { CajaConfig } from 'libra-ui/comercio/tipos'
 export type {
   Venta, VentaItem, VentaPago, Turno, ResumenTurno, CajaConfig, CajaMovimiento, ResumenCaja,
 } from 'libra-ui/comercio/tipos'
 export { opcionesCliente } from 'libra-ui/comercio/tipos'
+export type {
+  AliasFacturacion, ClienteConAlias, Proveedor, Egreso, ResumenEgresos, CategoriaEgreso, PagoEgreso,
+  ClienteConSaldoCC, MovimientoCC, CuentaTesoreria, MovimientoTesoreria,
+  LibroIvaFactura, LibroIvaEgreso, ResumenIva, LibrosIvaData,
+  ReporteResumen, ReporteVentaTs, ReporteMedio, ReporteProducto, ReporteCaja, ReporteStockBajo, ReportesData,
+  CajaMedioVals, CajaMedioPivot, CajaMediosData, LogActividad, LogAuth, LogsData,
+} from 'libra-ui/comercio/tipos'
+export {
+  TIPOS_COMPROBANTE, TIPOS_CUENTA_TESORERIA, opcionesProveedor, opcionesCategoriaPorNombre,
+} from 'libra-ui/comercio/tipos'
 
 export type {
   BorradorDuplicado, Caja, Factura, FacturaDetalle, FacturaItem,
 } from 'libra-ui/facturas'
 // El `export type ... from` re-exporta pero NO trae el nombre al ambito de
 // este modulo, y aca abajo hay tipos propios que usan `Factura`.
-import type { Factura } from 'libra-ui/facturas'
 
 // La bandeja de MercadoPago: sus tipos viven en `libra-ui/mp` desde la v0.45.0,
 // junto a la pantalla que los muestra. Estaban declarados acá y, palabra por
@@ -50,7 +57,6 @@ import type { Factura } from 'libra-ui/facturas'
 // este módulo, y acá abajo hay tipos propios que usan `Cliente` — de ahí el
 // `import type` de al lado. Mismo cuidado que con `Factura`.
 export type { Cliente, MpMovimiento, MpPago } from 'libra-ui/mp'
-import type { Cliente } from 'libra-ui/mp'
 
 // La lista de condiciones frente al IVA la fija ARCA, no el producto: vive en
 // `libra-ui/facturas` desde la v0.45.0. Estaba escrita idéntica en los dos
@@ -156,23 +162,7 @@ export type MovimientoCaja = {
   medio_pago: string
 }
 
-export type AliasFacturacion = {
-  id: number
-  tipo: 'cuit' | 'email'
-  valor: string
-  cliente_id: number
-}
 
-export type ClienteConAlias = Cliente & {
-  alias_facturacion: AliasFacturacion[]
-  // Restaurado desde web/templates/clientes/detail.html -- ver GET
-  // /api/clientes/{id} en web/api/clientes.py (auditoria campo por campo,
-  // 2026-07-24). Los tipos Factura/Presupuesto/Remito ya existian, se
-  // declaran mas abajo en este archivo (el orden no importa para types).
-  facturas: Factura[]
-  presupuestos: Presupuesto[]
-  remitos: Remito[]
-}
 
 
 
@@ -187,58 +177,12 @@ export type ConsultaCuit = {
 
 
 
-export type Proveedor = {
-  id: number
-  nombre: string
-  cuit_dni: string
-  email: string
-  phone: string
-  address: string
-  iva_condition: string
-}
-
-export type Egreso = {
-  id: number
-  fecha: string
-  proveedor_id: number | null
-  proveedor_nombre: string
-  tipo_comprobante: string
-  numero: string
-  categoria: string
-  concepto: string
-  monto_neto: number
-  iva_pct: number
-  iva_monto: number
-  total: number
-  estado: 'pendiente' | 'parcial' | 'pagado'
-  observaciones: string
-}
-
-export type ResumenEgresos = {
-  total_periodo: number
-  pagado: number
-  pendiente: number
-}
-
-export type CategoriaEgreso = { id: number; nombre: string }
-
-export type PagoEgreso = {
-  id: number
-  egreso_id: number
-  fecha: string
-  monto: number
-  caja_id: number | null
-  medio_pago: string
-  referencia: string
-}
 
 
-export const TIPOS_COMPROBANTE = [
-  { id: 'factura', label: 'Factura' },
-  { id: 'ticket', label: 'Ticket / Recibo' },
-  { id: 'recibo', label: 'Recibo oficial' },
-  { id: 'otro', label: 'Otro' },
-] as const
+
+
+
+
 
 export type Usuario = {
   id: number
@@ -350,20 +294,7 @@ export type ResguardoExterno = {
 
 
 
-export type ClienteConSaldoCC = { id: number; name: string; cuit_dni: string; saldo: number }
 
-export type MovimientoCC = {
-  fecha: string
-  tipo: 'debito' | 'credito'
-  concepto: string
-  monto: number
-  referencia: string
-  medio: string
-  cc_pago_id: number | null
-  usuario_nombre: string | null
-  venta_id: number | null
-  factura_id: number | null
-}
 
 // Recibo emitido (libracore >= v1.9.0). `numero_visible` viene armado del
 // backend con el formato 0001-00000001 -- el front no lo compone, para que el
@@ -389,39 +320,8 @@ export const ORIGEN_RECIBO_LABELS: Record<string, string> = {
   cc_pago: 'Cuenta corriente',
 }
 
-export type CuentaTesoreria = {
-  id: number
-  nombre: string
-  tipo: string
-  banco: string
-  numero: string
-  descripcion: string
-  saldo_inicial: number
-  saldo: number
-  activa: number
-}
 
-export type MovimientoTesoreria = {
-  id: number
-  fecha: string
-  cuenta_id: number
-  cuenta_nombre: string
-  cuenta_destino_id: number | null
-  cuenta_destino_nombre: string | null
-  tipo: string
-  monto: number
-  concepto: string
-  referencia: string
-  transferencia_id: number | null
-  usuario_nombre: string | null
-}
 
-export const TIPOS_CUENTA_TESORERIA = [
-  { value: 'banco', label: 'Banco' },
-  { value: 'efectivo', label: 'Efectivo' },
-  { value: 'digital', label: 'Billetera digital' },
-  { value: 'otro', label: 'Otro' },
-] as const
 
 
 
@@ -473,85 +373,11 @@ export type Presupuesto = {
 
 export const ESTADOS_PRESUPUESTO = ['borrador', 'enviado', 'aceptado', 'rechazado', 'vencido', 'facturado'] as const
 
-export type LibroIvaFactura = {
-  id: number; tipo: number; punto_venta: number; numero: number; fecha: string
-  cliente_razon: string; cliente_cuit: string; subtotal: number; iva_amount: number; total: number
-  cae?: string
-}
-export type LibroIvaEgreso = {
-  id: number; fecha: string; proveedor_nombre: string; numero: string
-  monto_neto: number; iva_monto: number; total: number
-  proveedor_cuit?: string; iva_pct?: number
-}
-export type ResumenIva = {
-  cbtes: number; neto: number; iva: number; total: number
-  por_tasa: Record<string, { neto: number; iva: number; cbtes: number }>
-}
-export type LibrosIvaData = {
-  desde: string; hasta: string; empresa_cuit: string
-  facturas: LibroIvaFactura[]; egresos: LibroIvaEgreso[]
-  resumen_v: ResumenIva; resumen_c: ResumenIva
-}
 
-export type ReporteResumen = {
-  ventas_cantidad: number; ventas_total: number; facturas_cantidad: number; caja_saldo: number
-}
-export type ReporteVentaTs = { periodo: string; cantidad: number; total: number }
-export type ReporteMedio = { medio: string; operaciones: number; total: number }
-export type ReporteProducto = { nombre: string; cantidad: number; total: number }
-export type ReporteCaja = { tipo: string; cantidad: number; total: number }
-export type ReporteStockBajo = { id: number; nombre: string; codigo: string | null; stock_actual: number; stock_minimo: number }
-export type ReportesData = {
-  desde: string; hasta: string; agrupacion: string
-  resumen: ReporteResumen; ventas_ts: ReporteVentaTs[]; medios: ReporteMedio[]
-  productos: ReporteProducto[]; caja: ReporteCaja[]; stock_bajo: ReporteStockBajo[]
-  /** Cómo se llama cada medio, **incluidos los históricos**: un reporte mira
-   *  meses para atrás y ahí hay filas con `tarjeta` y `mercado_pago`. Viene del
-   *  backend porque la pantalla ya no declara el vocabulario. */
-  medio_label: Record<string, string>
-}
 
-export type CajaMedioVals = { ingresos: number; ingresos_ops: number; egresos: number; egresos_ops: number }
-export type CajaMedioPivot = {
-  id: number; nombre: string; medios: Record<string, CajaMedioVals>
-  total_ingresos: number; total_egresos: number; saldo: number
-}
-export type CajaMediosData = {
-  desde: string; hasta: string
-  cajas_config: CajaConfig[]
-  cajas: CajaMedioPivot[]
-  totales: Record<string, CajaMedioVals>
-  medio_label: Record<string, string>
-}
 
-export type LogActividad = {
-  ts: string
-  fecha: string
-  tipo: string
-  descripcion: string
-  monto: number
-  usuario: string
-  turno_id: number | null
-  // Confirmado presente en la respuesta real de db.get_actividad_log()
-  // (inspeccionado en vivo en el contenedor del VPS, 2026-07-24) -- la
-  // version Jinja2 vieja (git 1a8808c, web/templates/admin/logs.html) los
-  // usaba para el link "Ver" por fila. Se dejan opcionales igual por si
-  // algun registro viejo no los tuviera cargados.
-  ref_tabla?: string | null
-  ref_id?: number | null
-}
 
-export type LogAuth = { id: number; evento: string; username: string; ip: string; ts: string }
 
-export type LogsData = {
-  actividad: LogActividad[]
-  tipo_meta: Record<string, { label: string; color: string }>
-  total: number
-  total_pages: number
-  page: number
-  usuarios: Usuario[]
-  auth_log: LogAuth[]
-}
 
 export type DashboardData = {
   mes_desde: string
@@ -576,13 +402,6 @@ export type DashboardData = {
 // suele tenerse a mano del papel, y dos clientes pueden llamarse casi igual.
 
 
-export function opcionesProveedor(proveedores: Proveedor[]): OpcionSelect[] {
-  return proveedores.map((p) => ({
-    value: String(p.id),
-    label: p.nombre,
-    hint: p.cuit_dni || undefined,
-  }))
-}
 
 // Tipado estructural y no : Stock.tsx trabaja con ,
 // que trae los mismos cuatro campos sin ser el mismo tipo.
