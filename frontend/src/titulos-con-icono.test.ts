@@ -36,10 +36,11 @@ describe('el icono del título sale del sidebar', () => {
     // piso baja en esa cantidad. Sus iconos son los del kit (Package, Boxes,
     // Warehouse), los mismos que tiene el sidebar. P9-M2: dos mas (listas de
     // precio, icono Tag). P9-M3: siete mas (ventas, detalle, caja, cajas y los
-    // tres de turnos).
+    // tres de turnos). P9-M4: catorce mas (clientes, proveedores, egresos,
+    // tesoreria, cuenta corriente, libros IVA, logs, reportes y caja por medio).
     const { rutasDelNav, pantallas, conIcono } = auditarTitulos(SRC)
     expect(rutasDelNav).toBeGreaterThanOrEqual(26)
-    expect(pantallas).toBeGreaterThanOrEqual(26)
-    expect(conIcono).toBeGreaterThanOrEqual(26)
+    expect(pantallas).toBeGreaterThanOrEqual(12)
+    expect(conIcono).toBeGreaterThanOrEqual(12)
   })
 })
