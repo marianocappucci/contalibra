@@ -11,7 +11,6 @@
 // dominio propios de Contalibra.
 export { ApiError, api } from 'libra-ui/api-client'
 
-
 // Dominio de facturacion: vive en libra-ui/facturas, compartido con el otro
 // producto que emite comprobantes. Se re-exporta desde aca para que los
 // archivos que ya lo importaban de este modulo sigan andando sin cambios
@@ -28,6 +27,9 @@ export type {
   Producto, CategoriaProducto, Deposito, StockItem, StockListado, MovimientoStock, StockPorDeposito,
 } from 'libra-ui/comercio/tipos'
 export type { ListaPrecio, ItemListaPrecio, Quiebre, ProductoBusqueda } from 'libra-ui/comercio/tipos'
+// Remitos y presupuestos: las seis pantallas se fueron al kit en F6.2
+// (2026-09-07) y los tipos con ellas, al lado de las facturas.
+export type { Remito, RemitoItem, Presupuesto, PresupuestoItem } from 'libra-ui/facturas'
 export type {
   Venta, VentaItem, VentaPago, Turno, ResumenTurno, CajaConfig, CajaMovimiento, ResumenCaja,
 } from 'libra-ui/comercio/tipos'
@@ -63,7 +65,6 @@ export type { Cliente, MpMovimiento, MpPago } from 'libra-ui/mp'
 // productos, y una lista fiscal que diverge es cómo un cliente termina cargado
 // con una condición que una instancia acepta y la otra no.
 export { IVA_CONDITIONS } from 'libra-ui/facturas'
-
 
 export type User = {
   username: string
@@ -162,11 +163,6 @@ export type MovimientoCaja = {
   medio_pago: string
 }
 
-
-
-
-
-
 export type ConsultaCuit = {
   nombre?: string
   domicilio?: string
@@ -174,15 +170,6 @@ export type ConsultaCuit = {
   estado?: string
   error?: string
 }
-
-
-
-
-
-
-
-
-
 
 export type Usuario = {
   id: number
@@ -290,12 +277,6 @@ export type ResguardoExterno = {
   } | null
 }
 
-
-
-
-
-
-
 // Recibo emitido (libracore >= v1.9.0). `numero_visible` viene armado del
 // backend con el formato 0001-00000001 -- el front no lo compone, para que el
 // numero del papel y el de la pantalla no puedan divergir.
@@ -320,64 +301,9 @@ export const ORIGEN_RECIBO_LABELS: Record<string, string> = {
   cc_pago: 'Cuenta corriente',
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
 export type TipoFactura = { value: number; label: string }
 
-
-export type Remito = {
-  id: number
-  number: string
-  date: string
-  client_id: number | null
-  client_name: string
-  client_address: string
-  client_cuit: string
-  client_email: string
-  client_phone: string
-  items: { description: string; qty: number }[]
-  observations: string
-  total: number
-}
-
-export type Presupuesto = {
-  id: number
-  number: string
-  date: string
-  valid_until: string
-  status: string
-  client_id: number | null
-  client_name: string
-  client_address: string
-  client_cuit: string
-  client_email: string
-  client_phone: string
-  items: { description: string; qty: number; unit_price: number; subtotal: number }[]
-  subtotal: number
-  tax_rate: number
-  tax_amount: number
-  total: number
-  observations: string
-  remito_id: number | null
-}
-
 export const ESTADOS_PRESUPUESTO = ['borrador', 'enviado', 'aceptado', 'rechazado', 'vencido', 'facturado'] as const
-
-
-
-
-
-
 
 export type DashboardData = {
   mes_desde: string
@@ -400,8 +326,6 @@ export type DashboardData = {
 //
 // En un sistema de facturacion el CUIT es el mejor discriminador: es lo que
 // suele tenerse a mano del papel, y dos clientes pueden llamarse casi igual.
-
-
 
 // Tipado estructural y no : Stock.tsx trabaja con ,
 // que trae los mismos cuatro campos sin ser el mismo tipo.

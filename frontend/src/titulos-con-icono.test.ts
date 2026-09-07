@@ -41,6 +41,16 @@ describe('el icono del título sale del sidebar', () => {
     const { rutasDelNav, pantallas, conIcono } = auditarTitulos(SRC)
     expect(rutasDelNav).toBeGreaterThanOrEqual(26)
     expect(pantallas).toBeGreaterThanOrEqual(12)
-    expect(conIcono).toBeGreaterThanOrEqual(12)
+    // F6.2 (2026-09-07): las seis pantallas de remitos y presupuestos pasaron a
+    // ser wrappers de `libra-ui`. El piso de `conIcono` baja **siete** y no
+    // seis: el guard cuenta pares ruta↔título y `PresupuestoForm` se monta en
+    // dos rutas (`/presupuestos/nuevo` y `/presupuestos/:id/editar`). Los
+    // iconos son los del kit (FileText y Calculator), los mismos que ya tenía
+    // el sidebar — `sinIcono` sigue vacío, que es lo que lo prueba.
+    //
+    // ⚠️ El número de `conIcono` ya es chico: casi todas las pantallas de este
+    // producto viven en el kit. Quien sostiene el control ahora es `pantallas`,
+    // que sigue contando los archivos y no baja al mudarse una pantalla.
+    expect(conIcono).toBeGreaterThanOrEqual(5)
   })
 })
