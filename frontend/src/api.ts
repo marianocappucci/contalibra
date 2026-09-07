@@ -29,6 +29,11 @@ export type {
   Producto, CategoriaProducto, Deposito, StockItem, StockListado, MovimientoStock, StockPorDeposito,
 } from 'libra-ui/comercio/tipos'
 export type { ListaPrecio, ItemListaPrecio, Quiebre, ProductoBusqueda } from 'libra-ui/comercio/tipos'
+import type { CajaConfig } from 'libra-ui/comercio/tipos'
+export type {
+  Venta, VentaItem, VentaPago, Turno, ResumenTurno, CajaConfig, CajaMovimiento, ResumenCaja,
+} from 'libra-ui/comercio/tipos'
+export { opcionesCliente } from 'libra-ui/comercio/tipos'
 
 export type {
   BorradorDuplicado, Caja, Factura, FacturaDetalle, FacturaItem,
@@ -418,77 +423,12 @@ export const TIPOS_CUENTA_TESORERIA = [
   { value: 'otro', label: 'Otro' },
 ] as const
 
-export type CajaMovimiento = {
-  id: number
-  fecha: string
-  tipo: string
-  concepto: string
-  monto: number
-  referencia: string
-  factura_id: number | null
-  caja_id: number | null
-  caja_nombre: string | null
-  usuario_nombre: string | null
-  medio_pago: string
-  /** 1 = anulado. La fila **queda** y sale de los totales del arqueo: un
-   *  movimiento de caja se anula, no se borra. */
-  anulado?: number
-}
 
-export type ResumenCaja = { ingresos: number; egresos: number; saldo_periodo: number; saldo_total: number }
 
-export type CajaConfig = {
-  id: number
-  nombre: string
-  descripcion: string
-  medios_pago: string[]
-  es_default: number
-  activo: number
-}
 
-export type Turno = {
-  id: number
-  usuario_id: number
-  usuario_nombre: string
-  apertura: string
-  cierre: string | null
-  monto_inicial: number
-  monto_declarado_cierre: number | null
-  monto_esperado_cierre: number | null
-  estado: 'abierto' | 'cerrado'
-  notas: string
-}
 
-export type ResumenTurno = {
-  ventas: { id: number; numero: string; fecha: string; cliente_nombre: string; total: number; estado: string }[]
-  pagos_por_medio: Record<string, number>
-  total_ventas: number
-  efectivo_ventas: number
-}
 
-export type VentaItem = { nombre: string; qty: number; precio: number; subtotal: number; producto_id: number | null }
-export type VentaPago = { id?: number; medio: string; monto: number; referencia: string }
 
-export type Venta = {
-  id: number
-  numero: string
-  fecha: string
-  items: VentaItem[]
-  subtotal: number
-  descuento: number
-  total: number
-  cliente_id: number | null
-  cliente_nombre: string
-  observaciones: string
-  estado: 'pendiente' | 'parcial' | 'cobrada' | 'anulada'
-  pagos: VentaPago[]
-  factura_id: number | null
-  factura_display: string | null
-  remito_id: number | null
-  // Los devuelve `_venta_dict` desde siempre; faltaban aca.
-  mp_order_id: string
-  mp_payment_id: string
-}
 
 
 
@@ -635,13 +575,6 @@ export type DashboardData = {
 // En un sistema de facturacion el CUIT es el mejor discriminador: es lo que
 // suele tenerse a mano del papel, y dos clientes pueden llamarse casi igual.
 
-export function opcionesCliente(clientes: Cliente[]): OpcionSelect[] {
-  return clientes.map((c) => ({
-    value: String(c.id),
-    label: c.name,
-    hint: [c.cuit_dni, c.activo ? null : 'inactivo'].filter(Boolean).join(' · ') || undefined,
-  }))
-}
 
 export function opcionesProveedor(proveedores: Proveedor[]): OpcionSelect[] {
   return proveedores.map((p) => ({
