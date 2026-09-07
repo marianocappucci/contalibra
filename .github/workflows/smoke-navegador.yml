@@ -121,7 +121,7 @@ jobs:
       - name: Chromium de Playwright
         working-directory: frontend
         run: npx playwright install --with-deps chromium
-      - name: Login y Dashboard en Chromium
+      - name: Login, primera pantalla y comprobantes en Chromium
         working-directory: frontend
         env:
           SMOKE_USER: admin
