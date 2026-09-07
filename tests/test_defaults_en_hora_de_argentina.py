@@ -22,6 +22,7 @@ queda fuera de la hora de Argentina". Buscar `datetime('now')` dejaria pasar una
 columna nueva escrita como `DEFAULT CURRENT_TIMESTAMP`, que tiene el mismo
 problema con otra cara.
 """
+import pathlib
 from pathlib import Path
 
 import pytest
@@ -44,17 +45,35 @@ def _fuentes():
             yield archivo
 
 
-def test_el_barrido_encuentra_el_ddl():
+def test_el_barrido_lee_los_fuentes():
     """Control: sin esto, una lista vacia pasaria por verde para siempre.
 
     Es el mismo control que lleva la guarda del motor. Un barrido que dejo de
     encontrar archivos —porque el DDL se movio de carpeta, por ejemplo— informa
     "limpio" sobre un repo que no miro.
+
+    🔑 **Hasta P9-M5 este control contaba columnas con reloj y exigia al menos
+    una. Dejo de poder hacerlo el 2026-09-07, y no por un defecto.** La unica que
+    le quedaba a Contalibra estaba dentro de `_migrar_ventas_pagos_a_sales`, el
+    rebuild de `ventas_pagos` que se retiro cuando esa migracion paso a ser
+    `libracommerce.erp.ventas.repuntar_fk_ventas_pagos`. Hoy el DDL propio del
+    producto son tres tablas sin timestamps y el resto lo declaran los motores,
+    que corren **esta misma** funcion sobre sus fuentes. Un piso de cero no
+    controla nada, asi que el control pasa a mirar lo que sigue existiendo: que
+    el barrido lea archivos, y que los lea de verdad. La guarda de abajo queda
+    como tripwire para el dia que alguien vuelva a declarar DDL con reloj aca.
     """
-    encontradas = sum(
-        len(defaults_con_reloj(f.read_text(encoding="utf-8"))) for f in _fuentes()
-    )
-    assert encontradas >= 1, f"el barrido encontro solo {encontradas} columnas con reloj"
+    archivos = list(_fuentes())
+    # 73 al 2026-09-07; el piso solo tiene que distinguir "barrio" de "no barrio".
+    assert len(archivos) >= 40, f"el barrido leyo solo {len(archivos)} archivos"
+    # Y que los lea de verdad, no como cadenas vacias: es la otra mitad del
+    # falso verde barato.
+    assert any("def " in f.read_text(encoding="utf-8") for f in archivos)
+    # Los motores si tienen que tener DDL con reloj: si esta funcion dejara de
+    # encontrar nada en ninguna parte, seria ella la rota.
+    from libracore.db import schema as schema_core
+
+    assert defaults_con_reloj(pathlib.Path(schema_core.__file__).read_text(encoding="utf-8"))
 
 
 @pytest.mark.parametrize("archivo", sorted(_fuentes()), ids=lambda f: f.name)

@@ -29,6 +29,8 @@ Es idempotente a propósito —`CREATE TABLE IF NOT EXISTS` y `ALTER` guardados 
 introspección—, que es lo que permite correr la baseline sobre una instancia
 viva: hace lo mismo que ya hace cada arranque, más registrar la versión.
 """
+from libracommerce.erp.schema import crear_venta_links
+
 from app.db_integraciones import crear_tablas as _crear_tablas_integraciones
 
 
@@ -43,16 +45,13 @@ def init_schema_propio(conn) -> None:
     # suyos: facturación/remitos y turno de caja (LibraCore) y MercadoPago. No
     # van dentro de `sales` para no meter dominio ajeno en el motor genérico —
     # ver db_ventas.py.
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS venta_links (
-            venta_id      INTEGER PRIMARY KEY REFERENCES sales(id) ON DELETE CASCADE,
-            factura_id    INTEGER REFERENCES facturas(id) ON DELETE SET NULL,
-            remito_id     INTEGER REFERENCES remitos(id) ON DELETE SET NULL,
-            turno_id      INTEGER REFERENCES turnos_caja(id) ON DELETE SET NULL,
-            mp_order_id   TEXT DEFAULT '',
-            mp_payment_id TEXT DEFAULT ''
-        )
-    """)
+    #
+    # 🔑 El DDL lo declara el motor desde P9-M5 (`libracommerce.erp.schema`):
+    # estaba escrito igual acá, en Restolibra y en el `conftest` de LibraCommerce.
+    # Se sigue creando desde acá, y no desde `init_schema()` del motor, porque las
+    # FK apuntan a `sales` (LibraCommerce) y a `facturas`/`remitos`/`turnos_caja`
+    # (LibraCore): este es el único momento en que las cuatro existen.
+    crear_venta_links(conn)
 
     # Ventas que entran desde otro producto de la familia, y el usuario al que se
     # atribuyen. Mismo criterio que `venta_links`: de qué producto de la suite
