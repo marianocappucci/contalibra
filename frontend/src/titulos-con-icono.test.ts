@@ -35,10 +35,11 @@ describe('el icono del título sale del sidebar', () => {
     // ser wrappers de libra-ui/comercio, sin titulo propio que auditar aca: el
     // piso baja en esa cantidad. Sus iconos son los del kit (Package, Boxes,
     // Warehouse), los mismos que tiene el sidebar. P9-M2: dos mas (listas de
-    // precio, icono Tag).
+    // precio, icono Tag). P9-M3: siete mas (ventas, detalle, caja, cajas y los
+    // tres de turnos).
     const { rutasDelNav, pantallas, conIcono } = auditarTitulos(SRC)
     expect(rutasDelNav).toBeGreaterThanOrEqual(26)
-    expect(pantallas).toBeGreaterThanOrEqual(33)
-    expect(conIcono).toBeGreaterThanOrEqual(33)
+    expect(pantallas).toBeGreaterThanOrEqual(26)
+    expect(conIcono).toBeGreaterThanOrEqual(26)
   })
 })
