@@ -91,7 +91,6 @@ from app.db_facturas import (  # noqa: F401
     update_factura_pdf_path,
 )
 from app.db_integraciones import (  # noqa: F401
-    crear_tablas as crear_tablas_integraciones,
 )
 from app.db_integraciones import (
     get_alicuota_externa,
