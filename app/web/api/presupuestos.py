@@ -23,12 +23,19 @@ def _convertir_a_remito(presupuesto: dict, valorizado: bool = False):
             generar_pdf=lambda r: pdf_gen.generate_pdf(r, show_prices=True),
         )
     else:
-        # Nota de entrega pelada: se tiran los precios (ítems description+qty,
+        # Nota de entrega pelada: se tiran los PRECIOS (ítems description+qty,
         # totales en 0) para que ni los datos ni el PDF los muestren.
+        #
+        # 🔑 Lo pelado es el precio, no la descripción. El `detalle` del ítem
+        # describe QUÉ se entrega ("rodado 15, incluye balanceo"), así que viaja
+        # como la descripción: sacarlo dejaría la nota de entrega diciendo menos
+        # que el presupuesto que la originó, que es justo lo que se firma contra
+        # la mercadería.
         pelado = {
             **presupuesto,
             "items": [
-                {"description": i["description"], "qty": i["qty"]}
+                {"description": i["description"], "qty": i["qty"],
+                 **({"detalle": i["detalle"]} if i.get("detalle") else {})}
                 for i in presupuesto["items"]
             ],
             "subtotal": 0, "tax_rate": 0, "tax_amount": 0, "total": 0,
