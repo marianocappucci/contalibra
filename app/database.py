@@ -364,6 +364,10 @@ def init_db():
             # `aplicar_plan_en_db` lo saltean vía `plans.ADDONS`, así que sobrevive
             # a los cambios de plan.
             ("mayorista",         0, "addon"),
+            # Add-on opcional (copia externa en la nube del cliente): mismo
+            # tratamiento que `mayorista`. Arranca apagado; el `INSERT OR
+            # IGNORE` de abajo no pisa una instancia que ya lo tenga prendido.
+            ("resguardo_externo", 0, "addon"),
         ]
         for modulo, habilitado, plan in _MODULOS_DEFAULT:
             conn.execute(
