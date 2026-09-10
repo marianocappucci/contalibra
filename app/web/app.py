@@ -42,6 +42,7 @@ from libracore.libros_iva_router import build_libros_iva_export_router, build_li
 from libracore.logs_router import build_logs_export_router, build_logs_router
 from libracore.mp_config_router import build_mp_config_router
 from libracore.reportes_router import build_reportes_export_router, build_reportes_router
+from libracore.resguardo_enlace import build_resguardo_enlace_router
 from libracore.respaldo import Instancia
 from libracore.smtp_router import build_smtp_probe_router
 from libracore.tesoreria_router import build_tesoreria_router
@@ -377,6 +378,32 @@ app.include_router(
         config_router.BACKUPS_DIR,
     ),
     dependencies=[Depends(require_admin_json)],
+)
+# Enlace de la copia externa con la nube del cliente (LibraCore v1.93.0): el
+# cliente conecta su Google Drive o Dropbox desde Configuracion -> Datos /
+# Backup, y el subidor del host usa el `rclone.conf` que queda en
+# `<BACKUPS_DIR>/.resguardo/`. Por eso va el MISMO directorio que el router de
+# backup de arriba: es de ahi de donde el host lee la instancia.
+#
+# Dos gates, los dos necesarios:
+#   - `require_admin_json`: conectar la nube es configuracion, como el resto de
+#     la pestana. Tambien cubre el `/callback`, a proposito (ver el docstring
+#     del motor: la cookie es `SameSite=Lax` y viaja en la vuelta del OAuth).
+#   - `require_module("resguardo_externo")`: es un ADD-ON (`plans.ADDONS`), no
+#     parte de un plan. Arranca apagado y lo prende el backoffice por
+#     instancia; una fila que falta en `modulos` tambien da 403, que libra-ui
+#     muestra como "sin plan".
+#
+# `volver_a` apunta a `/config` y no al `/configuracion` del default del motor:
+# en este producto la pantalla de Configuracion vive en `/config`
+# (`frontend/src/App.tsx`).
+app.include_router(
+    build_resguardo_enlace_router(
+        config_router.BACKUPS_DIR,
+        carpeta="Resguardo Contalibra",
+        volver_a="/config?seccion=datos",
+    ),
+    dependencies=[Depends(require_admin_json), Depends(require_module("resguardo_externo"))],
 )
 app.include_router(
     build_depositos_router(conexion=_abrir_conexion, usuario_actual=get_current_user_json),

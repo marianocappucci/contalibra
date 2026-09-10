@@ -63,7 +63,12 @@ TODOS_LOS_MODULOS = set(PLAN_MODULOS["premium"])
 # lee este set con `getattr(plans, "ADDONS", set())`.
 #   - mayorista: lista de precios por cliente + quiebres por cantidad
 #     (paquete mayorista, ver wiki/analyses/distribuidora-mayorista-producto-candidato).
-ADDONS = {"mayorista"}
+#   - resguardo_externo: copia del backup en la nube del propio cliente (Google
+#     Drive / Dropbox), enlazada por el cliente desde Configuracion -> Datos /
+#     Backup. Gatea el router `libracore.resguardo_enlace` que monta
+#     `app/web/app.py`; sin el add-on, esas rutas dan 403 y la pantalla lo
+#     muestra como "sin plan". Ver wiki/analyses/resguardo-backup-familia-libra.
+ADDONS = {"mayorista", "resguardo_externo"}
 
 
 def aplicar_plan_en_db(db_path: str, plan: str) -> None:
@@ -82,7 +87,8 @@ def aplicar_plan_en_db(db_path: str, plan: str) -> None:
 
     Idempotente (INSERT OR IGNORE + UPDATE). Requiere que la tabla `modulos` exista.
 
-    `- ADDONS`: aplicar un plan nunca toca un add-on (`mayorista`). Hoy es
+    `- ADDONS`: aplicar un plan nunca toca un add-on (`mayorista`,
+    `resguardo_externo`). Hoy es
     equivalente a `TODOS_LOS_MODULOS` (los add-ons ya están afuera), pero deja la
     invariante escrita.
     """
