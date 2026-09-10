@@ -194,5 +194,10 @@ def test_las_rutas_nuevas_si_estan_registradas():
     `_rutas_declaradas()` devolviera vacío."""
     declaradas = _rutas_declaradas()
     for ruta in ("/api/config/backups", "/api/config/backups/{filename}",
-                 "/api/config/backup-ahora", "/api/config/restore"):
+                 "/api/config/backup-ahora", "/api/config/restore",
+                 # El enlace de la copia externa (add-on `resguardo_externo`).
+                 # El `/callback` no figura: el motor lo declara con
+                 # `include_in_schema=False`.
+                 "/api/config/resguardo-externo/enlace",
+                 "/api/config/resguardo-externo/enlace/{proveedor}"):
         assert ruta in declaradas, sorted(p for p in declaradas if "backup" in p)
