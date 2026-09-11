@@ -38,6 +38,8 @@ no tiene de dónde salir.
 que todavía no se actualizó, pero **son excluyentes**: mandar los dos es un
 pedido ambiguo y se rechaza en vez de elegir uno.
 """
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException
 from libracore import medios_pago
 from libracore import pagos as acreditacion
@@ -230,10 +232,18 @@ def _cliente_para(paciente: PacientePayload) -> int | None:
 
 
 @router.post("/consultas", dependencies=[Depends(require_admin_o_servicio_json)])
-async def registrar_consulta(payload: ConsultaPayload):
+def registrar_consulta(payload: ConsultaPayload):
     """Registra la consulta como venta cobrada y —si se pide— la factura.
 
     Devuelve `{"venta": ..., "factura": ..., "ya_existia": bool}`.
+
+    🔴 **`def` y no `async def`, a propósito.** Todo lo que hace esta ruta es
+    sincrónico —la base de LibraCore, y adentro de la factura `openssl` por
+    subproceso y el PDF—, y uvicorn corre con **un solo proceso**: como `async
+    def`, cada una de esas llamadas frenaba el loop entero, y mientras MedLibra
+    facturaba una consulta la instancia no le contestaba a nadie. Como `def`,
+    FastAPI la corre en el threadpool. Lo único asincrónico de verdad es la
+    factura, y eso lo resuelve `_facturar`.
     """
     usuario = _usuario_de_integraciones()
 
@@ -246,7 +256,7 @@ async def registrar_consulta(payload: ConsultaPayload):
         venta = db.get_venta(ya)
         factura = None
         if payload.facturar and not venta.get("factura_id"):
-            factura = await _facturar(ya, usuario["id"])
+            factura = _facturar(ya, usuario["id"])
         elif venta.get("factura_id"):
             factura = db.get_factura(venta["factura_id"])
         return {"venta": db.get_venta(ya), "factura": factura, "ya_existia": True}
@@ -281,20 +291,33 @@ async def registrar_consulta(payload: ConsultaPayload):
         venta_id, payload.sistema, payload.referencia, payload.iva_rate,
     )
 
-    factura = await _facturar(venta_id, usuario["id"]) if payload.facturar else None
+    factura = _facturar(venta_id, usuario["id"]) if payload.facturar else None
     return {"venta": db.get_venta(venta_id), "factura": factura, "ya_existia": False}
 
 
-async def _facturar(venta_id: int, usuario_id: int):
+def _facturar(venta_id: int, usuario_id: int):
     """Emite la factura, o `None` si el módulo de facturación está apagado.
 
     No se rechaza el pedido por eso: la venta **ya está registrada y cobrada**,
     que es la mitad que siempre corresponde. Devolver 4xx dejaría al emisor
     reintentando —y por la idempotencia, sin crear nada— para siempre.
+
+    🔴 **`asyncio.run` en este hilo, y no un `await` en el loop.**
+    `facturar_venta` es `async` sólo en los bordes: lo que espera de la red
+    —WSAA y WSFE— va por `httpx` asincrónico, pero entre medio lee y escribe la
+    base, carga `config.json`, genera el PDF y **firma el TRA con `openssl` por
+    subproceso**, todo sincrónico. Con `await` desde el loop, cada una de esas
+    cosas frenaba la instancia entera. Acá corre en el hilo del threadpool que
+    atiende este request, con un loop propio: lo sincrónico bloquea a este
+    hilo y a nadie más, y lo asincrónico de verdad sigue siéndolo adentro. El
+    motor no cambia —su firma sigue siendo la que usan el webhook y el cobro por
+    QR—, así que el arreglo va del lado de quien llama.
     """
     if not db.get_modulos().get("facturacion"):
         return None
     try:
-        return await venta_facturacion.facturar_venta(venta_id, usuario_id=usuario_id)
+        return asyncio.run(
+            venta_facturacion.facturar_venta(venta_id, usuario_id=usuario_id)
+        )
     except venta_facturacion.VentaNoFacturable as e:
         raise HTTPException(422, str(e))
