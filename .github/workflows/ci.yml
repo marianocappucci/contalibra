@@ -284,6 +284,17 @@ jobs:
       - name: El build dejo algo de verdad
         run: test -f dist/index.html
 
+      # Ningún `€` en lo que se sirve. `tests/test_sin_simbolo_de_euro.py` barre
+      # los fuentes de este repo; esto mira el bundle compilado, que es lo que
+      # ve el usuario e incluye lo que llega de `libra-ui` (2026-09-10).
+      - name: Ningun simbolo de euro en el bundle
+        run: |
+          if grep -rl "€" dist/; then
+            echo "::error::Hay un € en el bundle de producción (archivos arriba)."
+            exit 1
+          fi
+          echo "OK: ningún € en dist/"
+
       # `--reporter=default` mantiene la salida legible en el log; el `junit`
       # agregado deja además el XML que lee el gate del paso siguiente. Los dos
       # reporters conviven: el `--outputFile.junit` le da destino sólo al
