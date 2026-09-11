@@ -292,6 +292,10 @@ def sembrar(api: Api) -> date:
     # un cliente y no con un hueco arriba.
     _cargar_logo(api, "Insumos del Plata SRL", "I", (37, 99, 235), contar)
 
+    print("Revisor de integraciones y copia externa…")
+    _sembrar_revisor(api, contar)
+    _prender_copia_externa(contar)
+
     print()
     for clave, (creados, existentes) in sorted(hechos.items()):
         print(f"  {clave:<13} {creados} creados, {existentes} ya estaban")
@@ -485,6 +489,86 @@ def _sembrar_presupuestos(api: Api, clientes: dict, contar) -> None:
                 })
             except RuntimeError as e:
                 print(f"  -- estado {estado}: {e}")
+
+
+# ── El revisor de integraciones y la copia externa ────────────────────────
+#
+# Para que un tercero pueda probar la copia externa en la demo —hoy, quien
+# revisa en Dropbox la app de LibraSuite antes de pasarla a producción— hacen
+# falta dos cosas que el reset diario se lleva todas las madrugadas: el add-on
+# prendido y un usuario **admin**. El visitante del auto-login es `operador`
+# (`ensure_demo_user(rol="operador")`) y el enlace con la nube exige admin, así
+# que con el visitante no alcanza. Y es a propósito que no alcance: si el
+# visitante fuera admin, cualquiera podría dejar su propio Drive enlazado a la
+# demo, y el enlace sobrevive al reset porque vive en archivos y no en la base.
+
+#: Las credenciales del revisor salen del ENTORNO, nunca del repo: este repo es
+#: público. En el VPS las carga `reset_demo.sh` desde
+#: `/root/secretos/demo_revisor.env`; sin ese archivo el seed no crea el usuario.
+ENV_REVISOR_USUARIO = "DEMO_REVISOR_USUARIO"
+ENV_REVISOR_PASSWORD = "DEMO_REVISOR_PASSWORD"
+REVISOR_NOMBRE = "Revisor de integraciones"
+
+#: El add-on de la copia externa (`plans.ADDONS`).
+ADDON_COPIA_EXTERNA = "resguardo_externo"
+
+
+def _sembrar_revisor(api: Api, contar) -> None:
+    """Un usuario admin para el revisor, si el entorno trae sus credenciales."""
+    usuario = os.environ.get(ENV_REVISOR_USUARIO, "").strip()
+    clave = os.environ.get(ENV_REVISOR_PASSWORD, "")
+    if not usuario or not clave:
+        print(f"  -- sin revisor: faltan {ENV_REVISOR_USUARIO} y "
+              f"{ENV_REVISOR_PASSWORD} en el entorno")
+        return
+    registro, nuevo = obtener_o_crear(api, "/api/usuarios", "username", usuario, {
+        "username": usuario, "nombre": REVISOR_NOMBRE,
+        "password": clave, "role": "admin",
+    })
+    if not nuevo:
+        # Si ya estaba (el seed se corre dos veces), se le vuelven a fijar la
+        # clave y el rol: la que manda es la del archivo del VPS, que es la que
+        # tiene el revisor. Sin esto, cambiar la clave del archivo no cambiaría
+        # nada hasta el próximo reset.
+        api.put(f"/api/usuarios/{registro['id']}", {
+            "nombre": registro.get("nombre") or REVISOR_NOMBRE,
+            "email": registro.get("email") or "",
+            "role": "admin", "activo": True, "new_password": clave,
+        })
+    contar("revisor", nuevo)
+
+
+def _prender_copia_externa(contar) -> None:
+    """Prende el add-on de la copia externa en la demo.
+
+    🔴 **Es la única excepción a "todo por la API", y va acotada.** Prender un
+    add-on es del plano de control, no de la pantalla del cliente: no hay
+    endpoint para eso. Se usa la **misma** función que el toggle del backoffice
+    (`app.database.set_addon`, que el backoffice llama por `docker exec`), y
+    sólo adentro de una instancia demo (`DEMO_MODE=1`), que es donde
+    `reset_demo.sh` corre este script. Contra cualquier otra cosa no toca nada.
+    """
+    if os.environ.get("DEMO_MODE") != "1":
+        print("  -- copia externa: no es una instancia demo (DEMO_MODE), "
+              "no se toca el add-on")
+        return
+    # `reset_demo.sh` corre `python3 /tmp/seed.py`: el paquete `app` de la
+    # instancia está en /app y no en el path del script.
+    if os.path.isdir("/app/app") and "/app" not in sys.path:
+        sys.path.insert(0, "/app")
+    try:
+        from app.database import get_modulos, set_addon
+    except ImportError as e:
+        print(f"  -- copia externa: no corre adentro de la instancia ({e})")
+        return
+    ya_estaba = bool(get_modulos().get(ADDON_COPIA_EXTERNA))
+    if not ya_estaba:
+        set_addon(ADDON_COPIA_EXTERNA, True)
+    # Se relee: un toggle que no quedó es peor que uno que falla, porque la
+    # demo diría "Consultanos" y nadie sabría por qué.
+    if not get_modulos().get(ADDON_COPIA_EXTERNA):
+        raise RuntimeError("el add-on de copia externa no quedó prendido")
+    contar("add-ons", not ya_estaba)
 
 
 def _sesion_del_visitante(api):

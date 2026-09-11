@@ -232,8 +232,24 @@ fi
 # el compose de la demo con contrasenas distintas, asi que usar la equivocada da
 # un 401 que no dice por que.
 # --- 2. Sembrar -----------------------------------------------------------
+# El revisor de integraciones (hoy, quien aprueba en Dropbox la app de
+# LibraSuite) necesita un usuario admin, y este reset se lo lleva todas las
+# noches. Su clave NO vive en el repo -es publico-: sale de un archivo del VPS.
+# Sin el archivo, el seed siembra igual y dice que no hay revisor.
+REVISOR_ENV=/root/secretos/demo_revisor.env
+CON_REVISOR=()
+if [ -r "$REVISOR_ENV" ]; then
+  # shellcheck disable=SC1090
+  set -a; . "$REVISOR_ENV"; set +a
+  # `-e VAR` sin valor: docker toma el valor del entorno de este proceso, asi
+  # la clave no queda en la linea de comandos (ni en `ps`).
+  CON_REVISOR=(-e DEMO_REVISOR_USUARIO -e DEMO_REVISOR_PASSWORD)
+  log "revisor: se siembra desde $REVISOR_ENV"
+else
+  log "revisor: no hay $REVISOR_ENV, se siembra sin revisor"
+fi
 docker cp "$SEED_LOCAL" "$CONTENEDOR:/tmp/seed.py"
-docker exec -i "$CONTENEDOR" sh -c '
+docker exec -i "${CON_REVISOR[@]}" "$CONTENEDOR" sh -c '
   python3 /tmp/seed.py \
     --url https://demo.contalibra.com.ar \
     --usuario "${ADMIN_USER:-admin}" \
