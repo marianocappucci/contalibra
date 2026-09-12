@@ -55,9 +55,20 @@ function json(body: unknown, status = 200) {
   })
 }
 
-/** Sin sesion: la ruta de sesion responde 401, como con la cookie vencida. */
+const RUTA_CAPTCHA = '/api/captcha'
+
+/** Sin sesion: la ruta de sesion responde 401, como con la cookie vencida.
+ *
+ * La sonda del captcha contesta 404, no 401: el api-client de libra-ui trata
+ * un 401 como sesión vencida, y eso no es lo que pasa en esa ruta. */
 function sinSesion() {
-  fetchMock.mockImplementation(() => Promise.resolve(json({ detail: 'No autenticado' }, 401)))
+  fetchMock.mockImplementation((url: string) =>
+    Promise.resolve(
+      String(url).includes(RUTA_CAPTCHA)
+        ? json({ detail: 'Not Found' }, 404)
+        : json({ detail: 'No autenticado' }, 401),
+    ),
+  )
 }
 
 /** Con sesion: devuelve un usuario; el resto de las llamadas, vacio. */
@@ -96,6 +107,25 @@ describe('arranque', () => {
     montar('/login')
     await waitFor(() => expect(screen.getByLabelText('Usuario')).toBeInTheDocument())
     expect(errores).not.toHaveBeenCalled()
+  })
+
+  // El recuadro «No soy un robot» sólo aparece si la sonda a esta ruta contesta
+  // con un desafío: si el Login dejara de consultarla, el captcha del backend
+  // (`captcha=True`) dejaría a todos afuera sin un recuadro que tildar.
+  it('el login consulta la ruta del captcha', async () => {
+    sinSesion()
+    montar('/login')
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.some(([u]) => String(u).includes(RUTA_CAPTCHA))).toBe(true),
+    )
+  })
+
+  it('/forgot-password consulta la ruta del captcha', async () => {
+    sinSesion()
+    montar('/forgot-password')
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.some(([u]) => String(u).includes(RUTA_CAPTCHA))).toBe(true),
+    )
   })
 
   it('consulta la sesion al arrancar', async () => {

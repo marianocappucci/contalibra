@@ -248,6 +248,11 @@ if [ -r "$REVISOR_ENV" ]; then
 else
   log "revisor: no hay $REVISOR_ENV, se siembra sin revisor"
 fi
+# El seed corre ADENTRO del contenedor, y ahi `python3` es el de /opt/venv (el
+# PATH de la imagen), el mismo entorno que la app. Desde libraauth v0.40.0 el
+# seed resuelve el captcha ALTCHA del login y necesita `altcha`, que llega con
+# libraauth a ese venv. NO cambiarlo por `$REPO/.venv-scripts/bin/python`: esa
+# ruta es del host y adentro del contenedor no existe.
 docker cp "$SEED_LOCAL" "$CONTENEDOR:/tmp/seed.py"
 docker exec -i "${CON_REVISOR[@]}" "$CONTENEDOR" sh -c '
   python3 /tmp/seed.py \
