@@ -1,4 +1,17 @@
-import { expect, test } from '@playwright/test'
+import { expect, type Page, test } from '@playwright/test'
+
+/** Tilda «No soy un robot» y espera a que el widget resuelva el desafío.
+ *
+ *  El backend monta el router con `captcha=True` (libraauth v0.40.0), así que
+ *  sin esto «Ingresar» queda deshabilitado. `click()` y no `check()`: la casilla
+ *  queda tildada recién cuando termina la prueba de trabajo (~1 s), y `check()`
+ *  exige que el estado cambie en el acto. Lo que se espera es lo que ve el
+ *  humano: el botón habilitado.
+ */
+async function tildarCaptcha(page: Page) {
+  await page.getByRole('checkbox', { name: /No soy un robot/ }).click()
+  await expect(page.getByRole('button', { name: 'Ingresar' })).toBeEnabled({ timeout: 20_000 })
+}
 
 // Lo único que un unitario no puede ver: que la SPA construida, servida por la
 // app real, deje entrar y muestre una pantalla de dominio. Si el bundle quedó
@@ -21,6 +34,11 @@ test('entra por /login, llega al Dashboard y abre los comprobantes', async ({ pa
 
   await page.locator('#username').fill(process.env.SMOKE_USER ?? 'admin')
   await page.locator('#password').fill(process.env.SMOKE_PASSWORD ?? '')
+  // El captcha está prendido de verdad: aparece el recuadro y, hasta tildarlo,
+  // no se puede ingresar.
+  await expect(page.getByRole('checkbox', { name: /No soy un robot/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Ingresar' })).toBeDisabled()
+  await tildarCaptcha(page)
   await page.getByRole('button', { name: 'Ingresar' }).click()
 
   await expect(page).toHaveURL(/\/dashboard/)
@@ -83,6 +101,9 @@ test('una credencial mala no entra (control)', async ({ page }) => {
   await page.goto('/login')
   await page.locator('#username').fill('admin')
   await page.locator('#password').fill('esta-no-es')
+  // Con el captcha resuelto: si no, el rechazo sería el 400 del captcha y el
+  // control no probaría nada sobre la credencial.
+  await tildarCaptcha(page)
   await page.getByRole('button', { name: 'Ingresar' }).click()
   await expect(page).toHaveURL(/\/login/)
   // El mensaje es el `detail` del backend de Contalibra (formatError), no el genérico
