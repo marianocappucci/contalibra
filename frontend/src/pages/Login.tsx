@@ -22,4 +22,8 @@ export const Login = createLogin({
   // GET /api/demo al montar y solo lo pinta si la instancia contesta que es
   // una demo -- en sistema.contalibra.com.ar esa ruta da 404.
   demoPath: '/api/demo',
+  // Recuadro «No soy un robot» (ALTCHA, libra-ui v0.69.2). Lo sirve el router
+  // de libraauth con `captcha=True`; libra-ui lo pinta sólo si esta ruta
+  // contesta con un desafío, y deja «Ingresar» deshabilitado hasta tildarlo.
+  captchaPath: '/api/captcha',
 })

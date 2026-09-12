@@ -54,4 +54,8 @@ router = build_json_api_auth_router(
     incluir_demo=True,
     incluir_password_reset=True,
     get_extras=_campos_del_producto,
+    # Captcha ALTCHA en el login y en forgot-password, SIEMPRE (no recien
+    # despues de N fallos): decision del humano, ADR-014 de libraauth. Agrega
+    # `GET /api/captcha`; sin la solucion en el campo `captcha`, 400.
+    captcha=True,
 )
