@@ -118,6 +118,51 @@ class Api:
         return self._pedir("PUT", ruta, cuerpo)
 
 
+def _desafio_captcha(api: Api):
+    """El desafio ALTCHA de la instancia, o `None` si no pide captcha.
+
+    🔴 **Que no lo pida es un caso real, no un error.** El reset nocturno corre
+    el seed de `origin/develop` contra una demo construida desde `main`: entre
+    el merge a develop y la promocion, la instancia todavia no tiene
+    `/api/captcha`. Y esa ruta no da 404 ahi: la atrapa el fallback de la SPA y
+    devuelve el `index.html` con 200. Por eso se mira la FORMA de la respuesta
+    —`parameters` + `signature`, lo mismo que mira libra-ui— y no el status.
+    """
+    try:
+        desafio = api.get("/api/captcha")
+    except (RuntimeError, ValueError):
+        return None
+    if isinstance(desafio, dict) and "parameters" in desafio and "signature" in desafio:
+        return desafio
+    return None
+
+
+def entrar(api: Api, usuario: str, clave: str) -> None:
+    """`POST /api/login`, resolviendo antes el captcha si la instancia lo pide.
+
+    Desde libraauth v0.40.0 el login exige la solucion de un desafio ALTCHA
+    (`captcha=True` en `app/web/api/auth.py`). `altcha` se importa aca adentro,
+    y solo si hay desafio: contra una instancia sin captcha el seed no lo
+    necesita.
+    """
+    cuerpo = {"username": usuario, "password": clave}
+    desafio = _desafio_captcha(api)
+    if desafio is not None:
+        try:
+            from altcha import Challenge, Payload, solve_challenge
+        except ImportError:
+            raise SystemExit(
+                "ERROR: la instancia pide captcha y este Python no tiene `altcha` "
+                "(llega con libraauth >= v0.40.0). Corre el seed con el entorno del "
+                "producto: adentro del contenedor (`python3`, el de /opt/venv, como "
+                "hace scripts/reset_demo.sh) o con `.venv-scripts/bin/python` / el "
+                "`.venv` del checkout."
+            ) from None
+        ch = Challenge.from_dict(desafio)
+        cuerpo["captcha"] = Payload(ch, solve_challenge(ch)).to_base64()
+    api.post("/api/login", cuerpo)
+
+
 def _lista(datos):
     """Los listados de este producto a veces vienen envueltos
     (`{"items": [...]}`, `{"clientes": [...]}`). Devuelve siempre la lista."""
@@ -591,7 +636,7 @@ def _sesion_del_visitante(api):
         return None
     sesion = Api(base)
     try:
-        sesion.post("/api/login", {"username": usuario, "password": clave})
+        entrar(sesion, usuario, clave)
     except RuntimeError as e:
         print(f"  -- no se pudo entrar como {usuario}: {e}")
         return None
@@ -892,7 +937,7 @@ def main() -> int:
         return 2
 
     api = Api(args.url)
-    api.post("/api/login", {"username": args.usuario, "password": args.password})
+    entrar(api, args.usuario, args.password)
     sembrar(api)
     return 0
 

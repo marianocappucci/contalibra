@@ -10,5 +10,8 @@ import { createForgotPassword, createResetPassword } from 'libra-ui/PasswordRese
 
 const branding = { productName: 'Contalibra', productInitial: 'C', basePath: '/api' }
 
-export const ForgotPassword = createForgotPassword(branding)
+// El pedido del mail lleva el mismo captcha ALTCHA que el login: sin él, el
+// endpoint manda correos a pedido de cualquiera. El reset-password no lo
+// lleva: ya lo gatea el token que llegó por mail.
+export const ForgotPassword = createForgotPassword({ ...branding, captchaPath: '/api/captcha' })
 export const ResetPassword = createResetPassword(branding)
