@@ -78,7 +78,7 @@ dependencies = [
     # su deuda por facturas invisible en el saldo — llegó a mostrar "a favor"
     # en vez de deudor. Detectado en producción: Municipalidad de Suipacha,
     # ver wiki/entities/contalibra.md (2026-09-03).
-    "libracore[migrations] @ git+https://github.com/marianocappucci/libracore.git@v1.95.0",
+    "libracore[migrations] @ git+https://github.com/marianocappucci/libracore.git@v1.97.0",
     # v0.7.0 sube al motor las transferencias entre depositos y la guarda de
     # disponibilidad, que hasta ahora vivian solo aca (`db_productos.
     # transferir_stock`) y arrastraban dos defectos: no eran atomicas y el
@@ -86,11 +86,16 @@ dependencies = [
     # `reason_code` por pata, sin el cual adoptarlas degradaba la pantalla de
     # actividad de `transferencia_salida` a `transfer_out`.
     "libracommerce[migrations,erp,web] @ git+https://github.com/marianocappucci/libracommerce.git@v0.15.0",
-    # v0.40.0 trae el captcha ALTCHA del login y del forgot-password
-    # (`build_json_api_auth_router(captcha=True)`, ADR-014) y suma `altcha`
-    # como dependencia. v0.39.0, incluida, arregla la IP con la que cuenta el
-    # bloqueo por intentos fallidos (`ip_del_request`).
-    "libraauth @ git+https://github.com/marianocappucci/libraauth.git@v0.40.0",
+    # v0.43.0 trae la sesion por inactividad de 8h con renovacion deslizante
+    # (ADR-017) y el router de usuarios unico (`libraauth.usuarios.
+    # build_users_router`, ADR-018) que reemplaza a `app/web/api/usuarios.py`
+    # + `app/db_usuarios.py` -- ver wiki/entities/contalibra.md. v0.40.0,
+    # incluida, trae el captcha ALTCHA del login y del forgot-password
+    # (`build_json_api_auth_router(captcha=True)`, ADR-014).
+    # v0.43.1: borrar un usuario con filas que lo referencian por FK (ej. un
+    # turno de caja abierto) daba 500 -- ahora es 409, con rollback de la
+    # sesion. Ver tests/test_usuarios.py.
+    "libraauth @ git+https://github.com/marianocappucci/libraauth.git@v0.43.1",
     # SQLAlchemy entra SOLO para el engine de `usuarios` de libraauth (ver
     # app/db_usuarios.py); el resto de Contalibra sigue en sqlite3 crudo.
     "sqlalchemy>=2.0",

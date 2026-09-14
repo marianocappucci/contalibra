@@ -15,6 +15,7 @@ import { useState } from 'react'
 import { TituloPantalla } from 'libra-ui/titulo-pantalla'
 
 const passwordSchema = z.object({
+  current_password: z.string().min(1, 'Ingresá tu contraseña actual'),
   new_password: z.string().min(6, 'Mínimo 6 caracteres'),
 })
 type PasswordFormValues = z.infer<typeof passwordSchema>
@@ -25,6 +26,17 @@ type PasswordFormValues = z.infer<typeof passwordSchema>
 // /usuarios/:id/editar). El link vive en el footer del sidebar (ver
 // components/Layout.tsx), igual que el nombre+rol clickeable del
 // sidebar-footer viejo.
+//
+// **2026-09-13 (ADR-018, libraauth v0.43.0): dejó de llamar
+// `PUT /api/usuarios/me/password`.** Ese endpoint vivía en el router propio
+// de usuarios (`app/web/api/usuarios.py`) y cambiaba la contraseña SIN pedir
+// la actual -- justamente lo que `build_users_router()` no trae a propósito
+// (ver su docstring). La contraparte del motor es
+// `POST /api/change-password` (`build_json_api_auth_router(prefix="/api")`,
+// ya montado en `app/web/api/auth.py`), que sí la pide -- por eso el
+// formulario suma el campo. No se usa el diálogo compartido
+// `libra-ui/CambiarPassword`: llama a una ruta hardcodeada `/auth/
+// change-password`, y este producto sirve su auth bajo `/api`, no `/auth`.
 export function MiCuenta() {
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -34,7 +46,7 @@ export function MiCuenta() {
 
   const form = useForm<PasswordFormValues>({
     resolver: zodResolver(passwordSchema),
-    defaultValues: { new_password: '' },
+    defaultValues: { current_password: '', new_password: '' },
   })
 
   function describeError(err: unknown): string {
@@ -47,8 +59,10 @@ export function MiCuenta() {
     setError(null)
     setSaved(false)
     try {
-      await api.put('/api/usuarios/me/password', { new_password: values.new_password })
-      form.reset({ new_password: '' })
+      await api.post('/api/change-password', {
+        current_password: values.current_password, new_password: values.new_password,
+      })
+      form.reset({ current_password: '', new_password: '' })
       setSaved(true)
     } catch (err) {
       setError(describeError(err))
@@ -77,10 +91,17 @@ export function MiCuenta() {
           {saved && <p className="mb-3 text-sm text-emerald-600 dark:text-emerald-400">Contraseña actualizada.</p>}
           <Form {...form}>
             <form className="grid gap-4" onSubmit={form.handleSubmit(handleSubmit)}>
+              <FormField control={form.control} name="current_password" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Contraseña actual</FormLabel>
+                  <FormControl><PasswordInput {...field} autoFocus /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
               <FormField control={form.control} name="new_password" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Nueva contraseña</FormLabel>
-                  <FormControl><PasswordInput {...field} placeholder="Mínimo 6 caracteres" autoFocus /></FormControl>
+                  <FormControl><PasswordInput {...field} placeholder="Mínimo 6 caracteres" /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />

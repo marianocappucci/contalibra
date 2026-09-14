@@ -26,10 +26,10 @@ RUTA = "/api/config/resguardo-externo/enlace"
 
 def _crear_operador(admin_client, username="operador1", password="clave-123456"):
     r = admin_client.post("/api/usuarios", json={
-        "username": username, "nombre": f"Usuario {username}",
+        "username": username, "name": f"Usuario {username}",
         "email": f"{username}@suite.test", "password": password, "role": "operador",
     })
-    assert r.status_code == 200, r.text
+    assert r.status_code == 201, r.text
 
 
 # ── apagado por defecto ──────────────────────────────────────────────────────

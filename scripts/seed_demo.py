@@ -566,8 +566,15 @@ def _sembrar_revisor(api: Api, contar) -> None:
         print(f"  -- sin revisor: faltan {ENV_REVISOR_USUARIO} y "
               f"{ENV_REVISOR_PASSWORD} en el entorno")
         return
+    # 2026-09-13 (ADR-018, libraauth v0.43.0): el router de usuarios pasó a
+    # ser `libraauth.usuarios.build_users_router()` -- contrato único de la
+    # familia (`name`/`active`/`email`), sin el alias `nombre`/`activo` que
+    # tenía el router propio. Y el reset de la clave de OTRO usuario se
+    # separó del `PUT` de edición: es `PUT {id}/password` (`{"password":
+    # ...}`), no un campo `new_password` colgado del `UsuarioUpdatePayload`
+    # viejo.
     registro, nuevo = obtener_o_crear(api, "/api/usuarios", "username", usuario, {
-        "username": usuario, "nombre": REVISOR_NOMBRE,
+        "username": usuario, "name": REVISOR_NOMBRE,
         "password": clave, "role": "admin",
     })
     if not nuevo:
@@ -576,10 +583,11 @@ def _sembrar_revisor(api: Api, contar) -> None:
         # tiene el revisor. Sin esto, cambiar la clave del archivo no cambiaría
         # nada hasta el próximo reset.
         api.put(f"/api/usuarios/{registro['id']}", {
-            "nombre": registro.get("nombre") or REVISOR_NOMBRE,
+            "name": registro.get("name") or REVISOR_NOMBRE,
             "email": registro.get("email") or "",
-            "role": "admin", "activo": True, "new_password": clave,
+            "role": "admin", "active": True,
         })
+        api.put(f"/api/usuarios/{registro['id']}/password", {"password": clave})
     contar("revisor", nuevo)
 
 

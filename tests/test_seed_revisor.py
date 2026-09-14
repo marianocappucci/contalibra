@@ -78,7 +78,7 @@ def test_sin_credenciales_no_hay_revisor(api, monkeypatch, capsys):
 
     assert "sin revisor" in capsys.readouterr().out
     assert not [u for u in _lista(api.get("/api/usuarios"))
-                if u.get("nombre") == "Revisor de integraciones"]
+                if u.get("name") == "Revisor de integraciones"]
 
 
 def test_con_credenciales_el_revisor_es_admin(api, monkeypatch):

@@ -67,6 +67,11 @@ export type { Cliente, MpMovimiento, MpPago } from 'libra-ui/mp'
 export { IVA_CONDITIONS } from 'libra-ui/facturas'
 
 export type User = {
+  // `id` lo manda el motor desde siempre (`_UserOut.id`, ver
+  // `libraauth.session_auth`); no se declaraba acá porque nada lo leía --
+  // ahora lo necesita `Usuarios.tsx` para `usuarioActualId` (libra-ui
+  // v0.71.0), que oculta el botón «Eliminar» en la fila del propio usuario.
+  id: string
   username: string
   nombre: string
   role: 'admin' | 'operador' | 'cajero'
@@ -171,20 +176,11 @@ export type ConsultaCuit = {
   error?: string
 }
 
-export type Usuario = {
-  id: number
-  username: string
-  nombre: string
-  email: string
-  role: 'admin' | 'operador' | 'cajero'
-  activo: number
-}
-
-export const ROLES = [
-  { value: 'admin', label: 'Admin' },
-  { value: 'operador', label: 'Operador' },
-  { value: 'cajero', label: 'Cajero' },
-] as const
+// `Usuario`/`ROLES` (contrato propio `{id: number, nombre, activo}`) se
+// fueron el 2026-09-13 (ADR-018 de libraauth v0.43.0): `Usuarios.tsx` pasó a
+// ser un shim sobre `libra-ui/Usuarios`, que trae su propio tipo `User`
+// (`{id: string, name, active, email}`, el contrato único de la familia) y
+// su propia lista de roles vía la prop `roles`. Ver ese archivo.
 
 // `GET /api/config` sigue devolviendo `servicio_estado` y `servicio_mensaje`
 // —viven en el mismo `config.json`—, pero no se declaran acá a propósito: no
