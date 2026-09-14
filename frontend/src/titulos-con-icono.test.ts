@@ -51,6 +51,14 @@ describe('el icono del título sale del sidebar', () => {
     // ⚠️ El número de `conIcono` ya es chico: casi todas las pantallas de este
     // producto viven en el kit. Quien sostiene el control ahora es `pantallas`,
     // que sigue contando los archivos y no baja al mudarse una pantalla.
-    expect(conIcono).toBeGreaterThanOrEqual(5)
+    //
+    // 2026-09-13 (ADR-018 de libraauth v0.43.0): `Usuarios.tsx` pasó a ser un
+    // shim sobre `libra-ui/Usuarios` -- exactamente el caso que el comentario
+    // de arriba del archivo ya anticipaba ("las pantallas que libra-ui rinde
+    // enteras... a ésas las cubriría el TIPO"): el `TituloPantalla` ahora
+    // vive DENTRO del componente compartido, no en este archivo, así que el
+    // piso baja uno (de 5 a 4). El tipo de `icono` sigue siendo obligatorio
+    // en `Usuarios` de libra-ui, así que el shim no puede montarla sin pasarlo.
+    expect(conIcono).toBeGreaterThanOrEqual(4)
   })
 })
