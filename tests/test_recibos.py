@@ -233,7 +233,7 @@ def test_anular_es_solo_de_admin(client, admin_client):
     recibo_id = admin_client.post(f"/api/cuenta-corriente/{c['id']}/pagar",
                                   json={"monto": 1000.0, "fecha": HOY}).json()["recibo_id"]
     admin_client.post("/api/usuarios", json={
-        "username": "cajero", "nombre": "Cajero", "email": "cajero@test.com",
+        "username": "cajero", "name": "Cajero", "email": "cajero@test.com",
         "password": "cajero-1234", "role": "operador",
     })
     admin_client.post("/api/logout")

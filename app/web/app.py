@@ -292,13 +292,13 @@ app.include_router(
     build_egresos_router(usuario_actual=get_current_user_json),
     dependencies=[_auth_json, Depends(require_module("egresos"))],
 )
-app.include_router(
-    # Acepta ADEMAS el token de servicio (libraauth v0.7.0): es lo que le
-    # permite al backoffice de la suite (admin.contalibra.com.ar) administrar
-    # los usuarios de esta instancia sin ser usuario de ella.
-    api_usuarios_router.router,
-    dependencies=[Depends(require_admin_o_servicio_json)],
-)
+# El guard (admin de la instancia O token de servicio -- lo que le permite al
+# backoffice de la suite, admin.contalibra.com.ar, administrar los usuarios
+# de esta instancia sin ser usuario de ella) ya va DENTRO del router: se lo
+# pasa como `admin_guard` a `build_users_router()` (ver
+# `app/web/api/usuarios.py`), no acá -- una sola dependencia y no dos
+# ejecutando lo mismo por request.
+app.include_router(api_usuarios_router.router)
 # Consultas que llegan desde otro producto de la familia (lo estrena MedLibra).
 #
 # 🔴 **Sin dependencia acá**: el router gatea adentro, y con DOS niveles
