@@ -111,6 +111,8 @@ configure(
     # de la mañana.
     migraciones=(
         ("libracore-migrar", "upgrade", "--prefijo", "contalibra"),
+        # libraauth: sus seis tablas viven en la base del dominio (medido 2026-09-16), por eso --base dominio.
+        ("libraauth-migrar", "upgrade", "--prefijo", "contalibra", "--base", "dominio"),
         ("libracommerce-migrar", "upgrade", "--prefijo", "contalibra"),
         ("alembic", "upgrade", "head"),
     ),

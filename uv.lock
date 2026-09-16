@@ -248,7 +248,7 @@ dependencies = [
     { name = "httpx" },
     { name = "itsdangerous" },
     { name = "jinja2" },
-    { name = "libraauth" },
+    { name = "libraauth", extra = ["migrations"] },
     { name = "libracommerce", extra = ["erp", "migrations", "web"] },
     { name = "libracore", extra = ["migrations"] },
     { name = "python-multipart" },
@@ -277,7 +277,7 @@ requires-dist = [
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27.0" },
     { name = "itsdangerous", specifier = ">=2.2.0" },
     { name = "jinja2", specifier = ">=3.1.4" },
-    { name = "libraauth", git = "https://github.com/marianocappucci/libraauth.git?rev=v0.43.1" },
+    { name = "libraauth", extras = ["migrations"], git = "https://github.com/marianocappucci/libraauth.git?rev=v0.43.1" },
     { name = "libracommerce", extras = ["migrations", "erp", "web"], git = "https://github.com/marianocappucci/libracommerce.git?rev=v0.16.4" },
     { name = "libracore", extras = ["migrations"], git = "https://github.com/marianocappucci/libracore.git?rev=v1.102.0" },
     { name = "pypdf", marker = "extra == 'dev'", specifier = ">=4" },
@@ -717,6 +717,11 @@ dependencies = [
     { name = "markdown" },
     { name = "sqlalchemy" },
     { name = "starlette" },
+]
+
+[package.optional-dependencies]
+migrations = [
+    { name = "alembic" },
 ]
 
 [[package]]
