@@ -45,7 +45,6 @@ from libraauth.hashing import (
 from libraauth.hashing import (
     verify_password as _verify_password,
 )
-from libraauth.models import Base as _AuthBase
 from libraauth.password_reset import (  # noqa: F401  (re-exportadas para el router)
     EmailNotConfigured,
     InvalidResetToken,
@@ -78,10 +77,12 @@ else:
     _engine = create_engine(
         f"sqlite:///{DB_PATH}", connect_args={"check_same_thread": False}
     )
-# Ya NO es un no-op desde libraauth v0.5.0: crea `password_reset_tokens` (la
-# tabla de la recuperacion de contrasena) la primera vez. `usuarios` sigue sin
-# tocarse, porque `create_all` no altera tablas que ya existen.
-_AuthBase.metadata.create_all(_engine)
+# Las tablas de auth NO se crean acá desde el 2026-09-17 (libraauth v0.45.0). Las
+# crea la cadena de LibraAuth (`libraauth-migrar`, declarada en
+# `scripts/panel_admin.py`), y el arranque de la app EXIGE que haya corrido: ver
+# `exigir_schema_al_dia` en el evento `startup` de `app/web/app.py`. Hasta ese día
+# este módulo corría `create_all()` al importarse, lo que tapaba cualquier camino
+# que se olvidara de migrar.
 _sessions = sessionmaker(bind=_engine)
 _repo = UserRepository(_sessions, roles=ROLES)
 

@@ -82,6 +82,7 @@ if _ROOT not in sys.path:
 import libraauth.session_auth as _session_auth
 import pytest
 from fastapi.testclient import TestClient
+from libraauth.testing import crear_schema_de_auth
 
 from app import database as db  # noqa: F401  (re-exporta todo el dominio)
 from app import db_core, db_usuarios
@@ -156,7 +157,7 @@ def _reset_data_dir():
     # modulo ya importado creyendo que la tabla existe, y el flujo de
     # recuperacion de contrasena falla con "no such table" en vez de
     # ejercitarse. Se la recrea explicitamente por cada base nueva.
-    db_usuarios._AuthBase.metadata.create_all(db_usuarios._engine)
+    crear_schema_de_auth(db_usuarios._engine)
 
 
 @pytest.fixture()
