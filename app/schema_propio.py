@@ -7,7 +7,7 @@ declaran los motores, y cada uno las mantiene por su cuenta:
 |---|---|---|
 | `libracore` | 33 | cadena de Alembic (`alembic_version`), vía `libracore-migrar` |
 | `libracommerce` | 19 + `schema_migrations` | runner numerado propio, dentro de `init_schema()` |
-| `libraauth` | 5 (`usuarios`, `auth_log`, `demo_codigos`, `password_reset_tokens`, `smtp_settings`, `aceptaciones_terminos`) | `Base.metadata.create_all()` al arrancar |
+| `libraauth` | 5 (`usuarios`, `auth_log`, `demo_codigos`, `password_reset_tokens`, `smtp_settings`, `aceptaciones_terminos`) | cadena de Alembic (`alembic_version_libraauth`), vía `libraauth-migrar`; el arranque la exige |
 | **Contalibra** | **`venta_links`, `integraciones_config`, `ventas_origen_externo`** | **esta función + `alembic/versions/`** |
 
 Este módulo existe para que esas tres tengan **una sola fuente de verdad**. Antes
