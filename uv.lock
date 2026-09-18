@@ -277,9 +277,9 @@ requires-dist = [
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27.0" },
     { name = "itsdangerous", specifier = ">=2.2.0" },
     { name = "jinja2", specifier = ">=3.1.4" },
-    { name = "libraauth", extras = ["migrations"], git = "https://github.com/marianocappucci/libraauth.git?rev=v0.45.0" },
+    { name = "libraauth", extras = ["migrations"], git = "https://github.com/marianocappucci/libraauth.git?rev=v0.46.0" },
     { name = "libracommerce", extras = ["migrations", "erp", "web"], git = "https://github.com/marianocappucci/libracommerce.git?rev=v0.16.4" },
-    { name = "libracore", extras = ["migrations"], git = "https://github.com/marianocappucci/libracore.git?rev=v1.106.1" },
+    { name = "libracore", extras = ["migrations"], git = "https://github.com/marianocappucci/libracore.git?rev=v1.108.0" },
     { name = "pypdf", marker = "extra == 'dev'", specifier = ">=4" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=6" },
@@ -706,8 +706,8 @@ wheels = [
 
 [[package]]
 name = "libraauth"
-version = "0.45.0"
-source = { git = "https://github.com/marianocappucci/libraauth.git?rev=v0.45.0#b3f4af8e9dc5ae6a90d501d85615d138349d61aa" }
+version = "0.46.0"
+source = { git = "https://github.com/marianocappucci/libraauth.git?rev=v0.46.0#f67ce6e5dffb8bdeb08c7b854e8ce684a0f5969a" }
 dependencies = [
     { name = "altcha" },
     { name = "argon2-cffi" },
@@ -745,8 +745,8 @@ web = [
 
 [[package]]
 name = "libracore"
-version = "1.106.1"
-source = { git = "https://github.com/marianocappucci/libracore.git?rev=v1.106.1#e63413c08a01e3ad54f83be364d0fc7a7216a61c" }
+version = "1.108.0"
+source = { git = "https://github.com/marianocappucci/libracore.git?rev=v1.108.0#2c9f2cc75bf378ef909e833a22d92f75cfc2604a" }
 dependencies = [
     { name = "cryptography" },
     { name = "fastapi" },
