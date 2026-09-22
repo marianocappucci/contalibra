@@ -31,10 +31,10 @@
  *  Su único consumidor era este archivo. Lo reemplazan lecturas acotadas y los
  *  routers del motor, que devuelven los secretos enmascarados.
  */
-import { Package, Printer, Settings } from 'lucide-react'
+import { Inbox, Package, Printer, Settings } from 'lucide-react'
 import { createConfiguracion } from 'libra-ui/Configuracion'
 
-import { CategoriasCard, TicketCard } from './config-secciones'
+import { CategoriasCard, CorreoEntranteCard, TicketCard } from './config-secciones'
 
 export const Config = createConfiguracion({
   // El icono que el sidebar de este producto le da a /configuracion.
@@ -60,6 +60,11 @@ export const Config = createConfiguracion({
   propias: [
     { clave: 'ticket', label: 'Ticket / Impresora', icono: Printer, contenido: <TicketCard /> },
     { clave: 'categorias', label: 'Categorías', icono: Package, contenido: <CategoriasCard /> },
+    // Piloto (2026-09-21): destino del reenvío de la casilla propia de la
+    // instancia. Endpoint propio, `web/api/config.py::smtp_router`, no del
+    // kit — ver el docstring de arriba sobre por qué el correo de este
+    // producto no es el del kit.
+    { clave: 'correo-entrante', label: 'Correo entrante', icono: Inbox, contenido: <CorreoEntranteCard /> },
   ],
 })
 

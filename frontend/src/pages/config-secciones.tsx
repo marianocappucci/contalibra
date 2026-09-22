@@ -10,7 +10,7 @@
  *  producto, arreglarla no arreglaba a los otros siete.
  */
 import { useEffect, useState, type ReactNode } from 'react'
-import { Check, Package, Plus, Printer, Receipt, Tag, Trash2 } from 'lucide-react'
+import { Check, Inbox, Package, Plus, Printer, Receipt, Tag, Trash2 } from 'lucide-react'
 import { PasswordInput } from 'libra-ui/PasswordInput'
 
 import { api, ApiError, type CategoriaEgreso } from '../api'
@@ -155,6 +155,80 @@ export function TicketCard() {
         <div className="col-span-full flex flex-wrap items-center gap-3">
           <Button disabled={guardando} onClick={() => void guardar()}>
             <Check />{guardando ? 'Guardando…' : 'Guardar configuración'}
+          </Button>
+          {error && <span className="text-sm text-destructive">{error}</span>}
+          {aviso && <span className="text-sm text-muted-foreground">{aviso}</span>}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+
+/** Correo entrante (piloto): a qué dirección externa se reenvía lo que llega
+ *  a la casilla propia de la instancia (`<slug>@contalibra.com.ar`). El
+ *  reenvío en sí lo hace un proceso central fuera de este producto — acá
+ *  sólo se carga el destino. Es de este producto y no del kit: `libra-ui`
+ *  todavía no tiene esta sección (piloto).
+ */
+export function CorreoEntranteCard() {
+  const [destino, setDestino] = useState('')
+  const [cargando, setCargando] = useState(true)
+  const [guardando, setGuardando] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [aviso, setAviso] = useState<string | null>(null)
+
+  useEffect(() => { void cargar() }, [])
+
+  async function cargar() {
+    try {
+      const cfg = await api.get<{ destino: string | null }>('/api/config/reenvio-correo')
+      setDestino(cfg.destino ?? '')
+    } catch (err) {
+      setError(describeError(err))
+    } finally {
+      setCargando(false)
+    }
+  }
+
+  async function guardar() {
+    setGuardando(true)
+    setError(null)
+    setAviso(null)
+    try {
+      await api.put('/api/config/reenvio-correo', { destino: destino.trim() || null })
+      setAviso('Guardado.')
+      await cargar()
+    } catch (err) {
+      setError(describeError(err))
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  if (cargando) {
+    return <p className="py-6 text-center text-sm text-muted-foreground">Cargando…</p>
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Inbox className="size-4" />Correo entrante
+        </CardTitle>
+        <CardDescription>
+          Lo que llegue a la casilla de esta cuenta se reenvía a esta dirección.
+          Dejá el campo vacío para desactivar el reenvío.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-3 sm:grid-cols-2">
+        <Campo
+          label="Reenviar a" type="email" value={destino} onChange={setDestino}
+          marcador="tu-correo@gmail.com"
+        />
+        <div className="col-span-full flex flex-wrap items-center gap-3">
+          <Button disabled={guardando} onClick={() => void guardar()}>
+            <Check />{guardando ? 'Guardando…' : 'Guardar'}
           </Button>
           {error && <span className="text-sm text-destructive">{error}</span>}
           {aviso && <span className="text-sm text-muted-foreground">{aviso}</span>}
