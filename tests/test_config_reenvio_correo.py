@@ -15,12 +15,14 @@ def test_sin_sesion_no_se_puede_leer(client):
 
 def test_operador_no_puede_leer(admin_client):
     """403 y no 401: hay sesión, pero no es admin ni token de servicio."""
-    admin_client.post("/api/usuarios", json={
-        "username": "operador-reenvio", "nombre": "O", "password": "clave-123456",
+    alta = admin_client.post("/api/usuarios", json={
+        "username": "operador-reenvio", "name": "O", "password": "clave-123456",
         "role": "operador"})
+    assert alta.status_code == 201, alta.text
     admin_client.post("/api/logout")
-    admin_client.post(
+    login = admin_client.post(
         "/api/login", json={"username": "operador-reenvio", "password": "clave-123456"})
+    assert login.status_code == 200, login.text
     assert admin_client.get("/api/config/reenvio-correo").status_code == 403
 
 
