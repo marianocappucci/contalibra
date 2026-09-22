@@ -15,8 +15,10 @@ reusan de ahi en vez de duplicar la logica.
 """
 import os
 
+import re
+
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from app import config_manager
 from app import database as db
@@ -215,3 +217,53 @@ def guardar_smtp(payload: SmtpPayload):
 def borrar_smtp():
     """Vuelve a leer el SMTP de las variables de entorno."""
     return db.borrar_config_smtp()
+
+
+# ── Correo de reenvío (piloto) ────────────────────────────────────────────
+#
+# La casilla propia de la instancia (`<slug>@contalibra.com.ar`) vive en un
+# servidor de correo aparte, fuera de este repo. Lo que se carga acá es
+# apenas el destino externo (Gmail, etc.) al que un proceso central —también
+# fuera de este repo— reenvía lo que le llega a esa casilla. Este endpoint no
+# reenvía nada: guarda el valor y lo expone para que ese proceso lo lea.
+#
+# Mismo `smtp_router` y mismo `require_admin_o_servicio_json` que arriba, y
+# por el mismo motivo: el proceso central lee esto con el token de servicio,
+# no con una sesión de admin de la instancia.
+
+
+#: Forma básica de un email. No valida dominio ni existencia de la casilla
+#: —cualquier proveedor externo vale, Gmail incluido—, sólo que tenga forma
+#: de dirección. `email-validator` (el que usa `pydantic.EmailStr`) no es
+#: dependencia de este proyecto y no vale la pena sumarla para esto.
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+class ReenvioCorreoPayload(BaseModel):
+    # `None` (u omitido) borra el reenvío. Cualquier dirección externa vale
+    # —no se valida el dominio, sólo la forma—: puede ser Gmail o cualquier
+    # otro proveedor.
+    destino: str | None = None
+
+    @field_validator("destino")
+    @classmethod
+    def _validar_destino(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        v = v.strip()
+        if not v:
+            return None
+        if not _EMAIL_RE.match(v):
+            raise ValueError("No tiene forma de email.")
+        return v
+
+
+@smtp_router.get("/reenvio-correo")
+def obtener_reenvio_correo():
+    return {"destino": db.get_destino_reenvio()}
+
+
+@smtp_router.put("/reenvio-correo")
+def guardar_reenvio_correo(payload: ReenvioCorreoPayload):
+    db.set_destino_reenvio(payload.destino)
+    return {"destino": db.get_destino_reenvio()}

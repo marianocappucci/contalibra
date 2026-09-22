@@ -124,6 +124,11 @@ from app.db_logs import (  # noqa: F401
 )
 from app.db_mayorista import crear_tabla_cliente_lista_precio  # noqa: F401  (lo usa init_db)
 from app.db_modulos import apply_plan, get_modulos, set_addon  # noqa: F401
+from app.db_reenvio_correo import (  # noqa: F401
+    crear_tabla_reenvio_correo,  # (lo usa init_db)
+    get_destino_reenvio,
+    set_destino_reenvio,
+)
 from app.db_mp import (  # noqa: F401
     crear_alias_facturacion,
     create_mp_movimiento,
@@ -330,6 +335,13 @@ def init_db():
         # sus FK apuntan a `clients` (core) y `price_lists` (commerce), ya
         # creadas arriba. Ver `app/db_mayorista.py`.
         crear_tabla_cliente_lista_precio(conn)
+
+        # Tabla del correo de reenvío (destino externo al que se reenvía lo
+        # que llega a la casilla de la instancia). Mismo criterio que la de
+        # arriba: no va dentro de `init_schema_propio` (congelada en la
+        # `0001`), sino en función aparte, llamada acá y por la revisión de
+        # Alembic `0004_reenvio_correo`. Ver `app/db_reenvio_correo.py`.
+        crear_tabla_reenvio_correo(conn)
 
         # Seed de módulos: inserta sólo los que no existen aún. La lista de
         # módulos (y el plan que los habilita) es específica de Contalibra —
