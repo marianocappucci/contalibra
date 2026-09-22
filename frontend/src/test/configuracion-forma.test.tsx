@@ -82,14 +82,17 @@ const montar = (ruta = '/config') =>
   render(<MemoryRouter initialEntries={[ruta]}><Config /></MemoryRouter>)
 
 describe('la Configuración de Contalibra', () => {
-  it('tiene las cinco pestañas de la pantalla original', async () => {
-    // El orden es el de la vieja `config.html`, que es de donde salió toda la
-    // familia: Empresa, Integraciones, Ticket, Categorías, Datos.
+  it('tiene las pestañas de la pantalla original más las propias agregadas después', async () => {
+    // El orden base es el de la vieja `config.html`, que es de donde salió
+    // toda la familia: Empresa, Integraciones, Ticket, Categorías, Datos.
+    // "Correo entrante" (piloto, 2026-09-21) se agregó después, entre
+    // Categorías y Datos — el orden que declara `propias` en `Config.tsx`.
     montar()
 
     const pestanias = (await screen.findAllByRole('tab')).map((t) => t.textContent)
     expect(pestanias).toEqual([
-      'Empresa', 'Integraciones', 'Ticket / Impresora', 'Categorías', 'Datos / Backup',
+      'Empresa', 'Integraciones', 'Ticket / Impresora', 'Categorías',
+      'Correo entrante', 'Datos / Backup',
     ])
   })
 

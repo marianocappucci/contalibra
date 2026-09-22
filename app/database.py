@@ -124,11 +124,6 @@ from app.db_logs import (  # noqa: F401
 )
 from app.db_mayorista import crear_tabla_cliente_lista_precio  # noqa: F401  (lo usa init_db)
 from app.db_modulos import apply_plan, get_modulos, set_addon  # noqa: F401
-from app.db_reenvio_correo import (  # noqa: F401
-    crear_tabla_reenvio_correo,  # (lo usa init_db)
-    get_destino_reenvio,
-    set_destino_reenvio,
-)
 from app.db_mp import (  # noqa: F401
     crear_alias_facturacion,
     create_mp_movimiento,
@@ -180,6 +175,11 @@ from app.db_recibos import (  # noqa: F401
     emitir_recibo_venta,
     get_recibo,
     get_recibos,
+)
+from app.db_reenvio_correo import (  # noqa: F401
+    crear_tabla_reenvio_correo,  # (lo usa init_db)
+    get_destino_reenvio,
+    set_destino_reenvio,
 )
 from app.db_remitos_presupuestos import (  # noqa: F401
     auto_vencimiento_presupuestos,

@@ -14,7 +14,6 @@ El logo salio de aca el 2026-08-30: lo sirve `libracore.config_router`, en
 reusan de ahi en vez de duplicar la logica.
 """
 import os
-
 import re
 
 from fastapi import APIRouter, HTTPException
