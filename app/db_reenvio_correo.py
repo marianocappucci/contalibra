@@ -9,9 +9,12 @@ ningún reenvío real de este lado.
 
 🔴 La tabla se crea desde `crear_tabla_reenvio_correo`, llamada por `init_db()`
 (cada arranque, y el harness de tests) Y por la revisión de Alembic
-`0004_reenvio_correo` (el deploy). Mismo patrón que `db_mayorista.py` —tabla
-propia de Contalibra agregada DESPUÉS de que `app/schema_propio.py` quedó
-congelado en la `0001`—.
+`0004_reenvio_correo` (el deploy). Mismo patrón que tenía
+`cliente_lista_precio` (`migrations/versions/0002_cliente_lista_precio.py`)
+—tabla agregada DESPUÉS de que `app/schema_propio.py` quedó congelado en la
+`0001`—, aunque ésa (a diferencia de ésta) desde el 2026-09-28 tiene su DDL en
+`libracommerce.erp.schema` (ADR-010 de ese motor) por cruzar a LibraCore;
+`reenvio_correo` es enteramente propia y se queda en este repo.
 """
 from app.db_core import _ar_now, get_connection
 
