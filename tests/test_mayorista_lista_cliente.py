@@ -6,9 +6,16 @@ Corre contra PostgreSQL (fixture `client`/`admin_client`).
 El módulo `mayorista` arranca **apagado** (slice 1), así que por defecto los
 endpoints dan 403; se habilitan por instancia. Cada test que necesita el add-on
 lo prende explícitamente.
-"""
+
+El HTTP es el contrato que importa acá; la lógica de
+`get/set_lista_de_cliente` en sí (upsert, FK, 404/422) la prueba
+`libracommerce/tests/test_web_cliente_lista.py` desde el 2026-09-28
+(ADR-010 de libracommerce) — acá sólo se llega a la tabla para armar
+fixtures y para el aserto de la FK, con la conexión de siempre de este
+producto."""
+from libracommerce.erp import listas_precio as lp
+
 from app import database as db
-from app import db_mayorista
 
 
 def _habilitar_mayorista():
@@ -62,7 +69,8 @@ def test_reasignar_pisa_la_lista_anterior(admin_client):
     admin_client.put(f"/api/clientes/{cid}/lista-precio", json={"lista_id": l1})
     admin_client.put(f"/api/clientes/{cid}/lista-precio", json={"lista_id": l2})
     # Una sola fila por cliente (PK): la segunda pisa a la primera.
-    assert db_mayorista.get_lista_de_cliente(cid) == l2
+    with db.get_connection() as conn:
+        assert lp.get_lista_de_cliente(conn, cid) == l2
 
 
 def test_asignar_una_lista_inexistente_da_422(admin_client):
@@ -71,7 +79,8 @@ def test_asignar_una_lista_inexistente_da_422(admin_client):
     r = admin_client.put(f"/api/clientes/{cid}/lista-precio", json={"lista_id": 999999})
     assert r.status_code == 422
     # Y no dejó nada asignado.
-    assert db_mayorista.get_lista_de_cliente(cid) is None
+    with db.get_connection() as conn:
+        assert lp.get_lista_de_cliente(conn, cid) is None
 
 
 def test_un_cliente_inexistente_da_404(admin_client):
@@ -88,8 +97,11 @@ def test_borrar_la_lista_se_lleva_la_asignacion(client):
     _habilitar_mayorista()
     cid = db.create_client("Distribuidora")
     lid = db.create_lista_precio("Se va a borrar")
-    db_mayorista.set_lista_de_cliente(cid, lid)
-    assert db_mayorista.get_lista_de_cliente(cid) == lid
+    with db.get_connection() as conn:
+        lp.set_lista_de_cliente(conn, cid, lid)
+    with db.get_connection() as conn:
+        assert lp.get_lista_de_cliente(conn, cid) == lid
 
     db.delete_lista_precio(lid)
-    assert db_mayorista.get_lista_de_cliente(cid) is None
+    with db.get_connection() as conn:
+        assert lp.get_lista_de_cliente(conn, cid) is None

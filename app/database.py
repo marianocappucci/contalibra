@@ -5,6 +5,7 @@
 # existentes (`db.get_connection()`, `db.DB_PATH`, `db.get_all_usuarios()`,
 # etc.) no cambien una línea.
 from libracommerce.db.schema import init_schema as init_commerce_schema
+from libracommerce.erp.schema import crear_cliente_lista_precio
 from libracommerce.erp.ventas import repuntar_fk_ventas_pagos
 from libracore.db.clients import sincronizar_parties_de_clientes
 from libracore.db.schema import init_core_schema
@@ -122,7 +123,6 @@ from app.db_logs import (  # noqa: F401
     get_auth_log,
     registrar_auth_event,
 )
-from app.db_mayorista import crear_tabla_cliente_lista_precio  # noqa: F401  (lo usa init_db)
 from app.db_modulos import apply_plan, get_modulos, set_addon  # noqa: F401
 from app.db_mp import (  # noqa: F401
     crear_alias_facturacion,
@@ -333,8 +333,10 @@ def init_db():
         # función aparte, llamada acá y por la revisión de Alembic
         # `0002_cliente_lista_precio`. Va después de `init_schema_propio` porque
         # sus FK apuntan a `clients` (core) y `price_lists` (commerce), ya
-        # creadas arriba. Ver `app/db_mayorista.py`.
-        crear_tabla_cliente_lista_precio(conn)
+        # creadas arriba. Desde el 2026-09-28 (ADR-010 de libracommerce) el DDL
+        # es del motor (`erp.schema.crear_cliente_lista_precio`), no de
+        # `app/db_mayorista.py` (retirado): mismo criterio que `venta_links`.
+        crear_cliente_lista_precio(conn)
 
         # Tabla del correo de reenvío (destino externo al que se reenvía lo
         # que llega a la casilla de la instancia). Mismo criterio que la de

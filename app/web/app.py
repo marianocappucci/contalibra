@@ -19,6 +19,7 @@ from libracommerce.web.catalogo_router import (
 )
 from libracommerce.web.listas_router import (
     build_buscar_productos_router,
+    build_cliente_lista_router,
     build_listas_precio_router,
     build_quiebres_router,
 )
@@ -62,7 +63,6 @@ from app.web.api import auth as api_auth_router
 from app.web.api import config as api_config_router
 from app.web.api import facturas as api_facturas_router
 from app.web.api import integraciones as api_integraciones_router
-from app.web.api import mayorista as api_mayorista_router
 from app.web.api import mp_bandeja as api_mp_bandeja_router
 from app.web.api import presupuestos as api_presupuestos_router
 from app.web.api import recibos as api_recibos_router
@@ -266,9 +266,11 @@ app.include_router(
 )
 # Add-on mayorista: comparte el prefijo `/api/clientes` pero su gate es el del
 # add-on, no el de `clientes` (ver plans.py::ADDONS). Sus rutas
-# (`/{id}/lista-precio`) no chocan con las del router de clientes.
+# (`/{id}/lista-precio`) no chocan con las del router de clientes. Factory del
+# motor desde el 2026-09-28 (ADR-010 de libracommerce): reemplaza a
+# `app/web/api/mayorista.py`, retirado.
 app.include_router(
-    api_mayorista_router.router,
+    build_cliente_lista_router(conexion=_abrir_conexion),
     dependencies=[_auth_json, Depends(require_module("mayorista"))],
 )
 # Quiebres por cantidad y resolución de precio por cantidad. Mismo prefijo
