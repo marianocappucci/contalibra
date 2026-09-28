@@ -5,6 +5,7 @@
 # existentes (`db.get_connection()`, `db.DB_PATH`, `db.get_all_usuarios()`,
 # etc.) no cambien una línea.
 from libracommerce.db.schema import init_schema as init_commerce_schema
+from libracommerce.erp.schema import crear_cliente_lista_precio
 from libracommerce.erp.ventas import repuntar_fk_ventas_pagos
 from libracore.db.clients import sincronizar_parties_de_clientes
 from libracore.db.schema import init_core_schema
@@ -122,7 +123,6 @@ from app.db_logs import (  # noqa: F401
     get_auth_log,
     registrar_auth_event,
 )
-from app.db_mayorista import crear_tabla_cliente_lista_precio  # noqa: F401  (lo usa init_db)
 from app.db_modulos import apply_plan, get_modulos, set_addon  # noqa: F401
 from app.db_mp import (  # noqa: F401
     crear_alias_facturacion,
@@ -175,6 +175,11 @@ from app.db_recibos import (  # noqa: F401
     emitir_recibo_venta,
     get_recibo,
     get_recibos,
+)
+from app.db_reenvio_correo import (  # noqa: F401
+    crear_tabla_reenvio_correo,  # (lo usa init_db)
+    get_destino_reenvio,
+    set_destino_reenvio,
 )
 from app.db_remitos_presupuestos import (  # noqa: F401
     auto_vencimiento_presupuestos,
@@ -328,8 +333,17 @@ def init_db():
         # función aparte, llamada acá y por la revisión de Alembic
         # `0002_cliente_lista_precio`. Va después de `init_schema_propio` porque
         # sus FK apuntan a `clients` (core) y `price_lists` (commerce), ya
-        # creadas arriba. Ver `app/db_mayorista.py`.
-        crear_tabla_cliente_lista_precio(conn)
+        # creadas arriba. Desde el 2026-09-28 (ADR-010 de libracommerce) el DDL
+        # es del motor (`erp.schema.crear_cliente_lista_precio`), no de
+        # `app/db_mayorista.py` (retirado): mismo criterio que `venta_links`.
+        crear_cliente_lista_precio(conn)
+
+        # Tabla del correo de reenvío (destino externo al que se reenvía lo
+        # que llega a la casilla de la instancia). Mismo criterio que la de
+        # arriba: no va dentro de `init_schema_propio` (congelada en la
+        # `0001`), sino en función aparte, llamada acá y por la revisión de
+        # Alembic `0004_reenvio_correo`. Ver `app/db_reenvio_correo.py`.
+        crear_tabla_reenvio_correo(conn)
 
         # Seed de módulos: inserta sólo los que no existen aún. La lista de
         # módulos (y el plan que los habilita) es específica de Contalibra —

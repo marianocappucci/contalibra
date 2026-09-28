@@ -12,9 +12,11 @@ clientes reales:
 
 1. Sin `LIBRA_SERVICE_TOKEN` en el entorno, nada cambia.
 2. Con la variable puesta, un token equivocado tampoco entra.
-3. El ensanchamiento alcanza a `/api/usuarios` y a `/api/config/smtp`, **y a
-   nada mas**. En particular NO al resto de `/api/config`, que tiene la
-   configuracion fiscal (ARCA), el ticket y los datos de empresa.
+3. El ensanchamiento alcanza a `/api/usuarios`, a `/api/config/smtp` y a
+   `/api/config/reenvio-correo` (piloto 2026-09-21: mismo `smtp_router`, lo
+   lee el proceso central de reenvio), **y a nada mas**. En particular NO al
+   resto de `/api/config`, que tiene la configuracion fiscal (ARCA), el
+   ticket y los datos de empresa.
 """
 import pytest
 from libraauth.session_auth import SERVICE_TOKEN_ENV, SERVICE_TOKEN_HEADER
@@ -22,10 +24,10 @@ from libraauth.session_auth import SERVICE_TOKEN_ENV, SERVICE_TOKEN_HEADER
 TOKEN = "un-token-de-servicio-de-prueba"
 
 # Rutas que el token SI abre, a proposito.
-ABIERTAS = ["/api/usuarios", "/api/config/smtp"]
+ABIERTAS = ["/api/usuarios", "/api/config/smtp", "/api/config/reenvio-correo"]
 
 def rutas_cerradas(client) -> list[str]:
-    """Rutas de `/api/config` con GET, distintas de `/smtp`.
+    """Rutas de `/api/config` con GET, distintas de las de `ABIERTAS`.
 
     Se sacan del schema de OpenAPI y filtrando por metodo: escribirlas a mano
     dio 405 en las tres (existen, pero solo con PUT), y un 405 significa que el
@@ -35,7 +37,7 @@ def rutas_cerradas(client) -> list[str]:
     esquema = client.app.openapi()["paths"]
     return sorted(
         p for p, ops in esquema.items()
-        if p.startswith("/api/config") and "get" in ops and not p.endswith("/smtp")
+        if p.startswith("/api/config") and "get" in ops and p not in ABIERTAS
     )
 
 
