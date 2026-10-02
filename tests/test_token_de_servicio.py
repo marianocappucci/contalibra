@@ -17,6 +17,8 @@ clientes reales:
    lee el proceso central de reenvio), **y a nada mas**. En particular NO al
    resto de `/api/config`, que tiene la configuracion fiscal (ARCA), el
    ticket y los datos de empresa.
+4. Desde el 2026-10-01 abre además `PUT /api/tema` (el tema de la suite que empuja la pantalla «Apariencia» del backoffice; libracore
+   ADR-012). No cuelga de `/api/config`, así que no figura en `ABIERTAS`; lo prueba `test_tema.py`.
 """
 import pytest
 from libraauth.session_auth import SERVICE_TOKEN_ENV, SERVICE_TOKEN_HEADER
