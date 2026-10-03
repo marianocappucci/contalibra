@@ -78,12 +78,14 @@ dependencies = [
     # su deuda por facturas invisible en el saldo — llegó a mostrar "a favor"
     # en vez de deudor. Detectado en producción: Municipalidad de Suipacha,
     # ver wiki/entities/contalibra.md (2026-09-03).
+    # v1.122.0 -> v1.123.0 (2026-10-03): v1.123.0 agrega `get_config().clientes_dir` (env `LIBRA_CLIENTES_DIR`; el default
+    # sigue siendo `repo_root/'clientes'`), que usan `scripts/nuevo_cliente.py` y `scripts/panel_admin.py`. Sin migraciones nuevas.
     # v1.118.0 -> v1.122.0 (2026-10-03): v1.122.0 es `libracore.testing.pg_por_worker`, el helper de TEST que da la
     # base por worker y las plantillas de `tests/conftest.py` (reglas/ci.md del wiki). **Este pin llega a produccion**
     # (`uv sync --frozen --no-dev` del Dockerfile): subirlo trae tambien v1.119.0 -> v1.121.0, todo de ARCA y con DOS
     # migraciones del motor (0014: FCE MiPyME, columnas nuevas de `facturas` y `arca_config`; 0015: `facturas.cae_error`),
     # que corren al desplegar con `libracore-migrar upgrade`. Ver el CHANGELOG de libracore.
-    "libracore[migrations] @ git+https://github.com/marianocappucci/libracore.git@v1.122.0",
+    "libracore[migrations] @ git+https://github.com/marianocappucci/libracore.git@v1.123.0",
     # v0.7.0 sube al motor las transferencias entre depositos y la guarda de
     # disponibilidad, que hasta ahora vivian solo aca (`db_productos.
     # transferir_stock`) y arrastraban dos defectos: no eran atomicas y el

@@ -43,6 +43,31 @@ def test_los_dos_scripts_configuran_LO_MISMO():
     assert not distintos, f"los dos scripts configuran distinto: {distintos}"
 
 
+@pytest.mark.parametrize("script", ["nuevo_cliente", "panel_admin"])
+def test_CLIENTES_DIR_de_los_scripts_sale_del_motor(script, monkeypatch, tmp_path):
+    """El directorio de instancias lo decide `libracore`, no cada script.
+
+    `libracore` >= v1.123.0: `get_config().clientes_dir` resuelve
+    `configure(clientes_dir=)` > env `LIBRA_CLIENTES_DIR` > `repo_root/'clientes'`.
+    Si el script volviera a calcular `REPO_ROOT / "clientes"` por su cuenta, el
+    backoffice (que lee del motor) y el cron del panel mirarian carpetas
+    distintas en cuanto alguien mueva los datos fuera del arbol del repo.
+    """
+    from libracore.provisioning import get_config
+
+    raiz = pathlib.Path(__file__).parent.parent.resolve()
+
+    # Sin la variable: el default no cambia.
+    monkeypatch.delenv("LIBRA_CLIENTES_DIR", raising=False)
+    modulo = importlib.reload(importlib.import_module(f"scripts.{script}"))
+    assert modulo.CLIENTES_DIR == get_config().clientes_dir == raiz / "clientes"
+
+    # Con la variable: el script ve el mismo directorio que el motor.
+    monkeypatch.setenv("LIBRA_CLIENTES_DIR", str(tmp_path))
+    modulo = importlib.reload(importlib.import_module(f"scripts.{script}"))
+    assert modulo.CLIENTES_DIR == get_config().clientes_dir == tmp_path
+
+
 def _bloque_del_servicio_de_dev() -> str:
     """El bloque del servicio `*-dev` del compose del repo, como texto.
 
