@@ -21,6 +21,7 @@ from libracore.provisioning import (
     client_from_config,
     configure,
     forward_host_from_config,
+    get_config,
     le_email_from_config,
     npm_available,
 )
@@ -122,7 +123,9 @@ configure(
 
 # Re-exportados por compatibilidad con `libracore.admin.services` (import
 # panel_admin as pa) y con cualquier uso directo de este módulo.
-CLIENTES_DIR = REPO_ROOT / "clientes"
+# `clientes_dir` sale del motor (precedencia: configure(clientes_dir=) > env
+# LIBRA_CLIENTES_DIR > repo_root/'clientes'): una sola fuente de verdad.
+CLIENTES_DIR = get_config().clientes_dir
 _NPM_AVAILABLE = npm_available()
 
 def _addon(argv: list[str]) -> bool:
