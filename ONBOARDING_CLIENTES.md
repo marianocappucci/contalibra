@@ -43,6 +43,14 @@ Antes de levantar la instancia, pedile al cliente:
 
 Cada cliente corre en su propio contenedor, aislado en `clientes/<slug>/`, todos compartiendo la misma imagen `contalibra:latest` (buildeada una sola vez desde este repo). El código nunca se copia por cliente — solo se crean datos y configuración propios.
 
+> **Dónde viven las instancias (medido el 2026-10-03).** En el VPS están en `/srv/libra/contalibra/clientes/<slug>/` (0700, root), **fuera del checkout `/root/contalibra` y de git**. Los scripts (`nuevo_cliente.py`, `panel_admin.py`, `reset_demo.sh`), los crons y el backoffice toman ese directorio de la variable de entorno **`LIBRA_CLIENTES_DIR`**; la precedencia del motor (libracore v1.123.0) es: parámetro `clientes_dir` de `configure()` > `LIBRA_CLIENTES_DIR` > `<repo>/clientes`. En desarrollo local (WSL), sin la variable, sigue siendo `<repo>/clientes`.
+>
+> Cada instancia es un directorio con `docker-compose.yml`, `cliente.json`, `.env` (si la instancia lo tiene) y `data/` (montado `./data:/app/data`). El sidecar PostgreSQL usa un volumen nombrado, que no se mueve de lugar.
+>
+> `scripts/reset_demo.sh` acepta `CLIENTES_DIR` o `LIBRA_CLIENTES_DIR`. Los `*_backup_*.tar.gz` viejos de
+> la raíz de `clientes/` quedaron copiados en `/srv/libra/contalibra/backups-legacy/`, fuera de la carpeta de
+> instancias y de la purga del motor.
+
 ### Setup único del servidor (ya hecho, dejar documentado)
 
 `nuevo_cliente.py`/`panel_admin.py` son wrappers finos sobre `libracore.provisioning`, y usan `httpx` para hablar con la API de Nginx Proxy Manager (proxy + SSL automático). El Python del sistema en el VPS no tiene `pip` disponible por política de Debian (PEP 668), así que estos scripts corren con un venv dedicado en `/root/contalibra/.venv-scripts` — **gitignored: no se versiona y no llega por `git pull`**. Si hay que recrearlo en otro servidor:
@@ -63,6 +71,8 @@ Dos cosas que no son obvias:
 
 Todos los comandos de abajo se ejecutan con `.venv-scripts/bin/python3` en vez de `python3` a secas (o activá el venv con `source .venv-scripts/bin/activate`).
 
+> ⚠️ **En el VPS, antes de lanzar `nuevo_cliente.py` o `panel_admin.py` a mano, exportá `LIBRA_CLIENTES_DIR=/srv/libra/contalibra/clientes`.** Sin la variable toman `/root/contalibra/clientes`, el directorio viejo que se retira más adelante: por ejemplo, `actualizar demo` recrearía la demo desde el compose viejo. Los crons y el backoffice ya la traen definida.
+
 ### Alta de un cliente nuevo
 
 En el servidor (`/root/contalibra`):
@@ -71,7 +81,7 @@ En el servidor (`/root/contalibra`):
 ./.venv-scripts/bin/python3 scripts/nuevo_cliente.py
 ```
 
-El wizard interactivo pide nombre, slug, puerto, dominio y credenciales de admin; crea `clientes/<slug>/` (compose + `data/` con DB, config, certs y PDFs aislados), buildea la imagen si falta, levanta el contenedor y — si hay dominio y Nginx Proxy Manager configurado (`scripts/npm_setup.py`) — ofrece crear el proxy + certificado SSL automáticamente.
+El wizard interactivo pide nombre, slug, puerto, dominio y credenciales de admin; crea `<LIBRA_CLIENTES_DIR>/<slug>/` (compose + `data/` con DB, config, certs y PDFs aislados), buildea la imagen si falta, levanta el contenedor y — si hay dominio y Nginx Proxy Manager configurado (`scripts/npm_setup.py`) — ofrece crear el proxy + certificado SSL automáticamente.
 
 ### Gestión del día a día
 
