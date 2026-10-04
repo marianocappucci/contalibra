@@ -140,7 +140,7 @@ def test_la_secuencia_declarada_levanta_el_schema_desde_cero():
         version = conn.execute(
             "SELECT version_num FROM alembic_version_contalibra"
         ).fetchall()
-    assert [f[0] for f in version] == ["0004_reenvio_correo"], (
+    assert [f[0] for f in version] == ["0005_branches_hora_ar"], (
         f"la cadena propia dejó {version} en `alembic_version_contalibra`"
     )
     _schema_de_las_propias()  # exige que estén todas las propias
@@ -189,7 +189,7 @@ def test_las_dos_cadenas_no_comparten_la_tabla_de_version():
             "SELECT version_num FROM alembic_version_contalibra"
         ).fetchone()
 
-    assert propia[0] == "0004_reenvio_correo"
+    assert propia[0] == "0005_branches_hora_ar"
     assert del_motor[0] != propia[0], (
         "las dos cadenas escribieron la misma revisión: están compartiendo la "
         "tabla de versión."

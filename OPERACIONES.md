@@ -61,10 +61,13 @@ docker compose up -d --build    # usa docker-compose.yml → puerto 8071
 > propósito** el 2026-07-01 (commit `ccb3137`), junto con
 > `docker-compose.prod.yml`, al deprecar el deploy de un solo tenant. Esta
 > sección lo siguió documentando durante casi dos meses y mandó a una sesión a
-> buscarlo. Producción **son instancias de cliente** bajo `clientes/<slug>/`,
-> gestionadas con `panel_admin.py` igual que cualquier otra.
+> buscarlo. Producción **son instancias de cliente** bajo `clientes/<slug>/`
+> (en el VPS, `/srv/libra/contalibra/clientes/<slug>/`: ver *Dónde viven las
+> instancias* más abajo), gestionadas con `panel_admin.py` igual que cualquier otra.
 
-El deploy a producción es `panel_admin.py actualizar`, **desde el VPS**:
+El deploy a producción es `panel_admin.py actualizar`, **desde el VPS**
+(a mano, exportá antes `LIBRA_CLIENTES_DIR=/srv/libra/contalibra/clientes`: ver
+*Dónde viven las instancias*):
 
 ```bash
 cd /root/contalibra
@@ -120,27 +123,50 @@ Se muestra en el sidebar de la UI. Cada deploy a producción debe tener su propi
 VPS
 ├── /root/contalibra/          ← código fuente del sistema (este repo)
 │   ├── web/                   ← aplicación FastAPI
-│   ├── scripts/               ← herramientas de administración
-│   └── clientes/              ← un subdirectorio por cliente
-│       ├── mitienda/
-│       │   ├── docker-compose.yml
-│       │   ├── cliente.json   ← metadatos del cliente
-│       │   ├── backups/       ← backups automáticos de la DB
-│       │   └── data/          ← montado en /app/data dentro del contenedor
-│       │       ├── contalibra.db
-│       │       ├── config.json
-│       │       ├── logos/
-│       │       └── arca_certs/
-│       └── otrocomercio/
-│           └── ...
+│   └── scripts/               ← herramientas de administración
+├── /srv/libra/contalibra/
+│   ├── clientes/              ← LIBRA_CLIENTES_DIR: un subdirectorio por cliente (0700, root)
+│   │   ├── mitienda/
+│   │   │   ├── docker-compose.yml
+│   │   │   ├── cliente.json   ← metadatos del cliente
+│   │   │   ├── .env           ← si la instancia lo tiene
+│   │   │   ├── backups/       ← backups automáticos de la DB
+│   │   │   └── data/          ← montado en /app/data dentro del contenedor
+│   │   │       ├── contalibra.db
+│   │   │       ├── config.json
+│   │   │       ├── logos/
+│   │   │       └── arca_certs/
+│   │   └── otrocomercio/
+│   │       └── ...
+│   └── backups-legacy/        ← tar.gz sueltos del esquema viejo (copiados, fuera de la purga)
 └── nginx-proxy-manager        ← proxy inverso con SSL automático
 ```
 
-**Principio clave**: el directorio `/root/contalibra` completo se monta como
-volumen en `/app` dentro de cada contenedor. Esto significa que **los cambios
-de código se aplican sin reconstruir la imagen** — solo se necesita reiniciar
-el contenedor. La imagen Docker solo necesita reconstruirse cuando cambian las
-dependencias Python (`pyproject.toml`).
+### Dónde viven las instancias (medido el 2026-10-03)
+
+En el VPS las instancias viven en `/srv/libra/contalibra/clientes` (0700, root),
+**fuera del checkout y de git**. Los scripts (`nuevo_cliente.py`,
+`panel_admin.py`, `reset_demo.sh`), los crons y el backoffice toman ese
+directorio de la variable de entorno **`LIBRA_CLIENTES_DIR`**. Precedencia del
+motor (libracore v1.123.0): parámetro `clientes_dir` de `configure()` >
+`LIBRA_CLIENTES_DIR` > `<repo>/clientes`. En desarrollo local (WSL), sin la
+variable, sigue siendo `<repo>/clientes`.
+
+- ⚠️ **Quien lance `panel_admin.py` a mano en el VPS tiene que exportar
+  `LIBRA_CLIENTES_DIR=/srv/libra/contalibra/clientes`.** Sin eso toma
+  `/root/contalibra/clientes`, el directorio viejo hasta que se retire: por
+  ejemplo, `actualizar demo` recrearía la demo desde el compose viejo.
+- `scripts/reset_demo.sh` acepta `CLIENTES_DIR` o `LIBRA_CLIENTES_DIR`.
+- Los `*_backup_*.tar.gz` viejos de la raíz de `clientes/` quedaron copiados en
+  `/srv/libra/contalibra/backups-legacy/`, fuera de la carpeta de instancias y de
+  la purga del motor.
+
+**Qué se monta**: de cada instancia, lo único que se monta en el contenedor es
+`./data:/app/data` (más `DATA_DIR=/app/data` en el entorno). El código va en la
+imagen: **no** se monta el checkout `/root/contalibra`, así que un cambio de
+código llega construyendo una imagen nueva (`panel_admin.py actualizar`), no
+reiniciando. El sidecar PostgreSQL de la instancia usa un volumen nombrado de
+Docker, que no depende de este directorio.
 
 Cada cliente tiene su propia base de datos SQLite aislada, sin ningún
 componente compartido entre instancias.
@@ -220,7 +246,7 @@ Luego muestra un resumen y pide confirmación:
 ```
 
 Al confirmar:
-1. Crea `clientes/la-panaderia-del-centro/` con toda la estructura de directorios
+1. Crea `<LIBRA_CLIENTES_DIR>/la-panaderia-del-centro/` con toda la estructura de directorios
 2. Genera `docker-compose.yml` con el puerto asignado y las credenciales
 3. Crea `data/config.json` inicial
 4. Levanta el contenedor (`docker compose up -d`)
@@ -296,10 +322,10 @@ git pull
 python3 scripts/panel_admin.py actualizar
 ```
 
-**¿Por qué funciona sin reconstruir la imagen?**
-El directorio `/root/contalibra` está montado como volumen en `/app` dentro
-de cada contenedor. Al reiniciar, uvicorn levanta con el código nuevo que
-ya está en disco.
+**¿Cómo llega el código nuevo?**
+El código va en la imagen: del contenedor de cada cliente sólo se monta
+`./data:/app/data`. `actualizar` construye una imagen nueva desde `main` y
+repinea el compose de cada instancia (ver *Promover cambios a producción*).
 
 ### Si cambiaron las dependencias (pyproject.toml)
 
@@ -324,7 +350,7 @@ python3 scripts/panel_admin.py actualizar
 python3 scripts/panel_admin.py restart mitienda
 
 # O con docker directamente:
-docker compose -f clientes/mitienda/docker-compose.yml restart
+docker compose -f /srv/libra/contalibra/clientes/mitienda/docker-compose.yml restart
 ```
 
 ### Verificar que todo quedó bien
@@ -343,9 +369,9 @@ python3 scripts/panel_admin.py logs mitienda
 
 | Cambio realizado | ¿Reconstruir imagen? | ¿Reiniciar contenedores? |
 |------------------|----------------------|--------------------------|
-| Código Python (`.py`) | No | Sí |
-| Templates HTML (`.html`) | No | Sí |
-| CSS / JS | No | Sí |
+| Código Python (`.py`) | Sí (lo hace `actualizar`) | Sí |
+| Templates HTML (`.html`) | Sí (lo hace `actualizar`) | Sí |
+| CSS / JS | Sí (lo hace `actualizar`) | Sí |
 | `pyproject.toml` (nuevas dependencias) | **Sí** | Sí (después del build) |
 | `Dockerfile` | **Sí** | Sí (después del build) |
 | Variables de entorno en `docker-compose.yml` | No | Sí |
@@ -360,9 +386,15 @@ python3 scripts/panel_admin.py logs mitienda
 python3 scripts/panel_admin.py backup mitienda
 ```
 
-Genera dos archivos:
-- `clientes/mitienda_backup_YYYYMMDD_HHMMSS.tar.gz` — todo el directorio `data/`
-- `clientes/mitienda/backups/contalibra_YYYYMMDD_HHMMSS.db` — solo la DB
+Genera dos archivos (`<LIBRA_CLIENTES_DIR>` es `/srv/libra/contalibra/clientes` en el VPS):
+- `<LIBRA_CLIENTES_DIR>/mitienda_backup_YYYYMMDD_HHMMSS.tar.gz` — todo el directorio `data/`
+- `<LIBRA_CLIENTES_DIR>/mitienda/backups/contalibra_YYYYMMDD_HHMMSS.db` — solo la DB
+
+> Esto describe el camino sin `backup_zip`. El producto declara `backup_zip=True`
+> (`scripts/panel_admin.py`), y con eso el motor (libracore v1.123.0) arma en
+> cambio un ZIP en `<instancia>/data/backups/`, el mismo que lista la pantalla de
+> Backups. Los `tar.gz` viejos de la raíz de `clientes/` quedaron copiados en
+> `/srv/libra/contalibra/backups-legacy/`.
 
 ### Restaurar la DB de un cliente
 
@@ -585,12 +617,13 @@ docker logs contalibra-web --tail 50
 │   ├── npm_api.py              ← cliente HTTP para NPM
 │   ├── npm_setup.py            ← configuración de NPM
 │   └── .npm_config.json        ← credenciales NPM (excluido del repo)
-├── clientes/                   ← datos de clientes (excluido del repo)
+├── clientes/                   ← sólo en desarrollo local (excluido del repo); en el VPS: /srv/libra/contalibra/clientes (LIBRA_CLIENTES_DIR)
 │   └── <slug>/
 │       ├── docker-compose.yml
 │       ├── cliente.json        ← nombre, puerto, credenciales admin
+│       ├── .env                ← si la instancia lo tiene
 │       ├── backups/            ← backups de DB
-│       └── data/               ← montado en /app/data
+│       └── data/               ← montado en /app/data (./data:/app/data)
 │           ├── contalibra.db   ← base de datos SQLite
 │           ├── config.json     ← configuración de la empresa
 │           ├── logos/

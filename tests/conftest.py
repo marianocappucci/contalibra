@@ -10,9 +10,13 @@ exactamente el accidente que este archivo existe para impedir.
 El proceso de pytest tiene un solo DATA_DIR (los modulos congelan las
 rutas al importarse), asi que el aislamiento POR TEST no es "otro
 directorio" sino "misma ruta, base recreada": la fixture `client`
-dispone el engine de SQLAlchemy (db_usuarios lo fija en import), borra
-el archivo .db y deja que el evento startup de web/app.py (init_db +
-ensure_admin_user) lo reconstruya de cero.
+dispone el engine de SQLAlchemy (db_usuarios lo fija en import), deja la
+base como nueva y deja que el evento startup de web/app.py (init_db +
+ensure_admin_user) corra sobre ella.
+
+Con `pytest -n 4` cada worker es un proceso con su propio DATA_DIR y su propia
+base de PostgreSQL, y la base "como nueva" sale de una plantilla: ver mas abajo
+"Una base por worker, restaurada desde una plantilla".
 """
 
 # --- Zona horaria de la suite ---------------------------------------------
@@ -59,6 +63,30 @@ if not os.environ.get("CONTALIBRA_DATABASE_URL"):
         "retiro el 2026-08-12: una suite verde sobre SQLite no dice nada "
         "sobre el motor real."
     )
+
+# --- Una base por worker, restaurada desde una plantilla --------------------
+#
+# Cada test arranca de una base **nueva**, y rearmarla era lo que mas costaba:
+# medido sobre PostgreSQL 16, entre 1,7 y 3,5 s por test que usa `client`, casi
+# todo en `init_db()` sobre una base vacia (1,1 a 2,8 s) y en la cadena de
+# libraauth (0,2 a 0,7 s); vaciar el schema eran 0,1 s y el login 0,12 s. Con
+# `CREATE DATABASE ... TEMPLATE` la base sale de una copia ya armada, ~0,1 s, y
+# el `startup` que corre despues sobre ella es el de un reinicio (`init_db()`
+# idempotente, 0,15 s). El mecanismo (una base por worker de xdist, plantillas,
+# `FORCE` para echar las conexiones del test anterior) vive en
+# `libracore.testing.pg_por_worker`; aca queda lo propio de Contalibra: que hay
+# en cada plantilla.
+#
+# La URL del worker se pasa al resto de la suite pisando `CONTALIBRA_DATABASE_URL`
+# ANTES de importar `app`: `db_core.DB_PATH` la lee al importarse, y de ahi salen
+# `db_usuarios._engine`, `libracore.db.core` y todos los tests que componen algo
+# con `db_core.DB_PATH`. Los scripts que los tests lanzan por `subprocess`
+# (`libracore-migrar`, `alembic`) heredan el entorno, asi que ven la del worker.
+from libracore.testing.pg_por_worker import base_por_worker  # noqa: E402
+
+_PG = base_por_worker("contalibra", os.environ["CONTALIBRA_DATABASE_URL"])
+os.environ["CONTALIBRA_DATABASE_URL"] = _PG.url
+
 # SessionAuth (libraauth) exige SECRET_KEY fuera de development y la app
 # no levanta sin el. Un valor fijo ademas hace deterministas las cookies.
 os.environ["SECRET_KEY"] = "suite-secret-no-productivo"
@@ -92,50 +120,84 @@ ADMIN_USER = "admin"
 ADMIN_PASS = os.environ["ADMIN_PASSWORD"]
 
 
-def _vaciar_postgres():
-    """El equivalente de borrar el .db, cuando no hay .db.
+# Dos plantillas por worker, armadas la primera vez que se piden:
+#
+# - **vacia**: `public` recien creado y la cadena de libraauth. Es EXACTAMENTE lo
+#   que dejaba antes `_reset_data_dir()` (`DROP SCHEMA` + `CREATE SCHEMA` +
+#   `crear_schema_de_auth`), asi que los tests que prueban el arranque o las
+#   migraciones desde cero (`test_arranque_exige_cadena_libraauth`,
+#   `test_schema_propio_congelado`, `test_demo_publica`) ven el mismo estado de
+#   partida que siempre.
+# - **armada**: la vacia mas lo que le hace el evento `startup` (`init_db` y el
+#   admin de bootstrap). Es solo para la fixture `client`, que despues vuelve a
+#   correr `startup` sobre ella: es lo que el producto hace en cada reinicio.
+#
+# Que NO cambia: ningun test ve una base distinta de la de antes, solo que la
+# primera mitad del arranque ya esta hecha.
 
-    Se borra el SCHEMA y no la base: DROP DATABASE exige que no quede ninguna
-    conexion abierta. Y antes se termina a las que quedaron del test anterior:
-    una conexion "idle in transaction" sostiene locks sobre `public` y el DROP
-    se queda esperandola sin fallar -- 20 minutos de cuelgue silencioso, medido
-    en VentaLibra.
 
-    `IF EXISTS` porque una corrida interrumpida a mitad de este bloque deja la
-    base sin `public`, y sin eso todas las siguientes mueren en la primera
-    linea.
+def _construir_vacia(url: str) -> None:
+    """Plantilla "vacia": el schema de auth sobre una base sin nada mas."""
+    crear_schema_de_auth(url)
+
+
+def _construir_armada(url: str) -> None:
+    """Plantilla "armada": la vacia y el `startup` real de la app, corrido contra `url`.
+
+    La app esta atada a la base del WORKER (`db_core.DB_PATH`), no a la de la
+    plantilla, asi que mientras dura el armado se apunta a `url` lo que la ata:
+    el engine de `db_usuarios` (que `startup` lee por nombre de modulo, y del que
+    cuelga el `sessionmaker` de todos los repositorios de auth) y la conexion de
+    `libracore.db.core`. Al terminar se vuelve a dejar todo como estaba, aunque
+    falle.
+
+    Se arma con el entorno de la suite y sin el de la demo: si el primer test del
+    worker que pide `client` tuviera `DEMO_MODE` puesto, la plantilla sembraria al
+    visitante y la veria cualquier test posterior. El `startup` que corre cada
+    test sobre la copia se encarga de lo que ese test haya pedido.
     """
-    import psycopg
+    from libracore.db import core
+    from sqlalchemy import create_engine, pool
 
-    with psycopg.connect(
-        db_core.DB_PATH.replace("postgresql+psycopg://", "postgresql://", 1),
-        autocommit=True,
-    ) as conexion:
-        conexion.execute(
-            "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
-            "WHERE datname = current_database() AND pid <> pg_backend_pid()"
-        )
-        conexion.execute("DROP SCHEMA IF EXISTS public CASCADE")
-        conexion.execute("CREATE SCHEMA public")
+    from app.web.app import startup
+
+    _construir_vacia(url)
+    motor = create_engine(url.replace("postgresql://", "postgresql+psycopg://", 1), poolclass=pool.NullPool)
+    del_worker = db_usuarios._engine
+    mp = pytest.MonkeyPatch()
+    mp.delenv("DEMO_MODE", raising=False)
+    mp.delenv("DEMO_USERNAME", raising=False)
+    mp.setattr(db_usuarios, "_engine", motor)
+    db_usuarios._sessions.configure(bind=motor)
+    core.configure(url)
+    try:
+        startup()
+    finally:
+        motor.dispose()
+        db_usuarios._sessions.configure(bind=del_worker)
+        core.configure(db_core.DB_PATH)
+        mp.undo()
 
 
-def _reset_data_dir():
+def _reset_data_dir(plantilla: str = "vacia"):
     """Base y config de cero, misma ruta (o mismo schema).
 
+    `plantilla`: de cual de las dos copiar la base ("vacia", la que dejaba
+    siempre este helper, o "armada", para `client`).
+
     El dispose es obligatorio: el engine de db_usuarios tiene un pool de
-    conexiones abiertas sobre el archivo; borrar el .db debajo de una
-    conexion viva deja a SQLite escribiendo en un inode huerfano y los
-    tests "ven" datos que ya no existen en disco. Contra PostgreSQL hace falta
-    igual, y por un motivo distinto: esas conexiones bloquean el DROP SCHEMA.
+    conexiones abiertas sobre la base; restaurarla se las lleva por delante
+    (`DROP DATABASE ... FORCE`) y el pool las seguiria entregando muertas.
     """
     db_usuarios._engine.dispose()
     if db_core.ES_POSTGRES:
-        _vaciar_postgres()
+        _PG.restaurar(plantilla, {"vacia": _construir_vacia, "armada": _construir_armada}[plantilla])
     else:
         for suffix in ("", "-wal", "-shm"):
             path = db_core.DB_PATH + suffix
             if os.path.exists(path):
                 os.unlink(path)
+        crear_schema_de_auth(db_usuarios._engine)
     config_json = os.path.join(_TMP, "config.json")
     if os.path.exists(config_json):
         os.unlink(config_json)
@@ -152,12 +214,6 @@ def _reset_data_dir():
                 os.unlink(os.path.join(certs, nombre))
             except OSError:
                 pass
-    # `password_reset_tokens` la crea db_usuarios AL IMPORTARSE (un
-    # create_all de una sola vez), no init_db(). Borrar el archivo deja al
-    # modulo ya importado creyendo que la tabla existe, y el flujo de
-    # recuperacion de contrasena falla con "no such table" en vez de
-    # ejercitarse. Se la recrea explicitamente por cada base nueva.
-    crear_schema_de_auth(db_usuarios._engine)
 
 
 @pytest.fixture()
@@ -169,7 +225,7 @@ def client():
     real -- la suite no inicializa el schema por su cuenta a proposito,
     para que un schema que no levanta se vea aca y no en el deploy.
     """
-    _reset_data_dir()
+    _reset_data_dir("armada")
     # base_url https: la cookie de sesion es secure=True y sobre http el
     # cliente no la reenvia -- todos los requests darian 401 (misma trampa
     # ya documentada en el portal de pacientes del PACS).
