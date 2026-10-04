@@ -85,7 +85,8 @@ dependencies = [
     # (`uv sync --frozen --no-dev` del Dockerfile): subirlo trae tambien v1.119.0 -> v1.121.0, todo de ARCA y con DOS
     # migraciones del motor (0014: FCE MiPyME, columnas nuevas de `facturas` y `arca_config`; 0015: `facturas.cae_error`),
     # que corren al desplegar con `libracore-migrar upgrade`. Ver el CHANGELOG de libracore.
-    "libracore[migrations] @ git+https://github.com/marianocappucci/libracore.git@v1.123.0",
+    # v1.123.0 -> v1.124.0 (2026-10-04): una factura se acredita una sola vez (`POST /api/facturas/{id}/nota-credito` da 409 si ya tiene una nota) y la guarda del CUIT del receptor (`arca_wsfe.problema_del_receptor`, que `solicitar_cae` corre antes de llamar a ARCA). Sin migracion.
+    "libracore[migrations] @ git+https://github.com/marianocappucci/libracore.git@v1.124.0",
     # v0.7.0 sube al motor las transferencias entre depositos y la guarda de
     # disponibilidad, que hasta ahora vivian solo aca (`db_productos.
     # transferir_stock`) y arrastraban dos defectos: no eran atomicas y el
