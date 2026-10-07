@@ -1,14 +1,13 @@
 import { createLogin } from 'libra-ui/Login'
-import { LOGO, WORDMARK } from '@/branding'
+import { WORDMARK } from '@/branding'
 import { useAuth } from '../context/AuthContext'
 
 export const Login = createLogin({
   productName: 'Contalibra',
   productInitial: 'C',
-  // El logo y el nombre en Montserrat Bold (libra-ui v0.23.0). `productInitial`
-  // sigue arriba porque es el fallback del motor: si el asset no resuelve, la
-  // pantalla muestra la inicial en vez de un hueco.
-  logo: { src: LOGO, className: 'h-[72px] w-[72px]' },
+  // La marca (ícono + color del producto) la dibuja libra-ui con `producto` (ADR-033) y el nombre va en Montserrat Bold (libra-ui v0.23.0).
+  // `productInitial` sigue arriba porque es el fallback del motor.
+  producto: 'contalibra',
   wordmarkClassName: `${WORDMARK} text-[22px]`,
   redirectTo: '/dashboard',
   useAuth,
