@@ -18,6 +18,7 @@ import { anchoColumnaAcciones, DataTable, sortableHeader } from 'libra-ui/data-t
 import {
   Ban, BookOpen, FileDown, ReceiptText, Search, ShoppingCart, X,
 } from 'lucide-react'
+import { ICONOS } from 'libra-ui/iconos-identidad'
 import { TituloPantalla } from 'libra-ui/titulo-pantalla'
 import { hoyISO, primerDiaDelMesISO } from 'libra-ui/fechas'
 
@@ -196,7 +197,7 @@ export function Recibos() {
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <TituloPantalla icono={ReceiptText}>Recibos
+        <TituloPantalla icono={ICONOS.recibos}>Recibos
           {!loading && <Badge variant="secondary">{total}</Badge>}</TituloPantalla>
       </div>
 

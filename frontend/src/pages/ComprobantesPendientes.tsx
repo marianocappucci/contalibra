@@ -10,8 +10,9 @@ import { Label } from '@/components/ui/label'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { DataTable, sortableHeader } from 'libra-ui/data-table'
 import {
-  Inbox, ReceiptText, X, Package, Wrench, FileText, FileSpreadsheet, Info,
+  ReceiptText, X, Package, Wrench, FileText, FileSpreadsheet, Info,
 } from 'lucide-react'
+import { ICONOS } from 'libra-ui/iconos-identidad'
 import { TituloPantalla } from 'libra-ui/titulo-pantalla'
 import { fecha } from '@/lib/fechas'
 
@@ -296,7 +297,7 @@ export function ComprobantesPendientes() {
 
   return (
     <div className="grid gap-4">
-      <TituloPantalla icono={Inbox}>Comprobantes a facturar</TituloPantalla>
+      <TituloPantalla icono={ICONOS.comprobantesAFacturar}>Comprobantes a facturar</TituloPantalla>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 

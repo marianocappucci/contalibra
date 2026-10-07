@@ -1,8 +1,5 @@
-import {
-  BarChart3, BookOpen, BookText, Boxes, Calculator, Clock, CreditCard, FileText, History,
-  Inbox, Landmark, LayoutDashboard, Package, Receipt, ReceiptText, Settings, ShoppingBag,
-  ShoppingCart, SquareStack, Store, Tag, Truck, UserCog, Users, Wallet, Warehouse,
-} from 'lucide-react'
+import { Store } from 'lucide-react'
+import { ICONOS } from 'libra-ui/iconos-identidad'
 import { createLayout, type NavSection } from 'libra-ui/Layout'
 import { WORDMARK } from '@/branding'
 import { useAuth } from '../context/AuthContext'
@@ -13,60 +10,60 @@ import type { User } from '../api'
 // wiki/entities/contalibra.md, auditoria de regresion funcional.
 const NAV_SECTIONS: NavSection<User>[] = [
   {
-    items: [{ to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard }],
+    items: [{ to: '/dashboard', label: 'Dashboard', icon: ICONOS.dashboard }],
   },
   {
     label: 'Ventas',
     items: [
-      { to: '/facturas', label: 'Comprobantes', icon: Receipt, module: 'facturacion' },
+      { to: '/facturas', label: 'Comprobantes', icon: ICONOS.comprobantes, module: 'facturacion' },
       // Sin `module`: un recibo nace de una factura, de una venta o de un pago
       // de cuenta corriente, así que gatearlo por uno solo de esos módulos
       // escondería la reimpresión de los otros dos. Mismo criterio que su
       // router (ver web/api/recibos.py).
-      { to: '/recibos', label: 'Recibos', icon: ReceiptText },
-      { to: '/presupuestos', label: 'Presupuestos', icon: Calculator, module: 'presupuestos' },
-      { to: '/remitos', label: 'Remitos', icon: FileText, module: 'remitos' },
-      { to: '/ventas', label: 'Ventas POS', icon: ShoppingCart, module: 'ventas' },
+      { to: '/recibos', label: 'Recibos', icon: ICONOS.recibos },
+      { to: '/presupuestos', label: 'Presupuestos', icon: ICONOS.presupuestos, module: 'presupuestos' },
+      { to: '/remitos', label: 'Remitos', icon: ICONOS.remitos, module: 'remitos' },
+      { to: '/ventas', label: 'Ventas POS', icon: ICONOS.ventas, module: 'ventas' },
       {
-        to: '/clientes', label: 'Clientes', icon: Users, module: 'clientes',
-        children: [{ to: '/cuenta-corriente', label: 'Cuenta Corriente', module: 'cuenta_corriente', icon: BookOpen }],
+        to: '/clientes', label: 'Clientes', icon: ICONOS.clientes, module: 'clientes',
+        children: [{ to: '/cuenta-corriente', label: 'Cuenta Corriente', module: 'cuenta_corriente', icon: ICONOS.cuentaCorriente }],
       },
     ],
   },
   {
     label: 'Compras',
     items: [
-      { to: '/egresos', label: 'Egresos', icon: ShoppingBag, module: 'egresos' },
-      { to: '/proveedores', label: 'Proveedores', icon: Truck, module: 'proveedores' },
+      { to: '/egresos', label: 'Egresos', icon: ICONOS.egresos, module: 'egresos' },
+      { to: '/proveedores', label: 'Proveedores', icon: ICONOS.proveedores, module: 'proveedores' },
     ],
   },
   {
     label: 'Inventario',
     items: [
       {
-        to: '/productos', label: 'Productos', icon: Package, module: 'productos',
-        children: [{ to: '/listas-precio', label: 'Listas de precios', module: 'listas_precio', icon: Tag }],
+        to: '/productos', label: 'Productos', icon: ICONOS.productos, module: 'productos',
+        children: [{ to: '/listas-precio', label: 'Listas de precios', module: 'listas_precio', icon: ICONOS.listasDePrecio }],
       },
-      { to: '/stock', label: 'Stock', icon: Boxes, module: 'stock' },
-      { to: '/depositos', label: 'Depósitos', icon: Warehouse, module: 'depositos' },
+      { to: '/stock', label: 'Stock', icon: ICONOS.stock, module: 'stock' },
+      { to: '/depositos', label: 'Depósitos', icon: ICONOS.depositos, module: 'depositos' },
     ],
   },
   {
     label: 'Caja & Tesorería',
     items: [
       {
-        to: '/caja', label: 'Caja', icon: SquareStack, module: 'caja',
+        to: '/caja', label: 'Caja', icon: ICONOS.caja, module: 'caja',
         children: [
-          { to: '/turnos', label: 'Turnos', icon: Clock },
-          { to: '/cajas', label: 'Gestionar cajas', module: 'cajas', icon: SquareStack },
+          { to: '/turnos', label: 'Turnos', icon: ICONOS.turnosDeCaja },
+          { to: '/cajas', label: 'Gestionar cajas', module: 'cajas', icon: ICONOS.cajas },
         ],
       },
-      { to: '/tesoreria', label: 'Cuentas bancarias', icon: Landmark, module: 'tesoreria', adminOnly: true },
+      { to: '/tesoreria', label: 'Cuentas bancarias', icon: ICONOS.tesoreria, module: 'tesoreria', adminOnly: true },
     ],
   },
   {
     items: [{
-      to: '/mp-bandeja', label: 'Pagos MercadoPago', icon: CreditCard,
+      to: '/mp-bandeja', label: 'Pagos MercadoPago', icon: ICONOS.pagosMercadoPago,
       badge: (u) => u.mp_pending_count || undefined,
     }],
   },
@@ -75,7 +72,7 @@ const NAV_SECTIONS: NavSection<User>[] = [
       // Lo que otro producto de la familia (hoy LibraDesk) dejó para facturar
       // acá. Sin badge la pantalla existe y nadie la abre: nada avisa que
       // llegó algo de afuera.
-      to: '/comprobantes-pendientes', label: 'Comprobantes a facturar', icon: Inbox,
+      to: '/comprobantes-pendientes', label: 'Comprobantes a facturar', icon: ICONOS.comprobantesAFacturar,
       adminOnly: true,
       badge: (u) => u.comprobantes_pendientes_count || undefined,
     }],
@@ -84,20 +81,20 @@ const NAV_SECTIONS: NavSection<User>[] = [
     label: 'Reportes',
     items: [
       {
-        to: '/reportes', label: 'Reportes', icon: BarChart3, module: 'reportes',
-        children: [{ to: '/reportes/caja-medios', label: 'Caja por medio', module: 'reportes', icon: Wallet }],
+        to: '/reportes', label: 'Reportes', icon: ICONOS.reportes, module: 'reportes',
+        children: [{ to: '/reportes/caja-medios', label: 'Caja por medio', module: 'reportes', icon: ICONOS.cajaPorMedio }],
       },
-      { to: '/libros-iva', label: 'Libros IVA', icon: BookText, module: 'libros_iva', adminOnly: true },
+      { to: '/libros-iva', label: 'Libros IVA', icon: ICONOS.librosDeIva, module: 'libros_iva', adminOnly: true },
     ],
   },
   {
-    items: [{ to: '/config', label: 'Configuración', icon: Settings }],
+    items: [{ to: '/config', label: 'Configuración', icon: ICONOS.configuracion }],
   },
   {
     label: 'Administración',
     items: [
-      { to: '/usuarios', label: 'Usuarios', icon: UserCog, adminOnly: true },
-      { to: '/logs', label: 'Logs', icon: History, adminOnly: true },
+      { to: '/usuarios', label: 'Usuarios', icon: ICONOS.usuarios, adminOnly: true },
+      { to: '/logs', label: 'Logs', icon: ICONOS.logDeActividad, adminOnly: true },
     ],
   },
 ]
