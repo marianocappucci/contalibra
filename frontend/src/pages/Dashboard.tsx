@@ -4,7 +4,8 @@ import { api, ApiError, type DashboardData } from '../api'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
-import { ArrowDownCircle, ArrowUpCircle, CheckCircle2, ClipboardList, History, Hourglass, Inbox, LayoutDashboard, Receipt, Wallet } from 'lucide-react'
+import { ArrowDownCircle, ArrowUpCircle, CheckCircle2, ClipboardList, History, Hourglass, Inbox, Receipt, Wallet } from 'lucide-react'
+import { ICONOS } from 'libra-ui/iconos-identidad'
 import { TituloPantalla } from 'libra-ui/titulo-pantalla'
 import { fecha } from '@/lib/fechas'
 
@@ -46,7 +47,7 @@ export function Dashboard() {
   return (
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
-        <TituloPantalla icono={LayoutDashboard}>Dashboard</TituloPantalla>
+        <TituloPantalla icono={ICONOS.dashboard}>Dashboard</TituloPantalla>
         {data && (
           <span className="text-sm text-muted-foreground">{formatDate(data.mes_hasta)}</span>
         )}

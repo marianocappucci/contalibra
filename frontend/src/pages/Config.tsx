@@ -31,14 +31,13 @@
  *  Su único consumidor era este archivo. Lo reemplazan lecturas acotadas y los
  *  routers del motor, que devuelven los secretos enmascarados.
  */
-import { Inbox, Package, Printer, Settings } from 'lucide-react'
+import { Inbox, Package, Printer } from 'lucide-react'
 import { createConfiguracion } from 'libra-ui/Configuracion'
 
 import { CategoriasCard, CorreoEntranteCard, TicketCard } from './config-secciones'
 
 export const Config = createConfiguracion({
-  // El icono que el sidebar de este producto le da a /configuracion.
-  icono: Settings,
+  // Sin `icono`: el default del kit es el del catálogo (`ICONOS.configuracion`, ADR-035), el mismo que el sidebar.
   // Sale en el tutorial de Gmail y en el de Padrón A13.
   producto: 'Contalibra',
   integraciones: {
