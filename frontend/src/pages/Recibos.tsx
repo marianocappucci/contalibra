@@ -196,10 +196,8 @@ export function Recibos() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <TituloPantalla icono={ICONOS.recibos}>Recibos
-          {!loading && <Badge variant="secondary">{total}</Badge>}</TituloPantalla>
-      </div>
+      <TituloPantalla icono={ICONOS.recibos}>Recibos
+        {!loading && <Badge variant="secondary">{total}</Badge>}</TituloPantalla>
 
       <Card>
         <CardContent className="flex flex-wrap items-end gap-3 pt-6">
