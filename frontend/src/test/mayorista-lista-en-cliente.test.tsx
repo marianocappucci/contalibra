@@ -5,7 +5,7 @@
 //
 // `modulos` llega en /api/me (AuthContext). El gate del backend es aparte
 // (tests/test_mayorista_lista_cliente.py); esto cuida el gate de la UI.
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../App'
@@ -72,8 +72,8 @@ describe('lista de precios del cliente (add-on mayorista)', () => {
     // `findAllByText` -- la forma singular tira error ante mas de una coincidencia.
     expect(await screen.findAllByText('Distribuidora del Norte')).not.toHaveLength(0)
     expect(await screen.findByText('Lista de precios (mayorista)')).toBeInTheDocument()
-    // El trigger del Select muestra la lista asignada (id 5 -> "Mayorista").
-    expect(await screen.findByText('Mayorista')).toBeInTheDocument()
+    // El campo de la lista asignada muestra la elegida (id 5 -> "Mayorista"): es un `SelectBuscable`, el nombre es su VALOR.
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Lista asignada' })).toHaveValue('Mayorista'))
   })
 
   it('sin el modulo, la ficha no muestra ningun selector de lista', async () => {
