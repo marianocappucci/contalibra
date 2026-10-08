@@ -85,7 +85,8 @@ describe('el presupuesto cotiza con la lista (add-on mayorista, slices 3 y 4)', 
     const usuario = userEvent.setup()
     montarEdicion({ listaAsignada: 5, listas: LISTAS })
 
-    expect(await screen.findByText('Mayorista')).toBeInTheDocument()
+    // La lista del cliente queda elegida en el campo (un `SelectBuscable`: la lista asignada es el VALOR del campo, ya no un texto).
+    await vi.waitFor(() => expect(screen.getByRole('combobox', { name: 'Lista de precios' })).toHaveValue('Mayorista'))
     await elegirFideos(usuario)
 
     const llamadas = fetchMock.mock.calls.map((c) => String(c[0]))
@@ -98,7 +99,8 @@ describe('el presupuesto cotiza con la lista (add-on mayorista, slices 3 y 4)', 
   it('re-cotiza el renglón por cantidad cuando cambia la cantidad (quiebre)', async () => {
     const usuario = userEvent.setup()
     montarEdicion({ listaAsignada: 5, listas: LISTAS })
-    expect(await screen.findByText('Mayorista')).toBeInTheDocument()
+    // La lista del cliente queda elegida en el campo (un `SelectBuscable`: la lista asignada es el VALOR del campo, ya no un texto).
+    await vi.waitFor(() => expect(screen.getByRole('combobox', { name: 'Lista de precios' })).toHaveValue('Mayorista'))
     await elegirFideos(usuario)
 
     // A cantidad 1 el precio es 80; al subir a 10 entra el quiebre (70).
