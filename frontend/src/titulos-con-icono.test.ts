@@ -59,6 +59,10 @@ describe('el icono del título sale del sidebar', () => {
     // vive DENTRO del componente compartido, no en este archivo, así que el
     // piso baja uno (de 5 a 4). El tipo de `icono` sigue siendo obligatorio
     // en `Usuarios` de libra-ui, así que el shim no puede montarla sin pasarlo.
-    expect(conIcono).toBeGreaterThanOrEqual(4)
+    //
+    // 2026-10-08 (libra-ui v0.128.0): `Dashboard.tsx` era una copia previa a la extracción del kit y pasó a ser
+    // un wrapper de `libra-ui/comercio/Dashboard` (que lleva `ICONOS.dashboard`, el del sidebar): el piso baja
+    // uno más (de 4 a 3).
+    expect(conIcono).toBeGreaterThanOrEqual(3)
   })
 })
