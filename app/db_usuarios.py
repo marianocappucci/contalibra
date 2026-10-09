@@ -119,6 +119,12 @@ _smtp_settings = SmtpSettingsRepository(_sessions)
 _secretos = SecretosRepository(_sessions)
 _lc_config_manager.usar_almacen_de_secretos(_secretos)
 
+# La empresa ficticia de la demo pública (ADR-038 de libracore): en una
+# instancia con `DEMO_MODE=1` reemplaza lo que haya en `config.json`.
+from app import empresa_demo as _empresa_demo  # noqa: E402
+
+_empresa_demo.registrar()
+
 _log = logging.getLogger(__name__)
 
 
