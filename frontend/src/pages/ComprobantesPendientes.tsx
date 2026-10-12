@@ -14,11 +14,8 @@ import {
 } from 'lucide-react'
 import { ICONOS } from 'libra-ui/iconos-identidad'
 import { TituloPantalla } from 'libra-ui/titulo-pantalla'
+import { formatoMoneda } from 'libra-ui/formatos'
 import { fecha } from '@/lib/fechas'
-
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value)
-}
 
 type Bandeja = {
   pendientes: ComprobantePendiente[]
@@ -227,7 +224,7 @@ export function ComprobantesPendientes() {
       header: sortableHeader('Total'),
       size: 110,
       minSize: 90,
-      cell: ({ row }) => <span className="font-medium">{formatCurrency(row.original.total)}</span>,
+      cell: ({ row }) => <span className="font-medium">{formatoMoneda(row.original.total)}</span>,
     },
     {
       id: 'acciones',
@@ -266,7 +263,7 @@ export function ComprobantesPendientes() {
       header: 'Total',
       size: 110,
       minSize: 90,
-      cell: ({ row }) => formatCurrency(row.original.total),
+      cell: ({ row }) => formatoMoneda(row.original.total),
     },
     { accessorKey: 'resuelto_at', header: sortableHeader('Resuelto'), size: 140, minSize: 110 },
     { accessorKey: 'resuelto_por', header: 'Por', size: 120, minSize: 90 },
@@ -353,7 +350,7 @@ export function ComprobantesPendientes() {
                     : `${elegidos.length} comprobantes elegidos`}
                 </strong>
                 {' · '}
-                <strong>{formatCurrency(totalElegido)}</strong>
+                <strong>{formatoMoneda(totalElegido)}</strong>
               </p>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setElegidos([])}>Limpiar</Button>
@@ -374,7 +371,7 @@ export function ComprobantesPendientes() {
           </CardHeader>
           <CardContent className="grid gap-3">
             <p className="text-sm text-muted-foreground">
-              {descartando.cliente_razon} · {formatCurrency(descartando.total)}.
+              {descartando.cliente_razon} · {formatoMoneda(descartando.total)}.
               No se factura y el sistema de origen deja de reenviarlo.
             </p>
             <div className="grid gap-2">
