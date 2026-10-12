@@ -21,10 +21,7 @@ import {
 import { ICONOS } from 'libra-ui/iconos-identidad'
 import { TituloPantalla } from 'libra-ui/titulo-pantalla'
 import { hoyISO, primerDiaDelMesISO } from 'libra-ui/fechas'
-
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value)
-}
+import { formatoMoneda } from 'libra-ui/formatos'
 
 // El listado de recibos emitidos: sirve para reimprimir el papel que el
 // cliente perdió y para anular el que salió mal. La emisión NO vive acá —
@@ -156,7 +153,7 @@ export function Recibos() {
       header: () => <div className="text-right">Monto</div>,
       cell: ({ row }) => (
         <div className={`text-right font-semibold ${row.original.anulado ? 'text-muted-foreground line-through' : ''}`}>
-          {formatCurrency(row.original.total)}
+          {formatoMoneda(row.original.total)}
         </div>
       ),
     },
