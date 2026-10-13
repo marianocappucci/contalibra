@@ -324,8 +324,11 @@ def _captcha_aprobado(monkeypatch):
     Se parchea la funcion de modulo `libraauth.session_auth._captcha_de`
     porque el router la resuelve por nombre en cada request: parchear
     `app.state.captcha` no alcanzaria a los tests que arman su propia app.
+    Desde libraauth v0.50.0 la llama con `(request, captcha_usados)`.
     """
-    monkeypatch.setattr("libraauth.session_auth._captcha_de", lambda request: _CAPTCHA_DE_PRUEBA)
+    monkeypatch.setattr(
+        "libraauth.session_auth._captcha_de", lambda request, usados=None: _CAPTCHA_DE_PRUEBA
+    )
 
 
 # ── Ningun test sale a la red de verdad ─────────────────────────────────────
