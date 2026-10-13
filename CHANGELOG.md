@@ -1,5 +1,27 @@
 # Changelog
 
+## Sin publicar — 2026-10-13
+
+### El producto queda listo para varios procesos y registra sus errores (ADR-044 y ADR-045 de libracore, ADR-023 de libraauth, ADR-053 de libra-ui)
+
+- **Varios procesos por instancia (`uvicorn --workers N`), sin prenderlos: todo sigue en 1.** `WEB_CONCURRENCY` por defecto es 1 y el `docker-compose.yml` de dev pasa `--workers ${WEB_CONCURRENCY:-1}`; las instancias de cliente y demo corren el `CMD` del `Dockerfile`, que uvicorn ya hace respetar por `WEB_CONCURRENCY` sin tocarlo. Lo que se rompía con N procesos:
+  - El hook de `startup` (`init_db`, el admin, el usuario de la demo, el depósito por defecto y la migración de secretos) corría en cada worker y un «si no existe, crear» se contestaba «no existe» en todos: ahora va dentro de `una_vez_al_arrancar("contalibra-arranque")`, de a un proceso por vez, y cada paso sigue preguntando adentro.
+  - El anti-replay del captcha del login era un `dict` del proceso (un desafío resuelto servía una vez **por worker**): `captcha_usados=UsadosEnBase(...)` lo anota en la base de `usuarios` (`libraauth_captcha_usados`, migración `0003`).
+  - El engine de `usuarios` lleva `pool_pre_ping=True`: tras un restore en caliente, el worker que no atendió el restore se recupera solo. **Después de un restore en caliente con más de un worker, reiniciar el contenedor.**
+  - La nota de crédito sale por el router de facturas del motor, que ya le pasa su candado de base: este producto no emite notas por su cuenta y no cambia.
+- **Registro de errores de la familia.** `instalar_registro_de_errores(app, "contalibra")` junto a `SecurityHeadersMiddleware`: un 500 responde `{"detail": "Error interno", "ref": "<8 hex>"}` y deja una línea en `DATA_DIR/errores/errores.jsonl`; `POST /api/errores-cliente` (público a propósito) recibe los errores del navegador. En el frontend, `instalarReporteDeErrores()` antes de montar y `<ErrorBoundary>` («Algo falló. Recargá la página.», con el `ref` si lo hay) alrededor de toda la app en `main.tsx`. El compose de `-dev` suma `LIBRA_ENTORNO=dev`, `LIBRA_INSTANCIA=contalibra-dev` y `LIBRA_VERSION`; las instancias de cliente y demo las reciben del panel en su próximo `actualizar`.
+- Tests nuevos: `tests/test_registro_de_errores.py`, el replay del captcha contra la base (`tests/test_captcha_login.py`) y `tests/test_varios_procesos.py` (`uvicorn --workers 2` de verdad; marca `varios_procesos`). El doble del captcha de `tests/conftest.py` acepta ahora `(request, usados)`, como llama el router desde libraauth v0.50.0.
+- Pines: libracore v1.157.0 → **v1.159.0** (sin migración), libraauth v0.49.0 → **v0.50.0** (**migración `0003_captcha_usados`**: el compose de dev, `scripts/panel_admin.py` y `scripts/nuevo_cliente.py` ya corren `libraauth-migrar upgrade` antes de arrancar, y `exigir_schema_al_dia` la exige), libra-ui v0.141.0 → **v0.142.1**, piso `uvicorn>=0.30.0`.
+
+## Sin publicar — 2026-10-12
+
+### Los clientes quedan en el log de actividad (ADR-043 de libracore, ADR-022 de libraauth)
+
+- Antes el alta, la edición, la baja, el fiado y la ficha de un cliente (`/api/clientes`) **no dejaban rastro de quién los tocó**. Ahora el motor de core (`libracore` v1.157.0) le avisa cada escritura de `clients` a un registrador, dentro de la misma transacción, y este producto le enchufa el de `libraauth` (v0.49.0, `registrador_dbapi`) en `app/web/app.py`. Un log roto bloquea la escritura en vez de perderse en silencio.
+- La fila dice **quién** fue: `agregar_middleware_de_usuario` sella el usuario de la cookie de sesión en cada request (sin él quedaría «Sistema»).
+- La pantalla de Logs los muestra como tipo **Cambios** (`actividad`), sin pantalla nueva: «Cliente — Ana Pérez (edición)». El detalle del diff queda en `actividad_log.cambios`, que la pantalla todavía no muestra.
+- Guardar sin cambios no deja fila. Sin migración (la tabla `actividad_log` ya la crea `init_schema` de libracommerce). Pines: libracore v1.157.0, libraauth v0.49.0 y libracommerce v0.57.0 (este producto no usa su `RepositorioAuditado`).
+
 ## Sin publicar — 2026-10-07
 
 ### El menú y los títulos usan el catálogo de íconos de la familia (ADR-035)

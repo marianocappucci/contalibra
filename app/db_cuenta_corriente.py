@@ -25,9 +25,6 @@ from libracore.db.cuenta_corriente import (  # noqa: F401
 
 get_cc_saldo = partial(_cc.get_cc_saldo, origen=VENTAS_LIBRACOMMERCE)
 get_cc_movimientos = partial(_cc.get_cc_movimientos, origen=VENTAS_LIBRACOMMERCE)
-get_cc_movimientos_periodo = partial(
-    _cc.get_cc_movimientos_periodo, origen=VENTAS_LIBRACOMMERCE
-)
 get_clientes_con_saldo_cc = partial(
     _cc.get_clientes_con_saldo_cc, origen=VENTAS_LIBRACOMMERCE
 )
