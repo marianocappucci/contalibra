@@ -17,10 +17,11 @@ la cookie es la misma, porque es el mismo objeto `SessionAuth` de siempre. Una
 sesion abierta no se invalida por este cambio.
 """
 from fastapi import Request
+from libraauth.captcha import UsadosEnBase
 from libraauth.session_auth import build_json_api_auth_router
 from libracore.db import comprobantes_pendientes
 
-from app import config_manager
+from app import config_manager, db_usuarios
 from app import database as db
 
 
@@ -58,4 +59,8 @@ router = build_json_api_auth_router(
     # despues de N fallos): decision del humano, ADR-014 de libraauth. Agrega
     # `GET /api/captcha`; sin la solucion en el campo `captcha`, 400.
     captcha=True,
+    # Los desafios ya resueltos se anotan en la base de `usuarios` (libraauth v0.50.0, ADR-023) y no en la memoria
+    # del proceso: con `uvicorn --workers N` un desafio resuelto servia una vez POR WORKER. La tabla la crea la
+    # revision `0003` de la cadena de `libraauth-migrar`.
+    captcha_usados=UsadosEnBase(db_usuarios.sessions()),
 )
