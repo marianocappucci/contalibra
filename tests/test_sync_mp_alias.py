@@ -129,3 +129,32 @@ def test_el_cron_le_factura_al_cliente_del_alias(client, monkeypatch):
     # 1 = Responsable Inscripto. El placeholder hubiera dejado 5 (Consumidor
     # Final), que es lo que mostraba el PDF que reclamo el cliente.
     assert factura["cliente_iva_cond"] == 1
+
+
+def test_el_cron_enchufa_el_almacen_de_secretos(tmp_path):
+    """🔴 Del 2026-09-18 al 2026-10-14 el cron no facturo ningun abono: el token
+    de MP vive en el almacen cifrado, lo enchufa el arranque de la app, y el
+    script corre por `docker exec` sin pasar por ese arranque.
+
+    Va en un proceso aparte a proposito: dentro de la suite el almacen ya quedo
+    enchufado por los fixtures, asi que medirlo aca daria verde aunque el script
+    no lo hiciera. El proceso nuevo es lo que ve el cron."""
+    import subprocess
+    import sys
+
+    codigo = (
+        "import importlib.util, sys\n"
+        f"spec = importlib.util.spec_from_file_location('cron', {str(RAIZ / 'scripts' / 'sync_mp_auto.py')!r})\n"
+        "spec.loader.exec_module(importlib.util.module_from_spec(spec))\n"
+        "from libracore import config_manager\n"
+        "print(config_manager.almacen_de_secretos() is not None)\n"
+    )
+    salida = subprocess.run(
+        [sys.executable, "-c", codigo], cwd=tmp_path,
+        capture_output=True, text=True, timeout=120,
+    )
+    assert salida.returncode == 0, salida.stderr
+    assert salida.stdout.strip().splitlines()[-1] == "True", (
+        "sync_mp_auto.py no enchufa el almacen de secretos: el cron va a leer el "
+        "token de MercadoPago vacio y no va a facturar nada"
+    )
