@@ -27,6 +27,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from libracore.mp_sync import sincronizar_y_facturar  # noqa: E402
 
+# 🔴 Enchufa el almacen cifrado de secretos, igual que el arranque de la app. El
+# token de MercadoPago y la contrasena SMTP viven ahi desde el 2026-09-17, y este
+# script corre por `docker exec` sin pasar por ese arranque: del 2026-09-18 al
+# 2026-10-14 leyo el token vacio, logueo "No hay Access Token" cada noche y no
+# facturo ningun abono. Lo vigila tests/test_sync_mp_alias.py.
+import app.db_usuarios  # noqa: E402,F401
 from app.web.routers.webhooks import _es_hosting_mensual  # noqa: E402
 
 logging.basicConfig(
