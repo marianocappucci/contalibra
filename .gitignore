@@ -125,3 +125,6 @@ frontend/vitest.xml
 # Artefactos del smoke de navegador (Playwright los escribe al fallar).
 test-results/
 playwright-report/
+
+# La sesión de cada rol que deja el proyecto `setup` de los tests de navegador (`frontend/e2e/auth.setup.ts`).
+.auth/
