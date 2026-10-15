@@ -334,6 +334,11 @@ jobs:
       - name: El build dejo algo de verdad
         run: test -f dist/index.html
 
+      # Los tests de navegador (`e2e/`, Playwright) no entran en `tsc -b` (el build chequea `src/`): se tipan con su propio tsconfig. Es
+      # lo que ve un error de tipos en un spec o en `libra-ui/e2e` sin tener que levantar la instancia que los corre (`e2e.yml`).
+      - name: Tipos de los tests de navegador
+        run: npm run e2e:tipos
+
       # Ningún `€` en lo que se sirve. `tests/test_sin_simbolo_de_euro.py` barre
       # los fuentes de este repo; esto mira el bundle compilado, que es lo que
       # ve el usuario e incluye lo que llega de `libra-ui` (2026-09-10).
