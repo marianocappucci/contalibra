@@ -58,7 +58,7 @@ def test_el_padron_autentica_con_el_par_del_ambiente(
     """🔴 El defecto: leyendo `arca["certificado_path"]` directo, este endpoint
     salía a autenticar con el certificado **de producción** —el real del
     cliente— contra el WSAA de homologación."""
-    from app import arca_wsaa, arca_wspadron
+    from libracore import arca_wsaa, arca_wspadron
 
     usados = {}
 
@@ -85,7 +85,7 @@ def test_el_padron_en_produccion_usa_el_par_real(
         admin_client, instancia_en_homologacion, monkeypatch):
     """El control del anterior: si el endpoint pidiera **siempre** el par de
     homologación, el test de arriba pasaría igual."""
-    from app import arca_wsaa, arca_wspadron
+    from libracore import arca_wsaa, arca_wspadron
 
     db.actualizar_arca_config("default", ambiente="produccion")
     usados = {}
@@ -112,9 +112,7 @@ def test_una_demo_migrada_puede_consultar_el_padron(
     """🔴 La regresión que trae el bump del pin. Tras la migración `0007`, una
     instancia en homologación tiene las columnas de producción **vacías** — que
     es lo que este endpoint miraba para decidir si contestar 503."""
-    from libracore import config_manager
-
-    from app import arca_wsaa, arca_wspadron
+    from libracore import arca_wsaa, arca_wspadron, config_manager
 
     d = tmp_path / "arca_certs"
     d.mkdir()

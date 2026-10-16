@@ -228,6 +228,40 @@ def test_un_cuit_que_ya_es_cliente_no_se_duplica(configurado: TestClient):
     assert len(db.get_all_clients()) == 1
 
 
+# ── Un pago en cuenta corriente necesita cliente (ADR-061 de libracommerce) ──────
+#
+# 🔴 Una consulta sin CUIT va como Consumidor Final: sin cliente. Con un pago en
+# `cuenta_corriente`, el motor (libracommerce v0.61.0) rechaza la venta con
+# `FiadoSinCliente` antes de escribir nada, y sin capturarla acá era un 500.
+
+def test_cuenta_corriente_sin_cuit_se_rechaza_con_422_y_no_escribe_nada(configurado: TestClient):
+    r = _mandar(configurado, medio_pago="cuenta_corriente")
+    assert r.status_code == 422, r.text
+    assert "fiar sin cliente" in r.json()["detail"]
+    assert db.get_all_ventas() == []
+    assert db.get_venta_por_referencia("medlibra", "turno-abc-123") is None, "no quedó atada a la referencia"
+
+
+def test_un_fiado_parcial_sin_cuit_tambien_se_rechaza(configurado: TestClient):
+    r = _mandar(configurado, importe=1000.0, pagos=[
+        {"medio": "efectivo", "monto": 400.0},
+        {"medio": "cuenta_corriente", "monto": 600.0},
+    ])
+    assert r.status_code == 422, r.text
+    assert db.get_all_ventas() == []
+
+
+def test_cuenta_corriente_con_cuit_entra_a_nombre_del_cliente(configurado: TestClient):
+    """El control del anterior: con cliente, fiar sigue andando."""
+    r = _mandar(configurado, medio_pago="cuenta_corriente", paciente={
+        "nombre": "Clínica del Sur SRL",
+        "cuit": "30711223344",
+        "condicion_iva": "Responsable Inscripto",
+    })
+    assert r.status_code == 200, r.text
+    assert r.json()["venta"]["cliente_id"] is not None
+
+
 # ── Una consulta con más de un pago ────────────────────────────────────────
 #
 # 🔴 **El caso que motiva todo esto es el turno señado.** MedLibra cobra la seña

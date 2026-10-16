@@ -294,69 +294,74 @@ export function FacturaNueva() {
               <div className="grid flex-1 gap-2"><Label>Observaciones</Label><Input value={observations} onChange={(e) => setObservations(e.target.value)} /></div>
             </div>
 
-            <div className="rounded-md border">
+            <div className="min-w-0 rounded-md border">
               <div className="flex items-center justify-between border-b p-3">
                 <Label>Ítems</Label>
                 <Button size="sm" variant="outline" onClick={addItemRow}><Plus />Agregar ítem</Button>
               </div>
-              <table className="w-full text-sm">
-                <thead className="border-b text-muted-foreground">
-                  <tr>
-                    <th className="p-2 text-left font-medium">Descripción</th>
-                    <th className="w-24 p-2 text-left font-medium">Cantidad</th>
-                    <th className="w-32 p-2 text-left font-medium">Precio unit.</th>
-                    <th className="w-28 p-2 text-right font-medium">Subtotal</th>
-                    <th className="w-10 p-2"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((row, i) => (
-                    <tr key={i} className="border-b last:border-0">
-                      <td className="relative p-2">
-                        <Input value={row.description} onChange={(e) => buscarProducto(i, e.target.value)} placeholder="Descripción o producto…" />
-                        {sugerencias?.index === i && sugerencias.items.length > 0 && (
-                          <div className="absolute left-2 top-11 z-10 w-64 rounded-md border bg-popover shadow-md">
-                            {sugerencias.items.map((p) => (
-                              <button
-                                key={p.id} type="button"
-                                className="block w-full px-3 py-1.5 text-left text-sm hover:bg-accent"
-                                onClick={() => elegirProducto(i, p)}
-                              >
-                                {p.nombre} — {formatoMoneda(p.precio_venta)}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </td>
-                      <td className="p-2"><Input type="number" step="0.01" value={row.qty} onChange={(e) => updateItem(i, 'qty', e.target.value)} /></td>
-                      <td className="p-2"><Input type="number" step="0.01" value={row.unit_price} onChange={(e) => updateItem(i, 'unit_price', e.target.value)} /></td>
-                      <td className="p-2 text-right font-medium">{formatoMoneda((Number(row.qty) || 0) * (Number(row.unit_price) || 0))}</td>
-                      <td className="p-2 text-right">
-                        <Button size="icon" variant="ghost" onClick={() => removeItemRow(i)}><Trash2 /></Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr>
-                    <td colSpan={3} className="p-2 text-right font-medium text-muted-foreground">Subtotal</td>
-                    <td className="p-2 text-right font-medium">{formatoMoneda(subtotalCalc)}</td>
-                    <td></td>
-                  </tr>
-                  {!tiposInfo.es_monotributista && (
+              {/* Bajo `sm` la tabla scrollea por dentro y no ensancha la página (mide 362 px; la tarjeta, ~340 a 390 px). El marco lleva `min-w-0`: sin él la grilla
+                  de la tarjeta crece al mínimo de la tabla. Sólo bajo `sm`; ahí el desplegable de sugerencias deja de ser `absolute` (el `overflow-x-auto` lo
+                  recortaría y lo scrollearía adentro) y va en el flujo de la celda, con tope de alto. */}
+              <div className="max-sm:overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="border-b text-muted-foreground">
                     <tr>
-                      <td colSpan={3} className="p-2 text-right font-medium text-muted-foreground">IVA ({Math.round((Number(taxRate) || 0) * 100)}%)</td>
-                      <td className="p-2 text-right font-medium">{formatoMoneda(ivaCalc)}</td>
+                      <th className="p-2 text-left font-medium">Descripción</th>
+                      <th className="w-24 p-2 text-left font-medium">Cantidad</th>
+                      <th className="w-32 p-2 text-left font-medium">Precio unit.</th>
+                      <th className="w-28 p-2 text-right font-medium">Subtotal</th>
+                      <th className="w-10 p-2"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((row, i) => (
+                      <tr key={i} className="border-b last:border-0">
+                        <td className="relative p-2">
+                          <Input value={row.description} onChange={(e) => buscarProducto(i, e.target.value)} placeholder="Descripción o producto…" />
+                          {sugerencias?.index === i && sugerencias.items.length > 0 && (
+                            <div className="absolute left-2 top-11 z-10 w-64 rounded-md border bg-popover shadow-md max-sm:static max-sm:mt-1 max-sm:max-h-48 max-sm:w-full max-sm:overflow-y-auto">
+                              {sugerencias.items.map((p) => (
+                                <button
+                                  key={p.id} type="button"
+                                  className="block w-full px-3 py-1.5 text-left text-sm hover:bg-accent"
+                                  onClick={() => elegirProducto(i, p)}
+                                >
+                                  {p.nombre} — {formatoMoneda(p.precio_venta)}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-2"><Input type="number" step="0.01" value={row.qty} onChange={(e) => updateItem(i, 'qty', e.target.value)} /></td>
+                        <td className="p-2"><Input type="number" step="0.01" value={row.unit_price} onChange={(e) => updateItem(i, 'unit_price', e.target.value)} /></td>
+                        <td className="p-2 text-right font-medium">{formatoMoneda((Number(row.qty) || 0) * (Number(row.unit_price) || 0))}</td>
+                        <td className="p-2 text-right">
+                          <Button size="icon" variant="ghost" onClick={() => removeItemRow(i)}><Trash2 /></Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colSpan={3} className="p-2 text-right font-medium text-muted-foreground">Subtotal</td>
+                      <td className="p-2 text-right font-medium">{formatoMoneda(subtotalCalc)}</td>
                       <td></td>
                     </tr>
-                  )}
-                  <tr>
-                    <td colSpan={3} className="p-2 text-right text-base font-bold">TOTAL</td>
-                    <td className="p-2 text-right text-base font-bold text-primary">{formatoMoneda(subtotalCalc + ivaCalc)}</td>
-                    <td></td>
-                  </tr>
-                </tfoot>
-              </table>
+                    {!tiposInfo.es_monotributista && (
+                      <tr>
+                        <td colSpan={3} className="p-2 text-right font-medium text-muted-foreground">IVA ({Math.round((Number(taxRate) || 0) * 100)}%)</td>
+                        <td className="p-2 text-right font-medium">{formatoMoneda(ivaCalc)}</td>
+                        <td></td>
+                      </tr>
+                    )}
+                    <tr>
+                      <td colSpan={3} className="p-2 text-right text-base font-bold">TOTAL</td>
+                      <td className="p-2 text-right text-base font-bold text-primary">{formatoMoneda(subtotalCalc + ivaCalc)}</td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
             </div>
 
             <div className="flex flex-wrap items-end gap-2 border-t pt-4">

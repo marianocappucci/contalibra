@@ -16,21 +16,13 @@ async function pantallaCargada(page: Page): Promise<void> {
   await expect(page.getByText(/^Cargando/)).toHaveCount(0)
 }
 
-// 🔴 DEFECTOS REALES que este spec encontró el 2026-10-15 (primera corrida, `develop` @ 23f04dc, libra-ui v0.152.1): ocho pantallas se
-// desbordan a 390 px —el documento mide más que la ventana y el celular scrollea de costado— y a 1280 px están bien. Son pantallas del
-// kit (`libra-ui/Facturas`, `libra-ui/comercio/Logs`...) y el arreglo va ahí, no en Contalibra; mientras tanto el ancho de escritorio
-// se mide igual y el de celular queda en `fixme` con lo medido. Cuando una se arregla, se saca de esta tabla y el spec la cuida.
-// El elemento es el primero que se pasa del borde, tal como lo informa `sinDesborde`.
-const DESBORDE_A_390: Record<string, string> = {
-  '/facturas': 'el documento mide 579 px: la fila de pestañas de estado (`div.inline-flex.h-9.w-fit`, un TabsList) no se parte ni scrollea',
-  '/mp-bandeja': 'el documento mide 670 px: el TabsList «Cobros / ...» (`button#...-trigger-cobros`) no se parte ni scrollea',
-  '/logs': 'el documento mide 394 px: el TabsList «Actividad / Accesos» y el título se pasan 4 px',
-  '/libros-iva': 'el documento mide 415 px: `table.w-full.text-sm` sin contenedor `overflow-x-auto`',
-  '/facturas/nueva': 'el documento mide 405 px: una fila `flex flex-wrap items-end` con un campo `flex-1` que no baja de ancho',
-  '/presupuestos/nuevo': 'el documento mide 405 px: la misma fila `flex flex-wrap items-end` que Nueva factura',
-  '/facturas/:id': 'el documento mide 429 px: `table.w-full.text-sm` de los ítems, sin `overflow-x-auto`',
-  '/turnos/:id': 'el documento mide 487 px: `table.w-full.text-sm` de las ventas del turno, sin `overflow-x-auto`',
-}
+// Desbordes a 390 px conocidos: pantalla -> lo medido. Un desborde real se anota acá (con el elemento que se pasa del borde, tal como
+// lo informa `sinDesborde`) y el spec lo deja en `fixme` a 390 px —el ancho de escritorio se mide igual—; cuando se arregla, se saca.
+// 🟢 Vacía desde libra-ui v0.154.0 (ADR-067): el 2026-10-15 la primera corrida encontró ocho pantallas que se desbordaban a 390 px
+// (`/facturas`, `/mp-bandeja`, `/logs`, `/libros-iva`, `/facturas/nueva`, `/presupuestos/nuevo`, `/facturas/:id`, `/turnos/:id`). Las
+// siete del kit las arregló el kit (pestañas que parten, `<Table>` con scroll, marco `min-w-0`) y `/facturas/nueva`, que es de este
+// producto, `FacturaNueva.tsx` con el mismo arreglo.
+const DESBORDE_A_390: Record<string, string> = {}
 
 /** Abre la ruta, espera los datos y mide los dos anchos. `clave` es la de `DESBORDE_A_390` (por defecto, la propia ruta). */
 async function abrir(page: Page, ruta: string, clave = ruta): Promise<void> {
