@@ -13,15 +13,12 @@ import { MENU_POR_ROL } from './menus'
 // pantalla tiene algo que se ve igual en los dos modos a propósito, se exime con `ignorar: '<selector>'` y la razón escrita acá, no
 // aflojando el mínimo.
 
-// 🔴 DEFECTOS REALES que este spec encontró el 2026-10-15 (primera corrida, `develop` @ 23f04dc, libra-ui v0.152.1): texto blanco sobre un
-// color de insignia o de botón que no llega a 4,5:1. Los colores no cambian entre claro y oscuro, así que el mismo defecto está en el
-// modo claro. Son del kit (`libra-ui/Facturas`, `libra-ui/comercio/Logs`, `libra-ui/comercio/CuentaCorrienteDetalle`) y el arreglo va
-// ahí, no en Contalibra: se dejan en `fixme` con lo medido hasta que el kit lo corrija, y entonces se sacan de esta tabla.
-const CONTRASTE_CONOCIDO: Record<string, string> = {
-  '/facturas': 'la insignia «FC» del tipo de comprobante: blanco sobre rgb(0, 166, 244), 2,71:1',
-  '/logs': 'las insignias del tipo de evento: «Factura» 1,96:1 (blanco sobre rgb(13, 202, 240)), «Turno» 2,57:1 y «Presupuesto» 2,13:1',
-  '/cuenta-corriente/:id': 'el botón «Registrar pago»: blanco sobre rgb(5, 150, 105), 3,77:1',
-}
+// Contrastes conocidos: pantalla -> lo medido. Un defecto real se anota acá (texto sobre un color que no llega a 4,5:1; los colores no
+// cambian entre claro y oscuro, así que está en los dos modos) y el spec lo deja en `fixme`; cuando el kit lo corrige, se saca.
+// 🟢 Vacía desde libra-ui v0.154.0 (ADR-067): el 2026-10-15 la primera corrida encontró la insignia «FC» de `/facturas` (2,71:1), las
+// del tipo de evento de `/logs` («Factura» 1,96:1, «Turno» 2,57:1, «Presupuesto» 2,13:1) y el botón «Registrar pago» de
+// `/cuenta-corriente/:id` (3,77:1); el kit oscurece el fondo lo justo para llegar a 4,5:1.
+const CONTRASTE_CONOCIDO: Record<string, string> = {}
 
 /** Mide la pantalla ya cargada, salvo que su defecto esté en `CONTRASTE_CONOCIDO`. */
 async function leerseEn(page: Page, clave: string): Promise<void> {

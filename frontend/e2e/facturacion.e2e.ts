@@ -109,12 +109,11 @@ test.describe('facturas', () => {
     await expect(page.getByRole('row', { name: new RegExp(cliente.name) })).toContainText('Cobrada')
   })
 
-  // 🔴 DEFECTO REAL (2026-10-15, medido en esta rama): `POST /api/facturas/{id}/cobrar` acepta un cobro MAYOR que lo pendiente. Una factura
-  // de 4.500 con 1.000 cobrados y 3.500 pendientes aceptó un cobro de 9.999 (200): la pantalla pasa a «Cobrado completo — $ 10.999,00 (2
-  // pagos)» y la caja asienta un ingreso de 9.999 que nadie debía. (Cobrar de más en una CUENTA CORRIENTE sí es válido —queda a favor—;
-  // en una factura puntual no.) El cobro de la factura es de `libracore.facturas_router`: el arreglo va en el motor, no en Contalibra.
+  // 🟢 ARREGLADO en libracore v1.171.0 (ADR-058). El 2026-10-15 se midió que `POST /api/facturas/{id}/cobrar` aceptaba un cobro MAYOR que lo
+  // pendiente: una factura de 4.500 con 1.000 cobrados y 3.500 pendientes aceptó un cobro de 9.999 (200), la pantalla pasaba a «Cobrado
+  // completo — $ 10.999,00 (2 pagos)» y la caja asentaba un ingreso de 9.999 que nadie debía. Ahora el motor da 409 y no escribe nada.
+  // (Cobrar de más en una CUENTA CORRIENTE sí es válido —queda a favor—; en una factura puntual no.)
   test('no se puede cobrar más de lo que falta de una factura', async ({ api, apiDe }) => {
-    test.fixme(true, 'defecto de la app: /api/facturas/{id}/cobrar acepta un cobro mayor que el pendiente (cobra 9.999 de 3.500)')
     const admin = await apiDe('admin')
     const factura = await crearFactura(admin, { cliente: await crearCliente(admin), precio: 1_500, cantidad: 3 })
     const cobro = (monto: number) => api.post(`/api/facturas/${factura.id}/cobrar`, {

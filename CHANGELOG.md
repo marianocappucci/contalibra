@@ -1,5 +1,19 @@
 # Changelog
 
+## Sin publicar — 2026-10-16
+
+### Pines: libracore v1.173.0, libracommerce v0.62.0 y libra-ui v0.156.0 (sin migración); la consulta de CUIT sale del producto, fiar sin cliente se rechaza y la demo no muestra datos fiscales reales
+
+- Pines: **libracore `v1.173.0`** (antes `v1.170.0`), **libracommerce `v0.62.0`** (antes `v0.60.0`) y **libra-ui `v0.156.0`** (antes `v0.153.0`); libraauth sigue en `v0.51.0`. **Sin migración.**
+  - libracore `v1.171.0`: un cobro de factura no puede superar lo que falta (`POST /api/facturas/{id}/cobrar` da **409**, ADR-058). `v1.172.0`: las notas de crédito restan de lo pendiente (`pendiente = total − cobrado − acreditado`, ADR-059) y el cobro puede entrar por el turno (ADR-060; este producto no lo prende). `v1.173.0`: una demo no habla con ARCA ni muestra datos fiscales reales, y suma `libracore.demo.auditar_datos_fiscales` / `auditar_literales` (ADR-061).
+  - libracommerce `v0.61.0`: fiar sin cliente se rechaza por default (**422**, `FiadoSinCliente`, ADR-061). `v0.62.0`: la creación del esquema se serializa entre procesos (ADR-062).
+  - libra-ui `v0.154.0`: sin desborde a 390 px y contraste AA (ADR-067). `v0.155.0`: «Pendiente» y facturas «Acreditada» (ADR-068). `v0.156.0`: el error de la consulta de CUIT lleva al tutorial de Padrón A13 (ADR-069).
+- **`GET /api/consultar-cuit/{cuit}` es el router del motor** (`libracore.consultar_cuit_router`), no un handler propio: sale de `app/web/app.py` y con él los shims `app/arca_wsaa.py` y `app/arca_wspadron.py` (nada los importaba). Mismo contrato (400, 503, 404, 403, 502, 500 y el JSON del padrón). **Cambia sin sesión:** se monta con `get_current_user_json` y no con `require_auth`, así que contesta **401** JSON en vez de redirigir (307) a `/login`, que rompía el `fetch` del kit (seguía la redirección y recibía el HTML del login). Test de contrato: `tests/test_consultar_cuit_contrato.py`.
+- **`POST /api/integraciones/consultas` con un pago en cuenta corriente y sin CUIT da 422** (antes, con libracommerce `v0.61.0`, habría dado 500: `FiadoSinCliente` sin capturar). Una consulta sin CUIT va como Consumidor Final, sin cliente, y no hay deuda sin cliente. Con CUIT, fiar sigue andando.
+- **`/facturas/nueva` sin desborde a 390 px** (`FacturaNueva.tsx`: el marco de la tabla con `min-w-0` y la tabla con `max-sm:overflow-x-auto`; el desplegable de sugerencias va en el flujo bajo `sm`). Es la copia local del formulario del kit (ADR-067).
+- La semilla de la demo queda auditada: `tests/test_seed_demo.py` corre `auditar_literales` sobre `scripts/seed_demo.py` y `auditar_datos_fiscales` sobre la base sembrada con `DEMO_MODE=1`.
+- E2E: `DESBORDE_A_390` y `CONTRASTE_CONOCIDO` quedan vacías (con el kit `v0.154.0` pasan las 72 mediciones) y los dos `test.fixme` de «no se puede cobrar más de lo que falta de una factura» y «una venta a cuenta corriente sin cliente se rechaza» se sacan: arreglados en libracore `v1.171.0` y libracommerce `v0.61.0`.
+
 ## Sin publicar — 2026-10-15
 
 ### Pines: libracore v1.170.0, libraauth v0.51.0 y libra-ui v0.153.0 (sin migración)

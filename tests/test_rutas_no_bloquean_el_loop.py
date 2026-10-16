@@ -21,10 +21,11 @@ import threading
 import time
 
 import httpx
-from libracore import arca_credenciales
+from libracore import arca_credenciales, arca_wsaa, arca_wspadron
+from libracore.db import arca_config
 
-from app import arca_wsaa, arca_wspadron, venta_facturacion
 from app import database as db
+from app import venta_facturacion
 from app.web import app as modulo_app
 
 #: Lo que duerme la llamada reemplazada. Alcanza con que sea mucho más que lo
@@ -154,7 +155,8 @@ def test_consultar_cuit_no_frena_el_loop(admin_client, monkeypatch):
     `autenticar`: pasar la ruta a `def` sin sacar la corrutina del loop de
     uvicorn dejaría este test en rojo."""
     lento = _Lento()
-    monkeypatch.setattr(db, "obtener_todas_arca_configs",
+    # El endpoint es el router del motor: lee la config donde la lee el motor.
+    monkeypatch.setattr(arca_config, "obtener_todas_arca_configs",
                         lambda: [{"cuit": "20111111119", "ambiente": "homologacion"}])
     monkeypatch.setattr(arca_credenciales, "paths_en_disco",
                         lambda arca: ("/no/cert.crt", "/no/clave.key"))
