@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { esperarApi, expect, test } from 'libra-ui/e2e'
+import { descartarAvisoDeProximaVersion, esperarApi, expect, test } from 'libra-ui/e2e'
 import {
   crearCliente, crearProducto, cuentaCorrienteDe, hoy, json, pagarPorApi, pesos, stockDe, venderPorApi,
 } from './datos'
@@ -84,6 +84,8 @@ test.describe('la cuenta corriente de un cliente', () => {
     try {
       await paginaAdmin.goto(`/cuenta-corriente/${cliente.id}`)
       await expect(paginaAdmin.getByRole('row', { name: /Abono/ })).toContainText(pesos(1_500))
+      // Un contexto nuevo no pasa por `entrarComo`: el aviso de la próxima versión de los Términos (libra-ui v0.153.0) aparece.
+      await descartarAvisoDeProximaVersion(paginaAdmin)
       await paginaAdmin.getByRole('button', { name: 'Eliminar pago' }).click()
       const baja = esperarApi(paginaAdmin, `/api/cuenta-corriente/pagos/${pagoId}`, { metodo: 'DELETE' })
       await paginaAdmin.getByRole('alertdialog').getByRole('button', { name: /Eliminar|Confirmar|Sí/ }).last().click()
