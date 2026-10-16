@@ -258,7 +258,19 @@ def admin_client(client):
 @pytest.fixture(autouse=True)
 def _terminos_ya_aceptados(request):
     if request.node.get_closest_marker("sin_aceptar_terminos"):
+        # 🔴 **Un repositorio nuevo, no el de la app.** `app.state.terminos` es UNO por proceso y recuerda en memoria
+        # qué versión ya se aceptó (`_aceptada_en`). La base se restaura entre tests, la memoria no: si antes, en el
+        # mismo worker, otro test aceptó los Términos (`test_e2e_usuarios`), el gate contestaba 200 y
+        # `test_una_llamada_gateada_corta_hasta_aceptar` fallaba según cómo repartiera xdist.
+        from libraauth.terminos import TerminosRepository
+
+        from app import db_usuarios
+        from app.web.app import app
+
+        anterior = app.state.terminos
+        app.state.terminos = TerminosRepository(db_usuarios.sessions())
         yield
+        app.state.terminos = anterior
         return
 
     from libraauth.terminos import TerminosRepository
