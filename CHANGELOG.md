@@ -2,6 +2,14 @@
 
 ## Sin publicar — 2026-10-16
 
+### La sucursal única «Casa central»: depósitos, cajas y ventas bajo una sola sucursal (libracommerce v0.63.0, revisión `0006_sucursal_unica`)
+
+- **Nada visible cambia.** Contalibra es de un solo local, pero el motor ya tiene sucursales (ADR-063 de libracommerce) y todo quedaba en NULL; ahora cuelga de una sucursal predeterminada, «Casa central», para que el día que un cliente pida multisucursal no haya que migrar datos con él mirando. No se monta ninguna ruta ni pantalla de sucursales (`/api/sucursales` sigue sin existir): el kit sólo ofrece sucursal con dos o más. `tests/test_sucursal_unica.py` fija que depósitos, stock, listas de precio, cajas, turnos, ventas y resumen devuelven lo mismo salvo `branch_id`/`sucursal_id`.
+- **Revisión de Alembic `0006_sucursal_unica`** (corre en `panel_admin actualizar`, después de `libracommerce-migrar`): crea la sucursal, le asigna los depósitos (también los inactivos) y las cajas sin sucursal, y completa `sales.branch_id` de las ventas de antes con la sucursal de su depósito (el criterio de `erp.margen`; las que no movieron stock quedan sin sucursal). Sin DDL. Idempotente. `downgrade` la deshace sólo si es la única sucursal, la predeterminada y se llama «Casa central» (si no, se niega y lo dice).
+- **`init_db()`** llama la misma función (`app/sucursal_unica.py`) después de sembrar el «Depósito principal»: una instancia nueva nace con su sucursal y cada reinicio converge sin hacer nada.
+- **El depósito que se crea cae en «Casa central»** (`OpcionesDepositos(sucursal_por_defecto=True)`) y **cada venta anota la sucursal de su depósito** (`sales.branch_id`, lo hace el motor).
+- Requiere **libracommerce `v0.63.0`** (el pin se sube cuando exista el tag).
+
 ### Pines: libracore v1.173.0, libracommerce v0.62.0 y libra-ui v0.156.0 (sin migración); la consulta de CUIT sale del producto, fiar sin cliente se rechaza y la demo no muestra datos fiscales reales
 
 - Pines: **libracore `v1.173.0`** (antes `v1.170.0`), **libracommerce `v0.62.0`** (antes `v0.60.0`) y **libra-ui `v0.156.0`** (antes `v0.153.0`); libraauth sigue en `v0.51.0`. **Sin migración.**
