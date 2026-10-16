@@ -41,6 +41,7 @@ pedido ambiguo y se rechaza en vez de elegir uno.
 import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException
+from libracommerce.erp.ventas import FiadoSinCliente
 from libracore import medios_pago
 from libracore import pagos as acreditacion
 from pydantic import BaseModel, Field, model_validator
@@ -268,20 +269,31 @@ def registrar_consulta(payload: ConsultaPayload):
         "producto_id": None,
     }]
     mods = db.get_modulos()
-    venta_id = db.crear_venta_directa(
-        fecha=payload.fecha,
-        items=items,
-        subtotal=payload.importe,
-        descuento=0.0,
-        total=payload.importe,
-        cliente_id=cliente_id,
-        cliente_nombre=payload.paciente.nombre.strip(),
-        usuario_id=usuario["id"],
-        observaciones=f"{payload.sistema} · {payload.referencia}",
-        estado="cobrada",
-        pagos=payload.pagos_normalizados(),
-        stock_habilitado=bool(mods.get("stock")),
-    )
+    try:
+        venta_id = db.crear_venta_directa(
+            fecha=payload.fecha,
+            items=items,
+            subtotal=payload.importe,
+            descuento=0.0,
+            total=payload.importe,
+            cliente_id=cliente_id,
+            cliente_nombre=payload.paciente.nombre.strip(),
+            usuario_id=usuario["id"],
+            observaciones=f"{payload.sistema} · {payload.referencia}",
+            estado="cobrada",
+            pagos=payload.pagos_normalizados(),
+            stock_habilitado=bool(mods.get("stock")),
+        )
+    except FiadoSinCliente:
+        # 🔴 Un pago en cuenta corriente necesita cliente (ADR-061 de libracommerce) y una consulta sin
+        # CUIT va como Consumidor Final, sin cliente. Es un dato del pedido, no de la instancia: 422 antes
+        # de escribir nada, y no un 500. Es la misma regla de `POST /api/ventas`, con un mensaje para el
+        # emisor (el del motor le habla a un cajero: «Elegí uno»).
+        raise HTTPException(
+            422,
+            "No se puede fiar sin cliente: la consulta no trae el CUIT del paciente, así que va como "
+            "Consumidor Final. Mandá el CUIT o cobrala con otro medio.",
+        )
     # Fuera de la transacción de la venta: `crear_venta_directa` la abre y la
     # cierra sola, y no expone su `conn`. La ventana es chica pero existe — si
     # el proceso muriera justo acá, un reintento crearía una segunda venta. Se

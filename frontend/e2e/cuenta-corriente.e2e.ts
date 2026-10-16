@@ -101,13 +101,11 @@ test.describe('la cuenta corriente de un cliente', () => {
     expect(recibos.recibos.find((r) => r.id === recibo_id)).toMatchObject({ anulado: true })
   })
 
-  // 🔴 DEFECTO REAL (2026-10-15, medido en esta rama): `POST /api/ventas` acepta un pago en `cuenta_corriente` SIN cliente (200, venta
-  // V-0000N con `cliente_id: null`). La deuda queda a nombre de nadie: no aparece en ninguna cuenta corriente y no se puede cobrar. El
-  // motor ya trae la regla (`OpcionesVentas.exigir_cliente_para_fiar`: «una deuda que no es de nadie no se puede cobrar», 422 antes de
-  // escribir nada) y VentaLibra la prende; `app/web/api/ventas.py` de Contalibra arma `OpcionesVentas` sin ella. Lo decide el humano
-  // (cambia el comportamiento de hoy); mientras tanto queda en `fixme`.
+  // 🟢 ARREGLADO en libracore v1.171.0 / libracommerce v0.61.0 (ADR-061 de libracommerce). El 2026-10-15 se midió que `POST /api/ventas`
+  // aceptaba un pago en `cuenta_corriente` SIN cliente (200, venta V-0000N con `cliente_id: null`): la deuda quedaba a nombre de nadie, sin
+  // aparecer en ninguna cuenta corriente y sin forma de cobrarla. Ahora `OpcionesVentas.exigir_cliente_para_fiar` es True por defecto y el
+  // caso de uso levanta `FiadoSinCliente` antes de escribir nada: 422.
   test('una venta a cuenta corriente sin cliente se rechaza', async ({ api, apiDe }) => {
-    test.fixme(true, 'defecto de la app: el servidor acepta fiar sin cliente (falta `exigir_cliente_para_fiar` en OpcionesVentas)')
     const admin = await apiDe('admin')
     const producto = await crearProducto(admin, { precio: 1_000, stock: 5 })
     const respuesta = await api.post('/api/ventas', {
