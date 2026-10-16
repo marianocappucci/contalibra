@@ -2,6 +2,12 @@
 
 ## Sin publicar — 2026-10-16
 
+### Pin libra-ui v0.158.1: el cliente de la factura se puede dar de alta ahí mismo (ADR-071 del kit, sin migración)
+
+- Pin: **libra-ui `v0.158.1`** (antes `v0.157.0`). **Sin migración y sin cambio en el backend.** `package-lock.json` sube también `@playwright/test`/`playwright` a 1.64.1, que es el rango que pide el kit (`peerDependencies`).
+- **`/facturas/nueva`: el campo «Cliente» es ahora `SelectCliente`** (`frontend/src/pages/FacturaNueva.tsx`): el buscador de siempre (con la × para volver a «o nombre libre») y, al lado, el botón «Agregar nuevo cliente». El panel pide nombre, CUIT/DNI, condición frente al IVA, teléfono y email y da el alta en `POST /api/clientes` del motor (`crearYSumar` + `CAMPOS_CLIENTE_DEL_MOTOR` de `libra-ui/comercio/alta-de-cliente`). El recién creado se suma a la lista de la pantalla y queda elegido: la factura usa su CUIT para el aviso de FCE como el de cualquier otro cliente. Es el único campo de cliente propio del producto; el resto (Ventas, Presupuestos, Remitos) son pantallas del kit y ya lo traen.
+- **Guard `frontend/src/test/campos-de-cliente.test.ts`** (`libra-ui/auditoria-de-clientes`, al lado de `selects-buscables.test.ts`): lee los fuentes y falla si un desplegable que elige un cliente no es `SelectCliente`. Un filtro que no crea nada se marca con `cliente-sin-alta: <motivo>`. Control positivo: mide al menos un campo. Comportamiento en `frontend/src/test/factura-cliente-alta.test.tsx`: crear el cliente hace `POST /api/clientes` con el nombre y queda elegido, su CUIT llega al aviso de FCE y un error del alta se ve en el panel sin elegir a nadie.
+
 ### La sucursal única «Casa central»: depósitos, cajas y ventas bajo una sola sucursal (libracommerce v0.63.0, revisión `0006_sucursal_unica`)
 
 - **Nada visible cambia.** Contalibra es de un solo local, pero el motor ya tiene sucursales (ADR-063 de libracommerce) y todo quedaba en NULL; ahora cuelga de una sucursal predeterminada, «Casa central», para que el día que un cliente pida multisucursal no haya que migrar datos con él mirando. No se monta ninguna ruta ni pantalla de sucursales (`/api/sucursales` sigue sin existir): el kit sólo ofrece sucursal con dos o más. `tests/test_sucursal_unica.py` fija que depósitos, stock, listas de precio, cajas, turnos, ventas y resumen devuelven lo mismo salvo `branch_id`/`sucursal_id`.
