@@ -12,6 +12,7 @@ from libraauth.migrar import exigir_schema_al_dia
 from libraauth.session_auth import build_demo_codigos_router, demo_username
 from libraauth.terminos import TerminosRepository, build_terminos_router
 from libracommerce.web.catalogo_router import (
+    OpcionesDepositos,
     build_depositos_router,
     build_productos_router,
     build_stock_router,
@@ -463,7 +464,12 @@ app.include_router(
     dependencies=[Depends(require_admin_json), Depends(require_module("resguardo_externo"))],
 )
 app.include_router(
-    build_depositos_router(conexion=_abrir_conexion, usuario_actual=get_current_user_json),
+    # `sucursal_por_defecto`: un depósito nuevo cae en «Casa central» (la sucursal única, `app/sucursal_unica.py`) y
+    # no queda huérfano. Nada visible: no hay pantalla de sucursales (F2 no se expone hasta que un cliente la pida).
+    build_depositos_router(
+        conexion=_abrir_conexion, usuario_actual=get_current_user_json,
+        opciones=OpcionesDepositos(sucursal_por_defecto=True),
+    ),
     dependencies=[_auth_json, Depends(require_module("depositos"))],
 )
 app.include_router(

@@ -285,6 +285,7 @@ from app.db_ventas import (  # noqa: F401
     vincular_venta_remito,
 )
 from app.schema_propio import init_schema_propio  # noqa: F401  (lo usa init_db)
+from app.sucursal_unica import adoptar as adoptar_sucursal_unica  # (lo usa init_db)
 
 
 def init_db():
@@ -314,6 +315,12 @@ def init_db():
                 "INSERT INTO locations (name, description, is_default, active)"
                 " VALUES ('Depósito principal', '', 1, 1)"
             )
+
+        # La sucursal única «Casa central» (plan de sucursales, F1): el depósito de arriba, las cajas y las
+        # ventas de antes cuelgan de ella. LA MISMA función que corre la revisión de Alembic `0006_sucursal_unica`
+        # (la instancia que ya existe): una nueva y una vieja convergen por el mismo camino. Idempotente, y va
+        # DESPUÉS de sembrar el depósito para que la instancia nueva lo deje ya asignado.
+        adoptar_sucursal_unica(conn)
 
         # Las 3 tablas propias de este producto —`venta_links`,
         # `integraciones_config` y `ventas_origen_externo`—. El DDL vive en
