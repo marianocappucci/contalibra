@@ -126,6 +126,29 @@ def test_el_deposito_nuevo_cae_en_casa_central(admin_client):
     assert _sucursales()[0][3] != creado["id"]                   # no le quita el depósito de venta al principal
 
 
+def test_la_caja_nueva_cae_en_casa_central_y_una_explicita_se_respeta(admin_client):
+    """Libracore ADR-062: la caja creada por la API sin `sucursal_id` nace en la predeterminada y no queda en NULL
+    hasta el próximo arranque; con uno explícito se respeta; editarla no cambia su sucursal."""
+    sid = _sucursal_unica()
+    creada = _post(admin_client, "/api/cajas", nombre="Mostrador 2")
+    assert creada["sucursal_id"] == sid
+    assert _filas("SELECT sucursal_id FROM cajas WHERE id = ?", (creada["id"],)) == [(sid,)]
+    explicita = _post(admin_client, "/api/cajas", nombre="Anexo", sucursal_id=987)
+    assert explicita["sucursal_id"] == 987
+    editada = admin_client.put(f"/api/cajas/{creada['id']}", json={"nombre": "Mostrador 3", "sucursal_id": 987})
+    assert editada.status_code == 200 and editada.json()["sucursal_id"] == sid
+    assert _filas("SELECT DISTINCT sucursal_id FROM cajas WHERE nombre <> 'Anexo'") == [(sid,)]
+
+
+def test_la_caja_nueva_en_una_instancia_sin_sucursal_queda_sin_ella(admin_client):
+    """Sin ninguna sucursal (una base que nunca adoptó) la caja nace como siempre: sin sucursal."""
+    with db_core.get_connection() as conn:
+        conn.execute("UPDATE cajas SET sucursal_id = NULL")
+        conn.execute("UPDATE locations SET branch_id = NULL")
+        conn.execute("DELETE FROM branches")
+    assert _post(admin_client, "/api/cajas", nombre="Mostrador 2")["sucursal_id"] is None
+
+
 def test_la_venta_anota_la_sucursal_con_y_sin_stock_y_con_o_sin_producto(admin_client):
     sid = _sucursal_unica()
     p = _post(admin_client, "/api/productos", nombre="Fideos", precio_venta=500.0, precio_costo=300.0)

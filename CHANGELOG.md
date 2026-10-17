@@ -14,7 +14,8 @@
 - **Revisión de Alembic `0006_sucursal_unica`** (corre en `panel_admin actualizar`, después de `libracommerce-migrar`): crea la sucursal, le asigna los depósitos (también los inactivos) y las cajas sin sucursal, y completa `sales.branch_id` de las ventas de antes con la sucursal de su depósito (el criterio de `erp.margen`; las que no movieron stock quedan sin sucursal). Sin DDL. Idempotente. `downgrade` la deshace sólo si es la única sucursal, la predeterminada y se llama «Casa central» (si no, se niega y lo dice).
 - **`init_db()`** llama la misma función (`app/sucursal_unica.py`) después de sembrar el «Depósito principal»: una instancia nueva nace con su sucursal y cada reinicio converge sin hacer nada.
 - **El depósito que se crea cae en «Casa central»** (`OpcionesDepositos(sucursal_por_defecto=True)`) y **cada venta anota la sucursal de su depósito** (`sales.branch_id`, lo hace el motor).
-- Requiere **libracommerce `v0.63.0`** (el pin se sube cuando exista el tag).
+- **La caja que se crea cae en «Casa central»**: `POST /api/cajas` sin `sucursal_id` la deja en la sucursal predeterminada (`OpcionesCajas(sucursal_por_defecto=...)`, libracore ADR-062) y no en NULL hasta el próximo arranque; con un `sucursal_id` explícito se respeta. Editar una caja no toca su sucursal.
+- Requiere **libracommerce `v0.63.0`** y **libracore `v1.174.0`** (los pines se suben cuando existan los tags).
 
 ### Pines: libracore v1.173.0, libracommerce v0.62.0 y libra-ui v0.156.0 (sin migración); la consulta de CUIT sale del producto, fiar sin cliente se rechaza y la demo no muestra datos fiscales reales
 

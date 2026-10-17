@@ -111,10 +111,19 @@ test.describe('deshacer una venta facturada', () => {
     await page.getByRole('button', { name: 'Emitir nota de crédito' }).click()
     const dialogo = page.getByRole('dialog', { name: 'Emitir nota de crédito' })
     await expect(dialogo).toContainText(pesos(6_000))
+    // La venta estaba cobrada: la nota pregunta qué pasa con la plata (libracore v1.176.0, ADR-065; kit ADR-073) y
+    // no deja emitir sin elegir. Se devuelve por caja, con el medio con que se cobró (el que sugiere el motor).
+    await expect(dialogo.getByText('¿Qué pasa con la plata?')).toBeVisible()
+    await expect(dialogo.getByRole('button', { name: 'Emitir nota' })).toBeDisabled()
+    await dialogo.getByLabel(/^Devolver/).check()
+    await expect(dialogo.getByRole('button', { name: 'Emitir nota' })).toBeEnabled()
     const nota = esperarApi(page, /\/api\/facturas\/\d+\/nota-credito$/, { metodo: 'POST' })
     await dialogo.getByRole('button', { name: 'Emitir nota' }).click()
     expect((await nota).ok()).toBe(true)
-    await expect(page.getByText(/La nota de crédito NOTA CREDITO C 0001-\d{8} está emitida: ya podés anular la venta/)).toBeVisible()
+    const emitida = page.getByText(/La nota de crédito NOTA CREDITO C 0001-\d{8} está emitida: ya podés anular la venta/)
+    await expect(emitida).toBeVisible()
+    // El número de la nota (`0001-00000012`): la pantalla dice «NOTA CREDITO C …» y el concepto de caja, «Nota de Crédito C …».
+    const numeroDeNota = (await emitida.textContent())!.match(/NOTA CREDITO C (0001-\d{8})/)![1]
 
     // Ahora sí: se anula, con la confirmación de la pantalla.
     await page.getByRole('button', { name: 'Anular venta' }).click()
@@ -125,10 +134,15 @@ test.describe('deshacer una venta facturada', () => {
     expect((await anulacion).ok()).toBe(true)
     await expect(page.getByRole('heading', { name: new RegExp(`Venta ${venta.numero} Anulada`) })).toBeVisible()
 
-    // El stock vuelve y la caja asienta el egreso que compensa el ingreso (no borra el original: queda el rastro).
+    // El stock vuelve y la caja asienta UN solo egreso que compensa el ingreso: el de la devolución de la nota. La
+    // anulación no devuelve otra vez lo que la nota ya devolvió (libracommerce v0.64.0, ADR-064). No se borra el
+    // ingreso original: queda el rastro.
     expect(await stockDe(api, producto)).toBe(10)
-    const movimientos = (await movimientosDeCaja(api)).filter((m) => m.concepto.includes(venta.numero))
-    expect(movimientos.map((m) => m.tipo).sort()).toEqual(['egreso', 'ingreso'])
-    for (const m of movimientos) expect(Number(m.monto)).toBe(6_000)
+    const movimientos = await movimientosDeCaja(api)
+    const deLaVenta = movimientos.filter((m) => m.concepto.includes(venta.numero))
+    expect(deLaVenta.map((m) => m.tipo)).toEqual(['ingreso'])
+    expect(Number(deLaVenta[0].monto)).toBe(6_000)
+    const devolucion = movimientos.filter((m) => m.concepto.startsWith('Devolución Nota de Crédito') && m.concepto.includes(numeroDeNota))
+    expect(devolucion.map((m) => [m.tipo, Number(m.monto)])).toEqual([['egreso', 6_000]])
   })
 })
