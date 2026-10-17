@@ -122,7 +122,8 @@ test.describe('deshacer una venta facturada', () => {
     expect((await nota).ok()).toBe(true)
     const emitida = page.getByText(/La nota de crédito NOTA CREDITO C 0001-\d{8} está emitida: ya podés anular la venta/)
     await expect(emitida).toBeVisible()
-    const numeroDeNota = (await emitida.textContent())!.match(/NOTA CREDITO C 0001-\d{8}/)![0]
+    // El número de la nota (`0001-00000012`): la pantalla dice «NOTA CREDITO C …» y el concepto de caja, «Nota de Crédito C …».
+    const numeroDeNota = (await emitida.textContent())!.match(/NOTA CREDITO C (0001-\d{8})/)![1]
 
     // Ahora sí: se anula, con la confirmación de la pantalla.
     await page.getByRole('button', { name: 'Anular venta' }).click()
@@ -141,7 +142,7 @@ test.describe('deshacer una venta facturada', () => {
     const deLaVenta = movimientos.filter((m) => m.concepto.includes(venta.numero))
     expect(deLaVenta.map((m) => m.tipo)).toEqual(['ingreso'])
     expect(Number(deLaVenta[0].monto)).toBe(6_000)
-    const devolucion = movimientos.filter((m) => m.concepto.startsWith('Devolución') && m.concepto.includes(numeroDeNota))
+    const devolucion = movimientos.filter((m) => m.concepto.startsWith('Devolución Nota de Crédito') && m.concepto.includes(numeroDeNota))
     expect(devolucion.map((m) => [m.tipo, Number(m.monto)])).toEqual([['egreso', 6_000]])
   })
 })
