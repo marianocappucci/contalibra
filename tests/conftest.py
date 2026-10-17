@@ -262,10 +262,10 @@ def _terminos_ya_aceptados(request):
         # qué versión ya se aceptó (`_aceptada_en`). La base se restaura entre tests, la memoria no: si antes, en el
         # mismo worker, otro test aceptó los Términos (`test_e2e_usuarios`), el gate contestaba 200 y
         # `test_una_llamada_gateada_corta_hasta_aceptar` fallaba según cómo repartiera xdist.
+        # 🔴 **Y la `app` de este módulo, no la de `app.web.app`.** `test_demo_publica` recarga `app.web.app` y deja ahí
+        # OTRA app; `client`/`admin_client` siguen usando esta. Importarla acá cambiaba el repositorio de la app que
+        # nadie consulta, y el gate seguía viendo la aceptación de `test_e2e_usuarios` (medido: ese par, en ese orden).
         from libraauth.terminos import TerminosRepository
-
-        from app import db_usuarios
-        from app.web.app import app
 
         anterior = app.state.terminos
         app.state.terminos = TerminosRepository(db_usuarios.sessions())

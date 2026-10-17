@@ -25,7 +25,7 @@ from libracommerce.web.listas_router import (
 )
 from libracore import auditoria as auditoria_del_motor
 from libracore.arca_router import build_arca_router
-from libracore.caja_router import build_caja_router, build_cajas_router, build_turnos_router
+from libracore.caja_router import OpcionesCajas, build_caja_router, build_cajas_router, build_turnos_router
 from libracore.candados import una_vez_al_arrancar
 from libracore.clientes_router import build_clientes_router
 from libracore.comprobantes_router import (
@@ -63,6 +63,7 @@ from app.db_core import get_connection as _abrir_conexion
 from app.db_reportes import REPORTES
 from app.security_headers import SecurityHeadersMiddleware
 from app.spa import montar_spa
+from app.sucursal_unica import sucursal_predeterminada
 from app.web import auth as web_auth
 from app.web.api import auth as api_auth_router
 from app.web.api import config as api_config_router
@@ -502,7 +503,9 @@ app.include_router(
     dependencies=[_auth_json, Depends(require_module("caja"))],
 )
 app.include_router(
-    build_cajas_router(),
+    # `sucursal_por_defecto` (libracore ADR-062): una caja creada sin `sucursal_id` nace en «Casa central», como el
+    # depósito de arriba, y no queda en NULL hasta el próximo arranque (`app/sucursal_unica.py`).
+    build_cajas_router(opciones=OpcionesCajas(sucursal_por_defecto=sucursal_predeterminada)),
     dependencies=[_auth_json, Depends(require_module("cajas"))],
 )
 app.include_router(
