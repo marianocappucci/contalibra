@@ -24,6 +24,20 @@ from typing import Any
 NOMBRE = "Casa central"
 
 
+def sucursal_predeterminada() -> int | None:
+    """El id de la sucursal predeterminada («Casa central»), o `None` si la instancia todavía no tiene ninguna.
+
+    Es el `OpcionesCajas.sucursal_por_defecto` de libracore (ADR-062): una caja creada por `POST /api/cajas` sin
+    `sucursal_id` nace en ella y no queda en NULL hasta el próximo arranque. Abre su propia conexión (el motor la
+    llama sin argumentos) y lee con la función del motor comercial, la misma que usa el router de depósitos."""
+    from libracommerce.erp import catalogo
+
+    from app.db_core import get_connection
+
+    with get_connection() as conn:
+        return catalogo.get_default_sucursal_id(conn)
+
+
 def adoptar(conn: Any) -> dict:
     """Deja la instancia con su sucursal única y devuelve un informe de lo que hizo (todo en cero si no había nada).
 
