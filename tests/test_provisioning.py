@@ -56,16 +56,23 @@ def test_CLIENTES_DIR_de_los_scripts_sale_del_motor(script, monkeypatch, tmp_pat
     from libracore.provisioning import get_config
 
     raiz = pathlib.Path(__file__).parent.parent.resolve()
+    nombre = f"scripts.{script}"
 
-    # Sin la variable: el default no cambia.
-    monkeypatch.delenv("LIBRA_CLIENTES_DIR", raising=False)
-    modulo = importlib.reload(importlib.import_module(f"scripts.{script}"))
-    assert modulo.CLIENTES_DIR == get_config().clientes_dir == raiz / "clientes"
+    try:
+        # Sin la variable: el default no cambia.
+        monkeypatch.delenv("LIBRA_CLIENTES_DIR", raising=False)
+        modulo = importlib.reload(importlib.import_module(nombre))
+        assert modulo.CLIENTES_DIR == get_config().clientes_dir == raiz / "clientes"
 
-    # Con la variable: el script ve el mismo directorio que el motor.
-    monkeypatch.setenv("LIBRA_CLIENTES_DIR", str(tmp_path))
-    modulo = importlib.reload(importlib.import_module(f"scripts.{script}"))
-    assert modulo.CLIENTES_DIR == get_config().clientes_dir == tmp_path
+        # Con la variable: el script ve el mismo directorio que el motor.
+        monkeypatch.setenv("LIBRA_CLIENTES_DIR", str(tmp_path))
+        modulo = importlib.reload(importlib.import_module(nombre))
+        assert modulo.CLIENTES_DIR == get_config().clientes_dir == tmp_path
+    finally:
+        # Sin esto el módulo recargado queda con `CLIENTES_DIR == tmp_path` hasta
+        # el final de la sesión: `monkeypatch` restaura la variable, no el módulo.
+        monkeypatch.undo()
+        importlib.reload(importlib.import_module(nombre))
 
 
 def _bloque_del_servicio_de_dev() -> str:
