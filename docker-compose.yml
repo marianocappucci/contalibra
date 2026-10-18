@@ -147,11 +147,24 @@ services:
       # público. El valor vive en el `.env` del VPS, como el resto de los
       # secretos de esta instancia.
       #
-      # ⚠️ Del otro lado la variable se llama distinto —MedLibra la manda como
-      # `CONTALIBRA_SERVICE_TOKEN`— y es a propósito: son dos permisos, el que
+      # ⚠️ Del otro lado la variable se llama distinto —MedLibra y LibraDesk la
+      # mandan como `CONTALIBRA_SERVICE_TOKEN`, y desde libraauth v0.52.0 su
+      # valor es el `LIBRA_INTEGRACION_TOKEN` de abajo— y es a propósito: son dos permisos, el que
       # nosotros aceptamos y el que a ellos les dejamos usar. Compartir el
       # nombre haría que rotar uno rote el otro sin que nadie lo pida.
       - LIBRA_SERVICE_TOKEN=${LIBRA_SERVICE_TOKEN:-}
+      # Rotación sin corte (libraauth v0.52.0): mientras está definida, la
+      # instancia acepta el token nuevo y el anterior. Vacía no vale nada. La
+      # maneja `panel_admin.py token-servicio <slug> --rotar|--cerrar`.
+      - LIBRA_SERVICE_TOKEN_ANTERIOR=${LIBRA_SERVICE_TOKEN_ANTERIOR:-}
+      # 🔑 La credencial de INTEGRACIÓN (header `x-integracion-auth`), aparte de
+      # la de servicio: con ella otra instancia de la familia (MedLibra,
+      # LibraDesk) registra consultas y deposita comprobantes, y nada más —no
+      # abre usuarios, SMTP ni el tema—. Una por instancia; el emisor la recibe
+      # con `panel_admin.py vincular-integracion`. Default vacío por lo mismo que
+      # la de arriba: sin valor, el header no sirve.
+      - LIBRA_INTEGRACION_TOKEN=${LIBRA_INTEGRACION_TOKEN:-}
+      - LIBRA_INTEGRACION_TOKEN_ANTERIOR=${LIBRA_INTEGRACION_TOKEN_ANTERIOR:-}
       # Recuperacion de contrasena (libraauth v0.5.0). Sin SMTP la app
       # levanta igual y POST /api/forgot-password devuelve 503: cargar
       # estas variables es lo unico que falta para que mande mails.

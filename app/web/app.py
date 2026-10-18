@@ -80,6 +80,7 @@ from app.web.api_auth import (  # noqa: F401
     get_current_user_json,
     require_admin_json,
     require_admin_o_servicio_json,
+    require_admin_o_servicio_o_integracion_json,
 )
 from app.web.auth import get_current_user, require_admin, require_auth, require_role
 from app.web.modules_gate import require_module
@@ -333,8 +334,9 @@ app.include_router(api_usuarios_router.router)
 # Consultas que llegan desde otro producto de la familia (lo estrena MedLibra).
 #
 # 🔴 **Sin dependencia acá**: el router gatea adentro, y con DOS niveles
-# distintos a propósito. `/consultas` acepta el token de servicio —es lo que usa
-# el producto emisor, que no es usuario de esta instancia—, pero `/config`
+# distintos a propósito. `/consultas` acepta la credencial de integración —es lo
+# que usa el producto emisor, que no es usuario de esta instancia— y el token de
+# servicio, pero `/config`
 # exige **admin de la instancia**: quién recibe las ventas externas lo decide
 # quien es dueño de la caja, no quien tiene el token. Colgar acá una
 # dependencia única aplanaría esa diferencia.
@@ -589,10 +591,12 @@ def _quien_resolvio(request: Request) -> str:
 # dependencias no alcanzaría: FastAPI evalúa las del router antes que las de la
 # ruta. Ver `libracore/comprobantes_router.py`.
 app.include_router(
-    # Lo deposita otro sistema, sin humano detrás. Mismo gate que Usuarios, que
-    # es el otro endpoint que atiende a la suite y no a una persona.
+    # Lo deposita otro sistema, sin humano detrás: la instancia que llama
+    # presenta el `LIBRA_INTEGRACION_TOKEN` de ésta (libraauth v0.52.0). Guard
+    # propio y no el de Usuarios: la integración no abre usuarios, SMTP ni tema.
+    # Admin y backoffice siguen entrando como antes.
     build_comprobantes_ingesta_router(),
-    dependencies=[Depends(require_admin_o_servicio_json)],
+    dependencies=[Depends(require_admin_o_servicio_o_integracion_json)],
 )
 app.include_router(
     # La bandeja la trabaja una persona, y decide facturar: sólo admin.
