@@ -48,7 +48,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from app import database as db
 from app import venta_facturacion
-from app.web.api_auth import require_admin_json, require_admin_o_servicio_json
+from app.web.api_auth import require_admin_json, require_admin_o_servicio_o_integracion_json
 
 router = APIRouter(prefix="/api/integraciones", tags=["integraciones"])
 
@@ -232,7 +232,9 @@ def _cliente_para(paciente: PacientePayload) -> int | None:
     )
 
 
-@router.post("/consultas", dependencies=[Depends(require_admin_o_servicio_json)])
+# Lo manda otra instancia (MedLibra) con el `LIBRA_INTEGRACION_TOKEN` de ésta en
+# `x-integracion-auth`; el backoffice y el admin siguen entrando como antes.
+@router.post("/consultas", dependencies=[Depends(require_admin_o_servicio_o_integracion_json)])
 def registrar_consulta(payload: ConsultaPayload):
     """Registra la consulta como venta cobrada y —si se pide— la factura.
 

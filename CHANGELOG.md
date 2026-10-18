@@ -1,5 +1,15 @@
 # Changelog
 
+## Sin publicar — 2026-10-18
+
+### La integración entra con su propia credencial: `LIBRA_INTEGRACION_TOKEN` (libraauth v0.52.0, sin migración)
+
+- **`POST /api/integraciones/consultas` y la ingesta `POST /api/comprobantes-pendientes`** aceptan, además del admin y del token de servicio, la **credencial de integración**: el `LIBRA_INTEGRACION_TOKEN` de esta instancia en el header `x-integracion-auth` (o su `_ANTERIOR` mientras dura una rotación). Es la que presenta la instancia que le manda datos (MedLibra, LibraDesk); se la reparte `panel_admin.py vincular-integracion` (ADR-071 de libracore) y es una por instancia.
+- **Guard nuevo `require_admin_o_servicio_o_integracion_json`** (`app/web/api_auth.py`), aparte de `require_admin_o_servicio_json` a propósito: de aquél cuelgan Usuarios, el correo saliente, el reenvío y el tema, y 🔴 **la integración no abre nada de eso**. Devuelve `INTEGRACION_USER` (`role="integracion"`, `id: None`); las dos rutas no usan la identidad de quien llama (la venta se atribuye al `usuario_integraciones` de la instancia). Sin la variable, el header no sirve y todo queda como antes.
+- **`docker-compose.yml`**: `LIBRA_SERVICE_TOKEN_ANTERIOR`, `LIBRA_INTEGRACION_TOKEN` y `LIBRA_INTEGRACION_TOKEN_ANTERIOR`, con default vacío.
+- Tests: `tests/test_credencial_de_integracion.py` (entra a las dos rutas; no entra a usuarios, SMTP, reenvío, `/api/integraciones/config`, la bandeja ni el tema; falla cerrado sin la variable; rotación; el servicio sigue entrando y ninguna credencial vale por la otra).
+- Requiere **libraauth `v0.52.0`** y **libracore `v1.183.0`** (los pines van en su propio PR).
+
 ## Sin publicar — 2026-10-16
 
 ### Pin libra-ui v0.158.1: el cliente de la factura se puede dar de alta ahí mismo (ADR-071 del kit, sin migración)
