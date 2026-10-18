@@ -1,25 +1,10 @@
-"""Shim: la lógica de módulos ahora vive en libracore.db.modulos."""
-from libracore.db.core import get_connection
-from libracore.db.modulos import apply_plan, get_modulos  # noqa: F401
+"""Shim: la lógica de módulos ahora vive en libracore.db.modulos.
 
-
-def set_addon(nombre: str, habilitado: bool) -> None:
-    """Habilita o deshabilita un add-on (módulo suelto) en ESTA instancia.
-
-    Un add-on (`plans.ADDONS`, ej. `mayorista`) no pertenece a ningún plan, así
-    que `apply_plan`/`set_plan` no lo tocan; se prende/apaga por instancia con
-    esta función. Idempotente: crea la fila si falta (con `plan="addon"`, igual
-    que el seed) y setea `habilitado`.
-
-    NO valida que `nombre` sea un add-on real — eso lo hace la CLI
-    (`panel_admin.py addon`) contra `plans.ADDONS`, que es quien decide qué es
-    un add-on. Corre dentro del contenedor del cliente (vía `docker exec`), donde
-    `libracore.db.core` ya apunta al PostgreSQL de la instancia.
-    """
-    on = 1 if habilitado else 0
-    with get_connection() as conn:
-        conn.execute(
-            "INSERT OR IGNORE INTO modulos (modulo, habilitado, plan) VALUES (?,?,?)",
-            (nombre, on, "addon"),
-        )
-        conn.execute("UPDATE modulos SET habilitado=? WHERE modulo=?", (on, nombre))
+`set_addon` es parte del contrato del backoffice: prende/apaga un add-on
+(`plans.ADDONS`, ej. `mayorista`) corriendo `app.database.set_addon` por
+`docker exec` dentro del contenedor. Se reexporta la del motor —la
+implementación única de la familia— en vez de copiarla. No hace falta configurar
+`libracore.db.core` acá: importar `app.database` ya importa `app.db_core`, que lo
+configura al importarse, así que el `docker exec` funciona sin arrancar la app.
+"""
+from libracore.db.modulos import apply_plan, get_modulos, set_addon  # noqa: F401
