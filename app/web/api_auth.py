@@ -10,8 +10,10 @@ etapa de corte de la migracion. Mismo patron que gestiolibra/app/auth.py.
 """
 from fastapi import Depends, HTTPException, Request, Response
 from libraauth.session_auth import (
+    INTEGRACION_USER,
     SERVICE_USER,
     permite_lectura_de_demo,
+    token_de_integracion_valido,
     token_de_servicio_valido,
 )
 from libraauth.terminos import exigir_terminos
@@ -112,3 +114,30 @@ def require_admin_o_servicio_json(request: Request, response: Response = None) -
     if permite_lectura_de_demo(request, usuario):
         return usuario
     raise HTTPException(403, "No autorizado")
+
+
+def require_admin_o_servicio_o_integracion_json(request: Request, response: Response = None) -> dict:
+    """Como `require_admin_o_servicio_json`, y además la credencial de integración.
+
+    La llevan **sólo** las rutas por las que otra instancia de la familia le
+    mete datos a ésta: `POST /api/integraciones/consultas` (MedLibra) y la
+    ingesta de `/api/comprobantes-pendientes` (LibraDesk). La instancia que
+    llama presenta el `LIBRA_INTEGRACION_TOKEN` de esta ContaLibra en
+    `x-integracion-auth` (libraauth v0.52.0, su ADR-025); se lo reparte
+    `panel_admin.py vincular-integracion` (ADR-071 de libracore).
+
+    🔴 **Es un guard aparte y no una ampliación de `require_admin_o_servicio_json`**
+    porque de aquél cuelgan Usuarios, el correo saliente y el tema: la
+    integración no tiene que abrir nada de eso. Por lo mismo devuelve
+    `INTEGRACION_USER`, con `role="integracion"` e `id: None`: si llega a
+    código que pregunta por admin, la respuesta es no. Las dos rutas que lo usan
+    no miran la identidad de quien llama (la venta se atribuye al
+    `usuario_integraciones` de la instancia).
+
+    Sin `LIBRA_INTEGRACION_TOKEN` en el entorno, `token_de_integracion_valido`
+    da `False` sin mirar el header y esto es exactamente
+    `require_admin_o_servicio_json`.
+    """
+    if token_de_integracion_valido(request):
+        return dict(INTEGRACION_USER)
+    return require_admin_o_servicio_json(request, response)
