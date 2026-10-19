@@ -341,8 +341,8 @@ def test_la_revision_en_la_cadena_con_datos_sube_baja_y_vuelve_a_subir(client):
     antes = _estado()
     assert antes["sucursales"] == [] and {d[4] for d in antes["depositos"]} == {None}      # base de antes: sin sucursal
 
-    # ── subir ──
-    _correr(["alembic", "upgrade", "head"])
+    # ── subir ── (hasta esta revisión y no `head`: la `0007_libraedge` de arriba no se baja, y bajar es parte del test)
+    _correr(["alembic", "upgrade", REVISION])
     assert _version() == [REVISION]
     sid = _sucursal_unica()
     despues = _estado()
@@ -356,7 +356,7 @@ def test_la_revision_en_la_cadena_con_datos_sube_baja_y_vuelve_a_subir(client):
     primera = _quitar_claves({k: v for k, v in despues.items()}, claves=set())
 
     # ── subir otra vez no hace nada ──
-    _correr(["alembic", "upgrade", "head"])
+    _correr(["alembic", "upgrade", REVISION])
     assert _estado() == despues
 
     # ── bajar: queda como estaba antes, sin tocar lo ajeno ──
@@ -365,7 +365,7 @@ def test_la_revision_en_la_cadena_con_datos_sube_baja_y_vuelve_a_subir(client):
     assert _estado() == antes
 
     # ── y volver a subir: lo mismo que la primera vez (la sucursal se crea de nuevo) ──
-    _correr(["alembic", "upgrade", "head"])
+    _correr(["alembic", "upgrade", REVISION])
     assert _version() == [REVISION]
     nuevo = _sucursal_unica()
     reasignado = _estado()

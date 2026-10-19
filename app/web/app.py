@@ -24,6 +24,7 @@ from libracommerce.web.listas_router import (
     build_quiebres_router,
 )
 from libracore import auditoria as auditoria_del_motor
+from libracore.adicionales_router import build_adicionales_router
 from libracore.arca_router import build_arca_router
 from libracore.caja_router import OpcionesCajas, build_caja_router, build_cajas_router, build_turnos_router
 from libracore.candados import una_vez_al_arrancar
@@ -61,6 +62,7 @@ from app import config_manager, db_usuarios
 from app import database as db
 from app.db_core import get_connection as _abrir_conexion
 from app.db_reportes import REPORTES
+from app.offline import sucursales_con_nodo
 from app.security_headers import SecurityHeadersMiddleware
 from app.spa import montar_spa
 from app.sucursal_unica import sucursal_predeterminada
@@ -81,11 +83,12 @@ from app.web.api_auth import (  # noqa: F401
     require_admin_json,
     require_admin_o_servicio_json,
     require_admin_o_servicio_o_integracion_json,
+    require_solo_servicio_json,
 )
 from app.web.auth import get_current_user, require_admin, require_auth, require_role
 from app.web.modules_gate import require_module
 from app.web.routers import config as config_router
-from app.web.routers import facturas, presupuestos, remitos, webhooks
+from app.web.routers import facturas, presupuestos, remitos, sincronizacion_offline, webhooks
 from app.web.routers import ventas as ventas_router
 
 app = FastAPI(title="Contalibra")
@@ -384,6 +387,17 @@ app.include_router(build_empresa_admin_router(), dependencies=[Depends(require_a
 # del token de servicio del backoffice: 🔴 con `require_admin_json` a secas el backoffice NO entraría (esa guarda no conoce el token).
 app.include_router(build_tema_router())
 app.include_router(build_tema_admin_router(), dependencies=[Depends(require_admin_o_servicio_json)])
+# Los adicionales contratados (libracore ADR-048): `GET /api/adicionales` lo ve el admin o el backoffice; `PUT /api/adicionales/{clave}` SOLO el token
+# de servicio (🔴 un adicional es un limite comercial: si lo cargara el admin del cliente, contratar no costaria nada). Desde E6 de LibraEdge
+# (2026-10-19) el catalogo de `plans.ADICIONALES` tiene `offline`, que se mide en sucursales DISTINTAS con un nodo activo: es lo que cobra y lo que
+# hace cumplir `libraedge-central nodo registrar` (`app/offline.py`). `mayorista` y `resguardo_externo` (`plans.ADDONS`) aparecen como si/no.
+app.include_router(build_adicionales_router(
+    require_admin_o_servicio_json, require_solo_servicio_json, medir={"offline": sucursales_con_nodo},
+    leer_modulos=db.get_modulos, escribir_modulo=db.set_addon,
+))
+# La sincronizacion del nodo offline de LibraEdge (E6): `/sync/v1/push`, `/sync/v1/pull` y `/sync/v1/ticket-arca`. Se
+# monta siempre: sin un nodo registrado no hay ningun secreto valido y todo contesta 401 (ver el docstring del router).
+app.include_router(sincronizacion_offline.router)
 # MercadoPago, del motor. Reemplaza al `PUT /api/config/mp` propio.
 #
 # 🔴 Lo que cambia y no es cosmetico: el token vuelve ENMASCARADO. El
@@ -522,6 +536,12 @@ app.include_router(
     ),
     dependencies=[_auth_json],
 )
+# El detalle con `factura_pendiente` (nodo offline, libracore ADR-074) va ANTES que el router del motor: gana el mismo
+# `GET /api/ventas/{id}`. Fuera de un nodo devuelve lo mismo que el del motor, con `factura_pendiente: null`.
+app.include_router(
+    api_ventas_router.detalle,
+    dependencies=[_auth_json, Depends(require_module("ventas"))],
+)
 app.include_router(
     api_ventas_router.router,
     dependencies=[_auth_json, Depends(require_module("ventas"))],
@@ -533,6 +553,12 @@ app.include_router(
     dependencies=[_auth_json, Depends(require_module("ventas"))],
 )
 app.include_router(api_ventas_router.cobro_legado, dependencies=[_auth_json])
+# La facturacion del nodo offline (libracore ADR-074): `/api/nodo/conexion` y `/api/nodo/facturar-pendientes`, con el
+# mismo gate que el cobro. Fuera de un nodo contestan `es_nodo: false` y no hacen nada.
+app.include_router(
+    api_ventas_router.nodo,
+    dependencies=[_auth_json, Depends(require_module("ventas"))],
+)
 app.include_router(
     api_facturas_router.router,
     dependencies=[_auth_json, Depends(require_module("facturacion"))],
@@ -627,6 +653,30 @@ def startup():
         # convertiria un schema viejo en un 500 en vez del error que dice el comando.
         # Idempotente: la segunda vez no hace nada.
         db_usuarios.migrar_secretos()
+
+    # Nodo offline (libracore ADR-074, libracommerce ADR-068): la bandeja de comprobantes pendientes se factura sola al
+    # volver la conexión, y en cada vuelta se encola la `venta.facturada` que `al_facturar` no llegó a encolar. Fuera de
+    # un nodo (Compulibra, la demo) no arranca nada. Con varios workers cada uno arranca el suyo: el candado por venta
+    # evita la doble factura.
+    global _parar_facturacion_al_volver
+    from libracommerce.erp.offline import reconciliador
+    from libracore.venta_facturacion import arrancar_facturacion_al_volver
+
+    from app import venta_facturacion
+    from app.offline import OUTBOX
+
+    _parar_facturacion_al_volver = arrancar_facturacion_al_volver(
+        venta_facturacion.PUERTO, en_cada_vuelta=reconciliador(OUTBOX, _abrir_conexion),
+    )
+
+
+_parar_facturacion_al_volver = None
+
+
+@app.on_event("shutdown")
+def parar_facturacion_al_volver():
+    if _parar_facturacion_al_volver is not None:
+        _parar_facturacion_al_volver.set()
 
 
 # `GET` y `HEAD`: la raíz que redirige tiene que dar lo mismo para los dos (ver `/health`).
