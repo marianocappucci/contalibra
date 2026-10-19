@@ -162,7 +162,8 @@ dependencies = [
     # generico con prefijo de numeracion por nodo (ADR-008; `app/offline.py` es la costura) y el ticket de ARCA prestado
     # por el central (ADR-009). Sus tablas las crea la migracion `0007_libraedge`, en toda instancia (nodo o no). El repo
     # es PUBLICO: se instala por https sin deploy key (ni en el CI ni en el Dockerfile).
-    "libraedge @ git+https://github.com/marianocappucci/libraedge.git@v0.9.0",
+    # v0.9.0 -> v0.10.0 (2026-10-19): instalador del nodo por producto (E7, ADR-010) y `nodo registrar --carga`. Sin migracion.
+    "libraedge @ git+https://github.com/marianocappucci/libraedge.git@v0.10.0",
     # SQLAlchemy entra SOLO para el engine de `usuarios` de libraauth (ver
     # app/db_usuarios.py); el resto de Contalibra sigue en sqlite3 crudo.
     "sqlalchemy>=2.0",
