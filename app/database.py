@@ -9,6 +9,8 @@ from libracommerce.erp.schema import crear_cliente_lista_precio
 from libracommerce.erp.ventas import repuntar_fk_ventas_pagos
 from libracore.db.clients import sincronizar_parties_de_clientes
 from libracore.db.schema import init_core_schema
+from libraedge.db.changelog import init_changelog_schema
+from libraedge.db.schema import init_schema as init_edge_schema
 
 from app.db_arca_config import (  # noqa: F401
     actualizar_arca_config,
@@ -352,6 +354,12 @@ def init_db():
         # Alembic `0004_reenvio_correo`. Ver `app/db_reenvio_correo.py`.
         crear_tabla_reenvio_correo(conn)
 
+        # Las tablas del nodo offline (LibraEdge, E6): `node_identity`, `local_sequences`, `sync_outbox`,
+        # `sync_inbox` y `sync_changelog`. En TODA instancia, sea nodo o no, con el DDL del motor: las mismas
+        # funciones que la revisión de Alembic `0007_libraedge` (la instancia que ya existe). Idempotente.
+        init_edge_schema(conn)
+        init_changelog_schema(conn)
+
         # Seed de módulos: inserta sólo los que no existen aún. La lista de
         # módulos (y el plan que los habilita) es específica de Contalibra —
         # Restolibra tiene su propia lista (con "restaurant" incluido) en su
@@ -385,6 +393,10 @@ def init_db():
             # tratamiento que `mayorista`. Arranca apagado; el `INSERT OR
             # IGNORE` de abajo no pisa una instancia que ya lo tenga prendido.
             ("resguardo_externo", 0, "addon"),
+            # Adicional por sucursal (`plans.ADICIONALES["offline"]`, libracore ADR-048; E6 de LibraEdge): APAGADO de
+            # fábrica. Lo prende el backoffice al cargar la cantidad de sucursales con offline; sin él no se registra
+            # ningún nodo (`libraedge-central nodo registrar`). No gatea ninguna pantalla.
+            ("offline", 0, "addon"),
         ]
         for modulo, habilitado, plan in _MODULOS_DEFAULT:
             conn.execute(

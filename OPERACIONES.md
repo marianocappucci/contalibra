@@ -19,6 +19,7 @@ desplegar actualizaciones del sistema.
 10. [Gestión del estado del servicio](#gestión-del-estado-del-servicio)
 11. [Website de marketing (contalibra.com.ar)](#website-de-marketing-contalibracomar)
 12. [Estructura de directorios](#estructura-de-directorios)
+13. [Nodo offline (LibraEdge)](#nodo-offline-libraedge)
 
 ---
 
@@ -645,3 +646,61 @@ docker logs contalibra-web --tail 50
         ├── css/style.css
         └── docs/               ← documentación pública
 ```
+
+---
+
+## Nodo offline (LibraEdge)
+
+Desde 2026-10-19 (E6 de la fase 1) Contalibra puede tener un **nodo offline**: una instancia en la PC del local que
+sigue **vendiendo y cobrando en el mostrador** sin internet y sube todo al central cuando vuelve la conexión. Es el
+genérico de la suite (LibraEdge v0.9.0, libracommerce v0.68.0, libracore v1.186.0); lo propio de Contalibra está en
+`app/offline.py`. Se contrata como el adicional `offline` **por sucursal** (`plans.ADICIONALES`, libracore ADR-048):
+sin el adicional cargado por el backoffice (`PUT /api/adicionales/offline` con el token de servicio) no se registra
+ningún nodo.
+
+**Una instancia sin nodo no cambia en nada** (Compulibra hoy): las tablas de LibraEdge (`0007_libraedge`) quedan vacías,
+`/sync/v1/*` contesta 401 a todo y `/api/nodo/conexion` dice `es_nodo: false`.
+
+Todo se corre **en el contenedor del cliente**, con su `CONTALIBRA_DATABASE_URL`; ningún secreto pasa por la línea de
+comandos.
+
+**En el central** (requiere el adicional `offline` contratado para la sucursal):
+
+```bash
+export LIBRAEDGE_APROVISIONAMIENTO=app.offline:aprovisionamiento
+libraedge-central nodo publicar                      # triggers del changelog y siembra de las tablas de referencia
+libraedge-central nodo sucursales                    # las sucursales («Casa central») y cuál ya tiene nodo
+libraedge-central nodo registrar <node_id> --sucursal "Casa central"   # secreto (se muestra UNA vez) y prefijo
+libraedge-central nodo estado                        # qué hay publicado y qué nodos existen
+libraedge-central nodo dar-de-baja <node_id>         # PC robada o reemplazada: su secreto deja de valer
+libraedge-central nodo vigilar --umbral 15           # sale 1 si un nodo activo se calló (para un cron del VPS)
+```
+
+`publicar` es idempotente: se vuelve a correr si cambian las tablas de referencia (`TABLAS_DE_REFERENCIA` en
+`app/offline.py`, justificadas ahí). Lo que el central no pudo aplicar queda en revisión manual:
+
+```bash
+export LIBRAEDGE_DESPACHADOR=app.web.routers.sincronizacion_offline:despachador
+export LIBRAEDGE_DATABASE_URL="$CONTALIBRA_DATABASE_URL"   # `revision` no toma la base del aprovisionamiento
+libraedge-central revision listar
+libraedge-central revision reintentar <operation_id> --por <quién>
+libraedge-central revision descartar <operation_id> --por <quién> --motivo "..."
+```
+
+**En la PC del local**, el entorno que imprime `registrar`: `LIBRAEDGE_NODE_ID`, `LIBRAEDGE_NODE_SECRET`,
+`LIBRAEDGE_PREFIJO` (las ventas se numeran `S02-V-00001`; **un nodo sin prefijo no vende**) y `LIBRAEDGE_TABLAS_ESPEJO`,
+más `LIBRAEDGE_CENTRAL_URL` y `LIBRAEDGE_ESTADO` (el archivo de estado del proceso del nodo: sin él, el nodo está
+siempre «sin conexión» y no factura). `CONTALIBRA_EDGE_NODE_ID` también se lee; si está junto con `LIBRAEDGE_NODE_ID`
+tienen que coincidir. El instalador del nodo para Windows todavía es el de RestoLibra (E7 lo parametriza por producto).
+
+**Qué hace el nodo:** vende y cobra en el mostrador, anula y devuelve; todo sube como operaciones de venta
+(`venta.registrada`, `venta.pago_acreditado`, `venta.anulada`, `venta.devolucion`, `venta.facturada`). **No** emite
+facturas sueltas, remitos, presupuestos, recibos ni notas de crédito: eso se hace en el central. Sin conexión el QR de
+MercadoPago está apagado y **no se anula una venta facturada** (necesita la nota de crédito).
+
+**Facturar en el nodo:** con conexión, el nodo pide a ARCA el número con el ticket que le presta el central (la clave
+no sale del VPS). Sin conexión, la venta queda en la bandeja «Comprobantes a facturar» (rotulada «Venta sin conexión»,
+con «Facturar ahora» en lugar de la casilla) y con ticket «no válido como factura», y se factura sola al volver, con la
+fecha de la venta si ARCA todavía la admite (5 días). **El punto de venta de una sucursal con nodo lo usa sólo el
+nodo**: si el central factura con el mismo punto de venta, los números chocan ante ARCA.
+

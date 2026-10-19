@@ -95,7 +95,9 @@ export type ComprobantePendiente = {
   id: number
   origen_producto: string
   origen_instancia: string
-  origen_tipo: 'cuota_contrato' | 'incidencia' | 'remito' | 'presupuesto'
+  // `venta`: la deja el nodo offline del propio producto (una venta cobrada sin conexión, libracore ADR-074); se
+  // factura desde la venta, no con el formulario (`esVentaSinConexion` de libra-ui).
+  origen_tipo: 'cuota_contrato' | 'incidencia' | 'remito' | 'presupuesto' | 'venta'
   origen_id: string
   cliente_id: number | null
   cliente_cuit: string

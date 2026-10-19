@@ -6,16 +6,19 @@ dos motores en una transacción— y hoy es la capa que abre la conexión, la
 cierra y le pasa los ganchos del producto. Las firmas se conservan tal cual:
 `database.py`, el cobro de pedidos, el nodo offline y los tests las usan.
 
-Lo que es de este producto quedó en `ganchos.py` (o en `SIN_GANCHOS`, si no
-hay nada que enganchar). `venta_links` sigue en `schema_propio` hasta M5.
+Lo que es de este producto quedó en `ganchos.py`: `SIN_GANCHOS` con el outbox
+de LibraEdge, que fuera de un nodo offline no cambia nada. `venta_links` sigue
+en `schema_propio` hasta M5.
 """
 import contextlib
 
-from libracommerce.erp import SIN_GANCHOS as GANCHOS
 from libracommerce.erp import ventas as _v
+from libracommerce.erp.offline import al_facturar_con_outbox
 from libracore.venta_facturacion import PuertoDeVentas
 
 from app.db_core import get_connection
+from app.ganchos import GANCHOS
+from app.offline import CONEXION, OUTBOX, PRODUCTO
 
 
 def _cm(conn):
@@ -137,6 +140,13 @@ def _alicuota_de(venta_id: int) -> float | None:
 #: Cómo llegan a las ventas de este producto la factura desde la venta y el
 #: cobro por QR de LibraCore (`libracore.venta_facturacion`,
 #: `libracore.ventas_cobro_router`, el webhook).
+#:
+#: En un nodo offline (libracore ADR-074, E6 de LibraEdge): `conexion` dice si
+#: el nodo ve al central (sin conexión, la factura va a la bandeja y el QR se
+#: apaga), `producto` es el origen de la bandeja y del candado por venta, y
+#: `al_facturar` encola la `venta.facturada` para el central (libracommerce
+#: ADR-068). Fuera de un nodo los tres no cambian nada: `CONEXION` dice «no es
+#: un nodo», `al_facturar` no encola y `producto` sólo nombra el candado.
 PUERTO = PuertoDeVentas(
     obtener=get_venta,
     vincular_factura=vincular_venta_factura,
@@ -146,4 +156,7 @@ PUERTO = PuertoDeVentas(
     sellar_referencia_mp=add_venta_pago_referencia_mp,
     set_orden_mp=set_venta_mp_order,
     alicuota_de=_alicuota_de,
+    conexion=CONEXION,
+    producto=PRODUCTO,
+    al_facturar=al_facturar_con_outbox(OUTBOX, get_connection),
 )

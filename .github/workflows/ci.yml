@@ -195,7 +195,7 @@ jobs:
           if sin_leer:
               print("::error::Dependencias git+ que este paso no sabe leer:", sin_leer)
               sys.exit(1)
-          faltan = {"libraauth", "libracommerce", "libracore"} - pins.keys()
+          faltan = {"libraauth", "libracommerce", "libracore", "libraedge"} - pins.keys()
           if faltan:
               print(f"::error::No se encontro el pin de {sorted(faltan)} en pyproject.toml")
               sys.exit(1)

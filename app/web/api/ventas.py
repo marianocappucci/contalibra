@@ -11,15 +11,27 @@ Ahora es sólo el armado:
   sobre el `PuertoDeVentas` de `venta_facturacion`.
 - `cobro_legado`: lo mismo bajo `/ventas`, donde vivía hasta M3 (router legado):
   la SPA anterior y la suite pegan ahí. Sin gate por módulo, como el que reemplaza.
+- `detalle`: `GET /api/ventas/{id}` con `factura_pendiente` (la fila abierta
+  de la bandeja del nodo offline, o `null`), montado antes que `router` para
+  que gane el mismo path. La pantalla del nodo (libra-ui ADR-077) lo usa para
+  decir «se factura al volver». Fuera de un nodo es siempre `null`.
+- `nodo`: `GET /api/nodo/conexion` y `POST /api/nodo/facturar-pendientes`, la
+  facturación de un nodo offline (libracore ADR-074, E6 de LibraEdge). Fuera
+  de un nodo contestan `es_nodo: false` y no hacen nada.
 
 `app.py` los monta con el mismo gate (`require_module("ventas")`).
 """
-from libracommerce.erp import SIN_GANCHOS as GANCHOS
+from fastapi import APIRouter, Depends, HTTPException
 from libracommerce.web.ventas_router import OpcionesVentas, build_ventas_router
-from libracore.ventas_cobro_router import ClienteMercadoPago, build_cobro_de_ventas_router
+from libracore.ventas_cobro_router import (
+    ClienteMercadoPago,
+    build_cobro_de_ventas_router,
+    build_facturacion_del_nodo_router,
+)
 
 from app import database as db
 from app import mp_api, venta_facturacion
+from app.ganchos import GANCHOS
 from app.web.api_auth import get_current_user_json, require_role_json
 
 
@@ -51,3 +63,25 @@ cobro_legado = build_cobro_de_ventas_router(
     ventas=venta_facturacion.PUERTO, usuario_actual=get_current_user_json,
     prefix="/ventas", mercadopago=_MERCADOPAGO,
 )
+
+
+#: Sin `facturacion_habilitada`, igual que `cobro`: el `POST /api/ventas/{id}/facturar` de este producto tampoco la
+#: pasa, y la bandeja del nodo sólo junta ventas que alguien ya intentó facturar por ese camino.
+nodo = build_facturacion_del_nodo_router(ventas=venta_facturacion.PUERTO, usuario_actual=get_current_user_json)
+
+
+detalle = APIRouter(prefix="/api/ventas", tags=["ventas"])
+
+
+@detalle.get("/{vid:int}")
+def detalle_de_venta(vid: int, user: dict = Depends(get_current_user_json)):
+    """El detalle del motor (`obtener_venta`; este producto no prende promociones, avisos de vencimiento ni la guarda
+    por turno, así que es lo mismo que contesta `libracommerce.web.ventas_router`) más `factura_pendiente`
+    (libracore ADR-074): en un nodo, la fila de la bandeja si la factura sale al volver la conexión; si no, `null`.
+
+    `{vid:int}`: sólo toma números, así `GET /api/ventas/medios-pago` sigue yendo al router del motor."""
+    venta = db.get_venta(vid)
+    if not venta:
+        raise HTTPException(404, "Venta no encontrada")
+    venta["factura_pendiente"] = venta_facturacion.pendiente_de_facturar(vid)
+    return venta
