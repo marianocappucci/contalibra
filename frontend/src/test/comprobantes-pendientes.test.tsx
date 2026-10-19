@@ -172,6 +172,14 @@ describe('bandeja con ventas del nodo offline', () => {
     expect(screen.getByRole('button', { name: /Facturar ahora/ })).toBeInTheDocument()
   })
 
+  it('no ofrece descartar una venta del nodo (ya está cobrada: se factura)', async () => {
+    conBandeja([comprobante({ id: 1, origen_id: '1' }), ventaDelNodo()])
+    montar()
+    await screen.findByText('Consumidor Final')
+    // Un solo «Descartar»: el del comprobante de LibraDesk.
+    expect(screen.getAllByTitle('Descartar')).toHaveLength(1)
+  })
+
   it('«Facturar ahora» factura las del nodo y recarga la bandeja', async () => {
     let bandeja: unknown[] = [ventaDelNodo()]
     fetchMock.mockImplementation((url: string, init?: RequestInit) => {

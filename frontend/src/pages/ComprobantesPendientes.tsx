@@ -243,7 +243,8 @@ export function ComprobantesPendientes() {
       header: '',
       size: 60,
       minSize: 60,
-      cell: ({ row }) => (
+      // Una venta del nodo ya está cobrada: no se descarta, se factura (desde la venta o sola al volver la conexión).
+      cell: ({ row }) => esVentaSinConexion(row.original) ? null : (
         <Button
           size="icon" variant="outline" title="Descartar"
           onClick={() => { setDescartando(row.original); setMotivo('') }}
