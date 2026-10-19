@@ -48,6 +48,7 @@ import { LibrosIva } from './pages/LibrosIva'
 import { Reportes } from './pages/Reportes'
 import { CajaMedios } from './pages/CajaMedios'
 import { Logs } from './pages/Logs'
+import { SucursalSinInternet } from './pages/SucursalSinInternet'
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth()
@@ -146,6 +147,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <EgresoDetalle />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/sucursal-sin-internet"
+        element={
+          <ProtectedRoute>
+            <SucursalSinInternet />
           </ProtectedRoute>
         }
       />
