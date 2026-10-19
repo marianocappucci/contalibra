@@ -55,6 +55,7 @@ from libracore.respaldo import Instancia
 from libracore.smtp_router import build_smtp_probe_router
 from libracore.tema_router import build_tema_admin_router, build_tema_router
 from libracore.tesoreria_router import build_tesoreria_router
+from libraedge.pantalla_del_central import create_nodos_router
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -62,6 +63,7 @@ from app import config_manager, db_usuarios
 from app import database as db
 from app.db_core import get_connection as _abrir_conexion
 from app.db_reportes import REPORTES
+from app.offline import aprovisionamiento as aprovisionamiento_offline
 from app.offline import sucursales_con_nodo
 from app.security_headers import SecurityHeadersMiddleware
 from app.spa import montar_spa
@@ -398,6 +400,14 @@ app.include_router(build_adicionales_router(
 # La sincronizacion del nodo offline de LibraEdge (E6): `/sync/v1/push`, `/sync/v1/pull` y `/sync/v1/ticket-arca`. Se
 # monta siempre: sin un nodo registrado no hay ningun secreto valido y todo contesta 401 (ver el docstring del router).
 app.include_router(sincronizacion_offline.router)
+# «Sucursal sin internet» (libraedge ADR-011, libra-ui ADR-080): el admin da de alta el nodo de una sucursal y descarga su
+# carga (`carga-nodo-….json`, con el secreto del nodo: sólo viaja como adjunto de ese POST), ve los nodos y los da de baja.
+# Toda la lógica es de LibraEdge (las mismas funciones que `libraedge-central nodo registrar --carga`); acá sólo la guarda
+# de admin y el aprovisionamiento de este producto (`app/offline.py`). El adicional `offline` lo hace cumplir el alta.
+app.include_router(
+    create_nodos_router(aprovisionamiento_offline, _abrir_conexion),
+    dependencies=[Depends(require_admin_json)],
+)
 # MercadoPago, del motor. Reemplaza al `PUT /api/config/mp` propio.
 #
 # 🔴 Lo que cambia y no es cosmetico: el token vuelve ENMASCARADO. El
