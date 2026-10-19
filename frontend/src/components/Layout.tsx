@@ -94,6 +94,8 @@ const NAV_SECTIONS: NavSection<User>[] = [
     label: 'Administración',
     items: [
       { to: '/usuarios', label: 'Usuarios', icon: ICONOS.usuarios, adminOnly: true },
+      // LibraEdge (libra-ui ADR-080): sólo con el adicional `offline` contratado y sólo para el admin; el backend corta igual.
+      { to: '/sucursal-sin-internet', label: 'Sucursal sin internet', icon: ICONOS.sucursalSinInternet, module: 'offline', adminOnly: true },
       { to: '/logs', label: 'Logs', icon: ICONOS.logDeActividad, adminOnly: true },
     ],
   },
