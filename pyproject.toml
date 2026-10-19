@@ -155,6 +155,12 @@ dependencies = [
     # v0.49.0 -> v0.50.0 (2026-10-13, ADR-023): `UsadosEnBase`, el anti-replay del captcha en la base (varios procesos). **Migracion `0003_captcha_usados`** en la cadena de `libraauth-migrar`: `exigir_schema_al_dia` la exige al arrancar.
     # v0.50.0 -> v0.51.0 (2026-10-15, ADR-024): el responsable acepta por adelantado la proxima version de los Terminos (`GET /terminos` suma `proxima`, `POST /aceptar` acepta la vigente o la proxima). Sin migracion; el aviso pide libra-ui v0.153.0.
     "libraauth[migrations] @ git+https://github.com/marianocappucci/libraauth.git@v0.52.0",
+    # LibraEdge v0.9.0 (2026-10-19, E6 de la fase 1 de LibraEdge en toda la suite): el nodo offline del mostrador.
+    # Despacho por tipo y version con revision manual y 409 si el esquema del nodo difiere (ADR-007), aprovisionamiento
+    # generico con prefijo de numeracion por nodo (ADR-008; `app/offline.py` es la costura) y el ticket de ARCA prestado
+    # por el central (ADR-009). Sus tablas las crea la migracion `0007_libraedge`, en toda instancia (nodo o no). El repo
+    # es PUBLICO: se instala por https sin deploy key (ni en el CI ni en el Dockerfile).
+    "libraedge @ git+https://github.com/marianocappucci/libraedge.git@v0.9.0",
     # SQLAlchemy entra SOLO para el engine de `usuarios` de libraauth (ver
     # app/db_usuarios.py); el resto de Contalibra sigue en sqlite3 crudo.
     "sqlalchemy>=2.0",

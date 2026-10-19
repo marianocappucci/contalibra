@@ -38,6 +38,9 @@ pytestmark = pytest.mark.skipif(
     reason="el schema se compara contra PostgreSQL, que es el único motor del producto",
 )
 
+#: La última revisión de la cadena propia: a la que tiene que llegar la secuencia declarada.
+CABEZA = "0007_libraedge"
+
 #: Las tablas que esta cadena gobierna. Las otras 58 son de los motores y no
 #: entran: si `libracommerce` agrega una columna a `sales`, este test no tiene
 #: por qué ponerse rojo.
@@ -47,6 +50,13 @@ TABLAS_PROPIAS = (
     "reenvio_correo",
     "venta_links",
     "ventas_origen_externo",
+    # Las de LibraEdge (`0007_libraedge`): el DDL es del motor, pero las crea esta cadena y `init_db()`, y las dos
+    # puntas tienen que dejar lo mismo.
+    "local_sequences",
+    "node_identity",
+    "sync_changelog",
+    "sync_inbox",
+    "sync_outbox",
 )
 
 
@@ -140,7 +150,7 @@ def test_la_secuencia_declarada_levanta_el_schema_desde_cero():
         version = conn.execute(
             "SELECT version_num FROM alembic_version_contalibra"
         ).fetchall()
-    assert [f[0] for f in version] == ["0006_sucursal_unica"], (
+    assert [f[0] for f in version] == [CABEZA], (
         f"la cadena propia dejó {version} en `alembic_version_contalibra`"
     )
     _schema_de_las_propias()  # exige que estén todas las propias
@@ -189,7 +199,7 @@ def test_las_dos_cadenas_no_comparten_la_tabla_de_version():
             "SELECT version_num FROM alembic_version_contalibra"
         ).fetchone()
 
-    assert propia[0] == "0006_sucursal_unica"
+    assert propia[0] == CABEZA
     assert del_motor[0] != propia[0], (
         "las dos cadenas escribieron la misma revisión: están compartiendo la "
         "tabla de versión."

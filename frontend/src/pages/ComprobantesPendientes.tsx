@@ -15,6 +15,8 @@ import {
 import { ICONOS } from 'libra-ui/iconos-identidad'
 import { TituloPantalla } from 'libra-ui/titulo-pantalla'
 import { formatoMoneda } from 'libra-ui/formatos'
+import { esVentaSinConexion } from 'libra-ui/nodo-offline'
+import { BotonFacturarPendientesDelNodo, EtiquetaVentaSinConexion } from 'libra-ui/CartelSinConexion'
 import { fecha } from '@/lib/fechas'
 
 type Bandeja = {
@@ -35,6 +37,8 @@ const ORIGENES: Record<string, { label: string; icon: typeof Package }> = {
 }
 
 function OrigenBadge({ tipo, producto }: { tipo: string; producto: string }) {
+  // Una venta cobrada sin conexión en el nodo offline de este producto (libra-ui ADR-077): no la mandó otro sistema.
+  if (esVentaSinConexion({ origen_tipo: tipo })) return <EtiquetaVentaSinConexion />
   const conf = ORIGENES[tipo] ?? { label: tipo, icon: FileText }
   const Icon = conf.icon
   return (
@@ -84,6 +88,11 @@ export function ComprobantesPendientes() {
   // Memoizado y no `data?.pendientes ?? []` a secas: el `??` devuelve un array
   // nuevo en cada render y los dos `useMemo` de abajo se recalcularían siempre.
   const pendientes = useMemo(() => data?.pendientes ?? [], [data])
+
+  // Las ventas que el nodo offline cobró sin conexión (libra-ui ADR-077) no se juntan en el formulario: se facturan
+  // desde la venta, con «Facturar ahora» o solas al volver la conexión. Fuera de un nodo no hay ninguna y la columna
+  // queda del ancho de la casilla, como siempre.
+  const hayVentasDelNodo = useMemo(() => pendientes.some(esVentaSinConexion), [pendientes])
 
   // Sólo se pueden facturar juntos comprobantes del mismo cliente: una factura
   // tiene un solo receptor. El backend lo rechaza igual (422), pero dejar
@@ -153,10 +162,13 @@ export function ComprobantesPendientes() {
     {
       id: 'elegir',
       header: '',
-      size: 40,
-      minSize: 40,
+      size: hayVentasDelNodo ? 150 : 40,
+      minSize: hayVentasDelNodo ? 150 : 40,
       cell: ({ row }) => {
         const c = row.original
+        // 🔴 No se tilda: con el formulario saldría una factura sin vínculo con la venta y la tanda del nodo emitiría
+        // otra (el backend la rechaza con 409 `se_factura_desde_la_venta`). En su lugar, facturar ya desde la venta.
+        if (esVentaSinConexion(c)) return <BotonFacturarPendientesDelNodo onFacturado={() => { void load() }} />
         // Sólo se pueden juntar comprobantes del mismo cliente. La comparación
         // va inline y no en un helper del componente para que el arreglo de
         // dependencias del memo sea el de verdad: con el helper, `elegidos` y
@@ -231,7 +243,8 @@ export function ComprobantesPendientes() {
       header: '',
       size: 60,
       minSize: 60,
-      cell: ({ row }) => (
+      // Una venta del nodo ya está cobrada: no se descarta, se factura (desde la venta o sola al volver la conexión).
+      cell: ({ row }) => esVentaSinConexion(row.original) ? null : (
         <Button
           size="icon" variant="outline" title="Descartar"
           onClick={() => { setDescartando(row.original); setMotivo('') }}
@@ -240,7 +253,7 @@ export function ComprobantesPendientes() {
         </Button>
       ),
     },
-  ], [elegidos, clienteElegido])
+  ], [elegidos, clienteElegido, hayVentasDelNodo])
 
   const columnsResueltos = useMemo<ColumnDef<ComprobantePendiente>[]>(() => [
     {

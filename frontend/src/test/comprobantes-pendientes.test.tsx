@@ -151,3 +151,66 @@ describe('bandeja de comprobantes a facturar', () => {
     expect(await screen.findByText(/1\.500,00/)).toBeInTheDocument()
   })
 })
+
+// Las ventas que el nodo offline cobró sin conexión (libra-ui ADR-077, E6 de LibraEdge). Aparecen en la misma bandeja
+// pero no se juntan en el formulario: se facturan desde la venta. Fuera de un nodo no hay ninguna, y lo de arriba es lo
+// que ve Compulibra.
+describe('bandeja con ventas del nodo offline', () => {
+  const ventaDelNodo = (over: Record<string, unknown> = {}) => comprobante({
+    id: 9, origen_producto: 'contalibra', origen_instancia: 'nodo-1', origen_tipo: 'venta', origen_id: '41',
+    cliente_cuit: '', cliente_razon: 'Consumidor Final', periodo_desde: '', periodo_hasta: '', ...over,
+  })
+
+  it('la rotula como venta sin conexión y no la deja tildar', async () => {
+    conBandeja([comprobante({ id: 1, origen_id: '1' }), ventaDelNodo()])
+    montar()
+    await screen.findByText('Consumidor Final')
+
+    expect(screen.getByText('Venta sin conexión')).toBeInTheDocument()
+    // Una sola casilla: la del comprobante de LibraDesk. La venta lleva el botón.
+    expect(screen.getAllByRole('checkbox')).toHaveLength(1)
+    expect(screen.getByRole('button', { name: /Facturar ahora/ })).toBeInTheDocument()
+  })
+
+  it('no ofrece descartar una venta del nodo (ya está cobrada: se factura)', async () => {
+    conBandeja([comprobante({ id: 1, origen_id: '1' }), ventaDelNodo()])
+    montar()
+    await screen.findByText('Consumidor Final')
+    // Un solo «Descartar»: el del comprobante de LibraDesk.
+    expect(screen.getAllByTitle('Descartar')).toHaveLength(1)
+  })
+
+  it('«Facturar ahora» factura las del nodo y recarga la bandeja', async () => {
+    let bandeja: unknown[] = [ventaDelNodo()]
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      if (url.includes('/api/nodo/facturar-pendientes') && init?.method === 'POST') {
+        bandeja = []
+        return Promise.resolve(json({
+          es_nodo: true, en_linea: true, facturadas: [{ venta_id: 41, factura_id: 3, cae: '70000000000001' }],
+          descartadas: [], errores: [], quedan: 0,
+        }))
+      }
+      if (url.includes('/api/nodo/conexion')) {
+        return Promise.resolve(json({ es_nodo: true, en_linea: true, node_id: 'nodo-1', a_facturar: 0 }))
+      }
+      return Promise.resolve(json({ pendientes: bandeja, facturados: [], descartados: [], total_pendientes: bandeja.length }))
+    })
+    montar()
+    await screen.findByText('Consumidor Final')
+
+    await userEvent.click(screen.getByRole('button', { name: /Facturar ahora/ }))
+
+    expect(await screen.findByText(/No hay nada esperando para facturar/)).toBeInTheDocument()
+    const posts = fetchMock.mock.calls.filter(([u, i]) => String(u).includes('/api/nodo/facturar-pendientes')
+      && (i as RequestInit | undefined)?.method === 'POST')
+    expect(posts).toHaveLength(1)
+  })
+
+  it('sin ventas del nodo la bandeja no pregunta nada del nodo', async () => {
+    conBandeja([comprobante()])
+    montar()
+    await screen.findByText('Ferretería San Martín')
+    expect(screen.queryByRole('button', { name: /Facturar ahora/ })).not.toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/api/nodo'))).toBe(false)
+  })
+})
