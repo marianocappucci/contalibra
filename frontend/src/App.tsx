@@ -48,7 +48,6 @@ import { LibrosIva } from './pages/LibrosIva'
 import { Reportes } from './pages/Reportes'
 import { CajaMedios } from './pages/CajaMedios'
 import { Logs } from './pages/Logs'
-import { SucursalSinInternet } from './pages/SucursalSinInternet'
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth()
@@ -150,14 +149,8 @@ export default function App() {
           </ProtectedRoute>
         }
       />
-      <Route
-        path="/sucursal-sin-internet"
-        element={
-          <ProtectedRoute>
-            <SucursalSinInternet />
-          </ProtectedRoute>
-        }
-      />
+      {/* LibraEdge pasó a ser una sección de Configuración, sólo admin (libra-ui ADR-082): la ruta vieja redirige. */}
+      <Route path="/sucursal-sin-internet" element={<Navigate to="/config?seccion=sucursal-sin-internet" replace />} />
       <Route
         path="/usuarios"
         element={
