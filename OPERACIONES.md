@@ -654,14 +654,16 @@ docker logs contalibra-web --tail 50
 Desde 2026-10-19 (E6 de la fase 1) Contalibra puede tener un **nodo offline**: una instancia en la PC del local que
 sigue **vendiendo y cobrando en el mostrador** sin internet y sube todo al central cuando vuelve la conexión. Es el
 genérico de la suite (LibraEdge v0.9.0, libracommerce v0.68.0, libracore v1.186.0); lo propio de Contalibra está en
-`app/offline.py`. Se contrata como el adicional `offline` **por sucursal** (`plans.ADICIONALES`, libracore ADR-048):
-sin el adicional cargado por el backoffice (`PUT /api/adicionales/offline` con el token de servicio) no se registra
-ningún nodo.
+`app/offline.py`. **Desde libraedge v0.14.0 (ADR-014) LibraEdge está incluido en todos los planes**: no hay adicional
+`offline` que contratar (hasta el 2026-10-20 se contrataba por sucursal) y cualquier instancia registra nodos.
 
 **Desde la pantalla (libraedge v0.11.0, libra-ui v0.166.0):** «Sucursal sin internet» (Configuración → «Sucursal sin internet», sólo admin; desde libra-ui v0.168.0 ya no es una entrada del menú; con el
-adicional `offline` ofrece instalador y alta, y sin él sólo el texto para contratarlo y, si quedan nodos activos, darlos de baja) hace lo mismo que `registrar --carga` sin entrar al VPS: el admin da de alta el nodo de una
-sucursal y descarga la carga del nodo (con el secreto: se baja una sola vez y no se muestra), descarga el instalador
-(`libraedge-nodo-<producto>.exe` de los Releases de LibraEdge), ve los nodos con su última sincronización y los da de baja.
+instalador y alta siempre) hace lo mismo que `registrar --carga` sin entrar al VPS. Desde libraedge v0.14.0 / libra-ui
+v0.171.0 (ADR-014 / ADR-085) el alta muestra **la dirección del sistema y un código de vinculación** (un solo uso, 15
+minutos) que se escriben en el instalador; el instalador canjea el código por la carga en `POST /sync/v1/vinculacion`
+(público, sólo https, con límite de intentos). El archivo de carga queda para soporte («Archivo de carga» en cada nodo:
+se baja una sola vez y no se muestra). También se descarga el instalador (`libraedge-nodo-<producto>.exe` de los
+Releases de LibraEdge), se ven los nodos con su última sincronización, se pide otro código, se anula y se dan de baja.
 La URL del central que va en la carga sale de `LIBRAEDGE_CENTRAL_URL` o, si no está, del origen de `<PRODUCTO>_RESET_URL_BASE`.
 
 **Una instancia sin nodo no cambia en nada** (Compulibra hoy): las tablas de LibraEdge (`0007_libraedge`) quedan vacías,
@@ -670,7 +672,7 @@ La URL del central que va en la carga sale de `LIBRAEDGE_CENTRAL_URL` o, si no e
 Todo se corre **en el contenedor del cliente**, con su `CONTALIBRA_DATABASE_URL`; ningún secreto pasa por la línea de
 comandos.
 
-**En el central** (requiere el adicional `offline` contratado para la sucursal):
+**En el central** (sin adicional: LibraEdge está incluido en todos los planes):
 
 ```bash
 export LIBRAEDGE_APROVISIONAMIENTO=app.offline:aprovisionamiento

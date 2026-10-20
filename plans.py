@@ -74,16 +74,10 @@ ADDONS = {"mayorista", "resguardo_externo"}
 # `GET/PUT /api/adicionales` y que arma las lineas del Anexo I. Los si/no de `ADDONS` (`mayorista`, `resguardo_externo`) se sintetizan solos; lo
 # declarado aca es lo que `ADDONS` no sabe decir.
 #
-#   - offline: el nodo offline (LibraEdge, E6 de la fase 1, 2026-10-19) se cobra POR SUCURSAL CON OFFLINE y se puede contratar desde cualquier
-#     plan. La unidad es la sucursal; el limite que se hace cumplir es la cantidad de sucursales DISTINTAS con al menos un nodo activo
-#     (`node_identity.branch_id`): varios nodos en la misma sucursal no suman. Sin precio fijado: «a cotizar» (`precio=None`), igual que en
-#     RestoLibra. El modulo `offline` vive en `modulos` (`plan="addon"`, apagado de fabrica) y la cantidad contratada en `config.json` ->
-#     `adicionales.offline`. No entra en `ADDONS` (no es un si/no) ni en ningun plan: `apply_plan` no lo toca.
-ADICIONALES = {
-    "offline": {
-        "label": "Modo offline (LibraEdge)", "precio": None, "modulos": {"offline"}, "unidad": "sucursal", "limite": "sucursales_offline",
-    },
-}
+#   - (offline) Hasta 2026-10-20 el nodo offline (LibraEdge) se cobraba POR SUCURSAL CON OFFLINE. Desde libraedge ADR-014 LibraEdge esta
+#     INCLUIDO EN TODOS LOS PLANES (decision del humano): ya no es un adicional, no se siembra ni se mide. La fila `offline` de `modulos` que
+#     pueda tener una instancia vieja no la lee nadie.
+ADICIONALES: dict = {}
 
 
 def aplicar_plan_en_db(db_path: str, plan: str) -> None:

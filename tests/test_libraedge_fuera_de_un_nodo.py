@@ -2,7 +2,7 @@
 
 Contalibra tiene un cliente real (Compulibra) que no es ni va a ser un nodo: su instancia no tiene `LIBRAEDGE_NODE_ID`.
 Lo que cambió en E6 —los ganchos con el outbox, el puerto de ventas con la conexión del nodo, el numerador, el detalle
-de la venta, el ticket, las rutas `/api/nodo/*` y `/sync/v1/*`, el adicional `offline`— tiene que comportarse ahí
+de la venta, el ticket, las rutas `/api/nodo/*` y `/sync/v1/*` (desde libraedge ADR-014 sin adicional `offline`)— tiene que comportarse ahí
 **exactamente como antes**. Cada test de acá es un camino que Compulibra usa todos los días: facturar una venta, la
 bandeja de comprobantes, el cobro y la ingesta de ventas por integración.
 """
@@ -169,43 +169,29 @@ def test_la_bandeja_y_la_ingesta_por_integracion_siguen_igual(admin_client, monk
     _nada_encolado()
 
 
-# ── El adicional `offline` (libracore ADR-048) ───────────────────────────
+# ── LibraEdge incluido en todos los planes (libraedge ADR-014) ──────────
 
 
-def test_el_offline_es_un_adicional_por_sucursal_apagado_de_fabrica(admin_client):
+def test_el_offline_ya_no_es_un_adicional(admin_client, monkeypatch):
     from libracore import adicionales
 
     import plans
 
-    offline_ = adicionales.catalogo(plans)["offline"]
-    assert (offline_.unidad, offline_.limite, offline_.modulos, offline_.precio) == (
-        "sucursal", "sucursales_offline", frozenset({"offline"}), None)
+    assert "offline" not in adicionales.catalogo(plans) and "offline" not in plans.ADICIONALES
     assert "offline" not in plans.TODOS_LOS_MODULOS and "offline" not in plans.ADDONS
-    assert db.get_modulos()["offline"] is False
-    listado = {a["clave"]: a for a in admin_client.get("/api/adicionales").json()["adicionales"]}
-    assert listado["offline"]["usadas"] == 0
-    assert {"mayorista", "resguardo_externo", "offline"} <= set(listado)
-
-
-def test_el_admin_no_se_contrata_el_offline_y_el_backoffice_si(admin_client, monkeypatch):
+    assert "offline" not in db.get_modulos()  # una instancia nueva no lo siembra
     monkeypatch.setenv(SERVICE_TOKEN_ENV, TOKEN)
-    assert admin_client.put("/api/adicionales/offline", json={"cantidad": 1}).status_code == 403
-    assert db.get_modulos()["offline"] is False
-    r = admin_client.put("/api/adicionales/offline", json={"cantidad": 1}, headers={SERVICE_TOKEN_HEADER: TOKEN})
-    assert r.status_code == 200, r.text
-    assert db.get_modulos()["offline"] is True
+    listado = {a["clave"] for a in admin_client.get("/api/adicionales", headers={SERVICE_TOKEN_HEADER: TOKEN})
+               .json()["adicionales"]}
+    assert "offline" not in listado and {"mayorista", "resguardo_externo"} <= listado
 
 
-def test_sin_el_adicional_no_se_registra_un_nodo_y_con_el_si(admin_client, monkeypatch):
-    from libraedge.aprovisionamiento import AltaRechazada, registrar
+def test_cualquier_instancia_registra_un_nodo_sin_contratar_nada(admin_client):
+    from libraedge.aprovisionamiento import registrar, sin_guarda
 
     from app.offline import aprovisionamiento
 
-    with get_connection() as conn, pytest.raises(AltaRechazada):
-        registrar(conn, aprovisionamiento, "nodo-ficticio", "Casa central", salida=lambda _: None)
-    monkeypatch.setenv(SERVICE_TOKEN_ENV, TOKEN)
-    assert admin_client.put("/api/adicionales/offline", json={"cantidad": 1},
-                            headers={SERVICE_TOKEN_HEADER: TOKEN}).status_code == 200
+    assert aprovisionamiento.verificar_alta is sin_guarda
     with get_connection() as conn:
         alta = registrar(conn, aprovisionamiento, "nodo-ficticio", "Casa central", salida=lambda _: None)
     assert alta.sucursal.nombre == "Casa central" and alta.prefijo
