@@ -19,16 +19,12 @@ def test_el_admin_ve_usuario_respaldo_y_version(admin_client):
 
 def test_el_central_con_un_nodo_lo_cuenta_y_sin_noticias(admin_client, monkeypatch):
     """Un nodo registrado que todavía no sincronizó nunca es «sin noticias» para el central (sólo el admin lo ve)."""
-    from libraauth.session_auth import SERVICE_TOKEN_ENV, SERVICE_TOKEN_HEADER
     from libraedge.aprovisionamiento import registrar
 
     from app.db_core import get_connection
     from app.offline import aprovisionamiento
 
-    token = "un-token-de-servicio-de-prueba"
-    monkeypatch.setenv(SERVICE_TOKEN_ENV, token)
-    assert admin_client.put("/api/adicionales/offline", json={"cantidad": 1},
-                            headers={SERVICE_TOKEN_HEADER: token}).status_code == 200
+    # Sin contratar nada: LibraEdge está incluido en todos los planes (libraedge ADR-014).
     with get_connection() as conn:
         registrar(conn, aprovisionamiento, "nodo-ficticio", "Casa central", salida=lambda _: None)
     datos = admin_client.get("/api/estado-del-sistema").json()
