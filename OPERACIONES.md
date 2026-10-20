@@ -658,8 +658,8 @@ genérico de la suite (LibraEdge v0.9.0, libracommerce v0.68.0, libracore v1.186
 sin el adicional cargado por el backoffice (`PUT /api/adicionales/offline` con el token de servicio) no se registra
 ningún nodo.
 
-**Desde la pantalla (libraedge v0.11.0, libra-ui v0.166.0):** «Sucursal sin internet» (menú Administración, sólo admin; se ve
-con el adicional `offline` o mientras queden nodos activos, que sin el adicional sólo se pueden dar de baja) hace lo mismo que `registrar --carga` sin entrar al VPS: el admin da de alta el nodo de una
+**Desde la pantalla (libraedge v0.11.0, libra-ui v0.166.0):** «Sucursal sin internet» (Configuración → «Sucursal sin internet», sólo admin; desde libra-ui v0.168.0 ya no es una entrada del menú; con el
+adicional `offline` ofrece instalador y alta, y sin él sólo el texto para contratarlo y, si quedan nodos activos, darlos de baja) hace lo mismo que `registrar --carga` sin entrar al VPS: el admin da de alta el nodo de una
 sucursal y descarga la carga del nodo (con el secreto: se baja una sola vez y no se muestra), descarga el instalador
 (`libraedge-nodo-<producto>.exe` de los Releases de LibraEdge), ve los nodos con su última sincronización y los da de baja.
 La URL del central que va en la carga sale de `LIBRAEDGE_CENTRAL_URL` o, si no está, del origen de `<PRODUCTO>_RESET_URL_BASE`.

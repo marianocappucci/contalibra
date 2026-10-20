@@ -28,6 +28,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { Config } from '../pages/Config'
 
+// `Config` elige la variante según el rol (`useAuth`): se fija el rol por test, sin montar el AuthProvider (que trae el gate de
+// Términos y su propia ronda de pedidos, ajenos a lo que se mide acá).
+let rol: 'admin' | 'operador' | 'cajero' = 'operador'
+vi.mock('../context/AuthContext', () => ({
+  useAuth: () => ({ user: { id: '1', username: 'u', role: rol } }),
+}))
+
 let pedidos: { url: string; metodo: string; cuerpo: unknown }[] = []
 
 function json(body: unknown) {
@@ -37,12 +44,22 @@ function json(body: unknown) {
 }
 
 beforeEach(() => {
+  rol = 'operador'
   pedidos = []
   vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => {
     const u = String(url)
     const metodo = init?.method ?? 'GET'
     pedidos.push({ url: u, metodo, cuerpo: init?.body ?? null })
 
+    if (u.includes('/api/nodos-offline')) {
+      return Promise.resolve(json({
+        producto: 'contalibra', contratado: true,
+        instalador_url: 'https://ejemplo.test/libraedge-nodo-contalibra.exe',
+        central_url: 'https://central.ejemplo.test', central_url_error: null,
+        emisor_faltan: [], emisor_error: null, umbral_minutos: 15,
+        sucursales: [], nodos: [], nodos_activos: 0,
+      }))
+    }
     if (u.includes('/logo')) return Promise.resolve(new Response('', { status: 404 }))
     if (u.includes('/api/config/smtp')) {
       return Promise.resolve(json({
@@ -94,6 +111,38 @@ describe('la Configuración de Contalibra', () => {
       'Empresa', 'Integraciones', 'Ticket / Impresora', 'Categorías',
       'Correo entrante', 'Datos / Backup',
     ])
+  })
+
+  it('🔴 el administrador tiene la pestaña «Sucursal sin internet» (LibraEdge, ADR-082), al final', async () => {
+    rol = 'admin'
+    montar()
+
+    const pestanias = (await screen.findAllByRole('tab')).map((t) => t.textContent)
+    expect(pestanias).toEqual([
+      'Empresa', 'Integraciones', 'Ticket / Impresora', 'Categorías',
+      'Correo entrante', 'Sucursal sin internet', 'Datos / Backup',
+    ])
+  })
+
+  it.each(['operador', 'cajero'] as const)('🔴 el rol %s no la tiene, ni siquiera por la URL', async (r) => {
+    rol = r
+    montar('/config?seccion=sucursal-sin-internet')
+
+    const pestanias = (await screen.findAllByRole('tab')).map((t) => t.textContent)
+    expect(pestanias).not.toContain('Sucursal sin internet')
+    // Y no se pide al backend lo que esta persona no puede ver.
+    expect(pedidos.some((p) => p.url.includes('/api/nodos-offline'))).toBe(false)
+  })
+
+  it('la sección del administrador pega en `/api/nodos-offline` (la ruta del backend no cambió)', async () => {
+    rol = 'admin'
+    montar('/config?seccion=sucursal-sin-internet')
+
+    await screen.findAllByRole('tab')
+    await waitFor(() => expect(pedidos.some((p) => p.url.includes('/api/nodos-offline'))).toBe(true))
+    // Con el adicional contratado, la sección ofrece el instalador.
+    const enlaces = await screen.findAllByRole('link')
+    expect(enlaces.some((a) => a.getAttribute('href') === 'https://ejemplo.test/libraedge-nodo-contalibra.exe')).toBe(true)
   })
 
   it('Integraciones agrupa las tres, en el orden de siempre', async () => {
