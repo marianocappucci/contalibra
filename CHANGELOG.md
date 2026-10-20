@@ -2,6 +2,15 @@
 
 ## Sin publicar — 2026-10-20
 
+### LibraEdge incluido en todos los planes y el código de vinculación (libraedge ADR-014, libra-ui ADR-085; sin migración)
+
+- **Decisiones del humano (2026-10-20):** LibraEdge es parte del sistema e incluido en todos los planes, y el nodo se activa con «dirección + código» en lugar del archivo de carga (que queda para soporte).
+- **`app/offline.py`:** el aprovisionamiento usa `sin_guarda` (antes `guarda_offline_de_libracore`).
+- **`app/web/app.py`:** monta `create_canje_router` de LibraEdge (`POST /sync/v1/vinculacion`) **sin guarda** (lo llama el instalador, sin sesión; sólo https, un solo uso, límite de intentos del motor) con `ip_del_request` de libraauth. El router de adicionales ya no mide `offline`.
+- **`plans.py`:** `ADICIONALES` queda vacío (`mayorista` y `resguardo_externo` siguen como sí/no de `ADDONS`). **`app/database.py`:** ya no siembra el módulo `offline`; la fila de una instancia vieja no la lee nadie.
+- **Tests:** `test_sucursal_sin_internet.py` (incluido; alta con código y canje público de un solo uso; sólo https; el archivo de soporte), `test_libraedge_fuera_de_un_nodo.py` (el catálogo sin offline y cualquier instancia registra un nodo) y `test_estado_del_sistema.py` sin contratar nada.
+- Pines: **libraedge `v0.14.0`** (antes `v0.11.0`; trae v0.12/v0.13, del instalador) y **libra-ui `v0.171.0`**.
+
 ### La barra de estado del pie (libracore ADR-075, libra-ui ADR-083; sin migración)
 
 - **Pedido del humano (2026-10-19/20):** una línea chica al pie de todas las pantallas con LibraEdge (en el nodo: en línea, operaciones por subir y ventas por facturar; en el central: los nodos sin noticias), usuario, el certificado de ARCA que vence en menos de 30 días o venció, el último respaldo y la versión. Igual en el central y en un nodo.

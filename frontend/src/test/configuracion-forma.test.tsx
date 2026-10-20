@@ -140,7 +140,7 @@ describe('la Configuración de Contalibra', () => {
 
     await screen.findAllByRole('tab')
     await waitFor(() => expect(pedidos.some((p) => p.url.includes('/api/nodos-offline'))).toBe(true))
-    // Con el adicional contratado, la sección ofrece el instalador.
+    // LibraEdge está incluido en todos los planes (libra-ui ADR-085): la sección ofrece el instalador.
     const enlaces = await screen.findAllByRole('link')
     expect(enlaces.some((a) => a.getAttribute('href') === 'https://ejemplo.test/libraedge-nodo-contalibra.exe')).toBe(true)
   })

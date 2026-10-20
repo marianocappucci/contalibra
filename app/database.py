@@ -393,10 +393,8 @@ def init_db():
             # tratamiento que `mayorista`. Arranca apagado; el `INSERT OR
             # IGNORE` de abajo no pisa una instancia que ya lo tenga prendido.
             ("resguardo_externo", 0, "addon"),
-            # Adicional por sucursal (`plans.ADICIONALES["offline"]`, libracore ADR-048; E6 de LibraEdge): APAGADO de
-            # fábrica. Lo prende el backoffice al cargar la cantidad de sucursales con offline; sin él no se registra
-            # ningún nodo (`libraedge-central nodo registrar`). No gatea ninguna pantalla.
-            ("offline", 0, "addon"),
+            # (Hasta 2026-10-20 acá se sembraba `offline`, el adicional de LibraEdge. Desde libraedge ADR-014 LibraEdge
+            # está incluido en todos los planes: no hay módulo que prender. La fila de una instancia vieja no la lee nadie.)
         ]
         for modulo, habilitado, plan in _MODULOS_DEFAULT:
             conn.execute(
