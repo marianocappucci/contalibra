@@ -33,10 +33,22 @@
  */
 import { Inbox, Package, Printer } from 'lucide-react'
 import { createConfiguracion } from 'libra-ui/Configuracion'
+import { seccionSucursalSinInternet } from 'libra-ui/SucursalSinInternet'
 
+import { useAuth } from '../context/AuthContext'
 import { CategoriasCard, CorreoEntranteCard, TicketCard } from './config-secciones'
 
-export const Config = createConfiguracion({
+const PROPIAS = [
+  { clave: 'ticket', label: 'Ticket / Impresora', icono: Printer, contenido: <TicketCard /> },
+  { clave: 'categorias', label: 'Categorías', icono: Package, contenido: <CategoriasCard /> },
+  // Piloto (2026-09-21): destino del reenvío de la casilla propia de la
+  // instancia. Endpoint propio, `web/api/config.py::smtp_router`, no del
+  // kit — ver el docstring de arriba sobre por qué el correo de este
+  // producto no es el del kit.
+  { clave: 'correo-entrante', label: 'Correo entrante', icono: Inbox, contenido: <CorreoEntranteCard /> },
+]
+
+const opciones = {
   // Sin `icono`: el default del kit es el del catálogo (`ICONOS.configuracion`, ADR-035), el mismo que el sidebar.
   // Sale en el tutorial de Gmail y en el de Padrón A13.
   producto: 'Contalibra',
@@ -56,15 +68,18 @@ export const Config = createConfiguracion({
     // endpoint: el envoltorio dejo de tener razon de ser.
     email: { basePath: '/api/config/smtp' },
   },
-  propias: [
-    { clave: 'ticket', label: 'Ticket / Impresora', icono: Printer, contenido: <TicketCard /> },
-    { clave: 'categorias', label: 'Categorías', icono: Package, contenido: <CategoriasCard /> },
-    // Piloto (2026-09-21): destino del reenvío de la casilla propia de la
-    // instancia. Endpoint propio, `web/api/config.py::smtp_router`, no del
-    // kit — ver el docstring de arriba sobre por qué el correo de este
-    // producto no es el del kit.
-    { clave: 'correo-entrante', label: 'Correo entrante', icono: Inbox, contenido: <CorreoEntranteCard /> },
-  ],
-})
+}
+
+// «Sucursal sin internet» (LibraEdge, libra-ui ADR-082) es una sección de Configuración **sólo para el administrador**.
+// `/config` lo abren todos los roles (no es `adminOnly` ni en el menú ni en la ruta), así que hay dos pantallas armadas
+// una vez a nivel de módulo y `Config` elige según el rol. Ocultar la pestaña no es la guarda: el backend corta igual
+// (`/api/nodos-offline` es del admin).
+const ConfigAdmin = createConfiguracion({ ...opciones, propias: [...PROPIAS, seccionSucursalSinInternet()] })
+const ConfigComun = createConfiguracion({ ...opciones, propias: PROPIAS })
+
+export function Config() {
+  const { user } = useAuth()
+  return user?.role === 'admin' ? <ConfigAdmin /> : <ConfigComun />
+}
 
 export default Config

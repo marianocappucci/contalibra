@@ -1,5 +1,16 @@
 # Changelog
 
+## Sin publicar — 2026-10-20
+
+### «Sucursal sin internet» pasa a Configuración, sólo para el administrador (libra-ui v0.168.0, ADR-082; sin migración ni cambio de backend)
+
+- **Decisión del humano (2026-10-20):** el instalador y el alta de nodos de LibraEdge se ofrecen dentro de la app, en Configuración, y no como entrada propia del menú. Las rutas `/api/nodos-offline` del backend no cambian.
+- **`frontend/src/pages/Config.tsx`**: suma `seccionSucursalSinInternet()` (clave `sucursal-sin-internet`) a las secciones propias **sólo si el usuario es admin**. `/config` lo abren todos los roles (ni el menú ni la ruta son `adminOnly`), así que hay dos pantallas armadas a nivel de módulo (`ConfigAdmin`, `ConfigComun`) y `Config` elige por `useAuth().user.role`. Ocultar la pestaña no es la guarda: el backend corta igual.
+- **Menú**: se saca la entrada «Sucursal sin internet» de Administración. **Ruta**: `/sucursal-sin-internet` redirige a `/config?seccion=sucursal-sin-internet`; se borra `pages/SucursalSinInternet.tsx`.
+- Sin el adicional `offline` la sección no ofrece instalador ni alta (sólo el texto para contratarlo y, si hay nodos, «Dar de baja»); lo decide el kit.
+- Tests: `configuracion-forma.test.tsx` (el admin tiene la pestaña, `operador` y `cajero` no —ni por la URL ni pegándole al backend— y la sección pega en `/api/nodos-offline`); `iconos-del-catalogo.test.ts` sin la ruta del menú (26 rutas medidas).
+- Pin: **libra-ui `v0.168.0`** (antes `v0.167.0`).
+
 ## Sin publicar — 2026-10-19
 
 ### LibraEdge: el nodo offline del mostrador (E6 de la fase 1; revisión `0007_libraedge`, aditiva)
