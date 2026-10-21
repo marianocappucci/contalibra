@@ -64,8 +64,8 @@ from app import config_manager, db_usuarios, venta_facturacion
 from app import database as db
 from app.db_core import get_connection as _abrir_conexion
 from app.db_reportes import REPORTES
+from app.offline import GANCHOS_DE_CAJA, nodos_del_central
 from app.offline import aprovisionamiento as aprovisionamiento_offline
-from app.offline import nodos_del_central
 from app.security_headers import SecurityHeadersMiddleware
 from app.spa import montar_spa
 from app.sucursal_unica import sucursal_predeterminada
@@ -532,7 +532,9 @@ app.include_router(
     dependencies=[Depends(require_admin_json), Depends(require_module("tesoreria"))],
 )
 app.include_router(
-    build_caja_router(usuario_actual=get_current_user_json),
+    # `ganchos_de_caja` (libracore ADR-076): en un nodo offline el movimiento que se anota o se anula a mano sube al
+    # central; fuera de un nodo no hace nada (`app/offline.py`).
+    build_caja_router(usuario_actual=get_current_user_json, ganchos_de_caja=GANCHOS_DE_CAJA),
     dependencies=[_auth_json, Depends(require_module("caja"))],
 )
 app.include_router(
@@ -543,10 +545,12 @@ app.include_router(
 )
 app.include_router(
     # El resumen y el cierre son de `db_turnos`: leen `sales`, no la tabla
-    # `ventas` de LibraCore (P9-M3).
+    # `ventas` de LibraCore (P9-M3). Abrir y cerrar un turno en un nodo offline sube al central (`ganchos_de_caja`,
+    # libracore ADR-076); `db.cerrar_turno` acepta `ganchos=` por eso.
     build_turnos_router(
         usuario_actual=get_current_user_json,
         resumen_turno=db.get_resumen_turno, cerrar_turno=db.cerrar_turno,
+        ganchos_de_caja=GANCHOS_DE_CAJA,
     ),
     dependencies=[_auth_json],
 )

@@ -1,4 +1,5 @@
-// La bandeja de comprobantes a facturar.
+// La bandeja de comprobantes a facturar (la pantalla es de libra-ui desde la v0.173.0; acá se prueba lo que cablea este
+// producto: el formulario de factura al que lleva «Facturar» y el permiso de descartar por rol).
 //
 // La regla que sólo se puede probar acá es la del agrupado: se pueden tildar
 // varios comprobantes juntos, pero **sólo del mismo cliente**, porque una
@@ -6,14 +7,23 @@
 // dejar tildar lo que después va a fallar es una trampa — lo que se fija es que
 // la pantalla no la tienda.
 import { render, screen, waitFor } from '@testing-library/react'
+import { useEffect } from 'react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ComprobantesPendientes } from '../pages/ComprobantesPendientes'
+
+// El rol sale de `useAuth`: se fija por test, sin montar el AuthProvider (trae el gate de Términos y su propia ronda de
+// pedidos, ajenos a lo que se mide acá).
+let rol: 'admin' | 'operador' | 'cajero' = 'admin'
+vi.mock('../context/AuthContext', () => ({
+  useAuth: () => ({ user: { id: '1', username: 'u', role: rol } }),
+}))
 
 let fetchMock: ReturnType<typeof vi.fn>
 
 beforeEach(() => {
+  rol = 'admin'
   fetchMock = vi.fn()
   vi.stubGlobal('fetch', fetchMock)
 })
@@ -58,10 +68,23 @@ function conBandeja(pendientes: unknown[]) {
   })))
 }
 
+// Donde cae «Facturar»: el formulario de factura, con el `state` que arma la página.
+let estadoDelFormulario: Record<string, unknown> | null = null
+
+function FormularioDeFactura() {
+  const state = useLocation().state as Record<string, unknown> | null
+  useEffect(() => { estadoDelFormulario = state }, [state])
+  return <p>Formulario de factura</p>
+}
+
 function montar() {
+  estadoDelFormulario = null
   return render(
-    <MemoryRouter>
-      <ComprobantesPendientes />
+    <MemoryRouter initialEntries={['/comprobantes-pendientes']}>
+      <Routes>
+        <Route path="/comprobantes-pendientes" element={<ComprobantesPendientes />} />
+        <Route path="/facturas/nuevo" element={<FormularioDeFactura />} />
+      </Routes>
     </MemoryRouter>,
   )
 }
@@ -149,6 +172,79 @@ describe('bandeja de comprobantes a facturar', () => {
     await userEvent.click(casilla(1))
 
     expect(await screen.findByText(/1\.500,00/)).toBeInTheDocument()
+  })
+})
+
+describe('lo que cablea este producto en la bandeja', () => {
+  const prefill = (over: Record<string, unknown> = {}) => ({
+    comprobantes_ids: [1, 2], avisos: ['Dos períodos distintos'], concepto: 2, condicion_venta: 'Contado', tax_rate: 21,
+    client_id: 7, client_name: 'Ferretería San Martín', client_cuit: '30-71234567-9', client_address: '', fecha: '2026-09-01',
+    observations: 'Alquiler', items: [{ description: 'Alquiler impresora', qty: 2, unit_price: 45000 }],
+    fch_serv_desde: '2026-08-01', fch_serv_hasta: '2026-08-31', fch_vto_pago: '2026-09-10', ...over,
+  })
+
+  function conPrefill(cuerpo: unknown) {
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      if (String(url).includes('/facturar-prefill') && init?.method === 'POST') return Promise.resolve(json(cuerpo))
+      return Promise.resolve(json({
+        pendientes: [comprobante({ id: 1, origen_id: '1' }), comprobante({ id: 2, origen_id: '2' })],
+        facturados: [], descartados: [], total_pendientes: 2,
+      }))
+    })
+  }
+
+  it('«Facturar» pide el prefill con los ids elegidos y lleva al formulario con el mismo state de siempre', async () => {
+    conPrefill(prefill())
+    montar()
+    await screen.findAllByText('Ferretería San Martín')
+    await userEvent.click(screen.getAllByRole('checkbox')[0])
+    await userEvent.click(screen.getAllByRole('checkbox')[1])
+    await userEvent.click(screen.getByRole('button', { name: /^Facturar$/ }))
+
+    expect(await screen.findByText('Formulario de factura')).toBeInTheDocument()
+    const pedido = fetchMock.mock.calls.find(([u]) => String(u).includes('/facturar-prefill'))!
+    expect(String(pedido[0])).toBe('/api/comprobantes-pendientes/facturar-prefill')
+    expect(JSON.parse(String((pedido[1] as RequestInit).body))).toEqual({ ids: [1, 2] })
+    expect(estadoDelFormulario).toEqual({
+      clienteId: '7',
+      clienteNombreLibre: '',
+      concepto: '2',
+      condicionVenta: 'Contado',
+      taxRate: '21',
+      observations: 'Alquiler',
+      items: [{ description: 'Alquiler impresora', qty: '2', unit_price: '45000' }],
+      fchServDesde: '2026-08-01',
+      fchServHasta: '2026-08-31',
+      fchVtoPago: '2026-09-10',
+      comprobantesPendientesIds: [1, 2],
+      avisos: ['Dos períodos distintos'],
+    })
+  })
+
+  it('un cliente que no está dado de alta va por nombre libre y no por id', async () => {
+    conPrefill(prefill({ client_id: null, client_name: 'Consumidor ocasional' }))
+    montar()
+    await screen.findAllByText('Ferretería San Martín')
+    await userEvent.click(screen.getAllByRole('checkbox')[0])
+    await userEvent.click(screen.getByRole('button', { name: /^Facturar$/ }))
+
+    await screen.findByText('Formulario de factura')
+    expect(estadoDelFormulario).toMatchObject({ clienteId: '', clienteNombreLibre: 'Consumidor ocasional' })
+  })
+
+  it('el admin descarta', async () => {
+    conBandeja([comprobante()])
+    montar()
+    await screen.findByText('Ferretería San Martín')
+    expect(screen.getByTitle('Descartar')).toBeInTheDocument()
+  })
+
+  it('quien no es admin no ve «Descartar»', async () => {
+    rol = 'cajero'
+    conBandeja([comprobante()])
+    montar()
+    await screen.findByText('Ferretería San Martín')
+    expect(screen.queryByTitle('Descartar')).not.toBeInTheDocument()
   })
 })
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## Sin publicar — 2026-10-21
+
+### La caja del nodo sube al central y la bandeja de comprobantes pasa al kit (libracore ADR-076, libracommerce ADR-069, libra-ui ADR-087; sin migración)
+
+- **Decisión del humano (2026-10-21):** en un nodo offline, abrir y cerrar turnos y anotar o anular movimientos de caja a mano suben al central (fase 2 de LibraEdge).
+- **`app/offline.py`:** `GANCHOS_DE_CAJA = caja_con_outbox(GanchosDeCaja(), OUTBOX)`. Fuera de un nodo es `GanchosDeCaja()` sin efecto (no encola nada). `OUTBOX` sigue con `caja_con_turno=False`: `crear_venta_directa` y `acreditar_pago_qr` de este producto no escriben el turno en la caja de la venta.
+- **`app/web/app.py`:** `build_caja_router` y `build_turnos_router` reciben `ganchos_de_caja=GANCHOS_DE_CAJA`. No se monta el cierre diario, así que no hay `dia.cerrado` ni reapertura que proteger.
+- **`app/db_turnos.py`:** `cerrar_turno(..., *, ganchos=None)` (el router lo exige con `ganchos_de_caja`; `libracommerce.erp.ventas.cerrar_turno` todavía no lo acepta). Usa `_cerrar_en` de `libracore.db.turnos`, el cierre común del motor, con el resumen de ventas de este producto: el arqueo es el de siempre.
+- **Central:** el despachador ya registra las cinco operaciones de caja (`registrar_en`).
+- **Frontend:** `pages/ComprobantesPendientes.tsx` es ahora un envoltorio de `BandejaDeComprobantes` de libra-ui (v0.173.0): `alFacturar` lleva a `/facturas/nuevo` con el mismo `state`, `puedeDescartar` es el rol admin. Se borran los tipos `ComprobantePendiente*` y `PrefillComprobantes` de `api.ts` (ahora son de `libra-ui/comprobantes-pendientes`).
+- **Tests:** `test_libraedge_de_punta_a_punta.py` (la caja del nodo se encola en orden y sube sin duplicar la de la venta; el central no encola la suya), `test_libraedge_fuera_de_un_nodo.py` (turnos y caja a mano no encolan nada y el arqueo no cambia) y `comprobantes-pendientes.test.tsx` (el `state` del formulario y el descarte por rol).
+
 ## Sin publicar — 2026-10-20
 
 ### LibraEdge incluido en todos los planes y el código de vinculación (libraedge ADR-014, libra-ui ADR-085; sin migración)

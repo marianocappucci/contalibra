@@ -17,8 +17,9 @@ Se le pasa `get_connection` —la fábrica de LibraCore, la misma que usa el res
 ## Qué se aplica
 
 Un `Despachador` (libraedge ADR-007) con las cinco operaciones de venta de la capa ERP (`venta.registrada`,
-`venta.pago_acreditado`, `venta.anulada`, `venta.devolucion`, `venta.facturada`; libracommerce ADR-067 y ADR-068), con
-los ganchos del producto. Lo que no tiene aplicador **no se marca aplicado**: va a revisión manual
+`venta.pago_acreditado`, `venta.anulada`, `venta.devolucion`, `venta.facturada`; libracommerce ADR-067 y ADR-068) y las
+cinco de la caja del nodo (`turno.abierto`, `turno.cerrado`, `caja.movimiento`, `caja.movimiento_anulado`, `dia.cerrado`;
+libracommerce ADR-069), con los ganchos del producto. Lo que no tiene aplicador **no se marca aplicado**: va a revisión manual
 (`libraedge-central revision listar|reintentar|descartar`, con
 `LIBRAEDGE_DESPACHADOR=app.web.routers.sincronizacion_offline:despachador`).
 
