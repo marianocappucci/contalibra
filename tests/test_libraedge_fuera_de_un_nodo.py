@@ -218,4 +218,5 @@ def test_cualquier_instancia_registra_un_nodo_sin_contratar_nada(admin_client):
     with get_connection() as conn:
         alta = registrar(conn, aprovisionamiento, "nodo-ficticio", "Casa central", salida=lambda _: None)
     assert alta.sucursal.nombre == "Casa central" and alta.prefijo
-    assert set(alta.espejo) == set(offline.TABLAS_DE_REFERENCIA)
+    # Más `libraedge_mapeo`, que suma solo la declaración de altas en el nodo (libraedge ADR-021): por ahí baja el id definitivo.
+    assert set(alta.espejo) == set(offline.TABLAS_DE_REFERENCIA) | {"libraedge_mapeo"}
