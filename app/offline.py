@@ -10,6 +10,8 @@ fue el primer adoptante (E5); lo que queda acá es declarativo.
 |---|---|
 | `aprovisionamiento` | las tablas de referencia (el reparto de autoridad) y las sucursales |
 | `OUTBOX` | la identidad del nodo y si está en línea. Sin `extra_de_venta`: la venta de mostrador no lleva nada propio |
+| `GANCHOS_DE_CAJA` | la caja del nodo (turnos y movimientos a mano) sube al central como operaciones |
+| `altas_en_nodo` | los clientes que se dan de alta en el nodo (id provisorio y `cliente.alta`) suben al central |
 | `CONEXION` / `numerar_en_el_nodo` | en el nodo, facturar con el ticket de ARCA que presta el central |
 
 🔑 **Fuera de un nodo nada cambia.** Una instancia común —Compulibra, la demo— no tiene `LIBRAEDGE_NODE_ID`:
@@ -30,6 +32,11 @@ no vende**: `NodoLocal` levanta `ValueError` en la primera venta, porque numerar
 
 Vende y cobra en el mostrador, anula y devuelve; todo sube al central como
 operaciones (`venta.registrada`, `venta.pago_acreditado`, `venta.anulada`, `venta.devolucion`, `venta.facturada`).
+También **abre y cierra turnos, anota y anula movimientos de caja a mano** y todo eso sube (`turno.abierto`,
+`turno.cerrado`, `caja.movimiento`, `caja.movimiento_anulado`; decisión del humano, 2026-10-21; libracore ADR-076 y
+libracommerce ADR-069): los routers de caja y de turnos reciben `GANCHOS_DE_CAJA`. Los movimientos que nacen de una venta
+**no** se enganchan: los reproduce el central al aplicar la venta. Este producto no monta el cierre diario
+(`build_cierre_diario_router`): no hay `dia.cerrado` que subir ni `reabrir` que proteger.
 Factura **desde la venta** con internet (ticket prestado) y, sin conexión, la venta queda en la bandeja y se factura
 sola al volver. **No** emite facturas sueltas, remitos, presupuestos, recibos ni notas: eso es del central y necesita
 internet. Sin conexión el QR de MercadoPago está apagado.
@@ -49,6 +56,11 @@ from __future__ import annotations
 import os
 
 from libracommerce.erp.offline import NodoLocal, Outbox
+from libracommerce.erp.offline_caja import caja_con_outbox
+from libracommerce.erp.offline_clientes import altas_en_nodo as altas_de_clientes
+from libracore import altas_en_nodo
+from libracore.altas_en_nodo import REFERENCIAS_DE_CLIENTES
+from libracore.ganchos_de_caja import GanchosDeCaja
 from libracore.nodo_offline import VARIABLE_ESTADO, ConexionDelNodo, esta_en_linea
 from libraedge.identidad import nodo_actual, prefijo_actual
 
@@ -129,6 +141,21 @@ CONEXION = ConexionDelNodo(nodo=nodo, en_linea=en_linea)
 #: El outbox de LibraEdge para `libracommerce.erp.offline.con_outbox`. El mismo en el nodo y en el central: fuera de un
 #: nodo (`nodo_local()` es `None`) no encola nada. La venta de mostrador no lleva nada propio (`extra_de_venta`).
 OUTBOX = Outbox(nodo=nodo_local, en_linea=en_linea)
+
+#: Los ganchos de la caja para `build_caja_router` y `build_turnos_router` (`ganchos_de_caja=`): en un nodo encolan en el
+#: `OUTBOX` el turno que se abre o se cierra y el movimiento que se anota o se anula; **fuera de un nodo** (`nodo_local()`
+#: es `None`) no hacen nada, como `GanchosDeCaja()`. Se pasan por llamada y no se registran globalmente: la caja de una
+#: venta no sube acá sino con la venta (`erp.offline_caja`, «Qué sube y qué no»). `OUTBOX` va con `caja_con_turno=False`
+#: (el default) porque `registrar_venta` y `acreditar_pago_qr` de este producto no escriben el turno en la caja.
+GANCHOS_DE_CAJA = caja_con_outbox(GanchosDeCaja(), OUTBOX)
+
+#: Las altas de clientes en un nodo (libracore ADR-077, libracommerce ADR-070): en un nodo, cualquier alta de
+#: `libracore.db.clients` (`POST /api/clientes`, el alta del cobro, el fiado, la ingesta por integración) guarda al
+#: cliente con un **id provisorio negativo** y encola `cliente.alta` en el `OUTBOX`, en la misma transacción del alta; el
+#: central le asigna su id y la venta a ese cliente sube traducida (`venta.registrada`). Se registra al importar este
+#: módulo, que importan la app y el CLI del central (`LIBRAEDGE_APROVISIONAMIENTO`): en las dos puntas. **Fuera de un nodo**
+#: (`nodo_local()` es `None`) el motor no pide ids provisorios ni avisa a nadie, y el alta es la de siempre (Compulibra).
+altas_en_nodo.configurar(altas_de_clientes(OUTBOX))
 
 
 # ── Facturar en el nodo con el ticket prestado ──────────────────────────────────────────────────────────────────────
@@ -239,6 +266,9 @@ def _aprovisionamiento():
         prefijo=PREFIJO, tablas_de_referencia=TABLAS_DE_REFERENCIA, listar_sucursales=_listar_sucursales,
         # Sin guarda comercial: LibraEdge está incluido en todos los planes (libraedge ADR-014).
         verificar_alta=sin_guarda, conectar=_conectar,
+        # Los clientes se dan de alta en el nodo (id provisorio): `clients` con lo que lo referencia sin FK
+        # (`cc_asientos.tercero_id`) y su `parties` espejo, a lo que apuntan las ventas.
+        altas_en_nodo=[("clients", REFERENCIAS_DE_CLIENTES), "parties"],
     )
 
 

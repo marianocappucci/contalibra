@@ -112,6 +112,29 @@ def test_el_cobro_parcial_la_acreditacion_y_la_anulacion_no_encolan_nada(admin_c
     _nada_encolado()
 
 
+def test_la_caja_a_mano_y_los_turnos_no_encolan_nada_y_el_arqueo_es_el_de_siempre(admin_client):
+    """Abrir un turno, anotar y anular un movimiento y cerrar el turno (libracore ADR-076) pasan por
+    `GANCHOS_DE_CAJA`: fuera de un nodo no encolan nada, y el cierre sigue arqueando contra las ventas del turno."""
+    from libracore.ganchos_de_caja import GanchosDeCaja
+
+    assert isinstance(offline.GANCHOS_DE_CAJA, GanchosDeCaja)
+    tid = admin_client.post("/api/turnos/abrir", json={"monto_inicial": 1000.0}).json()["id"]
+    venta = _venta(admin_client)
+    with get_connection() as conn:
+        db.vincular_venta_turno(venta["id"], tid, conn=conn)
+        conn.commit()
+    r = admin_client.post("/api/caja", json={
+        "fecha": HOY, "tipo": "egreso", "concepto": "Librería", "monto": 200.0, "medio_pago": "efectivo"})
+    assert r.status_code == 200, r.text
+    assert admin_client.delete(f"/api/caja/{r.json()['id']}").status_code == 200
+    r = admin_client.post(f"/api/turnos/{tid}/cerrar", json={"monto_declarado": 4000.0, "notas": "ok"})
+    assert r.status_code == 200, r.text
+    cerrado = r.json()
+    assert cerrado["estado"] == "cerrado" and cerrado["notas"] == "ok"
+    assert cerrado["monto_esperado_cierre"] == 4000.0, "1000 de apertura más los 3000 en efectivo de la venta del turno"
+    _nada_encolado()
+
+
 def test_las_rutas_del_nodo_dicen_que_no_es_un_nodo_y_no_hacen_nada(admin_client):
     assert admin_client.get("/api/nodo/conexion").json() == {
         "es_nodo": False, "en_linea": True, "node_id": None, "a_facturar": 0}
@@ -195,4 +218,5 @@ def test_cualquier_instancia_registra_un_nodo_sin_contratar_nada(admin_client):
     with get_connection() as conn:
         alta = registrar(conn, aprovisionamiento, "nodo-ficticio", "Casa central", salida=lambda _: None)
     assert alta.sucursal.nombre == "Casa central" and alta.prefijo
-    assert set(alta.espejo) == set(offline.TABLAS_DE_REFERENCIA)
+    # Más `libraedge_mapeo`, que suma solo la declaración de altas en el nodo (libraedge ADR-021): por ahí baja el id definitivo.
+    assert set(alta.espejo) == set(offline.TABLAS_DE_REFERENCIA) | {"libraedge_mapeo"}

@@ -666,6 +666,14 @@ se baja una sola vez y no se muestra). También se descarga el instalador (`libr
 Releases de LibraEdge), se ven los nodos con su última sincronización, se pide otro código, se anula y se dan de baja.
 La URL del central que va en la carga sale de `LIBRAEDGE_CENTRAL_URL` o, si no está, del origen de `<PRODUCTO>_RESET_URL_BASE`.
 
+**La caja del nodo sube al central (fase 2; libracore ADR-076, libracommerce ADR-069).** Abrir y cerrar un turno y anotar o
+anular un movimiento de caja a mano en el nodo se encolan junto con las ventas (`turno.abierto`, `turno.cerrado`,
+`caja.movimiento`, `caja.movimiento_anulado`) y el central los reproduce con su `origen` (el id del nodo). La caja de una
+venta **no** sube aparte: la escribe el central al aplicar la venta. Este producto no monta el cierre diario, así que
+`dia.cerrado` no se genera. Si el turno o el movimiento no se puede aplicar (su `turno.abierto` quedó en revisión, la caja no
+llegó al central), va a revisión manual como cualquier operación; los arqueos que no coinciden quedan marcados
+`[REVISAR ARQUEO]` en las notas del turno.
+
 **Una instancia sin nodo no cambia en nada** (Compulibra hoy): las tablas de LibraEdge (`0007_libraedge`) quedan vacías,
 `/sync/v1/*` contesta 401 a todo y `/api/nodo/conexion` dice `es_nodo: false`.
 

@@ -1,5 +1,25 @@
 # Changelog
 
+## Sin publicar — 2026-10-21
+
+### Los clientes que se dan de alta en un nodo suben al central (libracore ADR-077, libracommerce ADR-070, libraedge ADR-021; sin migración)
+
+- **Decisión del humano (2026-10-21):** las altas de clientes en un nodo se permiten y suben; el central asigna su id y reescribe las referencias. Hasta hoy el cliente nacía con el id de la secuencia de la base del nodo, que no coincide con los del central: el espejo lo pisaba o la venta subía a nombre de otro cliente.
+- **`app/offline.py`:** `altas_en_nodo.configurar(altas_de_clientes(OUTBOX))` junto al `OUTBOX` (se registra al importar el módulo, que importan la app y el CLI del central: las dos puntas) y `Aprovisionamiento(altas_en_nodo=[("clients", REFERENCIAS_DE_CLIENTES), "parties"])`. En un nodo, cualquier alta de `libracore.db.clients` (`POST /api/clientes`, el alta del cobro, el fiado, la ingesta por integración) guarda al cliente con un id provisorio negativo y encola `cliente.alta` en la misma transacción; la venta a ese cliente sube después con `venta.registrada` y el central la deja a su nombre. Fuera de un nodo (Compulibra) no cambia nada. Este producto no tiene `extra_de_venta`: ninguna operación propia lleva un cliente.
+- **Hay que republicar:** declarar las altas suma `libraedge_mapeo` al espejo y a las tablas de sólo lectura del nodo, así que los nodos ya registrados vuelven a publicarse (`libraedge-central nodo publicar`) y reinstalan su configuración para bajar el id definitivo.
+- **Tests:** `test_altas_en_el_nodo.py` (el cableado; fuera de un nodo el alta sigue igual y no encola; en un nodo ids negativos y `cliente.alta` en el outbox), `test_libraedge_de_punta_a_punta.py` (con dos bases: alta en el nodo, venta a ese cliente, suben `cliente.alta` y `venta.registrada` en ese orden, el central crea al cliente con su id y la venta queda a su nombre, y el nodo reapunta cuando el id definitivo baja) y `test_libraedge_fuera_de_un_nodo.py` (el espejo suma `libraedge_mapeo`).
+- Pines: **libracore `v1.189.0`** (antes `v1.188.1`), **libracommerce `v0.70.0`** (antes `v0.69.1`) y **libraedge `v0.18.0`** (antes `v0.17.0`).
+
+### La caja del nodo sube al central y la bandeja de comprobantes pasa al kit (libracore ADR-076, libracommerce ADR-069, libra-ui ADR-087; sin migración)
+
+- **Decisión del humano (2026-10-21):** en un nodo offline, abrir y cerrar turnos y anotar o anular movimientos de caja a mano suben al central (fase 2 de LibraEdge).
+- **`app/offline.py`:** `GANCHOS_DE_CAJA = caja_con_outbox(GanchosDeCaja(), OUTBOX)`. Fuera de un nodo es `GanchosDeCaja()` sin efecto (no encola nada). `OUTBOX` sigue con `caja_con_turno=False`: `crear_venta_directa` y `acreditar_pago_qr` de este producto no escriben el turno en la caja de la venta.
+- **`app/web/app.py`:** `build_caja_router` y `build_turnos_router` reciben `ganchos_de_caja=GANCHOS_DE_CAJA`. No se monta el cierre diario, así que no hay `dia.cerrado` ni reapertura que proteger.
+- **`app/db_turnos.py`:** `cerrar_turno(..., *, ganchos=None)` (el router lo exige con `ganchos_de_caja`; `libracommerce.erp.ventas.cerrar_turno` todavía no lo acepta). Usa `_cerrar_en` de `libracore.db.turnos`, el cierre común del motor, con el resumen de ventas de este producto: el arqueo es el de siempre.
+- **Central:** el despachador ya registra las cinco operaciones de caja (`registrar_en`).
+- **Frontend:** `pages/ComprobantesPendientes.tsx` es ahora un envoltorio de `BandejaDeComprobantes` de libra-ui (v0.173.0): `alFacturar` lleva a `/facturas/nuevo` con el mismo `state`, `puedeDescartar` es el rol admin. Se borran los tipos `ComprobantePendiente*` y `PrefillComprobantes` de `api.ts` (ahora son de `libra-ui/comprobantes-pendientes`).
+- **Tests:** `test_libraedge_de_punta_a_punta.py` (la caja del nodo se encola en orden y sube sin duplicar la de la venta; el central no encola la suya), `test_libraedge_fuera_de_un_nodo.py` (turnos y caja a mano no encolan nada y el arqueo no cambia) y `comprobantes-pendientes.test.tsx` (el `state` del formulario y el descarte por rol).
+
 ## Sin publicar — 2026-10-20
 
 ### LibraEdge incluido en todos los planes y el código de vinculación (libraedge ADR-014, libra-ui ADR-085; sin migración)
