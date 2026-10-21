@@ -63,6 +63,10 @@ describe('el icono del título sale del sidebar', () => {
     // 2026-10-08 (libra-ui v0.128.0): `Dashboard.tsx` era una copia previa a la extracción del kit y pasó a ser
     // un wrapper de `libra-ui/comercio/Dashboard` (que lleva `ICONOS.dashboard`, el del sidebar): el piso baja
     // uno más (de 4 a 3).
-    expect(conIcono).toBeGreaterThanOrEqual(3)
+    //
+    // 2026-10-21 (libra-ui v0.173.0, ADR-087): `ComprobantesPendientes.tsx` pasó a ser un envoltorio de
+    // `libra-ui/BandejaDeComprobantes` (que lleva `ICONOS.comprobantesAFacturar`, el del sidebar): el piso baja uno más
+    // (de 3 a 2).
+    expect(conIcono).toBeGreaterThanOrEqual(2)
   })
 })

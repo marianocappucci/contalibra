@@ -383,6 +383,83 @@ def test_un_nodo_dado_de_baja_no_recibe_el_ticket_y_no_va_a_la_bandeja(escenario
     assert esc.client.get(f"/api/ventas/{venta['id']}").json()["factura_pendiente"] is None
 
 
+# ── La caja del nodo sube al central (libracore ADR-076, libracommerce ADR-069) ─────────────────────────────────────
+
+
+def _operaciones_sin_subir(esc) -> list[str]:
+    from libraedge.db.repository import NodeRepository
+
+    from app.db_core import get_connection
+
+    with get_connection() as conn:
+        return [op.operation_type for op in NodeRepository(conn).list_pending_operations()]
+
+
+def test_la_caja_del_nodo_se_encola_y_sube_al_central_sin_duplicar_lo_de_la_venta(escenario):
+    """Abrir el turno, anotar un movimiento a mano, anularlo, una venta y cerrar el turno: el nodo encola en ese orden
+    y el central reproduce todo, con el `origen` del nodo y sin duplicar la caja de la venta (que sube con la venta)."""
+    esc = escenario
+    hoy = datetime.date.today().isoformat()
+
+    r = esc.client.post("/api/turnos/abrir", json={"monto_inicial": 1000.0, "notas": "mañana"})
+    assert r.status_code == 200, r.text
+    turno = r.json()["id"]
+    r = esc.client.post("/api/caja", json={
+        "fecha": hoy, "tipo": "egreso", "concepto": "Librería", "monto": 200.0, "medio_pago": "efectivo"})
+    assert r.status_code == 200, r.text
+    anulado = r.json()["id"]
+    assert esc.client.delete(f"/api/caja/{anulado}").status_code == 200
+    r = esc.client.post("/api/caja", json={
+        "fecha": hoy, "tipo": "ingreso", "concepto": "Cambio", "monto": 500.0, "medio_pago": "efectivo"})
+    assert r.status_code == 200, r.text
+    conservado = r.json()["id"]
+    venta = esc.vender()
+    from app import database as db
+    from app.db_core import get_connection
+
+    with get_connection() as conn:
+        db.vincular_venta_turno(venta["id"], turno, conn=conn)
+        conn.commit()
+    r = esc.client.post(f"/api/turnos/{turno}/cerrar", json={"monto_declarado": 6000.0, "notas": "cerrado"})
+    assert r.status_code == 200, r.text
+
+    assert _operaciones_sin_subir(esc) == [
+        "turno.abierto", "caja.movimiento", "caja.movimiento_anulado", "caja.movimiento", "venta.registrada",
+        "turno.cerrado"], "en el orden en que ocurrieron, y la caja de la venta no es un caja.movimiento"
+
+    esc.subir()
+    assert esc.en_revision_en_el_nodo() == ()
+    assert _operaciones_sin_subir(esc) == []
+
+    turnos = _en_el_central(
+        esc, "SELECT estado, monto_inicial, monto_declarado_cierre, origen, origen_id FROM turnos_caja")
+    assert turnos == [("cerrado", 1000.0, 6000.0, NODO, turno)]
+    movimientos = _en_el_central(
+        esc, "SELECT tipo, monto, anulado, origen_id FROM caja_movimientos WHERE origen = ? ORDER BY origen_id",
+        (NODO,))
+    assert movimientos == [("egreso", 200.0, 1, anulado), ("ingreso", 500.0, 0, conservado)]
+    de_la_venta = _en_el_central(esc, "SELECT COUNT(*) FROM caja_movimientos WHERE origen IS NULL")
+    assert de_la_venta == [(1,)], "la caja de la venta la escribe el central al aplicar la venta, una sola vez"
+
+    esc.subir()
+    assert _en_el_central(esc, "SELECT COUNT(*) FROM turnos_caja") == [(1,)]
+    assert _en_el_central(esc, "SELECT COUNT(*) FROM caja_movimientos WHERE origen = ?", (NODO,)) == [(2,)]
+
+
+def test_el_central_no_encola_su_propia_caja(escenario):
+    """La misma app en el central (sin identidad de nodo) abre y cierra turnos como siempre y no encola nada."""
+    from app.db_core import get_connection
+
+    esc = escenario
+    with esc.central():
+        r = esc.client.post("/api/turnos/abrir", json={"monto_inicial": 100.0})
+        assert r.status_code == 200, r.text
+        turno = r.json()["id"]
+        assert esc.client.post(f"/api/turnos/{turno}/cerrar", json={"monto_declarado": 100.0}).status_code == 200
+        with get_connection() as conn:
+            assert conn.execute("SELECT COUNT(*) FROM sync_outbox").fetchone()[0] == 0
+
+
 # ── El reparto de autoridad (las tablas de referencia) ───────────────────
 
 

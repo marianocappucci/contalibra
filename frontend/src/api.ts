@@ -81,64 +81,6 @@ export type User = {
   comprobantes_pendientes_count: number
 }
 
-// Lo que otro producto de la familia dejó para facturar acá. El mecanismo vive
-// en libracore (`comprobantes_pendientes`); ver
-// wiki/analyses/libradesk-contalibra-puente-facturacion.md.
-export type ComprobantePendienteItem = {
-  description: string
-  qty: number
-  unit_price: number
-  iva_rate: number
-}
-
-export type ComprobantePendiente = {
-  id: number
-  origen_producto: string
-  origen_instancia: string
-  // `venta`: la deja el nodo offline del propio producto (una venta cobrada sin conexión, libracore ADR-074); se
-  // factura desde la venta, no con el formulario (`esVentaSinConexion` de libra-ui).
-  origen_tipo: 'cuota_contrato' | 'incidencia' | 'remito' | 'presupuesto' | 'venta'
-  origen_id: string
-  cliente_id: number | null
-  cliente_cuit: string
-  cliente_razon: string
-  cliente_domicilio: string
-  periodo_desde: string
-  periodo_hasta: string
-  concepto: string
-  condicion_venta: string
-  observaciones: string
-  items: ComprobantePendienteItem[]
-  total: number
-  estado: 'pendiente' | 'facturado' | 'descartado'
-  factura_id: number | null
-  motivo_descarte: string
-  resuelto_at: string
-  resuelto_por: string
-  created_at: string
-}
-
-// El formulario de factura armado a partir de los pendientes elegidos. No trae
-// `tipo` ni `punto_venta` a propósito: los decide el producto según la
-// condición de IVA del emisor y del receptor.
-export type PrefillComprobantes = {
-  comprobantes_ids: number[]
-  avisos: string[]
-  concepto: number
-  condicion_venta: string
-  tax_rate: number
-  client_id: number | null
-  client_name: string
-  client_cuit: string
-  client_address: string
-  fecha: string
-  observations: string
-  items: { description: string; qty: number; unit_price: number }[]
-  fch_serv_desde: string
-  fch_serv_hasta: string
-  fch_vto_pago: string
-}
-
 export type FacturaSinCobrar = {
   id: number
   tipo: number
