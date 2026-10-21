@@ -2,6 +2,14 @@
 
 ## Sin publicar — 2026-10-21
 
+### Los clientes que se dan de alta en un nodo suben al central (libracore ADR-077, libracommerce ADR-070, libraedge ADR-021; sin migración)
+
+- **Decisión del humano (2026-10-21):** las altas de clientes en un nodo se permiten y suben; el central asigna su id y reescribe las referencias. Hasta hoy el cliente nacía con el id de la secuencia de la base del nodo, que no coincide con los del central: el espejo lo pisaba o la venta subía a nombre de otro cliente.
+- **`app/offline.py`:** `altas_en_nodo.configurar(altas_de_clientes(OUTBOX))` junto al `OUTBOX` (se registra al importar el módulo, que importan la app y el CLI del central: las dos puntas) y `Aprovisionamiento(altas_en_nodo=[("clients", REFERENCIAS_DE_CLIENTES), "parties"])`. En un nodo, cualquier alta de `libracore.db.clients` (`POST /api/clientes`, el alta del cobro, el fiado, la ingesta por integración) guarda al cliente con un id provisorio negativo y encola `cliente.alta` en la misma transacción; la venta a ese cliente sube después con `venta.registrada` y el central la deja a su nombre. Fuera de un nodo (Compulibra) no cambia nada. Este producto no tiene `extra_de_venta`: ninguna operación propia lleva un cliente.
+- **Hay que republicar:** declarar las altas suma `libraedge_mapeo` al espejo y a las tablas de sólo lectura del nodo, así que los nodos ya registrados vuelven a publicarse (`libraedge-central nodo publicar`) y reinstalan su configuración para bajar el id definitivo.
+- **Tests:** `test_altas_en_el_nodo.py` (el cableado; fuera de un nodo el alta sigue igual y no encola; en un nodo ids negativos y `cliente.alta` en el outbox), `test_libraedge_de_punta_a_punta.py` (con dos bases: alta en el nodo, venta a ese cliente, suben `cliente.alta` y `venta.registrada` en ese orden, el central crea al cliente con su id y la venta queda a su nombre, y el nodo reapunta cuando el id definitivo baja) y `test_libraedge_fuera_de_un_nodo.py` (el espejo suma `libraedge_mapeo`).
+- Pines: **libracore `v1.189.0`** (antes `v1.188.1`), **libracommerce `v0.70.0`** (antes `v0.69.1`) y **libraedge `v0.18.0`** (antes `v0.17.0`).
+
 ### La caja del nodo sube al central y la bandeja de comprobantes pasa al kit (libracore ADR-076, libracommerce ADR-069, libra-ui ADR-087; sin migración)
 
 - **Decisión del humano (2026-10-21):** en un nodo offline, abrir y cerrar turnos y anotar o anular movimientos de caja a mano suben al central (fase 2 de LibraEdge).
