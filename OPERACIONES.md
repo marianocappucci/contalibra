@@ -674,6 +674,15 @@ venta **no** sube aparte: la escribe el central al aplicar la venta. Este produc
 llegó al central), va a revisión manual como cualquier operación; los arqueos que no coinciden quedan marcados
 `[REVISAR ARQUEO]` en las notas del turno.
 
+**El stock de la sucursal del nodo lo mueve sólo el nodo (fase 2; libracommerce ADR-071, libraedge ADR-023).** Al vincular, el
+nodo trae las existencias de **su** sucursal del central (`GET /sync/v1/carga-inicial`; una vez por nodo, la corre el propio
+nodo con `LIBRAEDGE_CARGA_INICIAL`) y desde ahí manda él: sus ajustes (la entrada de mercadería es el ajuste en modo «entrada»;
+Contalibra no tiene compras) y sus transferencias entre depósitos de la sucursal suben como `stock.movimiento`. **El central
+contesta 409** (`deposito_de_sucursal_con_nodo`) a todo lo que mueva un depósito de esa sucursal desde la web: ajustes,
+transferencias y ventas; dar de baja el nodo le devuelve el stock al central. Antes de vincular, todo depósito activo tiene que
+tener sucursal (el registro se niega y dice cuáles). El central tiene que estar migrado con `libracommerce-migrar upgrade
+--prefijo contalibra` (revisión 0008).
+
 **Una instancia sin nodo no cambia en nada** (Compulibra hoy): las tablas de LibraEdge (`0007_libraedge`) quedan vacías,
 `/sync/v1/*` contesta 401 a todo y `/api/nodo/conexion` dice `es_nodo: false`.
 

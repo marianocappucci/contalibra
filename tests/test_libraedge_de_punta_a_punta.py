@@ -153,6 +153,7 @@ def _cable(escenario):
 
 @pytest.fixture()
 def escenario(admin_client, monkeypatch, tmp_path):
+    from libracommerce.migrar import upgrade as migrar_libracommerce
     from libracore import arca_credenciales, arca_wsaa, arca_wsfe
     from libracore.db import arca_config as db_arca
     from libracore.respaldo_postgres import con_base
@@ -164,12 +165,19 @@ def escenario(admin_client, monkeypatch, tmp_path):
     from app import db_core, db_usuarios, offline
     from app.db_core import get_connection
 
+    # El deploy migra la cadena de LibraCommerce (`libracommerce-migrar upgrade --prefijo contalibra`), pero `init_db()` sólo trae su
+    # baseline congelada: sin la revisión 0008 (`stock_movements.origen`/`origen_id`, libracommerce ADR-071) el central no puede
+    # aplicar `stock.movimiento`. Se migra la base del nodo ANTES de copiarla al central, como están las dos en producción.
+    migrar_libracommerce(db_core.DB_PATH)
+
     # La referencia que el central publica y el nodo espeja: un producto con stock y ARCA (datos ficticios).
     producto = admin_client.post("/api/productos", json={
         "nombre": "Cable UTP", "precio_venta": 5000.0, "precio_costo": 3000.0}).json()
     assert admin_client.post(f"/api/stock/{producto['id']}/ajuste",
                              json={"modo": "absoluto", "cantidad": 50}).status_code == 200
     db_arca.crear_arca_config("Comercio Ficticio", "20000000001", 3, "", "", ambiente="homologacion")
+    # Un segundo depósito de la misma sucursal, para las transferencias del nodo (libracommerce ADR-071).
+    camioneta = admin_client.post("/api/depositos", json={"nombre": "Camioneta"}).json()
 
     # El central: una copia de la base en este momento.
     worker = db_core.DB_PATH.rsplit("/", 1)[1].split("?")[0]
@@ -197,6 +205,8 @@ def escenario(admin_client, monkeypatch, tmp_path):
     node_conn = get_connection()
     esc = _Escenario(admin_client, url_central, node_conn, secreto, ruta_estado)
     esc.producto = producto
+    esc.camioneta = camioneta
+    esc.principal = next(d for d in admin_client.get("/api/depositos").json() if d["id"] != camioneta["id"])
     esc.en_linea(True)
 
     cable = _cable(esc)
@@ -558,3 +568,186 @@ def test_las_tablas_de_referencia_existen_tienen_clave_y_no_apuntan_afuera(clien
     assert plan.faltantes == () and plan.salteadas == ()
     # Más `libraedge_mapeo`, que suma solo la declaración de altas en el nodo (libraedge ADR-021).
     assert {t for t, _ in plan.publicables} == set(TABLAS_DE_REFERENCIA) | {"libraedge_mapeo"}
+
+
+# ── El stock de la sucursal del nodo (libracommerce ADR-071, libraedge ADR-023) ─────────────────────────────────────
+#
+# Decisiones del humano (2026-10-21): al vincular, el nodo trae las existencias de su sucursal; desde ahí el stock de esa
+# sucursal lo mueve sólo el nodo (el central contesta 409); las transferencias son sólo dentro de la sucursal. Contalibra
+# no tiene compras ni recepciones: la entrada de mercadería es el ajuste en modo «entrada».
+
+
+def _stock_en_el_nodo(esc, producto_id) -> float:
+    r = esc.client.get(f"/api/stock/{producto_id}")
+    assert r.status_code == 200, r.text
+    return float(r.json()["stock_actual"])
+
+
+def _stock_del_central_en(esc, producto_id, deposito_id) -> float:
+    filas = _en_el_central(
+        esc, "SELECT COALESCE(SUM(quantity_delta), 0) FROM stock_movements WHERE item_id = ? AND location_id = ?",
+        (producto_id, deposito_id))
+    return float(filas[0][0])
+
+
+def _ajustar(client, producto_id, **cuerpo):
+    return client.post(f"/api/stock/{producto_id}/ajuste", json=cuerpo)
+
+
+def test_un_ajuste_de_stock_del_nodo_sube_como_stock_movimiento_y_el_central_lo_aplica(escenario):
+    esc = escenario
+    pid = esc.producto["id"]
+    assert _ajustar(esc.client, pid, modo="entrada", cantidad=10, referencia="Llegó mercadería").status_code == 200
+    assert _ajustar(esc.client, pid, modo="salida", cantidad=4, referencia="Uso interno").status_code == 200
+    assert _stock_en_el_nodo(esc, pid) == 56.0
+    assert _operaciones_sin_subir(esc) == ["stock.movimiento", "stock.movimiento"], (
+        "cada fila del ledger que no es de una venta sube como stock.movimiento")
+
+    esc.subir()
+    assert esc.en_revision_en_el_nodo() == ()
+    assert _operaciones_sin_subir(esc) == []
+    assert _stock_del_central(esc, pid) == 56.0, "50 del alta, más 10 y menos 4"
+    # El central guarda de dónde vino cada fila: el nodo y su id. Es lo que lo vuelve idempotente.
+    filas = _en_el_central(
+        esc, "SELECT quantity_delta, origen, reason_code FROM stock_movements WHERE origen = ? ORDER BY origen_id",
+        (NODO,))
+    assert filas == [(10.0, NODO, "entrada"), (-4.0, NODO, "salida")]
+
+    # Un segundo ciclo no repite nada.
+    esc.subir()
+    assert _stock_del_central(esc, pid) == 56.0
+    assert len(_en_el_central(esc, "SELECT id FROM stock_movements WHERE origen = ?", (NODO,))) == 2
+
+
+def test_una_venta_del_nodo_no_sube_tambien_como_stock_movimiento(escenario):
+    """La salida de la venta viaja con `venta.registrada`: subirla además como movimiento descontaría el stock dos veces."""
+    esc = escenario
+    esc.vender(qty=2)
+    assert _operaciones_sin_subir(esc) == ["venta.registrada"]
+    esc.subir()
+    assert _stock_del_central(esc, esc.producto["id"]) == 48.0
+
+
+def test_una_transferencia_dentro_de_la_sucursal_sube_las_dos_patas_y_el_central_las_empareja(escenario):
+    esc = escenario
+    pid = esc.producto["id"]
+    r = esc.client.post("/api/depositos/transferir", json={
+        "producto_id": pid, "origen_id": esc.principal["id"], "destino_id": esc.camioneta["id"], "cantidad": 15})
+    assert r.status_code == 200, r.text
+    assert _operaciones_sin_subir(esc) == ["stock.movimiento", "stock.movimiento"]
+
+    esc.subir()
+    assert esc.en_revision_en_el_nodo() == ()
+    assert _stock_del_central_en(esc, pid, esc.principal["id"]) == 35.0
+    assert _stock_del_central_en(esc, pid, esc.camioneta["id"]) == 15.0
+    assert _stock_del_central(esc, pid) == 50.0, "una transferencia no crea ni destruye mercadería"
+
+
+def test_el_central_contesta_409_a_todo_lo_que_mueve_el_stock_de_una_sucursal_con_nodo(escenario):
+    """La misma app sin identidad de nodo (el central): ajustes, transferencias y ventas desde la web son 409, con el código
+    del motor, y no dejan nada escrito. Al dar de baja el nodo, el central vuelve a poder moverlo."""
+    esc = escenario
+    pid = esc.producto["id"]
+    antes = _stock_del_central(esc, pid)
+    ventas_antes = _en_el_central(esc, "SELECT COUNT(*) FROM sales")
+    with esc.central():
+        ajuste = _ajustar(esc.client, pid, modo="entrada", cantidad=5)
+        transferencia = esc.client.post("/api/depositos/transferir", json={
+            "producto_id": pid, "origen_id": esc.principal["id"], "destino_id": esc.camioneta["id"], "cantidad": 1})
+        venta = esc.client.post("/api/ventas", json={
+            "fecha": datetime.date.today().isoformat(),
+            "items": [{"producto_id": pid, "nombre": esc.producto["nombre"], "qty": 1, "precio": 5000.0}],
+            "pagos": [{"medio": "efectivo", "monto": 5000.0}],
+        })
+    for r in (ajuste, transferencia, venta):
+        assert r.status_code == 409, r.text
+        assert r.json()["codigo"] == "deposito_de_sucursal_con_nodo" and r.json()["node_id"] == NODO
+    assert _stock_del_central(esc, pid) == antes
+    assert _en_el_central(esc, "SELECT COUNT(*) FROM sales") == ventas_antes, "la venta rechazada no deja ni la cabecera"
+    assert _en_el_central(esc, "SELECT COUNT(*) FROM stock_movements WHERE origen IS NULL AND quantity_delta = 5") == [(0,)]
+
+    # Un nodo dado de baja ya no es dueño del stock de su sucursal.
+    from libraedge.db.repository import NodeRepository
+
+    from app.db_core import get_connection
+
+    with esc.central():
+        with get_connection() as conn:
+            NodeRepository(conn).deactivate_node(NODO)
+            conn.commit()
+        assert _ajustar(esc.client, pid, modo="entrada", cantidad=5).status_code == 200
+    assert _stock_del_central(esc, pid) == antes + 5
+
+
+def test_la_carga_inicial_trae_las_existencias_del_central_sin_duplicar_una_venta_ya_subida(escenario, monkeypatch):
+    """De punta a punta con el `CargaInicialWorker` real de LibraEdge, la ruta `GET /sync/v1/carga-inicial` del producto y
+    `aplicar_carga_inicial` de LibraCommerce (lo que declara `LIBRAEDGE_CARGA_INICIAL`)."""
+    from libraedge.db.repository import NodeRepository
+    from libraedge.sync import carga_inicial as carga
+    from libraedge.sync.esquema import version_de_alembic
+
+    esc = escenario
+    pid = esc.producto["id"]
+    monkeypatch.setattr(carga, "urlopen", _cable(esc))
+    worker = carga.CargaInicialWorker(
+        NodeRepository(esc.node_conn), esc.node_conn, NODO,
+        carga.HttpCargaInicialTransport(CENTRAL, NODO, esc.secreto, version_esquema=version_de_alembic(esc.node_conn)),
+        "libracommerce.erp.offline_stock:aplicar_carga_inicial")
+
+    # El nodo vendió 3 y todavía no subió: la carga espera (contaría la venta dos veces).
+    esc.vender(qty=3)
+    intento = worker.run_once()
+    assert intento.estado == carga.ESPERA and "operaciones_pendientes" in intento.detalle
+    assert _stock_en_el_nodo(esc, pid) == 47.0
+    esc.subir()
+    assert _stock_del_central(esc, pid) == 47.0
+
+    # Mientras tanto al central le entraron 20 (antes de que el nodo fuera el dueño del stock de la sucursal).
+    with esc.central():
+        from libraedge.db.repository import NodeRepository as Repositorio
+
+        from app.db_core import get_connection
+
+        with get_connection() as conn:
+            conn.execute("UPDATE node_identity SET active = 0")
+            conn.commit()
+        assert _ajustar(esc.client, pid, modo="entrada", cantidad=20).status_code == 200
+        with get_connection() as conn:
+            conn.execute("UPDATE node_identity SET active = 1")
+            conn.commit()
+            assert Repositorio(conn).verify_node_secret(NODO, esc.secreto)
+    assert _stock_del_central(esc, pid) == 67.0
+
+    intento = worker.run_once()
+    assert intento.estado == carga.HECHA, intento
+    assert intento.resultado["ajustes"] == 1, "sólo la diferencia (+20): lo vendido y ya subido está en las dos puntas"
+    assert _stock_en_el_nodo(esc, pid) == 67.0
+    assert _stock_del_central(esc, pid) == 67.0, "el central no se entera de nada: la carga no sube"
+    assert _operaciones_sin_subir(esc) == []
+    ajuste = [tuple(f) for f in esc.node_conn.execute(
+        "SELECT quantity_delta, reason_code FROM stock_movements WHERE reason_code = 'carga_inicial'").fetchall()]
+    esc.node_conn.commit()
+    assert ajuste == [(20.0, "carga_inicial")]
+
+    # Una vez por nodo, y volver a correrla a la fuerza (soporte) es idempotente: delta cero.
+    assert worker.run_once().estado == carga.YA_HECHA
+    forzada = worker.run_once(forzar=True)
+    assert forzada.estado == carga.HECHA and forzada.resultado["ajustes"] == 0
+    assert _stock_en_el_nodo(esc, pid) == 67.0
+
+
+def test_la_carga_inicial_es_de_la_sucursal_del_nodo_autenticado(escenario):
+    """La sucursal sale del nodo registrado y no del pedido; sin secreto del nodo, 401."""
+    from libraedge.sync.esquema import cabeceras_del_nodo, version_de_alembic
+
+    esc = escenario
+    version = version_de_alembic(esc.node_conn)
+    with esc.central():
+        sin_secreto = esc.client.get("/sync/v1/carga-inicial", params={"node_id": NODO})
+        r = esc.client.get("/sync/v1/carga-inicial", params={"node_id": NODO},
+                           headers=cabeceras_del_nodo(esc.secreto, version))
+    assert sin_secreto.status_code == 401
+    assert r.status_code == 200, r.text
+    datos = r.json()
+    assert {d["nombre"] for d in datos["depositos"]} >= {"Camioneta"}
+    assert [s["cantidad"] for s in datos["saldos"] if s["item_id"] == esc.producto["id"]] == ["50"]
