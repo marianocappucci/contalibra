@@ -46,6 +46,9 @@ log_lineas() {
 # contenedor es de un pin anterior a v0.19.0 y no tiene los subcomandos-- se registra en el log y el reset sigue
 # igual que antes.
 #
+# La sucursal a la que estan vinculados (`node_identity.branch_id`) tiene que existir con el MISMO id al restaurar: el seed
+# siembra la «Sucursal con PC del local» con el id fijo `ID_SUCURSAL_DEL_LOCAL` (2) y falla si sale otro, justamente para eso.
+#
 # El archivo tiene hashes de secretos: permisos 600, bajo /root, y se borra al restaurar. Si una corrida no llega a
 # restaurarlo (el seed fallo), queda: la proxima lo usa en vez de conservar de nuevo, porque la base de esa noche ya no
 # tiene los nodos y conservar escribiria una lista vacia.
