@@ -23,11 +23,19 @@ libracommerce ADR-069), con los ganchos del producto. Lo que no tiene aplicador 
 (`libraedge-central revision listar|reintentar|descartar`, con
 `LIBRAEDGE_DESPACHADOR=app.web.routers.sincronizacion_offline:despachador`).
 
+Y las dos de stock (`stock.movimiento` y `compra.recibida`; libracommerce ADR-071): `registrar_en` registra los trece tipos. Contalibra no
+tiene compras, así que en la práctica sólo sube `stock.movimiento` (los ajustes y las transferencias del nodo).
+
+La carga inicial (`GET /sync/v1/carga-inicial`, libraedge ADR-023): al vincular, el nodo trae las existencias de **su** sucursal
+(`offline_stock.carga_inicial_del_central`); la sucursal sale del nodo autenticado, no del pedido. Desde ahí el stock de esa
+sucursal lo mueve sólo el nodo: el central contesta 409 (`app/web/app.py`).
+
 El router además controla la versión del esquema (`version_de_alembic`: 409 si el nodo no está migrado igual que el
 central) y le presta al nodo el ticket de ARCA (`libracore.nodo_offline.ta_para_el_nodo`, libraedge ADR-009): la clave
 no sale del VPS.
 """
 
+from libracommerce.erp import offline_stock
 from libracommerce.erp.offline import registrar_en
 from libracore.nodo_offline import ta_para_el_nodo
 from libraedge.sync.api import create_sync_router
@@ -47,5 +55,5 @@ despachador = armar_despachador()
 
 router = create_sync_router(
     get_connection, despachador=despachador, version_esquema=version_de_alembic,
-    prestar_ticket=ta_para_el_nodo,
+    prestar_ticket=ta_para_el_nodo, carga_inicial=offline_stock.carga_inicial_del_central,
 )
