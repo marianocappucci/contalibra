@@ -370,3 +370,195 @@ def test_la_semilla_no_deja_datos_fiscales_reales_en_la_base(api_de_demo):
     with core.get_connection() as conn:
         hallazgos = auditar_datos_fiscales(conn)
     assert hallazgos == [], "\n".join(str(h) for h in hallazgos)
+
+
+# ── La sucursal de la PC del local (sólo con DEMO_MODE; decisión del humano, 2026-10-22) ────────────────────────────
+#
+# Con un nodo de LibraEdge vinculado a la única sucursal de la demo, la web queda con el stock en sólo lectura (409
+# `deposito_de_sucursal_con_nodo`, libracommerce ADR-071) y un visitante no puede vender. La semilla deja una segunda
+# sucursal con su depósito y algo de stock para que la PC se vincule ahí. `reset_demo.sh` restaura los nodos con su
+# `branch_id` viejo después de sembrar: el id de la sucursal tiene que ser SIEMPRE el mismo.
+
+
+def _filas(sql, params=()):
+    from app import db_core
+
+    with db_core.get_connection() as conn:
+        return [tuple(f) for f in conn.execute(sql, params).fetchall()]
+
+
+def _stock_por_deposito():
+    """{código: {nombre del depósito: existencia}} sólo de lo que no es cero."""
+    from scripts.seed_demo import PRODUCTOS
+
+    codigo_de = {nombre: codigo for nombre, codigo, *_ in PRODUCTOS}
+    por_codigo = {}
+    for nombre, deposito, cantidad in _filas(
+            "SELECT ci.name, l.name, SUM(sm.quantity_delta) FROM stock_movements sm "
+            "JOIN catalog_items ci ON ci.id = sm.item_id JOIN locations l ON l.id = sm.location_id "
+            "GROUP BY ci.name, l.name HAVING SUM(sm.quantity_delta) <> 0 ORDER BY ci.name, l.name"):
+        por_codigo.setdefault(codigo_de[nombre], {})[deposito] = float(cantidad)
+    return por_codigo
+
+
+def test_con_demo_mode_deja_la_sucursal_del_local_con_su_id_fijo_su_deposito_y_su_stock(api_de_demo):
+    from scripts.seed_demo import (
+        DEPOSITO_DEL_LOCAL,
+        ID_SUCURSAL_DEL_LOCAL,
+        STOCK,
+        STOCK_DEL_LOCAL,
+        SUCURSAL_DEL_LOCAL,
+    )
+
+    sembrar(api_de_demo)
+
+    # «Casa central» es la 1 y la predeterminada; la del local, la 2 y no predeterminada.
+    sucursales = _filas("SELECT id, name, is_default, default_location_id, active FROM branches ORDER BY id")
+    assert len(sucursales) == 2
+    (casa, nombre_casa, casa_default, casa_deposito, _), (local_id, nombre, local_default, local_deposito, activa) = sucursales
+    assert (casa, nombre_casa, casa_default) == (1, "Casa central", 1)
+    assert (local_id, nombre, local_default, activa) == (ID_SUCURSAL_DEL_LOCAL, SUCURSAL_DEL_LOCAL, 0, 1)
+    assert ID_SUCURSAL_DEL_LOCAL == 2 and SUCURSAL_DEL_LOCAL == "Sucursal con PC del local"
+    # Su depósito, predeterminado de ella, activo, y el de Casa central sigue siendo el de venta de la instancia.
+    assert _filas("SELECT id, name, is_default, active FROM locations WHERE branch_id = ?", (local_id,)) == [
+        (local_deposito, DEPOSITO_DEL_LOCAL, 0, 1)]
+    assert _filas("SELECT name, branch_id FROM locations WHERE is_default = 1") == [("Depósito principal", casa)]
+    assert casa_deposito != local_deposito
+    # El stock del local es el pedido, y el TOTAL de cada producto sigue siendo el de `STOCK` (lo que ve la pantalla).
+    por_deposito = _stock_por_deposito()
+    for codigo, cantidad in STOCK_DEL_LOCAL.items():
+        assert por_deposito[codigo][DEPOSITO_DEL_LOCAL] == cantidad
+        assert por_deposito[codigo]["Depósito principal"] == STOCK[codigo] - cantidad
+    assert {c for c, d in por_deposito.items() if DEPOSITO_DEL_LOCAL in d} == set(STOCK_DEL_LOCAL)
+    totales = {p["codigo"]: float(p["stock_actual"]) for p in api_de_demo.get("/api/stock")["productos"]}
+    assert {c: totales[c] for c in STOCK} == {c: float(v) for c, v in STOCK.items()}
+    # Y los productos en alerta siguen en alerta (el stock del local no los saca de ahí).
+    assert {a["codigo"] for a in api_de_demo.get("/api/stock")["alertas"]} >= {"PAP-003", "INF-003", "INF-001"}
+
+
+def test_fuera_de_demo_mode_no_crea_la_sucursal_del_local(api, monkeypatch, capsys):
+    from scripts.seed_demo import DEPOSITO_DEL_LOCAL, SUCURSAL_DEL_LOCAL
+
+    monkeypatch.delenv("DEMO_MODE", raising=False)
+    sembrar(api)
+
+    assert _filas("SELECT name FROM branches") == [("Casa central",)]
+    assert _filas("SELECT 1 FROM locations WHERE name = ?", (DEPOSITO_DEL_LOCAL,)) == []
+    assert _filas("SELECT 1 FROM branches WHERE name = ?", (SUCURSAL_DEL_LOCAL,)) == []
+    assert "sucursal del local: no es una instancia demo" in capsys.readouterr().out
+    # Todo el stock queda en el depósito de siempre.
+    assert {d for dep in _stock_por_deposito().values() for d in dep} == {"Depósito principal"}
+
+
+def test_correrlo_dos_veces_con_demo_mode_no_cambia_nada(api_de_demo):
+    sembrar(api_de_demo)
+    sucursales = _filas("SELECT id, name, is_default, default_location_id FROM branches ORDER BY id")
+    depositos = _filas("SELECT id, name, is_default, branch_id FROM locations ORDER BY id")
+    stock = _stock_por_deposito()
+    depositos_stock = _filas("SELECT location_id, SUM(quantity_delta) FROM stock_movements GROUP BY location_id ORDER BY 1")
+
+    sembrar(api_de_demo)
+
+    assert _filas("SELECT id, name, is_default, default_location_id FROM branches ORDER BY id") == sucursales
+    assert _filas("SELECT id, name, is_default, branch_id FROM locations ORDER BY id") == depositos
+    assert _stock_por_deposito() == stock, "la segunda corrida movió el stock entre depósitos"
+    assert _filas("SELECT location_id, SUM(quantity_delta) FROM stock_movements GROUP BY location_id ORDER BY 1") == depositos_stock
+    assert len(sucursales) == 2 and len(depositos) == 2
+
+
+def test_la_venta_web_del_visitante_sigue_saliendo_de_casa_central(api_de_demo):
+    """`get_default_sucursal_id` sigue siendo «Casa central»: la web vende de su depósito, no del del local."""
+    from libracommerce.erp import catalogo
+
+    from app import db_core
+
+    sembrar(api_de_demo)
+    with db_core.get_connection() as conn:
+        assert catalogo.get_default_sucursal_id(conn) == 1
+        assert catalogo.get_default_deposito_id(conn) == _filas("SELECT id FROM locations WHERE name = 'Depósito principal'")[0][0]
+    antes = _stock_por_deposito()["PAP-001"]
+    producto = next(p["id"] for p in _lista(api_de_demo.get("/api/productos")) if p["codigo"] == "PAP-001")
+
+    venta = api_de_demo.post("/api/ventas", {
+        "fecha": "2026-10-22", "items": [{"nombre": "Resma A4 75 g", "qty": 2, "precio": 8500, "producto_id": producto}],
+        "pagos": [{"medio": "efectivo", "monto": 17000}],
+    })
+
+    assert _filas("SELECT branch_id FROM sales WHERE id = ?", (venta["id"],)) == [(1,)]
+    despues = _stock_por_deposito()["PAP-001"]
+    assert despues["Depósito principal"] == antes["Depósito principal"] - 2
+    assert despues["Depósito del local"] == antes["Depósito del local"]
+
+
+def test_adoptar_no_vuelve_a_asignar_el_deposito_del_local_a_casa_central(api_de_demo):
+    """`adoptar` (la revisión 0006 y cada `init_db()`) sólo asigna los depósitos con `branch_id` NULL."""
+    from app import database as db
+    from app import db_core
+    from app.sucursal_unica import adoptar
+
+    sembrar(api_de_demo)
+    antes = _filas("SELECT id, name, branch_id FROM locations ORDER BY id")
+
+    with db_core.get_connection() as conn:
+        informe = adoptar(conn)
+    db.init_db()                                                 # el reinicio del contenedor
+
+    assert informe["depositos_asignados"] == 0 and informe["sucursal_creada"] is False
+    assert _filas("SELECT id, name, branch_id FROM locations ORDER BY id") == antes
+    assert [f[0] for f in _filas("SELECT id FROM branches ORDER BY id")] == [1, 2]
+
+
+def test_si_la_sucursal_no_sale_con_su_id_la_semilla_falla_y_no_deja_nada(api_de_demo):
+    """El reset restaura los nodos con el `branch_id` que tenían: otra numeración los dejaría en la sucursal equivocada,
+    sin error. Si alguien creó una sucursal antes que la semilla, se falla fuerte y no queda la del local escrita."""
+    from libracommerce.erp import catalogo
+
+    from app import db_core
+    from scripts.seed_demo import SUCURSAL_DEL_LOCAL
+
+    with db_core.get_connection() as conn:
+        catalogo.create_sucursal(conn, "Otra")                   # se queda con el id 2
+
+    with pytest.raises(RuntimeError, match="tiene que ser 2"):
+        sembrar(api_de_demo)
+
+    assert _filas("SELECT 1 FROM branches WHERE name = ?", (SUCURSAL_DEL_LOCAL,)) == []
+    assert [f[1] for f in _filas("SELECT id, name FROM branches ORDER BY id")] == ["Casa central", "Otra"]
+
+
+def test_en_el_reset_la_sucursal_del_local_sale_con_el_id_2_despues_de_la_cadena_y_el_arranque(client, monkeypatch):
+    """El orden real de `reset_demo.sh`: schema vacío -> cadenas de migración (la `0006` adopta «Casa central») ->
+    arranque (`init_db`) -> semilla. Se mide la numeración de `branches` en ese camino, no en la plantilla de la suite."""
+    from libracommerce.erp import catalogo
+
+    from app import database as db
+    from app import db_core
+    from tests.conftest import _reset_data_dir
+    from tests.test_sucursal_unica import _comandos_de_la_cadena, _correr
+
+    _reset_data_dir()                                            # base vacía, como después del DROP SCHEMA
+    for comando in _comandos_de_la_cadena("head"):
+        _correr(comando)
+    assert _filas("SELECT id, name FROM branches") == [(1, "Casa central")]
+    db.init_db()                                                 # el arranque de la app
+    assert _filas("SELECT id, name FROM branches") == [(1, "Casa central")]
+
+    with db_core.get_connection() as conn:
+        assert catalogo.create_sucursal(conn, "Sucursal con PC del local", deposito="Depósito del local") == 2
+
+
+def test_una_instancia_anterior_a_la_sucursal_unica_no_aborta_la_siembra(api_de_demo, capsys):
+    """El reset siembra con el seed de `develop` sobre un contenedor que puede ser de `main`: sin «Casa central» la del
+    local saldría con el id 1, y abortar dejaría la demo a medio sembrar. Se omite, y lo dice."""
+    from app import db_core
+
+    with db_core.get_connection() as conn:
+        conn.execute("UPDATE locations SET branch_id = NULL")
+        conn.execute("UPDATE cajas SET sucursal_id = NULL")
+        conn.execute("DELETE FROM branches")
+
+    sembrar(api_de_demo)
+
+    assert "la instancia no tiene «Casa central»" in capsys.readouterr().out
+    assert _filas("SELECT id FROM branches") == []
+    assert len(_lista(api_de_demo.get("/api/productos"))) == 9, "el resto de la siembra siguió"

@@ -11,6 +11,13 @@ validaciones y los mismos servicios que usa la pantalla. Un seed por SQL puede
 crear estados que la aplicación nunca produciría —un presupuesto aceptado sin
 su remito, por ejemplo— y entonces lo que se muestra no es el producto.
 
+Las **dos excepciones**, las dos acotadas a `DEMO_MODE=1` y por el motor y no por
+SQL: prender el add-on de la copia externa (`_prender_copia_externa`) y la
+**sucursal de la PC del local** (`_sembrar_sucursal_del_local`: una segunda
+sucursal con su depósito y algo de stock, porque Contalibra no expone
+`/api/sucursales` y con un nodo de LibraEdge en «Casa central» la web de la demo
+no podría vender, libracommerce ADR-071).
+
 **No cubre sólo el caso feliz.** Deja los estados que las pantallas distinguen:
 presupuestos en borrador, enviados, aceptados y rechazados; productos con stock
 bajo el mínimo y uno en cero; una lista de precios además de la de referencia;
@@ -219,6 +226,31 @@ STOCK = {
     "INF-004": 30,
 }
 
+#: La sucursal de la PC del local de pruebas (decisión del humano, 2026-10-22, opción a): con un nodo de LibraEdge
+#: vinculado a «Casa central» la web de la demo no podría mover su stock (409 `deposito_de_sucursal_con_nodo`,
+#: libracommerce ADR-071) y un visitante no podría vender. El nodo se vincula acá; la web sigue vendiendo en «Casa
+#: central». Sólo con `DEMO_MODE=1` (ver `_sembrar_sucursal_del_local`).
+SUCURSAL_DEL_LOCAL = "Sucursal con PC del local"
+DEPOSITO_DEL_LOCAL = "Depósito del local"
+
+#: 🔴 El id de la sucursal del local es **fijo** y `reset_demo.sh` depende de él: borra la base, siembra y después
+#: restaura los nodos (`libraedge-central nodo restaurar`, libraedge ADR-022) con el `branch_id` que tenían. «Casa central»
+#: es la 1 (la adopta la revisión `0006_sucursal_unica` o `init_db()`, en un schema recién creado) y la sucursal del local
+#: es la siguiente de la secuencia. Si no sale 2 la siembra FALLA: un nodo restaurado en otra sucursal quedaría apuntando a
+#: la equivocada, sin error y con la web de la demo en sólo lectura otra vez.
+ID_SUCURSAL_DEL_LOCAL = 2
+
+#: Cuánto de la existencia de `STOCK` vive en el depósito del local. **`STOCK` sigue siendo el TOTAL:** el ajuste
+#: `absoluto` de la API compara contra la suma de todos los depósitos y escribe la diferencia en el depósito por defecto
+#: (límite preexistente de `erp.stock.ajustar_stock`), así que lo que se saca de «Casa central» tiene que estar ya en el
+#: depósito del local ANTES de la carga inicial para que correr el seed dos veces no mueva nada. Sólo productos con
+#: stock de sobra: los de alerta (`INF-001` en cero, `PAP-003`, `INF-003`) siguen bajo el mínimo.
+STOCK_DEL_LOCAL = {
+    "PAP-001": 20,
+    "PAP-002": 10,
+    "INF-004": 8,
+}
+
 #: Las cuatro condiciones frente al IVA que decide el tipo de comprobante.
 #: Con todos los clientes iguales, esa parte del producto no se ve.
 CLIENTES = [
@@ -283,6 +315,10 @@ def sembrar(api: Api) -> date:
     for p in PROVEEDORES:
         _, nuevo = obtener_o_crear(api, "/api/proveedores", "nombre", p["nombre"], p)
         contar("proveedores", nuevo)
+
+    # ANTES de la carga inicial del stock: ver `STOCK_DEL_LOCAL`.
+    print("Sucursal de la PC del local…")
+    _sembrar_sucursal_del_local(productos, contar)
 
     print("Stock…")
     for codigo, cantidad in STOCK.items():
@@ -625,6 +661,73 @@ def _prender_copia_externa(contar) -> None:
     if not get_modulos().get(ADDON_COPIA_EXTERNA):
         raise RuntimeError("el add-on de copia externa no quedó prendido")
     contar("add-ons", not ya_estaba)
+
+
+def _sembrar_sucursal_del_local(productos: dict, contar) -> None:
+    """La segunda sucursal de la demo, con su depósito y algo de stock, para que la PC del local de pruebas se vincule
+    ahí y la web siga vendiendo en «Casa central».
+
+    🔴 **La otra excepción a "todo por la API", y va acotada igual que `_prender_copia_externa`.** Contalibra no
+    expone `/api/sucursales` (es de un solo local: ninguna ruta ni pantalla de sucursales), así que no hay endpoint
+    para crearla. Se usan las mismas funciones del motor que usaría el router (`catalogo.create_sucursal`, que crea la
+    sucursal **y** su depósito predeterminado, y `stock.ajustar_stock` con el `deposito_id` del local), y sólo adentro
+    de una instancia demo (`DEMO_MODE=1`). Contra cualquier otra cosa no toca nada.
+
+    - **Determinista** (`ID_SUCURSAL_DEL_LOCAL`): si la sucursal nueva no sale con ese id, levanta `RuntimeError` y no
+      queda nada escrito (la transacción se deshace; la sucursal, su depósito y el stock van en una sola). Idempotente:
+      si ya existe, se verifica su id y se reutiliza.
+    - **«Casa central» sigue siendo la predeterminada:** la web vende de su depósito (`get_default_sucursal_id`), y
+      `app.sucursal_unica.adoptar` no toca el depósito del local (sólo asigna los que tienen `branch_id` NULL).
+    - El stock del depósito del local se fija en modo `absoluto` por depósito (compara contra ESE depósito, no contra el
+      total): idempotente. Y va antes de la carga inicial, ver `STOCK_DEL_LOCAL`.
+    """
+    if os.environ.get("DEMO_MODE") != "1":
+        print("  -- sucursal del local: no es una instancia demo (DEMO_MODE), "
+              "no se crea")
+        return
+    # `reset_demo.sh` corre `python3 /tmp/seed.py`: el paquete `app` de la
+    # instancia está en /app y no en el path del script.
+    if os.path.isdir("/app/app") and "/app" not in sys.path:
+        sys.path.insert(0, "/app")
+    try:
+        from libracommerce.db.repository import repositorio_de
+        from libracommerce.erp import catalogo, stock
+
+        from app.db_core import get_connection
+    except ImportError as e:
+        print(f"  -- sucursal del local: no corre adentro de la instancia ({e})")
+        return
+    with get_connection() as conn:
+        # 🔴 `create_sucursal` COMMITEA por su cuenta (cada escritura del repositorio del motor lo hace): sin esta
+        # transacción, la verificación del id de abajo llegaría tarde y la sucursal con el id equivocado quedaría grabada.
+        with repositorio_de(conn).transaction():
+            if catalogo.get_default_sucursal_id(conn) is None:
+                # El reset siembra con el seed de `develop` sobre un contenedor que puede ser de `main`, anterior a la
+                # sucursal única: sin «Casa central» la del local saldría con el id 1 y abortaría una siembra que, sin
+                # esto, termina bien. La demo es más importante que el nodo.
+                print("  -- sucursal del local: la instancia no tiene «Casa central» (versión anterior a la sucursal "
+                      "única), no se crea")
+                return
+            fila = conn.execute("SELECT id FROM branches WHERE name = ?", (SUCURSAL_DEL_LOCAL,)).fetchone()
+            nueva = fila is None
+            sucursal_id = (
+                catalogo.create_sucursal(conn, SUCURSAL_DEL_LOCAL, deposito=DEPOSITO_DEL_LOCAL) if nueva else fila[0]
+            )
+            if sucursal_id != ID_SUCURSAL_DEL_LOCAL:
+                raise RuntimeError(
+                    f"la sucursal «{SUCURSAL_DEL_LOCAL}» quedó con el id {sucursal_id} y tiene que ser "
+                    f"{ID_SUCURSAL_DEL_LOCAL}: reset_demo.sh restaura los nodos con ese branch_id. Alguien creó una "
+                    "sucursal antes que la semilla (la demo no tiene más que «Casa central»); resetear la demo."
+                )
+            deposito = conn.execute(
+                "SELECT id FROM locations WHERE branch_id = ? AND name = ?", (sucursal_id, DEPOSITO_DEL_LOCAL)
+            ).fetchone()
+            if deposito is None:
+                raise RuntimeError(f"la sucursal {sucursal_id} no tiene el depósito «{DEPOSITO_DEL_LOCAL}».")
+            for codigo, cantidad in STOCK_DEL_LOCAL.items():
+                stock.ajustar_stock(conn, productos[codigo], cantidad, "Carga inicial de la demo (depósito del local)",
+                                    deposito_id=deposito[0])
+    contar("sucursal del local", nueva)
 
 
 def _sesion_del_visitante(api):

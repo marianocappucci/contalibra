@@ -1,5 +1,18 @@
 # Changelog
 
+## Sin publicar — 2026-10-22
+
+### La demo siembra una segunda sucursal para la PC del local (sólo `DEMO_MODE=1`; sin migración)
+
+- **Decisión del humano (2026-10-22, opción a):** con un nodo de LibraEdge vinculado a la única sucursal de la demo, la web de la demo queda con el stock en sólo lectura (409 `deposito_de_sucursal_con_nodo`, libracommerce ADR-071) y un visitante no puede vender. `scripts/seed_demo.py` deja ahora una segunda sucursal **«Sucursal con PC del local»** con su depósito «Depósito del local» y algo de stock (resmas, cuadernos y cables HDMI: `STOCK_DEL_LOCAL`), para que la PC del local de pruebas se vincule ahí y la web siga vendiendo en «Casa central».
+- **Id fijo (`ID_SUCURSAL_DEL_LOCAL = 2`):** `reset_demo.sh` borra la base, siembra y después restaura los nodos (`libraedge-central nodo restaurar`, libraedge ADR-022) con el `branch_id` que tenían. «Casa central» es la 1 (la adopta la `0006_sucursal_unica` o `init_db()` sobre un schema recién creado) y la del local es la siguiente de la secuencia; si no sale con el 2, la semilla **falla** y no deja nada escrito (la sucursal, su depósito y el stock van en una sola transacción del repositorio del motor). Idempotente: si ya existe se verifica su id y se reutiliza.
+- **Segunda excepción a «todo por la API», acotada igual que `_prender_copia_externa`:** Contalibra no expone `/api/sucursales`, así que se usan las funciones del motor (`catalogo.create_sucursal`, que crea la sucursal y su depósito predeterminado, y `stock.ajustar_stock` con el `deposito_id` del local) y sólo con `DEMO_MODE=1`. Fuera de una demo no crea nada.
+- **`STOCK` sigue siendo el total.** El ajuste `absoluto` de la API compara contra la suma de todos los depósitos y escribe la diferencia en el depósito por defecto (límite preexistente de `erp.stock.ajustar_stock`), así que el stock del local se siembra ANTES de la carga inicial: «Depósito principal» queda con `STOCK` menos lo del local, el total de cada producto no cambia (las alertas de stock bajo y en cero siguen) y correr la semilla dos veces no mueve nada.
+- **«Casa central» sigue siendo la predeterminada:** `get_default_sucursal_id` no cambia, la venta web sale de su depósito y anota su sucursal, y `app/sucursal_unica.adoptar` no toca el depósito del local (sólo asigna los de `branch_id` NULL).
+- **Qué ve distinto un visitante:** sólo la pantalla de Depósitos (y la transferencia entre depósitos y el detalle de stock por depósito de un producto) lista un depósito más, «Depósito del local». No aparece ningún selector de sucursal (el kit las lee de `/api/sucursales`, que no existe acá) y cajas, turnos, ventas, stock y reportes dan lo mismo. Con la PC vinculada, una transferencia hacia «Depósito del local» da 409 (su stock lo mueve el nodo); vender y ajustar en «Casa central» sigue andando.
+- **Hay que revincular una vez:** un nodo que ya estaba vinculado a «Casa central» se restaura en la 1 y no se mueve solo; para que la web pueda vender hay que darlo de baja y vincular la PC de nuevo, eligiendo «Sucursal con PC del local».
+- **Tests (`tests/test_seed_demo.py`):** con `DEMO_MODE` queda la sucursal 2 con su depósito, su stock y el total de `STOCK` intacto; fuera de `DEMO_MODE` no se crea; dos corridas no cambian nada; la venta web sale de «Casa central»; `adoptar` e `init_db` no reasignan el depósito del local; si el id no coincide la semilla falla y no deja nada; y, en el orden real del reset (cadena de migraciones, arranque), `branches` numera 1 y 2.
+
 ## Sin publicar — 2026-10-21
 
 ### El stock de la sucursal del nodo lo mueve sólo el nodo (libracommerce ADR-071, libraedge ADR-023; sin migración propia, la 0008 es de `libracommerce-migrar`)
