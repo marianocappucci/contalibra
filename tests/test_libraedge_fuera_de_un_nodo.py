@@ -156,6 +156,28 @@ def test_la_sincronizacion_esta_montada_pero_sin_nodos_no_entra_nadie(client):
     assert _cuantas("sales") == 0
 
 
+def test_el_stock_se_mueve_como_siempre_sin_encolar_ni_guardar(admin_client):
+    """Libracommerce ADR-071 se cablea en las dos puntas, pero fuera de un nodo y sin nodos registrados no hace nada: los
+    ajustes y las transferencias de Compulibra son los de siempre (ni 409 ni operaciones en el outbox)."""
+    producto = admin_client.post("/api/productos", json={"nombre": "Cable UTP", "precio_venta": 5000.0}).json()
+    destino = admin_client.post("/api/depositos", json={"nombre": "Camioneta"}).json()
+    origen = next(d for d in admin_client.get("/api/depositos").json() if d["id"] != destino["id"])
+    assert admin_client.post(f"/api/stock/{producto['id']}/ajuste", json={"modo": "entrada", "cantidad": 20}).status_code == 200
+    assert admin_client.post(f"/api/stock/{producto['id']}/ajuste", json={"modo": "salida", "cantidad": 5}).status_code == 200
+    r = admin_client.post("/api/depositos/transferir", json={
+        "producto_id": producto["id"], "origen_id": origen["id"], "destino_id": destino["id"], "cantidad": 7})
+    assert r.status_code == 200, r.text
+    assert admin_client.get(f"/api/stock/{producto['id']}").json()["stock_actual"] == 15
+    _venta(admin_client)
+    _nada_encolado()
+
+
+def test_la_carga_inicial_esta_montada_pero_sin_nodos_no_entra_nadie(client):
+    r = client.get("/sync/v1/carga-inicial", params={"node_id": "nodo-ficticio"},
+                   headers={"Authorization": "Bearer secreto-ficticio"})
+    assert r.status_code == 401
+
+
 def test_al_arrancar_no_queda_ninguna_facturacion_automatica(client):
     from app.web import app as modulo_app
 

@@ -12,6 +12,7 @@ fue el primer adoptante (E5); lo que queda acá es declarativo.
 | `OUTBOX` | la identidad del nodo y si está en línea. Sin `extra_de_venta`: la venta de mostrador no lleva nada propio |
 | `GANCHOS_DE_CAJA` | la caja del nodo (turnos y movimientos a mano) sube al central como operaciones |
 | `altas_en_nodo` | los clientes que se dan de alta en el nodo (id provisorio y `cliente.alta`) suben al central |
+| `offline_stock` | el stock de la sucursal del nodo: sus ajustes suben (`stock.movimiento`), el central se niega a moverlo (409) y la carga inicial lo trae al vincular |
 | `CONEXION` / `numerar_en_el_nodo` | en el nodo, facturar con el ticket de ARCA que presta el central |
 
 🔑 **Fuera de un nodo nada cambia.** Una instancia común —Compulibra, la demo— no tiene `LIBRAEDGE_NODE_ID`:
@@ -37,6 +38,12 @@ También **abre y cierra turnos, anota y anula movimientos de caja a mano** y to
 libracommerce ADR-069): los routers de caja y de turnos reciben `GANCHOS_DE_CAJA`. Los movimientos que nacen de una venta
 **no** se enganchan: los reproduce el central al aplicar la venta. Este producto no monta el cierre diario
 (`build_cierre_diario_router`): no hay `dia.cerrado` que subir ni `reabrir` que proteger.
+**Mueve el stock de su sucursal** (decisión del humano, 2026-10-21; libracommerce ADR-071): los ajustes —también el de modo
+entrada, que es como entra la mercadería: Contalibra no tiene compras ni recepciones— y las transferencias entre sus
+depósitos suben como `stock.movimiento`. Al vincular trae las existencias de su sucursal del central (libraedge ADR-023) y
+desde ahí manda el nodo: **el central contesta 409 a todo movimiento de stock sobre los depósitos de una sucursal con nodo**
+(ajustes, transferencias y ventas desde la web). Un depósito sin sucursal no es de ningún nodo, así que no se vincula
+mientras haya uno.
 Factura **desde la venta** con internet (ticket prestado) y, sin conexión, la venta queda en la bandeja y se factura
 sola al volver. **No** emite facturas sueltas, remitos, presupuestos, recibos ni notas: eso es del central y necesita
 internet. Sin conexión el QR de MercadoPago está apagado.
@@ -55,6 +62,7 @@ from __future__ import annotations
 
 import os
 
+from libracommerce.erp import offline_stock
 from libracommerce.erp.offline import NodoLocal, Outbox
 from libracommerce.erp.offline_caja import caja_con_outbox
 from libracommerce.erp.offline_clientes import altas_en_nodo as altas_de_clientes
@@ -156,6 +164,13 @@ GANCHOS_DE_CAJA = caja_con_outbox(GanchosDeCaja(), OUTBOX)
 #: módulo, que importan la app y el CLI del central (`LIBRAEDGE_APROVISIONAMIENTO`): en las dos puntas. **Fuera de un nodo**
 #: (`nodo_local()` es `None`) el motor no pide ids provisorios ni avisa a nadie, y el alta es la de siempre (Compulibra).
 altas_en_nodo.configurar(altas_de_clientes(OUTBOX))
+
+#: El stock de la sucursal del nodo (libracommerce ADR-071). Una sola llamada, en las dos puntas: en un nodo cada movimiento
+#: del ledger que no es de una venta encola `stock.movimiento` (en la misma transacción); en el central, la guarda le niega
+#: a la web mover un depósito de una sucursal con nodo activo (`DepositoDeSucursalConNodo`, que `app/web/app.py` convierte
+#: en 409). Se registra al importar este módulo, como `altas_en_nodo`. Contalibra no tiene compras: no hay
+#: `recepcion_con_outbox` que enchufar. **Fuera de un nodo y sin nodos registrados** (Compulibra, la demo) no hace nada.
+offline_stock.configurar(OUTBOX)
 
 
 # ── Facturar en el nodo con el ticket prestado ──────────────────────────────────────────────────────────────────────
@@ -269,6 +284,9 @@ def _aprovisionamiento():
         # Los clientes se dan de alta en el nodo (id provisorio): `clients` con lo que lo referencia sin FK
         # (`cc_asientos.tercero_id`) y su `parties` espejo, a lo que apuntan las ventas.
         altas_en_nodo=[("clients", REFERENCIAS_DE_CLIENTES), "parties"],
+        # Un depósito activo sin sucursal no es de ningún nodo: la guarda del central no lo ve y la carga inicial no lo trae.
+        # El registro se niega hasta que tenga una (libracommerce ADR-071, libraedge ADR-023).
+        validar_registro=offline_stock.depositos_sin_sucursal,
     )
 
 
