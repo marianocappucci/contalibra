@@ -10,7 +10,7 @@ from libraauth.auth_events import AuthEventRepository, ip_del_request
 from libraauth.demo_codigos import DemoCodigoRepository
 from libraauth.migrar import exigir_schema_al_dia
 from libraauth.session_auth import build_demo_codigos_router, demo_username
-from libraauth.terminos import TerminosRepository, build_terminos_router
+from libraauth.terminos import build_terminos_router
 from libracommerce.erp import offline_stock
 from libracommerce.web.catalogo_router import (
     OpcionesDepositos,
@@ -50,6 +50,7 @@ from libracore.estado_del_sistema import build_estado_del_sistema_router
 from libracore.facturas_router import smtp_efectivo
 from libracore.libros_iva_router import build_libros_iva_export_router, build_libros_iva_router
 from libracore.logs_router import build_logs_export_router, build_logs_router
+from libracore.marca_router import build_marca_admin_router, build_marca_router
 from libracore.mp_config_router import build_mp_config_router
 from libracore.reportes_router import build_reportes_export_router, build_reportes_router
 from libracore.resguardo_enlace import build_resguardo_enlace_router
@@ -65,6 +66,7 @@ from app import config_manager, db_usuarios, venta_facturacion
 from app import database as db
 from app.db_core import get_connection as _abrir_conexion
 from app.db_reportes import REPORTES
+from app.frontend_dist import frontend_dist
 from app.offline import GANCHOS_DE_CAJA, nodos_del_central
 from app.offline import aprovisionamiento as aprovisionamiento_offline
 from app.security_headers import SecurityHeadersMiddleware
@@ -119,7 +121,10 @@ app.state.password_reset = db_usuarios.password_reset_service()
 #
 # 🔴 Sin esta linea el gate NO corta y la instancia no falla: se queda sin gate,
 # en silencio. Por eso hay un test que lo prueba (`tests/test_terminos_gate.py`).
-app.state.terminos = TerminosRepository(db_usuarios.sessions())
+#
+# Marca blanca (ADR-092/093 del motor): una instancia con marca propia **exige** los Terminos de su revendedor y, sin ellos, queda
+# frenada; nunca cae a los de la familia. La fabrica vive en `db_usuarios` para que la use tambien la suite.
+app.state.terminos = db_usuarios.repositorio_de_terminos()
 
 # 🔴 Solo en la demo, y **falla cerrado**: una instancia demo que llegue aca
 # sin el repositorio deja de dejar entrar, con `503 demo access codes not
@@ -394,6 +399,11 @@ app.include_router(build_empresa_admin_router(), dependencies=[Depends(require_a
 # del token de servicio del backoffice: 🔴 con `require_admin_json` a secas el backoffice NO entraría (esa guarda no conoce el token).
 app.include_router(build_tema_router())
 app.include_router(build_tema_admin_router(), dependencies=[Depends(require_admin_o_servicio_json)])
+# La marca de la instancia (nombre, logo, color, iconos y manifest), para venderla a marca blanca. La lectura es publica (el login tambien
+# lleva la marca) y va **antes** del catch-all de la SPA (`montar_spa`, al final del modulo): si no, `/manifest.webmanifest` devolveria el
+# `index.html`. Escribir es del admin o del backoffice (token de servicio).
+app.include_router(build_marca_router(dist=frontend_dist()))
+app.include_router(build_marca_admin_router(), dependencies=[Depends(require_admin_o_servicio_json)])
 # Los adicionales contratados (libracore ADR-048): `GET /api/adicionales` lo ve el admin o el backoffice; `PUT /api/adicionales/{clave}` SOLO el token
 # de servicio (🔴 un adicional es un limite comercial: si lo cargara el admin del cliente, contratar no costaria nada). `mayorista` y
 # `resguardo_externo` (`plans.ADDONS`) aparecen como si/no. LibraEdge ya no es un adicional (libraedge ADR-014: incluido en todos los planes).
@@ -791,15 +801,7 @@ app.include_router(build_consultar_cuit_router(usuario_actual=get_current_user_j
 # final del modulo a proposito: todos los routers de arriba (HTML y /api/)
 # ya fueron declarados, asi que el catch-all solo atrapa lo que ningun otro
 # endpoint respondio.
-_DOCKER_FRONTEND_DIST = "/opt/frontend-dist"
-# Tres niveles arriba: app/web/app.py -> app/web -> app -> raiz del repo.
-# Eran dos cuando este archivo vivia en web/; al empaquetar (2026-07-31) se
-# sumo un nivel. Solo aplica al dev local sin Docker: en el contenedor gana
-# _DOCKER_FRONTEND_DIST.
-_LOCAL_FRONTEND_DIST = os.path.join(
-    os.path.dirname(__file__), "..", "..", "frontend", "dist"
-)
-FRONTEND_DIST = _DOCKER_FRONTEND_DIST if os.path.isdir(_DOCKER_FRONTEND_DIST) else _LOCAL_FRONTEND_DIST
+FRONTEND_DIST = frontend_dist()  # ver `app/frontend_dist.py`
 
 if os.path.isdir(FRONTEND_DIST):
     montar_spa(app, FRONTEND_DIST)
