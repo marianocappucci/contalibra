@@ -1,5 +1,15 @@
 # Changelog
 
+## Sin publicar — 2026-10-30
+
+### Marca blanca: la instancia lleva el nombre, el logo, el color y los términos de un revendedor (sin migración)
+
+- `libracore` v1.204.0 → **v1.206.0**, `libraauth` v0.56.0 → **v0.57.0**, `libra-ui` v0.183.0 → **v0.185.0**.
+- `/api/marca` y `/manifest.webmanifest` (lectura pública; escribir es del admin o del token de servicio del backoffice; la credencial de integración no). Con marca propia la instancia **exige** los Términos del revendedor y, sin ellos, queda frenada; nunca cae a los de la familia (`db_usuarios.repositorio_de_terminos()`).
+- El mail de recuperación sale con el nombre de la marca. `app/frontend_dist.py` resuelve el dist una sola vez (`CONTALIBRA_FRONTEND_DIST` lo pisa en los tests) y `main.tsx` espera `cargarMarca()` antes de montar.
+- ⚠️ `CONTALIBRA_RESET_URL_BASE` tiene por defecto `dev.contalibra.com.ar`: una instancia de revendedor tiene que definirla.
+- Tests: `tests/test_marca_blanca.py`, `tests/test_marca_blanca_terminos.py`, `tests/test_credencial_de_integracion.py` (fila nueva).
+
 ## Sin publicar — 2026-10-22
 
 ### La demo siembra una segunda sucursal para la PC del local (sólo `DEMO_MODE=1`; sin migración)

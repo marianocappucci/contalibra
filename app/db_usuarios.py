@@ -59,6 +59,8 @@ from libraauth.smtp_settings import (  # noqa: F401  (re-exportados para el rout
     resolver_smtp_config,
 )
 from libracore import config_manager as _lc_config_manager
+from libracore.marca_router import es_marca_propia, nombre_de_marca
+from libracore.terminos_propios import leer_terminos_propios
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -165,7 +167,8 @@ def migrar_secretos() -> dict:
 
 _password_reset = PasswordResetService(
     _sessions,
-    product_name="Contalibra",
+    # CALLABLE: con marca propia el mail de recuperacion sale con el nombre del revendedor.
+    product_name=lambda: nombre_de_marca("Contalibra"),
     reset_url_base=os.environ.get(
         "CONTALIBRA_RESET_URL_BASE", "https://dev.contalibra.com.ar/reset-password"
     ),
@@ -205,6 +208,17 @@ def sessions():
     """El `session_factory` donde vive `usuarios` — y desde v0.28.0 tambien
     `demo_codigos` y `auth_log`."""
     return _sessions
+
+
+def repositorio_de_terminos():
+    """El repositorio de Terminos y Condiciones, con la marca blanca cableada (libracore ADR-092/093, libraauth ADR-030).
+
+    Una instancia con marca propia **exige** los Terminos de su revendedor y, sin ellos, queda frenada; nunca cae a los de la
+    familia. Lo usan la app y la fixture de los tests que miden el gate: una sola definicion, para que sacar `exigir_propio` se vea.
+    """
+    from libraauth.terminos import TerminosRepository
+
+    return TerminosRepository(_sessions, contrato_propio=leer_terminos_propios, exigir_propio=es_marca_propia)
 
 
 def user_repository():

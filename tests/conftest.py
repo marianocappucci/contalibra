@@ -265,10 +265,10 @@ def _terminos_ya_aceptados(request):
         # 🔴 **Y la `app` de este módulo, no la de `app.web.app`.** `test_demo_publica` recarga `app.web.app` y deja ahí
         # OTRA app; `client`/`admin_client` siguen usando esta. Importarla acá cambiaba el repositorio de la app que
         # nadie consulta, y el gate seguía viendo la aceptación de `test_e2e_usuarios` (medido: ese par, en ese orden).
-        from libraauth.terminos import TerminosRepository
-
+        # Y con la MISMA fabrica que la app (`db_usuarios.repositorio_de_terminos`): si la fixture armara el suyo, sacar la marca
+        # blanca del cableado de la app no se veria en `test_marca_blanca_terminos.py`.
         anterior = app.state.terminos
-        app.state.terminos = TerminosRepository(db_usuarios.sessions())
+        app.state.terminos = db_usuarios.repositorio_de_terminos()
         yield
         app.state.terminos = anterior
         return
