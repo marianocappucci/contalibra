@@ -112,6 +112,11 @@ def test_la_integracion_no_escribe_el_tema(sin_sesion):
     assert r.status_code in (401, 403), r.status_code
 
 
+def test_la_integracion_no_escribe_la_marca(sin_sesion):
+    r = sin_sesion.put("/api/marca", json={"nombre": "Otra"}, headers=_integ())
+    assert r.status_code in (401, 403), r.status_code
+
+
 def test_la_integracion_no_cambia_el_usuario_de_integraciones(sin_sesion):
     r = sin_sesion.put("/api/integraciones/config", json={"username": "admin"}, headers=_integ())
     assert r.status_code in (401, 403), r.status_code
