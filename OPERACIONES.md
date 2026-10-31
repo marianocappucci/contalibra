@@ -32,9 +32,9 @@ El sistema maneja dos entornos completamente separados que corren en el mismo se
 | Rama git | `develop` | `main` |
 | Puerto | `8071` | `8070` |
 | Contenedor Docker | `contalibra-dev` | `contalibra` |
-| docker-compose | `docker-compose.yml` | `docker-compose.prod.yml` |
-| Base de datos | `./dev-data/contalibra.db` | `./contalibra.db` |
-| Código | Volumen montado (hot-reload) | Copiado en la imagen |
+| docker-compose | `docker-compose.yml` | uno por instancia, en `<LIBRA_CLIENTES_DIR>/<slug>/` |
+| Base de datos | PostgreSQL (sidecar propio); archivos en `./dev-data` | PostgreSQL (sidecar propio por instancia) |
+| Código | Horneado en la imagen (se reconstruye con `docker compose up -d --build`) | Horneado en la imagen |
 | Badge en UI | `DEV` amarillo en sidebar | Sin badge |
 
 ### Flujo de trabajo diario
@@ -133,7 +133,6 @@ VPS
 │   │   │   ├── .env           ← si la instancia lo tiene
 │   │   │   ├── backups/       ← backups automáticos de la DB
 │   │   │   └── data/          ← montado en /app/data dentro del contenedor
-│   │   │       ├── contalibra.db
 │   │   │       ├── config.json
 │   │   │       ├── logos/
 │   │   │       └── arca_certs/
@@ -169,8 +168,10 @@ código llega construyendo una imagen nueva (`panel_admin.py actualizar`), no
 reiniciando. El sidecar PostgreSQL de la instancia usa un volumen nombrado de
 Docker, que no depende de este directorio.
 
-Cada cliente tiene su propia base de datos SQLite aislada, sin ningún
-componente compartido entre instancias.
+Cada cliente tiene su propia base de datos PostgreSQL aislada (el sidecar de su
+instancia), sin ningún componente compartido entre instancias. Los `contalibra.db`
+de SQLite que puedan quedar en `data/` son de antes del corte a PostgreSQL: la
+aplicación ya no los lee.
 
 ---
 
@@ -296,9 +297,9 @@ python3 scripts/panel_admin.py listar    # lista rápida desde CLI
 | `4` | `stop <slug>` | Detiene el contenedor |
 | `5` | `restart <slug>` | Reinicia el contenedor |
 | `6` | `logs <slug>` | Muestra logs en tiempo real (Ctrl+C para salir) |
-| `7` | `backup <slug>` | Backup completo (tar.gz) + copia de la DB |
-| `rb` | `restore-db <slug>` | Restaura la DB desde un backup |
-| `lb` | `list-backups <slug>` | Lista backups de DB disponibles |
+| `7` | `backup <slug>` | Backup de la instancia: un ZIP en `data/backups/` (el mismo que lista la pantalla de Backups) |
+| `rb` | `restore-db <slug>` | Restaura la instancia desde un ZIP de backup (sólo instancias PostgreSQL) |
+| `lb` | `list-backups <slug>` | Lista los backups disponibles de la instancia |
 | `sa` | `activar <slug>` | Activa el servicio (acceso normal) |
 | `sp` | `pausar <slug>` | Pausa (muestra banner de aviso, sin cortar acceso) |
 | `ss` | `suspender <slug>` | Suspende (bloquea el acceso completamente) |
@@ -387,27 +388,31 @@ python3 scripts/panel_admin.py logs mitienda
 python3 scripts/panel_admin.py backup mitienda
 ```
 
-Genera dos archivos (`<LIBRA_CLIENTES_DIR>` es `/srv/libra/contalibra/clientes` en el VPS):
-- `<LIBRA_CLIENTES_DIR>/mitienda_backup_YYYYMMDD_HHMMSS.tar.gz` — todo el directorio `data/`
-- `<LIBRA_CLIENTES_DIR>/mitienda/backups/contalibra_YYYYMMDD_HHMMSS.db` — solo la DB
+Genera un ZIP en `<LIBRA_CLIENTES_DIR>/mitienda/data/backups/`, el mismo que lista y
+descarga la pantalla de Backups del producto: el producto declara `backup_zip=True`
+(`scripts/panel_admin.py`), así que el motor (libracore v1.123.0) arma ese artefacto
+con la retención de `libracore.respaldo.MAX_BACKUPS`.
 
-> Esto describe el camino sin `backup_zip`. El producto declara `backup_zip=True`
-> (`scripts/panel_admin.py`), y con eso el motor (libracore v1.123.0) arma en
-> cambio un ZIP en `<instancia>/data/backups/`, el mismo que lista la pantalla de
-> Backups. Los `tar.gz` viejos de la raíz de `clientes/` quedaron copiados en
+> Los `tar.gz` viejos de la raíz de `clientes/` (el camino sin `backup_zip`, que
+> empaquetaba `data/` y dejaba el dump de PostgreSQL afuera) quedaron copiados en
 > `/srv/libra/contalibra/backups-legacy/`.
 
-### Restaurar la DB de un cliente
+### Restaurar una instancia
 
 ```bash
 # Interactivo (muestra lista de backups disponibles):
 python3 scripts/panel_admin.py restore-db mitienda
 
 # Pasando el archivo directamente:
-python3 scripts/panel_admin.py restore-db mitienda contalibra_20260512_143022.db
+python3 scripts/panel_admin.py restore-db mitienda <archivo>.zip
 ```
 
-El proceso: para el contenedor → backup automático del estado actual → restaura → reinicia.
+Sólo acepta **ZIP** y sólo instancias **PostgreSQL**: un `.db` de SQLite o un
+`.dump` suelto se rechazan. Es un envoltorio de `libracore.respaldo`: corre la
+restauración en un contenedor efímero de la misma imagen, con un backup previo del
+estado actual y las migraciones que declara esa imagen, y vuelve a levantar la app.
+Si el contenedor de la instancia no está, levantarlo primero: el comando detecta el
+motor leyendo sus variables de entorno.
 
 ### Ver backups disponibles
 
@@ -418,7 +423,7 @@ python3 scripts/panel_admin.py list-backups mitienda
 ### El cliente también puede hacer backup/restore
 
 Desde el sistema web: `/config` → pestaña **Datos / Backup**. Puede descargar
-la DB y restaurar desde un archivo `.db` previo. Siempre se hace backup
+el ZIP de backup y restaurar desde uno previo. Siempre se hace backup
 automático antes de cualquier restauración.
 
 ---
@@ -623,9 +628,8 @@ docker logs contalibra-web --tail 50
 │       ├── docker-compose.yml
 │       ├── cliente.json        ← nombre, puerto, credenciales admin
 │       ├── .env                ← si la instancia lo tiene
-│       ├── backups/            ← backups de DB
+│       ├── backups/            ← dumps de PostgreSQL del camino viejo
 │       └── data/               ← montado en /app/data (./data:/app/data)
-│           ├── contalibra.db   ← base de datos SQLite
 │           ├── config.json     ← configuración de la empresa
 │           ├── logos/
 │           ├── arca_certs/
